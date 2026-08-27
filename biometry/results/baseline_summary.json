@@ -1,0 +1,29 @@
+[
+    {
+        "stress_level": 0.0,
+        "iterations": 1000,
+        "mean_error_px": 10.09,
+        "std_error_px": 5.23,
+        "mean_delay_s": 0.2499,
+        "std_delay_s": 0.0497,
+        "miss_rate_pct": 0.0
+    },
+    {
+        "stress_level": 0.5,
+        "iterations": 1000,
+        "mean_error_px": 19.9,
+        "std_error_px": 10.28,
+        "mean_delay_s": 0.2507,
+        "std_delay_s": 0.1196,
+        "miss_rate_pct": 2.6
+    },
+    {
+        "stress_level": 1.0,
+        "iterations": 1000,
+        "mean_error_px": 29.99,
+        "std_error_px": 15.5,
+        "mean_delay_s": 0.2615,
+        "std_delay_s": 0.1707,
+        "miss_rate_pct": 15.3
+    }
+]
