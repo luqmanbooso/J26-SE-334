@@ -1,42 +1,19 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-env/
-build/
-develop-eggs/
+# Node modules & build artifacts
+node_modules/
+frontend/node_modules/
 dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
+frontend/dist/
 
-# Virtual Environments
-.venv/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
-# Jupyter Notebook Checkpoints
-.ipynb_checkpoints/
-
-# IDE / Editor artifacts
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS artifacts
-Thumbs.db
+# OS metadata
 .DS_Store
+Thumbs.db
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Task & system logs
+*.log
