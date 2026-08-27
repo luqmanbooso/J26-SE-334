@@ -29,7 +29,7 @@ export default function CiCdPipelines() {
     {
       id: 2,
       name: 'Chaos Perturbation',
-      desc: 'C1 Engine applies netem latency, packet loss, and CPU load during UI navigation.',
+      desc: 'Perturbation Engine applies netem latency, packet loss, and CPU load during UI navigation.',
       duration: '1m 15s',
       tag: 'STAGE 02',
       color: '#ff5722'

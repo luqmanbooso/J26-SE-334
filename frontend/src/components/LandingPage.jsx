@@ -17,7 +17,7 @@ export default function LandingPage({ onLaunchDashboard }) {
     },
     {
       q: "How are broken test scripts repaired automatically?",
-      a: "Production Crashlytics & Sentry logs are ingested by Component 4 (Self-Healing Synthesis), leveraging Sentence-BERT semantic embeddings to repair outdated DOM locator targets into executable Appium regression suites."
+      a: "Production Crashlytics & Sentry logs are ingested by Self-Healing Synthesis, leveraging Sentence-BERT semantic embeddings to repair outdated DOM locator targets into executable Appium regression suites."
     },
     {
       q: "Is it completely open-source and free to evaluate?",
@@ -165,8 +165,7 @@ export default function LandingPage({ onLaunchDashboard }) {
                 <ArrowUpRight size={20} />
               </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span className="glow-badge glow-badge-orange" style={{ padding: '2px 8px', fontSize: '10px' }}>Component 1</span>
+            <div>
               <h3 style={{ fontSize: '22px', fontWeight: '800', color: '#fff' }}>Context-Aware Perturbation</h3>
             </div>
           </motion.div>
@@ -185,8 +184,7 @@ export default function LandingPage({ onLaunchDashboard }) {
                 <ArrowUpRight size={20} />
               </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span className="glow-badge glow-badge-orange" style={{ padding: '2px 8px', fontSize: '10px' }}>Component 2</span>
+            <div>
               <h3 style={{ fontSize: '22px', fontWeight: '800', color: '#fff' }}>Human Stress Interaction</h3>
             </div>
           </motion.div>
@@ -205,8 +203,7 @@ export default function LandingPage({ onLaunchDashboard }) {
                 <ArrowUpRight size={20} />
               </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span className="glow-badge glow-badge-orange" style={{ padding: '2px 8px', fontSize: '10px' }}>Component 3</span>
+            <div>
               <h3 style={{ fontSize: '22px', fontWeight: '800', color: '#fff' }}>Vision-Semantic Oracle</h3>
             </div>
           </motion.div>
@@ -225,8 +222,7 @@ export default function LandingPage({ onLaunchDashboard }) {
                 <ArrowUpRight size={20} />
               </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span className="glow-badge glow-badge-orange" style={{ padding: '2px 8px', fontSize: '10px' }}>Component 4</span>
+            <div>
               <h3 style={{ fontSize: '22px', fontWeight: '800', color: '#fff' }}>Self-Healing Synthesis</h3>
             </div>
           </motion.div>
@@ -330,8 +326,8 @@ export default function LandingPage({ onLaunchDashboard }) {
             <div style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: '700', textTransform: 'uppercase', marginBottom: '12px' }}>Features Included</div>
             <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '12px', color: 'var(--text-body)', marginBottom: '32px' }}>
               <li style={{ display: 'flex', gap: '8px', alignItems: 'center' }}><CheckCircle2 size={15} color="#3b82f6" /> Local Emulator Streaming</li>
-              <li style={{ display: 'flex', gap: '8px', alignItems: 'center' }}><CheckCircle2 size={15} color="#3b82f6" /> ADB Chaos Stressor Suite (C1)</li>
-              <li style={{ display: 'flex', gap: '8px', alignItems: 'center' }}><CheckCircle2 size={15} color="#3b82f6" /> Biomechanical Motor Controls (C2)</li>
+              <li style={{ display: 'flex', gap: '8px', alignItems: 'center' }}><CheckCircle2 size={15} color="#3b82f6" /> ADB Chaos Stressor Suite</li>
+              <li style={{ display: 'flex', gap: '8px', alignItems: 'center' }}><CheckCircle2 size={15} color="#3b82f6" /> Biomechanical Motor Controls</li>
             </ul>
             <button className="btn-secondary" onClick={() => onLaunchDashboard('profiles')} style={{ width: '100%', borderRadius: '24px' }}>
               Initialize Sandbox
@@ -348,7 +344,7 @@ export default function LandingPage({ onLaunchDashboard }) {
             <div style={{ fontSize: '11px', color: 'var(--accent-orange-bright)', fontWeight: '700', textTransform: 'uppercase', marginBottom: '12px' }}>Everything in Sandbox, Plus:</div>
             <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '12px', color: '#fff', marginBottom: '32px' }}>
               <li style={{ display: 'flex', gap: '8px', alignItems: 'center' }}><CheckCircle2 size={15} color="#ff5722" /> Context-Aware Perturbation Scheduler</li>
-              <li style={{ display: 'flex', gap: '8px', alignItems: 'center' }}><CheckCircle2 size={15} color="#ff5722" /> Quantized Qwen2-VL Oracle (C3)</li>
+              <li style={{ display: 'flex', gap: '8px', alignItems: 'center' }}><CheckCircle2 size={15} color="#ff5722" /> Quantized Qwen2-VL Oracle</li>
               <li style={{ display: 'flex', gap: '8px', alignItems: 'center' }}><CheckCircle2 size={15} color="#ff5722" /> Non-Crash UI Layout Collisions</li>
               <li style={{ display: 'flex', gap: '8px', alignItems: 'center' }}><CheckCircle2 size={15} color="#ff5722" /> Automated Appium Regression Runner</li>
             </ul>
@@ -367,7 +363,7 @@ export default function LandingPage({ onLaunchDashboard }) {
             <div style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: '700', textTransform: 'uppercase', marginBottom: '12px' }}>Features Included</div>
             <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '12px', color: 'var(--text-body)', marginBottom: '32px' }}>
               <li style={{ display: 'flex', gap: '8px', alignItems: 'center' }}><CheckCircle2 size={15} color="#10b981" /> Everything in Automated CI</li>
-              <li style={{ display: 'flex', gap: '8px', alignItems: 'center' }}><CheckCircle2 size={15} color="#10b981" /> Telemetry Synthesis Engine (C4)</li>
+              <li style={{ display: 'flex', gap: '8px', alignItems: 'center' }}><CheckCircle2 size={15} color="#10b981" /> Telemetry Synthesis Engine</li>
               <li style={{ display: 'flex', gap: '8px', alignItems: 'center' }}><CheckCircle2 size={15} color="#10b981" /> Sentence-BERT Locator Recovery</li>
             </ul>
             <button className="btn-secondary" onClick={() => onLaunchDashboard('attribution')} style={{ width: '100%', borderRadius: '24px' }}>
@@ -460,16 +456,16 @@ export default function LandingPage({ onLaunchDashboard }) {
             </h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', color: 'var(--text-muted)', fontSize: '13px' }}>
               <span onClick={() => onLaunchDashboard('profiles')} style={{ cursor: 'pointer', transition: 'color 0.2s', display: 'flex', alignItems: 'center', gap: '6px' }} className="nav-hover-link">
-                <ArrowRight size={12} color="var(--accent-orange)" /> C1: Environmental Engine
+                <ArrowRight size={12} color="var(--accent-orange)" /> Environmental Engine
               </span>
               <span onClick={() => onLaunchDashboard('human-stress')} style={{ cursor: 'pointer', transition: 'color 0.2s', display: 'flex', alignItems: 'center', gap: '6px' }} className="nav-hover-link">
-                <ArrowRight size={12} color="var(--accent-orange)" /> C2: Biomechanical Engine
+                <ArrowRight size={12} color="var(--accent-orange)" /> Biomechanical Engine
               </span>
               <span onClick={() => onLaunchDashboard('vision')} style={{ cursor: 'pointer', transition: 'color 0.2s', display: 'flex', alignItems: 'center', gap: '6px' }} className="nav-hover-link">
-                <ArrowRight size={12} color="var(--accent-orange)" /> C3: On-Device Vision Oracle
+                <ArrowRight size={12} color="var(--accent-orange)" /> On-Device Vision Oracle
               </span>
               <span onClick={() => onLaunchDashboard('attribution')} style={{ cursor: 'pointer', transition: 'color 0.2s', display: 'flex', alignItems: 'center', gap: '6px' }} className="nav-hover-link">
-                <ArrowRight size={12} color="var(--accent-orange)" /> C4: Self-Healing Synthesis
+                <ArrowRight size={12} color="var(--accent-orange)" /> Self-Healing Synthesis
               </span>
             </div>
           </div>
