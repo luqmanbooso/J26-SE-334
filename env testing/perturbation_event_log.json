@@ -1,0 +1,175 @@
+[
+  {
+    "epoch_ms": 1786820204023,
+    "timestamp": "2026-08-16T00:26:44.023292",
+    "category": "DEVICE_POWER",
+    "action": "BATTERY_PRESSURE",
+    "parameters": {
+      "level": 3,
+      "unplugged": true
+    },
+    "status": "APPLIED"
+  },
+  {
+    "epoch_ms": 1786820204112,
+    "timestamp": "2026-08-16T00:26:44.112605",
+    "category": "DEVICE_THERMAL",
+    "action": "THERMAL_THROTTLE",
+    "parameters": {
+      "temperature_c": 47.5
+    },
+    "status": "APPLIED"
+  },
+  {
+    "epoch_ms": 1786820208310,
+    "timestamp": "2026-08-16T00:26:48.310258",
+    "category": "CONTEXT",
+    "action": "THEME_CHANGE",
+    "parameters": {
+      "dark_mode": true
+    },
+    "status": "APPLIED"
+  },
+  {
+    "epoch_ms": 1786820208593,
+    "timestamp": "2026-08-16T00:26:48.593148",
+    "category": "CONTEXT",
+    "action": "ORIENTATION_CHANGE",
+    "parameters": {
+      "mode": "landscape"
+    },
+    "status": "APPLIED"
+  },
+  {
+    "epoch_ms": 1786820213051,
+    "timestamp": "2026-08-16T00:26:53.051925",
+    "category": "NETWORK",
+    "action": "STATE_TRANSITION",
+    "parameters": {
+      "mode": "offline"
+    },
+    "status": "APPLIED"
+  },
+  {
+    "epoch_ms": 1786820217413,
+    "timestamp": "2026-08-16T00:26:57.413070",
+    "category": "NETWORK",
+    "action": "STATE_TRANSITION",
+    "parameters": {
+      "mode": "normal"
+    },
+    "status": "APPLIED"
+  },
+  {
+    "epoch_ms": 1786820219721,
+    "timestamp": "2026-08-16T00:26:59.721288",
+    "category": "INTERRUPTION",
+    "action": "INCOMING_CALL_RINGING",
+    "parameters": {
+      "number": "15555215554",
+      "console_resp": "OK"
+    },
+    "status": "APPLIED"
+  },
+  {
+    "epoch_ms": 1786820222857,
+    "timestamp": "2026-08-16T00:27:02.857540",
+    "category": "INTERRUPTION",
+    "action": "CALL_ACCEPTED",
+    "parameters": {
+      "action": "keyevent_5_call"
+    },
+    "status": "APPLIED"
+  },
+  {
+    "epoch_ms": 1786820226322,
+    "timestamp": "2026-08-16T00:27:06.322299",
+    "category": "INTERRUPTION",
+    "action": "CALL_DISMISSED",
+    "parameters": {
+      "number": "15555215554",
+      "console_resp": "OK"
+    },
+    "status": "APPLIED"
+  },
+  {
+    "epoch_ms": 1786820228627,
+    "timestamp": "2026-08-16T00:27:08.627088",
+    "category": "INTERRUPTION",
+    "action": "INCOMING_CALL_RINGING",
+    "parameters": {
+      "number": "18009999999",
+      "console_resp": "OK"
+    },
+    "status": "APPLIED"
+  },
+  {
+    "epoch_ms": 1786820231177,
+    "timestamp": "2026-08-16T00:27:11.177682",
+    "category": "INTERRUPTION",
+    "action": "CALL_DISMISSED",
+    "parameters": {
+      "number": "18009999999",
+      "console_resp": "OK"
+    },
+    "status": "APPLIED"
+  },
+  {
+    "epoch_ms": 1786820233496,
+    "timestamp": "2026-08-16T00:27:13.496636",
+    "category": "INTERRUPTION",
+    "action": "SMS_NOTIFICATION",
+    "parameters": {
+      "sender": "15555215554",
+      "message": "Your OTP is 492019. Valid for 5 minutes.",
+      "console_resp": "OK"
+    },
+    "status": "APPLIED"
+  },
+  {
+    "epoch_ms": 1786820237821,
+    "timestamp": "2026-08-16T00:27:17.821432",
+    "category": "INTERRUPTION",
+    "action": "SMS_NOTIFICATION",
+    "parameters": {
+      "sender": "INVALID_SENDER_123",
+      "message": "Purposely invalid sender format test.",
+      "console_resp": "OK"
+    },
+    "status": "APPLIED"
+  },
+  {
+    "epoch_ms": 1786820240060,
+    "timestamp": "2026-08-16T00:27:20.060743",
+    "category": "DEVICE_POWER",
+    "action": "RESET_DEFAULT",
+    "parameters": {},
+    "status": "APPLIED"
+  },
+  {
+    "epoch_ms": 1786820240664,
+    "timestamp": "2026-08-16T00:27:20.664728",
+    "category": "CONTEXT",
+    "action": "RESET_DEFAULT",
+    "parameters": {},
+    "status": "APPLIED"
+  },
+  {
+    "epoch_ms": 1786820241051,
+    "timestamp": "2026-08-16T00:27:21.051118",
+    "category": "NETWORK",
+    "action": "STATE_TRANSITION",
+    "parameters": {
+      "mode": "normal"
+    },
+    "status": "APPLIED"
+  },
+  {
+    "epoch_ms": 1786820241051,
+    "timestamp": "2026-08-16T00:27:21.051291",
+    "category": "SYSTEM",
+    "action": "ENVIRONMENT_FULL_RESET",
+    "parameters": {},
+    "status": "APPLIED"
+  }
+]

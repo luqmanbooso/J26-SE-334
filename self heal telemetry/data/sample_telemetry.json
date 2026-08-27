@@ -1,0 +1,41 @@
+{
+  "session_id": "prod_crash_trace_launcher_01",
+  "app_version": "v2.1.0",
+  "device": "Pixel Emulator",
+  "crash_summary": "Heuristic test for home screen navigation",
+  "breadcrumbs": [
+    {
+      "step": 1,
+      "category": "ui.click",
+      "target_type": "icon",
+      "original_locator": {
+        "text": "Call App",
+        "resource_id": "com.android.telephony:id/btn_make_phone_call",
+        "content_desc": "start dialer phone"
+      },
+      "action": "TAP"
+    },
+    {
+      "step": 2,
+      "category": "ui.click",
+      "target_type": "icon",
+      "original_locator": {
+        "text": "SMS Text Chat",
+        "resource_id": "com.android.mms:id/action_compose_new_sms",
+        "content_desc": "messaging conversation"
+      },
+      "action": "TAP"
+    },
+    {
+      "step": 3,
+      "category": "ui.click",
+      "target_type": "icon",
+      "original_locator": {
+        "text": "Internet Browser",
+        "resource_id": "com.android.browser:id/url_bar_launch",
+        "content_desc": "google chrome web navigator"
+      },
+      "action": "TAP"
+    }
+  ]
+}
