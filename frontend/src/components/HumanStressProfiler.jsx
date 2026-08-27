@@ -50,10 +50,7 @@ export default function HumanStressProfiler() {
             <Flame size={24} />
           </div>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span className="glow-badge glow-badge-orange" style={{ fontSize: '9px', padding: '2px 8px' }}>Component 2</span>
-              <span style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: '600', textTransform: 'uppercase' }}>Sub-Objective C2</span>
-            </div>
+            <div style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: '600', textTransform: 'uppercase' }}>Biomechanical Stress</div>
             <h1 style={{ fontSize: '20px', fontWeight: '900', color: '#fff', marginTop: '2px' }}>
               Human Stress Profiler & Interactive Touch Heatmap Simulation
             </h1>

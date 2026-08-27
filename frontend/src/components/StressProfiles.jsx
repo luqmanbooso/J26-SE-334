@@ -90,10 +90,7 @@ export default function StressProfiles({ config, setConfig, onRunTest }) {
               <Sliders size={24} />
             </div>
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span className="glow-badge glow-badge-orange" style={{ fontSize: '9px', padding: '2px 8px' }}>Component 1</span>
-                <span style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: '600', textTransform: 'uppercase' }}>Active Perturbation Scenario</span>
-              </div>
+              <div style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: '600', textTransform: 'uppercase' }}>Context-Aware Perturbation</div>
               <select
                 value={config.name === 'Mid-Transaction Stress Test' ? 'mid-transaction' : config.name === 'Network Flap & Low Memory' ? 'network-flap' : 'extreme-cpu'}
                 onChange={(e) => handlePresetSelect(e.target.value)}

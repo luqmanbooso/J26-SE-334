@@ -16,7 +16,6 @@ export default function VisionDebugger({ onGoToAttribution }) {
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span className="glow-badge glow-badge-orange" style={{ fontSize: '9px', padding: '2px 8px' }}>Component 3</span>
               <span style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: '600', textTransform: 'uppercase' }}>Vision-Language Oracle</span>
             </div>
             <select
@@ -157,7 +156,7 @@ export default function VisionDebugger({ onGoToAttribution }) {
           </div>
 
           <button className="btn-cta" onClick={onGoToAttribution} style={{ width: '100%', borderRadius: '24px', padding: '14px', fontSize: '14px', marginTop: '26px' }}>
-            <CheckCircle2 size={16} /> Synthesize Self-Healing Patch (C4)
+            <CheckCircle2 size={16} /> Synthesize Self-Healing Patch
           </button>
         </div>
       </div>
@@ -177,7 +176,7 @@ export default function VisionDebugger({ onGoToAttribution }) {
           <div style={{ paddingLeft: '18px' }}>
             <div style={{ color: '#f472b6' }}>&lt;android.widget.FrameLayout class="profile-master" bounds="[0,210][1080,1890]"&gt;</div>
             <div style={{ background: 'rgba(239, 68, 68, 0.15)', borderLeft: '3px solid #ef4444', padding: '10px 14px', margin: '8px 0', borderRadius: '6px' }}>
-              <div style={{ color: '#ef4444', fontWeight: '700' }}>&lt;!-- C3 DETECTED OVERFLOW_Y_COLLISION ZONE --&gt;</div>
+              <div style={{ color: '#ef4444', fontWeight: '700' }}>&lt;!-- DETECTED OVERFLOW_Y_COLLISION ZONE --&gt;</div>
               <div style={{ color: '#fff' }}>&lt;android.widget.LinearLayout bounds="[60,820][1020,1460]" conflict="OVERLAP"&gt;</div>
               <div style={{ paddingLeft: '18px', color: '#fca5a5' }}>
                 &lt;android.widget.TextView text="Bio: Senior Lead..." bounds="[60,820][1020,1180]" /&gt;<br />

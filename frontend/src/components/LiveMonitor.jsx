@@ -8,24 +8,24 @@ export default function LiveMonitor({ config }) {
   const [speedMultiplier, setSpeedMultiplier] = useState(1);
   const [activeAlert, setActiveAlert] = useState('Low Battery Warning: Injected level 10%');
   const [logs, setLogs] = useState([
-    { time: '14:22:01', tag: 'APP_STATE', msg: 'Navigation triggered -> CheckoutScreen', type: 'info' },
-    { time: '14:22:02', tag: 'C1_ENGINE', msg: "Semantic trigger 'Mid-Transaction' reached.", type: 'warning' },
-    { time: '14:22:02', tag: 'C1_INJECT', msg: 'Executing tc qdisc: 4G -> 3G Flaky Handover [SUCCESS]', type: 'error' },
-    { time: '14:22:03', tag: 'C1_INJECT', msg: 'Forcing Battery Level to 10% via dumpsys battery set level 10 [SUCCESS]', type: 'error' },
-    { time: '14:22:04', tag: 'C1_MONITOR', msg: 'UI thread frame render time spiked to 850ms (>16ms limit)', type: 'warning' },
-    { time: '14:22:05', tag: 'C3_ORACLE', msg: 'Qwen2-VL frame inspection: OVERFLOW_Y_COLLISION detected at submit button', type: 'error' }
+    { time: '14:22:01', tag: 'APP', msg: 'Navigating to CheckoutScreen', type: 'info' },
+    { time: '14:22:02', tag: 'ENGINE', msg: "Semantic trigger 'Mid-Transaction' reached.", type: 'warning' },
+    { time: '14:22:02', tag: 'INJECTOR', msg: 'Executing tc qdisc: 4G -> 3G Flaky Handover [SUCCESS]', type: 'error' },
+    { time: '14:22:03', tag: 'INJECTOR', msg: 'Forcing Battery Level to 10% via dumpsys battery set level 10 [SUCCESS]', type: 'error' },
+    { time: '14:22:04', tag: 'MONITOR', msg: 'UI thread frame render time spiked to 850ms (>16ms limit)', type: 'warning' },
+    { time: '14:22:05', tag: 'VISION_ORACLE', msg: 'Qwen2-VL frame inspection: OVERFLOW_Y_COLLISION detected at submit button', type: 'error' }
   ]);
 
   const [telemetry, setTelemetry] = useState([
-    { time: '00:00', bandwidth: 12, cpu: 45, latency: 150 },
-    { time: '00:05', bandwidth: 8, cpu: 65, latency: 280 },
-    { time: '00:10', bandwidth: 4, cpu: 85, latency: 850 },
-    { time: '00:15', bandwidth: 1.2, cpu: 92, latency: 1250 },
-    { time: '00:20', bandwidth: 0.5, cpu: 88, latency: 1100 },
-    { time: '00:25', bandwidth: 3.5, cpu: 70, latency: 450 },
+    { time: '00:00', bandwidth: 12, cpu: 45, latency: 150, memory: 310 },
+    { time: '00:05', bandwidth: 8, cpu: 65, latency: 280, memory: 350 },
+    { time: '00:10', bandwidth: 4, cpu: 78, latency: 540, memory: 420 },
+    { time: '00:15', bandwidth: 1.2, cpu: 92, latency: 1250, memory: 580 },
+    { time: '00:20', bandwidth: 0.5, cpu: 85, latency: 890, memory: 510 },
+    { time: '00:25', bandwidth: 3.5, cpu: 60, latency: 340, memory: 440 },
   ]);
 
-  // Live streaming log simulation
+  // Live streaming log simulation loop
   useEffect(() => {
     let interval;
     if (isStreaming) {
@@ -33,10 +33,10 @@ export default function LiveMonitor({ config }) {
         const now = new Date();
         const timeStr = now.toTimeString().split(' ')[0];
         const sampleLogs = [
-          { tag: 'ADB_SHELL', msg: 'Executing tc qdisc add dev wlan0 root netem delay 1200ms loss 3%', type: 'info' },
-          { tag: 'C2_TREMOR', msg: 'Applied Fitts Law spatial Gaussian distortion (dx: +16px, dy: -9px)', type: 'warning' },
-          { tag: 'C3_VLM', msg: 'Quantized Qwen2-VL frame screenshot analysis: OVERFLOW_Y_COLLISION (94% conf)', type: 'error' },
-          { tag: 'C4_HEAL', msg: 'Sentence-BERT locator repair candidate found: //android.widget.Button[@text="SUBMIT"] (sim: 0.942)', type: 'success' },
+          { tag: 'ADB_SHELL', msg: 'Executing tc qdisc add dev wlan0 root netem delay 1200ms loss 5%', type: 'info' },
+          { tag: 'BIOMECHANICS', msg: 'Applied Fitts Law spatial Gaussian distortion (dx: +16px, dy: -9px)', type: 'warning' },
+          { tag: 'VLM_ORACLE', msg: 'Quantized Qwen2-VL frame screenshot analysis: OVERFLOW_Y_COLLISION (94% conf)', type: 'error' },
+          { tag: 'SELF_HEALING', msg: 'Sentence-BERT locator repair candidate found: //android.widget.Button[@text="SUBMIT"] (sim: 0.942)', type: 'success' },
           { tag: 'PERF_SINK', msg: 'Memory pressure am com-memory-pressure -> GC_CONCURRENT (24MB freed)', type: 'info' }
         ];
         const randomLog = sampleLogs[Math.floor(Math.random() * sampleLogs.length)];
