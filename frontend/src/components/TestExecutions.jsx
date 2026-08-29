@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Activity, CheckCircle2, AlertTriangle, RefreshCw, Smartphone, Play, Search, Download, Filter, ChevronRight, X, Sparkles } from 'lucide-react';
+import { Activity, CheckCircle2, AlertTriangle, RefreshCw, Smartphone, Play, Search, Download, Filter, ChevronRight, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function TestExecutions() {
@@ -26,7 +26,7 @@ export default function TestExecutions() {
       {/* Header */}
       <div className="glass-card" style={{ padding: '18px 26px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{ background: 'rgba(255,87,34,0.15)', color: '#ff5722', width: '46px', height: '46px', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 20px rgba(255,87,34,0.3)' }}>
+          <div style={{ background: 'rgba(251,146,60,0.12)', color: 'var(--accent-orange-bright)', width: '46px', height: '46px', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 16px rgba(251,146,60,0.2)' }}>
             <Activity size={24} />
           </div>
           <div>
@@ -103,7 +103,7 @@ export default function TestExecutions() {
                     <Smartphone size={14} color="#64748b" /> {run.device}
                   </span>
                 </td>
-                <td style={{ padding: '16px 18px', color: '#f87171', fontWeight: '600' }}>
+                <td style={{ padding: '16px 18px', color: '#fb7185', fontWeight: '600' }}>
                   {run.stress}
                 </td>
                 <td style={{ padding: '16px 18px', fontFamily: 'var(--font-mono)', color: 'var(--text-dim)' }}>
@@ -121,7 +121,7 @@ export default function TestExecutions() {
                     </span>
                   )}
                   {run.status === 'PASSED' && (
-                    <span className="glow-badge glow-badge-blue" style={{ fontSize: '10px' }}>
+                    <span className="glow-badge glow-badge-cyan" style={{ fontSize: '10px' }}>
                       <CheckCircle2 size={11} /> Clean Pass
                     </span>
                   )}
@@ -144,64 +144,79 @@ export default function TestExecutions() {
       {/* Expandable Execution Inspection Modal / Drawer */}
       <AnimatePresence>
         {selectedRun && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="glass-card"
+          <div
             style={{
               position: 'fixed',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              width: '90%',
-              maxWidth: '650px',
-              zIndex: 1000,
-              boxShadow: '0 25px 70px rgba(0,0,0,0.9), 0 0 50px rgba(255,87,34,0.35)',
-              padding: '32px'
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(5, 8, 16, 0.75)',
+              backdropFilter: 'blur(8px)',
+              zIndex: 999,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
+            onClick={() => setSelectedRun(null)}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span className="glow-badge glow-badge-orange">{selectedRun.id}</span>
-                <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#fff' }}>Execution Log Diagnostics</h3>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              onClick={(e) => e.stopPropagation()}
+              className="glass-card"
+              style={{
+                width: '90%',
+                maxWidth: '650px',
+                zIndex: 1000,
+                boxShadow: '0 25px 70px rgba(0,0,0,0.9), 0 0 35px rgba(251,146,60,0.25)',
+                padding: '32px',
+                border: '1px solid rgba(251, 146, 60, 0.3)'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span className="glow-badge glow-badge-orange">{selectedRun.id}</span>
+                  <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#fff' }}>Execution Log Diagnostics</h3>
+                </div>
+                <button
+                  onClick={() => setSelectedRun(null)}
+                  style={{ background: 'rgba(255,255,255,0.06)', border: 'none', color: '#fff', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                >
+                  <X size={16} />
+                </button>
               </div>
-              <button
-                onClick={() => setSelectedRun(null)}
-                style={{ background: 'rgba(255,255,255,0.06)', border: 'none', color: '#fff', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-              >
-                <X size={16} />
+
+              <div className="defect-table" style={{ marginBottom: '20px' }}>
+                <div className="defect-row">
+                  <span className="defect-label">Scenario Profile</span>
+                  <span className="defect-val">{selectedRun.profile}</span>
+                </div>
+                <div className="defect-row">
+                  <span className="defect-label">Target Application</span>
+                  <span className="defect-val">{selectedRun.app}</span>
+                </div>
+                <div className="defect-row">
+                  <span className="defect-label">Execution Device</span>
+                  <span className="defect-val">{selectedRun.device}</span>
+                </div>
+                <div className="defect-row">
+                  <span className="defect-label">Execution Timestamp</span>
+                  <span className="defect-val">{selectedRun.date}</span>
+                </div>
+              </div>
+
+              <div className="code-window" style={{ maxHeight: '160px', marginBottom: '20px' }}>
+                <div style={{ color: '#34d399' }}>// Diagnostic Telemetry Summary:</div>
+                <div style={{ color: '#cbd5e1', marginTop: '6px' }}>{selectedRun.logSample}</div>
+              </div>
+
+              <button className="btn-cta" onClick={() => setSelectedRun(null)} style={{ width: '100%', borderRadius: '20px' }}>
+                Close Diagnostics
               </button>
-            </div>
-
-            <div className="defect-table" style={{ marginBottom: '20px' }}>
-              <div className="defect-row">
-                <span className="defect-label">Scenario Profile</span>
-                <span className="defect-val">{selectedRun.profile}</span>
-              </div>
-              <div className="defect-row">
-                <span className="defect-label">Target Application</span>
-                <span className="defect-val">{selectedRun.app}</span>
-              </div>
-              <div className="defect-row">
-                <span className="defect-label">Execution Device</span>
-                <span className="defect-val">{selectedRun.device}</span>
-              </div>
-              <div className="defect-row">
-                <span className="defect-label">Execution Timestamp</span>
-                <span className="defect-val">{selectedRun.date}</span>
-              </div>
-            </div>
-
-            <div className="code-window" style={{ maxHeight: '160px', marginBottom: '20px' }}>
-              <div style={{ color: '#10b981' }}>// Diagnostic Telemetry Summary:</div>
-              <div style={{ color: '#e2e8f0', marginTop: '6px' }}>{selectedRun.logSample}</div>
-            </div>
-
-            <button className="btn-cta" onClick={() => setSelectedRun(null)} style={{ width: '100%', borderRadius: '20px' }}>
-              Close Diagnostics
-            </button>
-          </motion.div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

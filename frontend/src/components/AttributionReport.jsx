@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { FileText, RefreshCw, CheckCircle2, AlertTriangle, Code, ArrowRight, Sparkles, Download, Copy, Layers } from 'lucide-react';
+import { FileText, RefreshCw, CheckCircle2, AlertTriangle, Code, ArrowRight, Download, Copy, Layers, GitBranch, LayoutDashboard } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-export default function AttributionReport() {
+export default function AttributionReport({ onDeployCiCd, onViewAnalytics }) {
   const [isHealing, setIsHealing] = useState(false);
   const [healed, setHealed] = useState(true);
   const [repairRate, setRepairRate] = useState(94.2);
@@ -27,7 +27,7 @@ export default function AttributionReport() {
       {/* Top Header Card */}
       <div className="glass-card" style={{ padding: '18px 26px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{ background: 'rgba(255,87,34,0.15)', color: '#ff5722', width: '46px', height: '46px', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 20px rgba(255,87,34,0.3)' }}>
+          <div style={{ background: 'rgba(251,146,60,0.12)', color: 'var(--accent-orange-bright)', width: '46px', height: '46px', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 16px rgba(251,146,60,0.2)' }}>
             <FileText size={24} />
           </div>
           <div>
@@ -40,15 +40,22 @@ export default function AttributionReport() {
           </div>
         </div>
 
-        <button className="btn-cta" onClick={handleRunSelfHealing} disabled={isHealing}>
-          <RefreshCw size={16} className={isHealing ? 'spin' : ''} />
-          {isHealing ? 'Synthesizing Self-Healing Script...' : 'Run Self-Healing Repair Engine'}
-        </button>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+          {onDeployCiCd && (
+            <button className="btn-secondary" onClick={onDeployCiCd} style={{ padding: '8px 16px', fontSize: '12px', color: 'var(--accent-cyan-bright)' }}>
+              <GitBranch size={14} /> Open CI/CD Pipeline <ArrowRight size={13} />
+            </button>
+          )}
+          <button className="btn-cta" onClick={handleRunSelfHealing} disabled={isHealing}>
+            <RefreshCw size={16} className={isHealing ? 'spin' : ''} />
+            {isHealing ? 'Synthesizing Self-Healing Script...' : 'Run Self-Healing Repair Engine'}
+          </button>
+        </div>
       </div>
 
       {/* Metric Stat Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '18px' }}>
-        <div className="glass-card stat-accent-card" style={{ padding: '24px 20px' }}>
+        <div className="glass-card stat-accent-card" style={{ padding: '24px 20px', borderTopColor: 'var(--accent-orange)' }}>
           <div style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: '700', textTransform: 'uppercase' }}>Stress Events Injected</div>
           <div style={{ fontSize: '34px', fontWeight: '900', color: 'var(--accent-orange-bright)', fontFamily: 'var(--font-display)', margin: '6px 0 2px' }}>
             124+
@@ -56,15 +63,15 @@ export default function AttributionReport() {
           <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>ADB Shell & Netem Chaos</div>
         </div>
 
-        <div className="glass-card stat-accent-card" style={{ padding: '24px 20px' }}>
+        <div className="glass-card stat-accent-card" style={{ padding: '24px 20px', borderTopColor: 'var(--accent-red)' }}>
           <div style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: '700', textTransform: 'uppercase' }}>Detected Anomalies</div>
-          <div style={{ fontSize: '34px', fontWeight: '900', color: '#f87171', fontFamily: 'var(--font-display)', margin: '6px 0 2px' }}>
+          <div style={{ fontSize: '34px', fontWeight: '900', color: '#fb7185', fontFamily: 'var(--font-display)', margin: '6px 0 2px' }}>
             18
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Non-Crash Visual Collisions</div>
         </div>
 
-        <div className="glass-card stat-accent-card" style={{ padding: '24px 20px' }}>
+        <div className="glass-card stat-accent-card" style={{ padding: '24px 20px', borderTopColor: 'var(--accent-green)' }}>
           <div style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: '700', textTransform: 'uppercase' }}>Self-Healing Repair Rate</div>
           <div style={{ fontSize: '34px', fontWeight: '900', color: '#34d399', fontFamily: 'var(--font-display)', margin: '6px 0 2px' }}>
             {repairRate}%
@@ -72,12 +79,12 @@ export default function AttributionReport() {
           <div style={{ fontSize: '11px', color: '#10b981' }}>Sentence-BERT Resolved</div>
         </div>
 
-        <div className="glass-card stat-accent-card" style={{ padding: '24px 20px' }}>
+        <div className="glass-card stat-accent-card" style={{ padding: '24px 20px', borderTopColor: 'var(--accent-cyan)' }}>
           <div style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: '700', textTransform: 'uppercase' }}>S-BERT Embedding Match</div>
-          <div style={{ fontSize: '34px', fontWeight: '900', color: '#60a5fa', fontFamily: 'var(--font-display)', margin: '6px 0 2px' }}>
+          <div style={{ fontSize: '34px', fontWeight: '900', color: '#38bdf8', fontFamily: 'var(--font-display)', margin: '6px 0 2px' }}>
             0.942
           </div>
-          <div style={{ fontSize: '11px', color: '#3b82f6' }}>Cosine Similarity Index</div>
+          <div style={{ fontSize: '11px', color: '#0ea5e9' }}>Cosine Similarity Index</div>
         </div>
       </div>
 
@@ -113,10 +120,10 @@ export default function AttributionReport() {
           <div style={{ color: '#64748b' }}># Incident ID: INC-2026-0891 | Root Cause: UI_COLLISION under 3G_FLAKY stress</div>
           <div style={{ color: '#64748b' }}># =========================================================================</div>
           <br />
-          <div style={{ color: '#f472b6' }}>import pytest</div>
-          <div style={{ color: '#f472b6' }}>from appium import webdriver</div>
-          <div style={{ color: '#f472b6' }}>from heart_framework.oracles import VisionOracle</div>
-          <div style={{ color: '#f472b6' }}>from heart_framework.perturbation import ChaosInjector</div>
+          <div style={{ color: '#fb923c' }}>import pytest</div>
+          <div style={{ color: '#fb923c' }}>from appium import webdriver</div>
+          <div style={{ color: '#fb923c' }}>from heart_framework.oracles import VisionOracle</div>
+          <div style={{ color: '#fb923c' }}>from heart_framework.perturbation import ChaosInjector</div>
           <br />
           <div style={{ color: '#fff', fontWeight: '700' }}>def test_checkout_under_stress(driver):</div>
           <div style={{ paddingLeft: '22px', color: '#64748b' }}># 1. Replay environmental conditions present during failure</div>
@@ -128,16 +135,16 @@ export default function AttributionReport() {
           </div>
           <br />
           <div style={{ paddingLeft: '22px', color: '#64748b' }}># 2. Navigation through target flow</div>
-          <div style={{ paddingLeft: '22px', color: '#e2e8f0' }}>driver.find_element("id", "com.example.checkout:id/btn_cart").click()</div>
+          <div style={{ paddingLeft: '22px', color: '#cbd5e1' }}>driver.find_element("id", "com.example.checkout:id/btn_cart").click()</div>
           <br />
 
           {/* Broken Line vs Remapped Line */}
-          <div style={{ paddingLeft: '22px', background: 'rgba(239, 68, 68, 0.15)', borderLeft: '3px solid #ef4444', padding: '10px 14px', margin: '6px 0', borderRadius: '6px', color: '#fca5a5' }}>
-            <div style={{ fontSize: '11px', color: '#ef4444', fontWeight: '700' }}># [BROKEN LOCATOR TARGET - OBSOLETE DOM NODE COLLISION]:</div>
+          <div style={{ paddingLeft: '22px', background: 'rgba(244, 63, 94, 0.12)', borderLeft: '3px solid #f43f5e', padding: '10px 14px', margin: '6px 0', borderRadius: '6px', color: '#fca5a5' }}>
+            <div style={{ fontSize: '11px', color: '#fb7185', fontWeight: '700' }}># [BROKEN LOCATOR TARGET - OBSOLETE DOM NODE COLLISION]:</div>
             <code># driver.find_element_by_xpath("//android.widget.Button[@id='submit']").click()</code>
           </div>
 
-          <div style={{ paddingLeft: '22px', background: 'rgba(16, 185, 129, 0.15)', borderLeft: '3px solid #10b981', padding: '10px 14px', margin: '6px 0', borderRadius: '6px', color: '#a7f3d0', fontWeight: '600' }}>
+          <div style={{ paddingLeft: '22px', background: 'rgba(16, 185, 129, 0.12)', borderLeft: '3px solid #10b981', padding: '10px 14px', margin: '6px 0', borderRadius: '6px', color: '#a7f3d0', fontWeight: '600' }}>
             <div style={{ fontSize: '11px', color: '#34d399', fontWeight: '700' }}># [SENTENCE-BERT REPAIRED LOCATOR - COSINE SIMILARITY 0.942]:</div>
             <code>driver.find_element_by_xpath("//android.widget.Button[@text='SUBMIT']").click()</code>
           </div>

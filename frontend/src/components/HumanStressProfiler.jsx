@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, Play, XCircle, Target, Hand, Wifi, Battery, CheckCircle2, Pause, Sparkles, Flame, Sliders, RefreshCw } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Activity, Play, XCircle, Target, Hand, Wifi, Battery, CheckCircle2, Pause, Flame, Sliders, RefreshCw, Smartphone } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function HumanStressProfiler() {
   const [frustration, setFrustration] = useState(75);
@@ -46,20 +46,22 @@ export default function HumanStressProfiler() {
       {/* Top Header */}
       <div className="glass-card" style={{ padding: '18px 26px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{ background: 'rgba(255,87,34,0.15)', color: '#ff5722', width: '46px', height: '46px', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 20px rgba(255,87,34,0.3)' }}>
+          <div style={{ background: 'rgba(251,146,60,0.12)', color: 'var(--accent-orange-bright)', width: '46px', height: '46px', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 16px rgba(251,146,60,0.2)' }}>
             <Flame size={24} />
           </div>
           <div>
-            <div style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: '600', textTransform: 'uppercase' }}>Biomechanical Stress</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: '600', textTransform: 'uppercase' }}>Biomechanical Stress</span>
+            </div>
             <h1 style={{ fontSize: '20px', fontWeight: '900', color: '#fff', marginTop: '2px' }}>
-              Human Stress Profiler & Interactive Touch Heatmap Simulation
+              Human Stress Profiler & Interactive Mobile Heatmap
             </h1>
           </div>
         </div>
 
         <button className="btn-cta" onClick={toggleSimulation}>
           {isSimulating ? <Pause size={16} /> : <Play size={16} />}
-          {isSimulating ? 'Pause Biomechanical Run' : 'Run Biomechanical Simulation'}
+          {isSimulating ? 'Pause Biomechanical Run' : 'Run Simulation'}
         </button>
       </div>
 
@@ -121,31 +123,31 @@ export default function HumanStressProfiler() {
 
           {/* 3 Metric Cards (Calculated Live from Sliders!) */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
-            <div className="glass-card stat-accent-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+            <div className="glass-card stat-accent-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', borderTopColor: 'var(--accent-red)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: '700', textTransform: 'uppercase' }}>Fitts's Law Error</span>
-                <XCircle size={18} color={fittsError > 25 ? '#ef4444' : '#10b981'} />
+                <XCircle size={18} color={fittsError > 25 ? '#fb7185' : '#10b981'} />
               </div>
-              <div style={{ fontSize: '34px', fontWeight: '900', color: fittsError > 25 ? '#ef4444' : '#fff', fontFamily: 'var(--font-display)', margin: '8px 0 2px' }}>
+              <div style={{ fontSize: '34px', fontWeight: '900', color: fittsError > 25 ? '#fb7185' : '#fff', fontFamily: 'var(--font-display)', margin: '8px 0 2px' }}>
                 {fittsError}%
               </div>
-              <span style={{ fontSize: '10px', color: fittsError > 25 ? '#f87171' : 'var(--text-dim)' }}>
+              <span style={{ fontSize: '10px', color: fittsError > 25 ? '#fb7185' : 'var(--text-dim)' }}>
                 {fittsError > 25 ? 'High Distortion' : 'Nominal Motor'}
               </span>
             </div>
 
-            <div className="glass-card stat-accent-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+            <div className="glass-card stat-accent-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', borderTopColor: 'var(--accent-orange)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: '700', textTransform: 'uppercase' }}>Missed Targets</span>
-                <Target size={18} color={missedTargets > 15 ? '#ff7043' : '#10b981'} />
+                <Target size={18} color={missedTargets > 15 ? '#fb923c' : '#10b981'} />
               </div>
-              <div style={{ fontSize: '34px', fontWeight: '900', color: missedTargets > 15 ? '#ff7043' : '#fff', fontFamily: 'var(--font-display)', margin: '8px 0 2px' }}>
+              <div style={{ fontSize: '34px', fontWeight: '900', color: missedTargets > 15 ? '#fb923c' : '#fff', fontFamily: 'var(--font-display)', margin: '8px 0 2px' }}>
                 {missedTargets}
               </div>
               <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>Touch Bounding Offsets</span>
             </div>
 
-            <div className="glass-card stat-accent-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+            <div className="glass-card stat-accent-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', borderTopColor: 'var(--accent-green)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: '700', textTransform: 'uppercase' }}>Swipe Velocity</span>
                 <Hand size={18} color="#10b981" />
@@ -158,7 +160,7 @@ export default function HumanStressProfiler() {
           </div>
 
           {/* Research Context Notice */}
-          <div style={{ background: 'rgba(255,87,34,0.06)', border: '1px solid rgba(255,87,34,0.25)', borderRadius: '16px', padding: '18px 22px', fontSize: '12px', color: 'var(--text-body)', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+          <div style={{ background: 'rgba(251,146,60,0.06)', border: '1px solid rgba(251,146,60,0.2)', borderRadius: '16px', padding: '18px 22px', fontSize: '12px', color: 'var(--text-body)', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
             <Activity size={20} color="var(--accent-orange-bright)" style={{ flexShrink: 0, marginTop: '2px' }} />
             <div>
               <strong style={{ color: '#fff' }}>Biomechanical Motor Formulation</strong>
@@ -169,23 +171,23 @@ export default function HumanStressProfiler() {
           </div>
         </div>
 
-        {/* Right Column: 3D Phone Mockup with Live Touch Heatmap Spot Reactions */}
+        {/* Right Column: Realistic Mobile Phone Device Mockup with Live Dynamic Heatmap */}
         <div className="glass-card" style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '28px' }}>
           {/* Top Touch Mode Selector Pills */}
-          <div style={{ display: 'inline-flex', background: 'rgba(255,255,255,0.04)', borderRadius: '30px', padding: '4px', marginBottom: '22px', border: '1px solid rgba(255,255,255,0.08)' }}>
-            <button className={`nav-link ${activeTouchType === 'taps' ? 'active' : ''}`} onClick={() => setActiveTouchType('taps')} style={{ borderRadius: '24px', padding: '6px 18px', fontSize: '12px' }}>
+          <div style={{ display: 'inline-flex', background: 'rgba(255,255,255,0.04)', borderRadius: '30px', padding: '4px', marginBottom: '20px', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <button className={`nav-link ${activeTouchType === 'taps' ? 'active' : ''}`} onClick={() => setActiveTouchType('taps')} style={{ borderRadius: '24px', padding: '6px 16px', fontSize: '12px' }}>
               Frantic Taps
             </button>
-            <button className={`nav-link ${activeTouchType === 'swipes' ? 'active' : ''}`} onClick={() => setActiveTouchType('swipes')} style={{ borderRadius: '24px', padding: '6px 18px', fontSize: '12px' }}>
+            <button className={`nav-link ${activeTouchType === 'swipes' ? 'active' : ''}`} onClick={() => setActiveTouchType('swipes')} style={{ borderRadius: '24px', padding: '6px 16px', fontSize: '12px' }}>
               Erratic Swipes
             </button>
-            <button className={`nav-link ${activeTouchType === 'dead' ? 'active' : ''}`} onClick={() => setActiveTouchType('dead')} style={{ borderRadius: '24px', padding: '6px 18px', fontSize: '12px' }}>
+            <button className={`nav-link ${activeTouchType === 'dead' ? 'active' : ''}`} onClick={() => setActiveTouchType('dead')} style={{ borderRadius: '24px', padding: '6px 16px', fontSize: '12px' }}>
               Dead Clicks
             </button>
           </div>
 
-          {/* 3D Mobile Phone Frame */}
-          <div className="phone-device-3d" style={{ borderColor: '#1c1c24' }}>
+          {/* Interactive Mobile Phone Chassis */}
+          <div className="phone-device-3d" style={{ borderColor: '#1e293b', width: '310px', height: '580px' }}>
             <div className="phone-dynamic-island" />
             <div className="phone-viewport" style={{ background: '#f8fafc', color: '#0f172a', position: 'relative' }}>
               {/* Dynamic Touch Heatmap Gradient Spot based on mode */}
@@ -197,8 +199,8 @@ export default function HumanStressProfiler() {
                   width: `${85 + (frustration * 0.9)}px`,
                   height: `${85 + (frustration * 0.9)}px`,
                   background: activeTouchType === 'dead'
-                    ? 'radial-gradient(circle, rgba(239,68,68,0.95) 0%, rgba(245,158,11,0.65) 45%, transparent 75%)'
-                    : 'radial-gradient(circle, rgba(255,87,34,0.9) 0%, rgba(16,185,129,0.55) 45%, transparent 75%)',
+                    ? 'radial-gradient(circle, rgba(244,63,94,0.85) 0%, rgba(251,146,60,0.5) 45%, transparent 75%)'
+                    : 'radial-gradient(circle, rgba(251,146,60,0.85) 0%, rgba(56,189,248,0.45) 45%, transparent 75%)',
                   filter: 'blur(12px)',
                   mixBlendMode: 'multiply',
                   pointerEvents: 'none',
@@ -218,11 +220,12 @@ export default function HumanStressProfiler() {
                     width: '20px',
                     height: '20px',
                     borderRadius: '50%',
-                    background: '#ef4444',
-                    boxShadow: '0 0 24px #ef4444, 0 0 8px #fff',
+                    background: '#fb923c',
+                    boxShadow: '0 0 16px #fb923c, 0 0 6px #fff',
                     zIndex: 25,
                     pointerEvents: 'none',
-                    transform: 'translate(-50%, -50%)'
+                    transform: 'translate(-50%, -50%)',
+                    transition: 'top 0.15s ease, left 0.15s ease'
                   }}
                 />
               )}
@@ -238,14 +241,14 @@ export default function HumanStressProfiler() {
 
               {/* Mock App UI */}
               <div style={{ textAlign: 'center', margin: '14px 0', position: 'relative', zIndex: 20 }}>
-                <h3 style={{ fontSize: '20px', fontWeight: '900', color: '#0f172a' }}>Member Login</h3>
+                <h3 style={{ fontSize: '18px', fontWeight: '900', color: '#0f172a' }}>Member Login</h3>
                 <p style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
-                  Please select your account to continue.
+                  Select account type to authenticate.
                 </p>
               </div>
 
               <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', position: 'relative', zIndex: 20 }}>
-                <button style={{ flex: 1, background: '#ea580c', color: '#fff', border: 'none', padding: '8px', borderRadius: '8px', fontSize: '11px', fontWeight: '700' }}>Personal</button>
+                <button style={{ flex: 1, background: '#f97316', color: '#fff', border: 'none', padding: '8px', borderRadius: '8px', fontSize: '11px', fontWeight: '700' }}>Personal</button>
                 <button style={{ flex: 1, background: '#e2e8f0', color: '#334155', border: 'none', padding: '8px', borderRadius: '8px', fontSize: '11px' }}>Business</button>
                 <button style={{ flex: 1, background: '#e2e8f0', color: '#334155', border: 'none', padding: '8px', borderRadius: '8px', fontSize: '11px' }}>Merchant</button>
               </div>
@@ -260,7 +263,7 @@ export default function HumanStressProfiler() {
                 <div style={{ fontSize: '12px', color: '#0f172a', marginTop: '2px', letterSpacing: '2px' }}>••••••••</div>
               </div>
 
-              <button style={{ width: '100%', background: 'linear-gradient(135deg, #ea580c, #c2410c)', color: '#fff', border: 'none', padding: '12px', borderRadius: '10px', fontWeight: '700', fontSize: '13px', marginTop: 'auto', position: 'relative', zIndex: 20, boxShadow: '0 4px 14px rgba(234,88,12,0.4)' }}>
+              <button style={{ width: '100%', background: 'linear-gradient(135deg, #fb923c, #ea580c)', color: '#fff', border: 'none', padding: '12px', borderRadius: '10px', fontWeight: '700', fontSize: '13px', marginTop: 'auto', position: 'relative', zIndex: 20, boxShadow: '0 4px 14px rgba(251,146,60,0.3)' }}>
                 Continue Login
               </button>
             </div>
@@ -270,9 +273,9 @@ export default function HumanStressProfiler() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px', width: '100%', maxWidth: '320px', marginTop: '20px' }}>
             <div
               onClick={toggleSimulation}
-              style={{ width: '38px', height: '38px', borderRadius: '50%', background: 'linear-gradient(135deg, #ff5722, #e64a19)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 0 16px rgba(255,87,34,0.5)', flexShrink: 0 }}
+              style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'linear-gradient(135deg, #fb923c, #ea580c)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 0 14px rgba(251,146,60,0.35)', flexShrink: 0 }}
             >
-              {isSimulating ? <Pause size={16} /> : <Play size={16} />}
+              {isSimulating ? <Pause size={15} /> : <Play size={15} />}
             </div>
             <input
               type="range"
