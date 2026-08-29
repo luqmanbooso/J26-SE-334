@@ -46,14 +46,10 @@ export default function App() {
   };
 
   const navMenuItems = [
-    { id: 'landing', label: 'Overview' },
-    { id: 'dashboard', label: 'Analytics' },
-    { id: 'app-integration', label: 'App Integration' },
-    { id: 'profiles', label: 'Stress Profiles' },
-    { id: 'human-stress', label: 'Biomechanical' },
-    { id: 'live', label: 'Live Monitor' },
-    { id: 'vision', label: 'Vision Debugger' },
-    { id: 'attribution', label: 'Attribution' },
+    { id: 'landing', label: 'Overview', match: ['landing'] },
+    { id: 'dashboard', label: 'Testing Core', match: ['dashboard', 'app-integration', 'profiles', 'human-stress'] },
+    { id: 'live', label: 'Visual Oracles & AI', match: ['live', 'vision', 'attribution'] },
+    { id: 'cicd', label: 'DevOps Matrix', match: ['executions', 'cicd', 'benchmarks'] },
   ];
 
   return (
@@ -85,15 +81,18 @@ export default function App() {
         </div>
 
         <nav className="nav-menu">
-          {navMenuItems.map((item) => (
-            <button
-              key={item.id}
-              className={`nav-link ${activeTab === item.id ? 'active' : ''}`}
-              onClick={() => setActiveTab(item.id)}
-            >
-              {item.label}
-            </button>
-          ))}
+          {navMenuItems.map((item) => {
+            const isActive = item.match.includes(activeTab);
+            return (
+              <button
+                key={item.id}
+                className={`nav-link ${isActive ? 'active' : ''}`}
+                onClick={() => setActiveTab(item.id)}
+              >
+                {item.label}
+              </button>
+            );
+          })}
         </nav>
 
         <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
