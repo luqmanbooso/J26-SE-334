@@ -1,82 +1,160 @@
-import React from 'react';
-import { LayoutDashboard, Sliders, Radio, FileText, Activity, Eye, GitBranch, Database, Flame, Smartphone, Terminal } from 'lucide-react';
+import React, { useState } from 'react';
+import {
+  LayoutDashboard,
+  Sliders,
+  Radio,
+  Eye,
+  FileText,
+  Smartphone,
+  Layers,
+  History,
+  GitBranch,
+  Database,
+  Terminal,
+  Settings,
+  ChevronLeft,
+  ChevronRight,
+  Flame,
+  Activity,
+  PanelLeftClose,
+  PanelLeft
+} from 'lucide-react';
 
 export default function Sidebar({ activeTab, setActiveTab }) {
-  const overviewItems = [
-    { id: 'dashboard', label: 'Analytics Dashboard', icon: LayoutDashboard },
-    { id: 'profiles', label: 'Stress Profiles', icon: Sliders },
-    { id: 'human-stress', label: 'Human Stress Profiler', icon: Flame },
-    { id: 'app-integration', label: 'App Integration (SDK)', icon: Terminal },
-  ];
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
-  const navItems = [
-    { id: 'live', label: 'Live Monitor', icon: Radio },
-    { id: 'vision', label: 'Vision DOM Debugger', icon: Eye },
-    { id: 'attribution', label: 'Attribution Reports', icon: FileText },
-    { id: 'executions', label: 'Test Executions', icon: Activity },
-    { id: 'cicd', label: 'CI/CD Pipelines', icon: GitBranch },
-    { id: 'benchmarks', label: 'Benchmark Datasets', icon: Database },
+  const navSections = [
+    {
+      title: 'Testing Core',
+      items: [
+        { id: 'dashboard', label: 'Analytics', icon: LayoutDashboard },
+        { id: 'app-integration', label: 'App Integration', icon: Terminal },
+        { id: 'profiles', label: 'Stress Profiles', icon: Sliders },
+        { id: 'human-stress', label: 'Biomechanical', icon: Flame },
+      ]
+    },
+    {
+      title: 'Live Oracles',
+      items: [
+        { id: 'live', label: 'Live Monitor', icon: Radio, badge: '60 FPS' },
+        { id: 'vision', label: 'Vision Debugger', icon: Eye, badge: 'VLM' },
+        { id: 'attribution', label: 'Attribution & Heal', icon: FileText, badge: 'S-BERT' },
+      ]
+    },
+    {
+      title: 'DevOps & Research',
+      items: [
+        { id: 'executions', label: 'Test Executions', icon: History },
+        { id: 'cicd', label: 'CI/CD Pipelines', icon: GitBranch },
+        { id: 'benchmarks', label: 'Benchmark Datasets', icon: Database },
+      ]
+    }
   ];
 
   return (
-    <aside className="sidebar" style={{ position: 'sticky', top: '66px', height: 'calc(100vh - 66px)', overflowY: 'auto' }}>
-      <div>
-        <div className="sidebar-group">
-          <div className="sidebar-heading">Overview & Setup</div>
-          <div className="sidebar-nav">
-            {overviewItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.id}
-                  className={`sidebar-button ${activeTab === item.id ? 'active' : ''}`}
-                  onClick={() => setActiveTab(item.id)}
-                >
-                  <Icon size={17} />
-                  {item.label}
-                </button>
-              );
-            })}
+    <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
+      {/* Top Header Row with Collapse Toggle */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: isCollapsed ? 'center' : 'space-between', marginBottom: '14px', flexShrink: 0 }}>
+        {!isCollapsed && (
+          <div style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px' }}>
+            Navigation Rail
           </div>
-        </div>
-
-        <div className="sidebar-group">
-          <div className="sidebar-heading">Navigation</div>
-          <div className="sidebar-nav">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.id}
-                  className={`sidebar-button ${activeTab === item.id ? 'active' : ''}`}
-                  onClick={() => setActiveTab(item.id)}
-                >
-                  <Icon size={17} />
-                  {item.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="sidebar-group">
-          <div className="sidebar-heading">Target Emulators / Devices</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#10b981', background: 'rgba(16, 185, 129, 0.1)', padding: '8px 12px', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
-              <Smartphone size={15} /> Pixel 7 Pro (API 34)
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#9ca3af', background: 'rgba(255, 255, 255, 0.03)', padding: '8px 12px', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
-              <Smartphone size={15} /> Samsung S24, Pixel 5
-            </div>
-          </div>
-        </div>
+        )}
+        <button
+          className="sidebar-collapse-toggle"
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          title={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
+          style={{ margin: isCollapsed ? '0 auto' : '0' }}
+        >
+          {isCollapsed ? <PanelLeft size={15} /> : <PanelLeftClose size={15} />}
+        </button>
       </div>
 
-      <div className="user-card" style={{ marginTop: 'auto' }}>
-        <div className="user-avatar">LB</div>
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <div style={{ fontSize: '13px', fontWeight: '700' }}>Luqman Booso</div>
-          <div style={{ fontSize: '11px', color: '#6b7280' }}>Vision Oracle Lead</div>
+      {/* Device Context Emulator Pill */}
+      {!isCollapsed ? (
+        <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid var(--border-subtle)', borderRadius: '10px', padding: '10px 12px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 8px #10b981', flexShrink: 0 }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: '11px', color: '#fff', fontWeight: '700', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              Pixel 7 Pro (API 34)
+            </div>
+            <div style={{ fontSize: '9.5px', color: 'var(--text-dim)' }}>
+              ADB Connected • Port 5554
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div
+          style={{ display: 'flex', justifyContent: 'center', marginBottom: '14px', flexShrink: 0 }}
+          title="Pixel 7 Pro (API 34) - ADB Connected"
+        >
+          <div style={{ width: '34px', height: '34px', borderRadius: '8px', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+            <Smartphone size={16} color="var(--text-muted)" />
+            <div style={{ position: 'absolute', top: '5px', right: '5px', width: '5px', height: '5px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 6px #10b981' }} />
+          </div>
+        </div>
+      )}
+
+      {/* Scrollable Navigation Sections */}
+      <div className="sidebar-scrollable-content">
+        {navSections.map((section, idx) => (
+          <div key={idx} className="sidebar-group">
+            {!isCollapsed && <div className="sidebar-heading">{section.title}</div>}
+            <nav className="sidebar-nav">
+              {section.items.map((item) => {
+                const IconComponent = item.icon;
+                const isActive = activeTab === item.id;
+
+                return (
+                  <button
+                    key={item.id}
+                    className={`sidebar-button ${isActive ? 'active' : ''}`}
+                    onClick={() => setActiveTab(item.id)}
+                    title={item.label}
+                  >
+                    <IconComponent size={17} className="sidebar-icon" color={isActive ? '#fb923c' : '#94a3b8'} />
+                    {!isCollapsed && (
+                      <>
+                        <span style={{ flex: 1, marginLeft: '10px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.label}</span>
+                        {item.badge && (
+                          <span
+                            style={{
+                              fontSize: '9px',
+                              fontWeight: '800',
+                              padding: '1px 6px',
+                              borderRadius: '4px',
+                              background: isActive ? 'rgba(251, 146, 60, 0.25)' : 'rgba(255, 255, 255, 0.08)',
+                              color: isActive ? '#fed7aa' : 'var(--text-dim)',
+                              border: isActive ? '1px solid rgba(251, 146, 60, 0.4)' : '1px solid transparent'
+                            }}
+                          >
+                            {item.badge}
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+        ))}
+      </div>
+
+      {/* Pinned Bottom User Card */}
+      <div className="sidebar-footer-pinned">
+        <div className="user-card" title="Luqman Booso - Lead Researcher (J26-SE-334)">
+          <div className="user-avatar">LB</div>
+          {!isCollapsed && (
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: '12px', fontWeight: '700', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                Luqman Booso
+              </div>
+              <div style={{ fontSize: '10px', color: 'var(--text-dim)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                Lead Researcher (J26-SE-334)
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </aside>

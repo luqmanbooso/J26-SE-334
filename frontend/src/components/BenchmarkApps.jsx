@@ -29,7 +29,7 @@ export default function BenchmarkApps() {
       {/* Header */}
       <div className="glass-card" style={{ padding: '18px 26px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{ background: 'rgba(255,87,34,0.15)', color: '#ff5722', width: '46px', height: '46px', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 20px rgba(255,87,34,0.3)' }}>
+          <div style={{ background: 'rgba(251,146,60,0.12)', color: 'var(--accent-orange-bright)', width: '46px', height: '46px', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 16px rgba(251,146,60,0.2)' }}>
             <Database size={24} />
           </div>
           <div>
@@ -96,7 +96,7 @@ export default function BenchmarkApps() {
                   <td style={{ padding: '16px 18px', fontWeight: '700', color: '#fff' }}>
                     {bug.app}
                   </td>
-                  <td style={{ padding: '16px 18px', color: '#f87171' }}>
+                  <td style={{ padding: '16px 18px', color: '#fb7185' }}>
                     {bug.bugType}
                   </td>
                   <td style={{ padding: '16px 18px' }}>
@@ -106,9 +106,9 @@ export default function BenchmarkApps() {
                         fontWeight: '700',
                         padding: '2px 8px',
                         borderRadius: '6px',
-                        background: bug.severity === 'Critical' ? 'rgba(239,68,68,0.2)' : 'rgba(245,158,11,0.2)',
-                        color: bug.severity === 'Critical' ? '#f87171' : '#fbbf24',
-                        border: `1px solid ${bug.severity === 'Critical' ? 'rgba(239,68,68,0.4)' : 'rgba(245,158,11,0.4)'}`
+                        background: bug.severity === 'Critical' ? 'rgba(244,63,94,0.18)' : 'rgba(245,158,11,0.18)',
+                        color: bug.severity === 'Critical' ? '#fb7185' : '#fbbf24',
+                        border: `1px solid ${bug.severity === 'Critical' ? 'rgba(244,63,94,0.35)' : 'rgba(245,158,11,0.35)'}`
                       }}
                     >
                       {bug.severity}
@@ -146,7 +146,7 @@ export default function BenchmarkApps() {
             <tbody>
               {ricoScreens.map((screen) => (
                 <tr key={screen.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', transition: 'background 0.2s' }}>
-                  <td style={{ padding: '16px 18px', fontFamily: 'var(--font-mono)', color: 'var(--accent-orange-bright)', fontWeight: '700' }}>
+                  <td style={{ padding: '16px 18px', fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan-bright)', fontWeight: '700' }}>
                     {screen.id}
                   </td>
                   <td style={{ padding: '16px 18px', fontWeight: '700', color: '#fff' }}>
@@ -158,7 +158,7 @@ export default function BenchmarkApps() {
                   <td style={{ padding: '16px 18px', color: 'var(--accent-orange-bright)' }}>
                     {screen.layoutComplexity}
                   </td>
-                  <td style={{ padding: '16px 18px', color: '#f87171' }}>
+                  <td style={{ padding: '16px 18px', color: '#fb7185' }}>
                     {screen.anomalyClass}
                   </td>
                   <td style={{ padding: '16px 18px', textAlign: 'right' }}>

@@ -13,7 +13,7 @@ import TestExecutions from './components/TestExecutions';
 import CiCdPipelines from './components/CiCdPipelines';
 import BenchmarkApps from './components/BenchmarkApps';
 import CustomCursor from './components/CustomCursor';
-import { Activity, Sparkles, LayoutDashboard, Sliders, Radio, Eye, FileText, Smartphone } from 'lucide-react';
+import { Activity, LayoutDashboard, Sliders, Radio, Eye, FileText, Smartphone } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('landing');
@@ -40,9 +40,9 @@ export default function App() {
   };
 
   const pageVariants = {
-    initial: { opacity: 0, y: 16, filter: 'blur(4px)' },
-    animate: { opacity: 1, y: 0, filter: 'blur(0px)', transition: { duration: 0.35, ease: [0.16, 1, 0.3, 1] } },
-    exit: { opacity: 0, y: -12, filter: 'blur(3px)', transition: { duration: 0.2, ease: 'easeIn' } }
+    initial: { opacity: 0, y: 14, filter: 'blur(3px)' },
+    animate: { opacity: 1, y: 0, filter: 'blur(0px)', transition: { duration: 0.32, ease: [0.16, 1, 0.3, 1] } },
+    exit: { opacity: 0, y: -10, filter: 'blur(2px)', transition: { duration: 0.18, ease: 'easeIn' } }
   };
 
   const navMenuItems = [
@@ -61,7 +61,7 @@ export default function App() {
       {/* Interactive Glowing Cursor */}
       <CustomCursor />
 
-      {/* Animated Ambient Background & Floating Cyber Orbs */}
+      {/* Animated Ambient Background & Floating Soft Orbs */}
       <div className="ambient-bg" />
       <div className="ambient-orb ambient-orb-1" />
       <div className="ambient-orb ambient-orb-2" />
@@ -71,14 +71,14 @@ export default function App() {
         <div className="nav-brand" onClick={() => setActiveTab('landing')}>
           <div className="brand-badge-glow">
             <img
-              src="/logo.png"
+              src="/logo_white.png"
               alt="HEART Logo"
               style={{
-                height: '48px',
+                height: '42px',
                 width: 'auto',
-                maxHeight: '48px',
+                maxHeight: '42px',
                 objectFit: 'contain',
-                filter: 'drop-shadow(0 0 14px rgba(255, 87, 34, 0.65))'
+                filter: 'drop-shadow(0 0 10px rgba(251, 146, 60, 0.35))'
               }}
             />
           </div>
@@ -119,9 +119,9 @@ export default function App() {
                   {activeTab === 'app-integration' && <AppIntegration />}
                   {activeTab === 'profiles' && <StressProfiles config={stressConfig} setConfig={setStressConfig} onRunTest={() => setActiveTab('live')} />}
                   {activeTab === 'human-stress' && <HumanStressProfiler />}
-                  {activeTab === 'live' && <LiveMonitor config={stressConfig} />}
+                  {activeTab === 'live' && <LiveMonitor config={stressConfig} onInspectVision={() => setActiveTab('vision')} />}
                   {activeTab === 'vision' && <VisionDebugger onGoToAttribution={() => setActiveTab('attribution')} />}
-                  {activeTab === 'attribution' && <AttributionReport />}
+                  {activeTab === 'attribution' && <AttributionReport onDeployCiCd={() => setActiveTab('cicd')} onViewAnalytics={() => setActiveTab('dashboard')} />}
                   {activeTab === 'executions' && <TestExecutions />}
                   {activeTab === 'cicd' && <CiCdPipelines />}
                   {activeTab === 'benchmarks' && <BenchmarkApps />}
@@ -137,7 +137,7 @@ export default function App() {
         <footer>
           <div style={{ maxWidth: '1240px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <img src="/logo.png" alt="Logo" style={{ width: '22px', height: '22px', filter: 'drop-shadow(0 0 6px rgba(255,87,34,0.5))' }} />
+              <img src="/logo_white.png" alt="Logo" style={{ width: '22px', height: '22px', filter: 'drop-shadow(0 0 6px rgba(251, 146, 60, 0.3))' }} />
               <span style={{ fontWeight: '700', color: '#fff' }}>Project ID: J26-SE-334</span>
               <span style={{ color: 'var(--text-dim)' }}>•</span>
               <span style={{ color: 'var(--text-muted)' }}>SST Software Systems & Technologies Research</span>

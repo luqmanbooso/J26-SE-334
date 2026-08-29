@@ -37,49 +37,49 @@ export default function CustomCursor() {
 
   return (
     <>
-      {/* Outer Glowing Magnetic Aura */}
+      {/* Outer Glowing Magnetic Aura (Soft Light Coral/Amber) */}
       <motion.div
         style={{
           position: 'fixed',
           top: 0,
           left: 0,
-          width: isHovered ? '54px' : '30px',
-          height: isHovered ? '54px' : '30px',
+          width: isHovered ? '48px' : '26px',
+          height: isHovered ? '48px' : '26px',
           borderRadius: '50%',
-          border: isHovered ? '1.5px solid rgba(255, 87, 34, 0.85)' : '1px solid rgba(255, 87, 34, 0.4)',
-          backgroundColor: isHovered ? 'rgba(255, 87, 34, 0.12)' : 'rgba(255, 87, 34, 0.03)',
-          boxShadow: isHovered ? '0 0 28px rgba(255, 87, 34, 0.55), inset 0 0 12px rgba(255, 87, 34, 0.2)' : '0 0 14px rgba(255, 87, 34, 0.2)',
+          border: isHovered ? '1.5px solid rgba(251, 146, 60, 0.65)' : '1px solid rgba(251, 146, 60, 0.3)',
+          backgroundColor: isHovered ? 'rgba(251, 146, 60, 0.08)' : 'rgba(251, 146, 60, 0.02)',
+          boxShadow: isHovered ? '0 0 18px rgba(251, 146, 60, 0.35), inset 0 0 8px rgba(251, 146, 60, 0.15)' : '0 0 10px rgba(251, 146, 60, 0.15)',
           pointerEvents: 'none',
           zIndex: 9999,
           transform: 'translate(-50%, -50%)',
           backdropFilter: isHovered ? 'blur(2px)' : 'none',
         }}
         animate={{
-          x: mousePosition.x - (isHovered ? 27 : 15),
-          y: mousePosition.y - (isHovered ? 27 : 15),
+          x: mousePosition.x - (isHovered ? 24 : 13),
+          y: mousePosition.y - (isHovered ? 24 : 13),
           scale: isClicked ? 0.85 : 1,
         }}
         transition={{ type: 'spring', damping: 28, stiffness: 320, mass: 0.08 }}
       />
 
-      {/* Inner Precision Neon Core Dot */}
+      {/* Inner Precision Light Orange Core Dot */}
       <motion.div
         style={{
           position: 'fixed',
           top: 0,
           left: 0,
-          width: '7px',
-          height: '7px',
+          width: '6px',
+          height: '6px',
           borderRadius: '50%',
-          backgroundColor: '#ff7043',
-          boxShadow: '0 0 14px #ff5722, 0 0 4px #ffffff',
+          backgroundColor: '#fb923c',
+          boxShadow: '0 0 10px #fb923c, 0 0 3px #ffffff',
           pointerEvents: 'none',
           zIndex: 10000,
           transform: 'translate(-50%, -50%)',
         }}
         animate={{
-          x: mousePosition.x - 3.5,
-          y: mousePosition.y - 3.5,
+          x: mousePosition.x - 3,
+          y: mousePosition.y - 3,
           scale: isClicked ? 1.4 : 1,
         }}
         transition={{ type: 'spring', damping: 35, stiffness: 500, mass: 0.04 }}

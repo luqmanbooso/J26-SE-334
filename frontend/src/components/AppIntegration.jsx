@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Terminal, Upload, Cpu, CheckCircle2, Copy, Play, ArrowRight, Code, Shield, Sparkles, Layers, Smartphone } from 'lucide-react';
+import { Terminal, Upload, Cpu, CheckCircle2, Copy, Play, ArrowRight, Code, Shield, Layers, Smartphone } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function AppIntegration() {
@@ -85,7 +85,7 @@ jobs:
       {/* Top Header Card */}
       <div className="glass-card" style={{ padding: '18px 26px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{ background: 'rgba(255,87,34,0.15)', color: '#ff5722', width: '46px', height: '46px', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 20px rgba(255,87,34,0.3)' }}>
+          <div style={{ background: 'rgba(251,146,60,0.12)', color: 'var(--accent-orange-bright)', width: '46px', height: '46px', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 16px rgba(251,146,60,0.2)' }}>
             <Terminal size={24} />
           </div>
           <div>
