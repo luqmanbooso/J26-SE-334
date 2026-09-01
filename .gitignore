@@ -17,3 +17,6 @@ Thumbs.db
 
 # Task & system logs
 *.log
+
+# Large documents & binaries (>100MB exceeds GitHub limits)
+*.pdf
