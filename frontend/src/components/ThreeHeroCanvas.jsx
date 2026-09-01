@@ -38,9 +38,9 @@ export default function ThreeHeroCanvas() {
       particlePositions[i * 3 + 2] = (Math.random() - 0.5) * 25;
 
       particleVelocities.push({
-        x: (Math.random() - 0.5) * 0.025,
-        y: (Math.random() - 0.5) * 0.025,
-        z: (Math.random() - 0.5) * 0.025,
+        x: (Math.random() - 0.5) * 0.008,
+        y: (Math.random() - 0.5) * 0.008,
+        z: (Math.random() - 0.5) * 0.008,
       });
     }
 
@@ -48,10 +48,10 @@ export default function ThreeHeroCanvas() {
     particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
 
     const particleMaterial = new THREE.PointsMaterial({
-      size: 0.45,
+      size: 0.38,
       color: 0xfdba74,
       transparent: true,
-      opacity: 0.75,
+      opacity: 0.65,
       blending: THREE.AdditiveBlending,
     });
 
@@ -67,7 +67,7 @@ export default function ThreeHeroCanvas() {
     const lineMat = new THREE.LineBasicMaterial({
       color: 0xfb923c,
       transparent: true,
-      opacity: 0.22,
+      opacity: 0.15,
       blending: THREE.AdditiveBlending,
     });
 
@@ -78,11 +78,11 @@ export default function ThreeHeroCanvas() {
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
     scene.add(ambientLight);
 
-    const warmPointLight = new THREE.PointLight(0xfb923c, 2.2, 50);
+    const warmPointLight = new THREE.PointLight(0xfb923c, 2.0, 50);
     warmPointLight.position.set(12, 10, 10);
     scene.add(warmPointLight);
 
-    const cyanPointLight = new THREE.PointLight(0x38bdf8, 1.8, 50);
+    const cyanPointLight = new THREE.PointLight(0x38bdf8, 1.6, 50);
     cyanPointLight.position.set(-12, -10, 10);
     scene.add(cyanPointLight);
 
@@ -96,8 +96,8 @@ export default function ThreeHeroCanvas() {
       const rect = container.getBoundingClientRect();
       const x = (e.clientX - rect.left) / rect.width - 0.5;
       const y = (e.clientY - rect.top) / rect.height - 0.5;
-      targetX = x * 1.5;
-      targetY = y * 1.5;
+      targetX = x * 0.5;
+      targetY = y * 0.5;
     };
 
     window.addEventListener('mousemove', handleMouseMove);
@@ -122,13 +122,13 @@ export default function ThreeHeroCanvas() {
       animationFrameId = requestAnimationFrame(animate);
       const elapsedTime = clock.getElapsedTime();
 
-      // Smooth mouse follow
-      mouseX += (targetX - mouseX) * 0.05;
-      mouseY += (targetY - mouseY) * 0.05;
+      // Smooth mouse follow (gentle damping)
+      mouseX += (targetX - mouseX) * 0.025;
+      mouseY += (targetY - mouseY) * 0.025;
 
-      // Group rotation
-      mainGroup.rotation.y = elapsedTime * 0.08 + mouseX;
-      mainGroup.rotation.x = Math.sin(elapsedTime * 0.1) * 0.08 + mouseY;
+      // Group rotation (slowed down for non-distracting subtle ambient motion)
+      mainGroup.rotation.y = elapsedTime * 0.022 + mouseX;
+      mainGroup.rotation.x = Math.sin(elapsedTime * 0.04) * 0.035 + mouseY;
 
       // Update particle positions & line connections
       const positions = particleGeo.attributes.position.array;
@@ -201,7 +201,7 @@ export default function ThreeHeroCanvas() {
         height: '100%',
         pointerEvents: 'none',
         zIndex: 1,
-        opacity: 0.85,
+        opacity: 0.7,
       }}
     />
   );
