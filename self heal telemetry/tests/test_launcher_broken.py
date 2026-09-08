@@ -53,7 +53,7 @@ def run_broken_test():
     print("RUNNING LEGACY REGRESSION TEST SUITE (STRICT LOCATORS)")
     print("=" * 70)
 
-    xml_path = adb.dump_hierarchy("window_dump.xml")
+    xml_path = adb.dump_hierarchy("c4_window_dump.xml")
 
     passed = 0
     failed = 0
