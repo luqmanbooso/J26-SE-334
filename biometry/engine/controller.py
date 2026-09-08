@@ -35,6 +35,7 @@ class ActionRecord:
     ui_delay_ms: float
     responded: bool
     provocation: float
+    contended: bool
 
 
 @dataclass
@@ -116,6 +117,7 @@ class AdaptiveFeedbackController:
             ui_delay_ms=observation.ui_delay_ms,
             responded=observation.changed,
             provocation=provocation,
+            contended=observation.contended,
         )
         self.timeline.append(record)
         self._previous_point = (tap["actual"]["x"], tap["actual"]["y"])
