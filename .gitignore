@@ -20,3 +20,11 @@ Thumbs.db
 
 # Large documents & binaries (>100MB exceeds GitHub limits)
 *.pdf
+
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+env testing/uploads/*.apk
