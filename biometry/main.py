@@ -97,7 +97,7 @@ def main():
         "height": 70
     }
 
-    simulator = BiometricSimulator(base_sigma=8.0, base_time=0.25)
+    simulator = BiometricSimulator(sigma_absolute=8.0, base_time=0.25)
     stress_conditions = [0.0, 0.5, 1.0]
     iterations = 1000
 
