@@ -2,6 +2,7 @@ import math
 
 import numpy as np
 
+from models.coupling import StressCoupling
 from models.spatial import RotationalSpatialModel
 from models.timing import TimingModel
 
@@ -15,10 +16,14 @@ class BiometricSimulator:
     lets two engine variants be compared on identical random draws.
     """
 
-    def __init__(self, sigma_absolute=4.0, base_time=0.3, seed=None, rng=None):
+    def __init__(self, sigma_absolute=4.0, base_time=0.3, alpha=2.5,
+                 seed=None, rng=None, coupling=None):
         self.rng = rng if rng is not None else np.random.default_rng(seed)
-        self.spatial_model = RotationalSpatialModel(sigma_absolute=sigma_absolute, rng=self.rng)
-        self.timing_model = TimingModel(base_time=base_time, rng=self.rng)
+        self.coupling = coupling if coupling is not None else StressCoupling(alpha=alpha)
+        self.spatial_model = RotationalSpatialModel(
+            sigma_absolute=sigma_absolute, coupling=self.coupling, rng=self.rng)
+        self.timing_model = TimingModel(
+            base_time=base_time, coupling=self.coupling, rng=self.rng)
 
     def simulate_tap(self, target_x, target_y, width, height, stress, prev_x=None, prev_y=None, angle=None):
         actual_x, actual_y, theta = self.spatial_model.generate_touch(
