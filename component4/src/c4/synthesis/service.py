@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 
 from c4.c3_interface.client import C3Client
 from c4.c3_interface.contract import C3Verdict
+from c4.config import TargetAppConfig
 from c4.schemas import FailureJourney, SynthStep
 from c4.synthesis.appium_generator import AppiumScriptGenerator
 from c4.synthesis.llm_client import LLMClient
@@ -52,6 +53,7 @@ class SynthesisService:
         c3_client: C3Client | None = None,
         use_c3: bool = True,
         max_attempts: int = 3,
+        target: TargetAppConfig | None = None,
     ) -> None:
         if max_attempts < 1:
             raise ValueError("max_attempts must be at least one")
@@ -62,6 +64,7 @@ class SynthesisService:
         self.c3_client = c3_client
         self.use_c3 = use_c3
         self.max_attempts = max_attempts
+        self.target = target
 
     def synthesize(self, journey: FailureJourney) -> SynthesisResult:
         """Synthesize one journey, skipping journeys known to be unreproducible."""
@@ -103,7 +106,11 @@ class SynthesisService:
                 previous_response = response
                 steps = self.parser.parse(response)
                 steps = self.parser.validate_grounding(steps, journey)
-                script = self.generator.generate(steps)
+                script = self.generator.generate(
+                    steps,
+                    appium_url=self.target.appium_url if self.target else "http://127.0.0.1:4723",
+                    capabilities=self.target.capabilities() if self.target else None,
+                )
                 compile(script, "<generated_appium_test>", "exec")
             except (QwenClientError, StepParsingError, ValueError, SyntaxError) as error:
                 last_error = str(error)
