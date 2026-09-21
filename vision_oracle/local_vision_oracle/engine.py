@@ -22,6 +22,7 @@ from local_vision_oracle.schemas import (
 from local_vision_oracle.pruner import HierarchyPruner, PrunedNode
 from local_vision_oracle.preprocessor import ImagePreprocessor, PreprocessedImage
 from local_vision_oracle.prompt import PromptBuilder, VerdictParser, ORACLE_SYSTEM_PROMPT
+from local_vision_oracle.freeze_detector import TemporalFreezeDetector, FreezeDetectionResult
 
 
 class InferenceBackend(ABC):
@@ -124,10 +125,14 @@ class TransformersInferenceBackend(InferenceBackend):
 
         if self.quantization_bit == 4 and resolved_device == "cuda":
             from transformers import BitsAndBytesConfig
+            import gc
+            gc.collect()
+            torch.cuda.empty_cache()
             bnb_config = BitsAndBytesConfig(
                 load_in_4bit=True,
                 bnb_4bit_quant_type="nf4",
                 bnb_4bit_compute_dtype=torch.float16,
+                llm_int8_enable_fp32_cpu_offload=True,
             )
             self.model = Qwen2VLForConditionalGeneration.from_pretrained(
                 self.model_name_or_path,
@@ -221,12 +226,14 @@ class OracleEngine:
         pruner: Optional[HierarchyPruner] = None,
         preprocessor: Optional[ImagePreprocessor] = None,
         prompt_builder: Optional[PromptBuilder] = None,
+        freeze_detector: Optional[TemporalFreezeDetector] = None,
         engine_descriptor: str = "qwen2-vl-awq-4bit",
     ):
         self.backend = backend or MockInferenceBackend()
         self.pruner = pruner or HierarchyPruner()
         self.preprocessor = preprocessor or ImagePreprocessor()
         self.prompt_builder = prompt_builder or PromptBuilder()
+        self.freeze_detector = freeze_detector or TemporalFreezeDetector()
         self.engine_descriptor = engine_descriptor
 
     @staticmethod
@@ -250,11 +257,16 @@ class OracleEngine:
         action_context: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
         enable_sahi: bool = True,
+        previous_image: Optional[Union[str, Path, bytes, Image.Image]] = None,
+        previous_hierarchy: Optional[Union[str, Path, Dict[str, Any], List[Any]]] = None,
+        time_delta_s: float = 0.0,
+        action_dispatched: bool = False,
     ) -> C3OracleResult:
         """
         Executes single-turn fused evaluation over a captured screen state.
         
         Stages:
+        0. Temporal Freeze Detection (FR3, Appendix F)
         1. Hierarchy AST Pruning & Deterministic Collision Check (CLAIM-01)
         2. Visual Sanitization & Patch-Grid Alignment (Aspect ratio preservation)
         3. Fused Prompt Compilation (Single-turn multimodal payload)
@@ -268,6 +280,44 @@ class OracleEngine:
         run_metadata["screen_id"] = resolved_screen_id
         if action_context:
             run_metadata["action_context"] = action_context
+
+        # Stage 0: Temporal Freeze Check (FR3, Appendix F)
+        if previous_image is not None and (action_dispatched or time_delta_s > 0):
+            t_freeze_start = time.perf_counter()
+            prev_xml = previous_hierarchy if isinstance(previous_hierarchy, str) else ""
+            curr_xml = raw_hierarchy if isinstance(raw_hierarchy, str) else ""
+            freeze_res = self.freeze_detector.detect_freeze(
+                previous_image=previous_image,
+                current_image=image_input,
+                previous_hierarchy=prev_xml,
+                current_hierarchy=curr_xml,
+                time_delta_s=time_delta_s,
+                action_dispatched=action_dispatched,
+                action_context=action_context,
+            )
+            t_freeze_end = time.perf_counter()
+            freeze_ms = round((t_freeze_end - t_freeze_start) * 1000.0, 2)
+            if freeze_res.is_frozen:
+                run_metadata["detected_by"] = "temporal_freeze_detector"
+                run_metadata["freeze_details"] = {
+                    "stalled_duration_s": freeze_res.stalled_duration_s,
+                    "pixel_difference_ratio": freeze_res.pixel_difference_ratio,
+                }
+                latency = LatencyBreakdown(
+                    capture_ms=0.0,
+                    preprocess_ms=0.0,
+                    prune_ms=freeze_ms,
+                    inference_ms=0.0,
+                )
+                latency.compute_total()
+                return C3OracleResult(
+                    screen_id=resolved_screen_id,
+                    verdict=freeze_res.to_verdict(),
+                    latency_breakdown=latency,
+                    timestamp=current_time,
+                    engine_used=self.engine_descriptor,
+                    metadata=run_metadata,
+                )
 
         # Stage 1: AST Pruning & Collision Check (CLAIM-01)
         t_prune_start = time.perf_counter()
@@ -342,32 +392,49 @@ class OracleEngine:
         if not verdict.has_defect and enable_sahi and isinstance(self.backend, TransformersInferenceBackend):
             slices = self.preprocessor.get_sahi_slices(image_input)
             if len(slices) > 1:
-                # Check bottom slice (highest probability for floating bar occlusions)
-                bot_slice = slices[-1]
-                slice_prep = self.preprocessor.preprocess(bot_slice.image)
-                slice_msgs = self.prompt_builder.build_qwen_chat_input(
-                    image_content=slice_prep.image,
-                    pruned_nodes=None,
-                    metadata={"viewport_region": "bottom_navigation_zone"},
-                )
-                t_slice_start = time.perf_counter()
-                slice_raw = self.backend.generate(messages=slice_msgs, image=slice_prep.image)
-                t_slice_end = time.perf_counter()
-                inference_ms += round((t_slice_end - t_slice_start) * 1000.0, 2)
-                slice_verdict = VerdictParser.parse(slice_raw)
+                detected_slice_verdicts = []
+                for current_slice in slices:
+                    slice_prep = self.preprocessor.preprocess(current_slice.image)
+                    slice_msgs = self.prompt_builder.build_qwen_chat_input(
+                        image_content=slice_prep.image,
+                        pruned_nodes=None,
+                        metadata={"viewport_slice_index": current_slice.slice_index},
+                    )
+                    t_slice_start = time.perf_counter()
+                    slice_raw = self.backend.generate(messages=slice_msgs, image=slice_prep.image)
+                    t_slice_end = time.perf_counter()
+                    inference_ms += round((t_slice_end - t_slice_start) * 1000.0, 2)
+                    sv = VerdictParser.parse(slice_raw)
+                    if sv.has_defect:
+                        global_bbox = current_slice.map_bbox_to_global(sv.bounding_box)
+                        detected_slice_verdicts.append((current_slice, sv, global_bbox))
 
-                if slice_verdict.has_defect:
-                    global_bbox = bot_slice.map_bbox_to_global(slice_verdict.bounding_box)
+                if detected_slice_verdicts:
+                    primary_slice, primary_sv, primary_bbox = detected_slice_verdicts[0]
+                    all_regions = []
+                    all_explanations = []
+                    for s_tile, s_res, g_box in detected_slice_verdicts:
+                        all_regions.append({
+                            "slice_index": s_tile.slice_index,
+                            "defect_type": s_res.defect_type.value if hasattr(s_res.defect_type, "value") else str(s_res.defect_type),
+                            "bounding_box": g_box,
+                            "confidence": s_res.confidence,
+                            "affected_element_id": s_res.affected_element_id,
+                            "explanation": s_res.explanation,
+                        })
+                        all_explanations.append(f"[Slice {s_tile.slice_index}] {s_res.explanation}")
+
                     verdict = Verdict(
                         has_defect=True,
-                        defect_type=slice_verdict.defect_type,
-                        confidence=slice_verdict.confidence,
-                        bounding_box=global_bbox,
-                        affected_element_id=slice_verdict.affected_element_id,
-                        explanation=slice_verdict.explanation,
+                        defect_type=primary_sv.defect_type,
+                        confidence=primary_sv.confidence,
+                        bounding_box=primary_bbox,
+                        affected_element_id=primary_sv.affected_element_id,
+                        explanation=" | ".join(all_explanations),
                     )
                     run_metadata["detected_by"] = "sahi_dynamic_tiling"
-                    run_metadata["sahi_slice"] = bot_slice.slice_index
+                    run_metadata["sahi_slices_with_defects"] = [s[0].slice_index for s in detected_slice_verdicts]
+                    run_metadata["all_detected_regions"] = all_regions
 
         latency = LatencyBreakdown(
             capture_ms=0.0,
@@ -443,7 +510,28 @@ class OracleEngine:
         )
 
         regions = []
-        if verdict.has_defect and verdict.bounding_box:
+        all_detected = result.metadata.get("all_detected_regions")
+        if all_detected:
+            for item in all_detected:
+                bbox = item.get("bounding_box")
+                if bbox and len(bbox) == 4:
+                    ymin, xmin, ymax, xmax = bbox
+                    px_x = int((xmin / 1000.0) * width)
+                    px_y = int((ymin / 1000.0) * height)
+                    px_w = max(1, int(((xmax - xmin) / 1000.0) * width))
+                    px_h = max(1, int(((ymax - ymin) / 1000.0) * height))
+                    if px_x + px_w > width:
+                        px_w = width - px_x
+                    if px_y + px_h > height:
+                        px_h = height - px_y
+                    regions.append(DefectRegion(
+                        x=px_x,
+                        y=px_y,
+                        width=px_w,
+                        height=px_h,
+                        label=item.get("defect_type", "component_overlap"),
+                    ))
+        elif verdict.has_defect and verdict.bounding_box:
             ymin, xmin, ymax, xmax = verdict.bounding_box
             px_x = int((xmin / 1000.0) * width)
             px_y = int((ymin / 1000.0) * height)
