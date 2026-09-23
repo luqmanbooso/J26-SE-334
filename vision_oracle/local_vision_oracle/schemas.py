@@ -19,6 +19,7 @@ class DefectType(str, Enum):
     MISSING_COMPONENT = "missing_component"
     UNRENDERED_ASSET = "unrendered_asset"
     FUNCTIONAL_INCONGRUENCE = "functional_incongruence"
+    FROZEN_STATE = "frozen_state"
     OTHER = "other_defect"
 
 
