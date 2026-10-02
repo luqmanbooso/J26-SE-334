@@ -15,10 +15,11 @@ if C4_SRC.exists() and str(C4_SRC) not in sys.path:
     sys.path.insert(0, str(C4_SRC))
 
 NOTEBOOK_DIR = C3_DIR / "notebooks"
-RESEARCH_ROOT = Path(r"D:/university/Resesarch")
+RESEARCH_ROOT = Path(os.getenv("RESEARCH_ROOT", str(REPO_ROOT.parent)))
 
 VERDICTS_DIR = REPO_ROOT / "results" / "verdicts"
 VERDICTS_DIR.mkdir(parents=True, exist_ok=True)
+
 
 
 

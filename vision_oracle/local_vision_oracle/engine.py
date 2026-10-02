@@ -633,9 +633,10 @@ class OracleEngine:
         except ImportError:
             import sys
             from pathlib import Path
+            repo_root = Path(__file__).resolve().parent.parent.parent
             search_paths = [
-                Path(r"D:/university/Resesarch/J26-SE-334/component4/src"),
-                Path(__file__).resolve().parent.parent.parent / "component4" / "src",
+                repo_root / "component4" / "src",
+                Path.cwd() / "component4" / "src",
             ]
             for p in search_paths:
                 if p.exists() and str(p) not in sys.path:
