@@ -4,9 +4,11 @@ Temporal sequence evaluation routes (FR3 freeze detection).
 
 import os
 import io
+import gc
 import base64
 from typing import List, Union
 from PIL import Image
+import torch
 from fastapi import APIRouter, HTTPException
 
 from vision_oracle.api.schemas import SequenceEvaluateRequest
@@ -55,4 +57,12 @@ def evaluate_sequence(req: SequenceEvaluateRequest):
             session_id=req.session_id,
         )
     except Exception as exc:
+        if exc.__class__.__name__ == "OutOfMemoryError" or "out of memory" in str(exc).lower():
+            gc.collect()
+            if hasattr(torch, "cuda") and torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            raise HTTPException(
+                status_code=503,
+                detail=f"GPU VRAM exhausted / GPU out of memory during sequence evaluation: {exc}. Allocator cache cleared, please retry with backoff.",
+            )
         raise HTTPException(status_code=500, detail=f"Sequence evaluation failed: {exc}")

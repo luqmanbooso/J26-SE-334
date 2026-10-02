@@ -1,11 +1,16 @@
 """
 Oracle Service for Component 3.
 Manages engine lifecycle, real model weights, verdict persistence, and inference dispatch.
+Compliant with Phase F, H, and I of HEART C3 Full Implementation Plan.
 """
 
 import os
 import json
 import logging
+import queue
+import threading
+import time
+from collections import deque
 from pathlib import Path
 from typing import List, Optional, Dict, Any, Union
 from PIL import Image
@@ -23,6 +28,17 @@ from local_vision_oracle.engine import (
 )
 from local_vision_oracle.schemas import C3OracleResult
 from common.adb import AdbDevice, NoDeviceError
+
+from vision_oracle.contracts.v2 import (
+    JobState,
+    AnalysisStatus,
+    AnalysisDecision,
+    CoveragePolicy,
+    CaptureBundle,
+    VerdictEnvelopeV2,
+)
+from vision_oracle.persistence.repository import OracleRepository, get_repository
+from vision_oracle.local_vision_oracle.pipeline import AnalysisPipeline
 
 logger = logging.getLogger("vision_oracle.service")
 
@@ -61,23 +77,232 @@ def create_default_engine() -> OracleEngine:
 
 
 class OracleService:
-    """Service layer managing engine instance and verdict ledgers."""
+    """Service layer managing engine instance, concurrency locks, job queues, and persistence."""
 
-    def __init__(self, engine: Optional[OracleEngine] = None):
+    def __init__(
+        self,
+        engine: Optional[OracleEngine] = None,
+        repository: Optional[OracleRepository] = None,
+    ):
         self._engine: OracleEngine = engine or create_default_engine()
-        self._recent_verdicts: List[Dict[str, Any]] = []
+        self._repo: OracleRepository = repository or get_repository()
+        self._inference_lock = threading.Lock()
+        self._verdict_lock = threading.Lock()
+        self._recent_verdicts: deque = deque(maxlen=100)
+        self._cancelled_jobs: set[str] = set()
+        self._job_queue: queue.Queue = queue.Queue()
+
+        backend = getattr(self._engine, "backend", self._engine)
+        descriptor = getattr(self._engine, "engine_descriptor", "qwen2-vl-local")
+        self._pipeline = AnalysisPipeline(backend=backend, model_run_id=descriptor)
+
+        # Reconcile interrupted jobs from previous server runs
+        try:
+            interrupted_count = self._repo.reconcile_interrupted_jobs()
+            if interrupted_count > 0:
+                logger.info("Reconciled %d interrupted jobs on startup.", interrupted_count)
+        except Exception as exc:
+            logger.warning("Job reconciliation warning: %s", exc)
+
+        # Start background job worker
+        self._worker_thread = threading.Thread(target=self._job_worker_loop, daemon=True, name="OracleJobWorker")
+        self._worker_thread.start()
 
     @property
     def engine(self) -> OracleEngine:
         return self._engine
 
+    @property
+    def pipeline(self) -> AnalysisPipeline:
+        return self._pipeline
+
+    @property
+    def repository(self) -> OracleRepository:
+        return self._repo
+
+    @property
+    def inference_lock(self) -> threading.Lock:
+        """Mutex guarding GPU forward passes across all endpoints and background queues."""
+        return self._inference_lock
+
+    @property
+    def verdict_lock(self) -> threading.Lock:
+        """Mutex guarding memory access to recent verdicts."""
+        return self._verdict_lock
+
     def set_engine(self, engine: OracleEngine) -> None:
+        """Updates active engine and reconfigures pipeline."""
         self._engine = engine
+        backend = getattr(engine, "backend", engine)
+        descriptor = getattr(engine, "engine_descriptor", "qwen2-vl-local")
+        self._pipeline = AnalysisPipeline(backend=backend, model_run_id=descriptor)
+
+    def clear_verdicts(self) -> None:
+        """Clears in-memory recent verdicts (useful for test isolation)."""
+        with self._verdict_lock:
+            self._recent_verdicts.clear()
+
+    def check_readiness(self) -> Dict[str, Any]:
+        """Probes model backend, SQLite repository, and ADB connectivity truthfully."""
+        ready = True
+        details = {}
+
+        # 1. Model readiness
+        try:
+            has_backend = self._engine is not None and getattr(self._engine, "backend", None) is not None
+            details["model_ready"] = bool(has_backend)
+            if not has_backend:
+                ready = False
+        except Exception as exc:
+            details["model_ready"] = False
+            details["model_error"] = str(exc)
+            ready = False
+
+        # 2. Database readiness
+        try:
+            conn = self._repo.db.get_connection()
+            cur = conn.execute("SELECT 1;")
+            details["db_ready"] = cur.fetchone()[0] == 1
+        except Exception as exc:
+            details["db_ready"] = False
+            details["db_error"] = str(exc)
+            ready = False
+
+        # 3. ADB devices
+        try:
+            devices = AdbDevice.list_devices()
+            details["adb_devices"] = devices
+            details["adb_ready"] = True
+        except Exception as exc:
+            details["adb_ready"] = False
+            details["adb_devices"] = []
+            details["adb_error"] = str(exc)
+
+        return {"ready": ready, **details}
+
+    # --- Asynchronous Job Queue Processing ---
+
+    def submit_job(
+        self,
+        capture_id: str,
+        session_id: Optional[str] = None,
+        policy: str = CoveragePolicy.GLOBAL_PLUS_TILES_V1.value,
+    ) -> Dict[str, Any]:
+        """Submits capture for asynchronous analysis, returning job metadata immediately."""
+        capture = self._repo.get_capture(capture_id)
+        if not capture:
+            raise ValueError(f"Capture ID '{capture_id}' not found in evidence repository.")
+
+        planned_views = 4 if policy == CoveragePolicy.GLOBAL_PLUS_TILES_V1.value else 1
+        job_record = self._repo.create_job(
+            capture_id=capture_id,
+            session_id=session_id or capture.session_id,
+            policy=policy,
+            planned_views=planned_views,
+        )
+        self._job_queue.put(job_record["job_id"])
+        return job_record
+
+    def cancel_job(self, job_id: str) -> bool:
+        """Requests cancellation of a queued or running job."""
+        job = self._repo.get_job(job_id)
+        if not job:
+            return False
+        self._cancelled_jobs.add(job_id)
+        if job["state"] in (JobState.QUEUED.value, JobState.RUNNING.value):
+            self._repo.update_job(job_id, JobState.CANCELLED, error_message="User requested cancellation")
+        return True
+
+    def get_job(self, job_id: str) -> Optional[Dict[str, Any]]:
+        """Retrieves job status and metadata."""
+        return self._repo.get_job(job_id)
+
+    def _job_worker_loop(self) -> None:
+        """Dedicated background worker consuming submitted analysis jobs."""
+        while True:
+            try:
+                job_id = self._job_queue.get()
+                if job_id is None:
+                    break
+
+                if job_id in self._cancelled_jobs:
+                    self._cancelled_jobs.discard(job_id)
+                    self._job_queue.task_done()
+                    continue
+
+                job = self._repo.get_job(job_id)
+                if not job or job["state"] == JobState.CANCELLED.value:
+                    self._job_queue.task_done()
+                    continue
+
+                self._repo.update_job(job_id, JobState.RUNNING)
+                capture = self._repo.get_capture(job["capture_id"])
+                if not capture or not capture.artifact_path or not Path(capture.artifact_path).exists():
+                    self._repo.update_job(job_id, JobState.FAILED, error_message="Capture image artifact missing")
+                    self._job_queue.task_done()
+                    continue
+
+                try:
+                    img = Image.open(capture.artifact_path).convert("RGB")
+                    pol = CoveragePolicy(job["policy"]) if job.get("policy") in [p.value for p in CoveragePolicy] else CoveragePolicy.GLOBAL_PLUS_TILES_V1
+
+                    with self._inference_lock:
+                        if job_id in self._cancelled_jobs:
+                            self._cancelled_jobs.discard(job_id)
+                            self._repo.update_job(job_id, JobState.CANCELLED, error_message="Cancelled prior to inference")
+                            self._job_queue.task_done()
+                            continue
+
+                        verdict_v2 = self._pipeline.analyze(
+                            bundle=capture,
+                            image=img,
+                            policy=pol,
+                            job_id=job_id,
+                        )
+
+                    # Persist verdict to SQLite
+                    self._repo.save_verdict(verdict_v2)
+                    self._repo.update_job(
+                        job_id=job_id,
+                        state=JobState.COMPLETED,
+                        completed_views=verdict_v2.coverage.completed_views,
+                    )
+
+                    # Cache in memory ledger for legacy observers
+                    record = {
+                        "verdict_id": verdict_v2.verdict_id,
+                        "session_id": verdict_v2.session_id or "default_session",
+                        "timestamp": verdict_v2.screenshot.artifact_id,
+                        "verdict_v2": verdict_v2.model_dump(),
+                        "c4_verdict": verdict_v2.to_c4_verdict().model_dump(),
+                    }
+                    with self._verdict_lock:
+                        self._recent_verdicts.appendleft(record)
+
+                except Exception as exc:
+                    err_msg = f"Job {job_id} inference failure: {exc}"
+                    logger.error(err_msg, exc_info=True)
+                    self._repo.update_job(job_id, JobState.FAILED, error_message=str(exc))
+                    if "OutOfMemoryError" in type(exc).__name__ or "out of memory" in str(exc).lower():
+                        import gc
+                        import torch
+                        gc.collect()
+                        if torch.cuda.is_available():
+                            torch.cuda.empty_cache()
+
+                finally:
+                    self._job_queue.task_done()
+
+            except Exception as outer_exc:
+                logger.error("Job worker loop uncaught exception: %s", outer_exc)
+                time.sleep(0.5)
+
+    # --- Synchronous Legacy Ledgers & Endpoints ---
 
     def save_verdict_to_ledger(
         self, result: C3OracleResult, session_id: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Converts result to C4 envelope, caches in memory, and persists to disk."""
+        """Converts result to C4 envelope, caches in memory, and persists to disk and SQLite."""
         c4_envelope = OracleEngine.to_c4_verdict(result, session_id=session_id).model_dump(mode="json")
         record = {
             "verdict_id": c4_envelope["verdict_id"],
@@ -86,7 +311,8 @@ class OracleService:
             "oracle_result": result.to_dict(),
             "c4_verdict": c4_envelope,
         }
-        self._recent_verdicts.insert(0, record)
+        with self._verdict_lock:
+            self._recent_verdicts.appendleft(record)
 
         try:
             out_file = VERDICTS_DIR / f"{record['verdict_id']}.json"
@@ -97,14 +323,29 @@ class OracleService:
         return record
 
     def list_verdicts(self, limit: Optional[int] = None) -> List[Dict[str, Any]]:
-        if limit is not None:
-            return self._recent_verdicts[:limit]
-        return list(self._recent_verdicts)
+        """Returns recent verdicts in reverse chronological order under verdict_lock."""
+        with self._verdict_lock:
+            if limit is not None:
+                return list(self._recent_verdicts)[:limit]
+            return list(self._recent_verdicts)
 
     def get_verdict(self, verdict_id: str) -> Optional[Dict[str, Any]]:
-        for record in self._recent_verdicts:
-            if record["verdict_id"] == verdict_id:
-                return record
+        """Fetches a verdict by ID under verdict_lock with disk and SQLite fallback."""
+        with self._verdict_lock:
+            for record in self._recent_verdicts:
+                if record["verdict_id"] == verdict_id:
+                    return record
+
+        # Check SQLite repository
+        v_v2 = self._repo.get_verdict(verdict_id)
+        if v_v2:
+            return {
+                "verdict_id": v_v2.verdict_id,
+                "session_id": v_v2.session_id,
+                "timestamp": v_v2.timings_ms.get("timestamp", ""),
+                "verdict_v2": v_v2.model_dump(),
+                "c4_verdict": v_v2.to_c4_verdict().model_dump(),
+            }
 
         target_file = VERDICTS_DIR / f"{verdict_id}.json"
         if target_file.exists():
@@ -123,18 +364,20 @@ class OracleService:
         enable_sahi: bool = True,
         session_id: Optional[str] = None,
     ) -> Dict[str, Any]:
+        """Synchronously evaluates screen image and hierarchy under inference mutex."""
         if isinstance(image_input, str):
             resolved = resolve_path(image_input)
             if resolved:
                 image_input = str(resolved)
 
-        result = self._engine.evaluate(
-            image_input=image_input,
-            raw_hierarchy=raw_hierarchy,
-            screen_id=screen_id,
-            action_context=action_context,
-            enable_sahi=enable_sahi,
-        )
+        with self._inference_lock:
+            result = self._engine.evaluate(
+                image_input=image_input,
+                raw_hierarchy=raw_hierarchy,
+                screen_id=screen_id,
+                action_context=action_context,
+                enable_sahi=enable_sahi,
+            )
         record = self.save_verdict_to_ledger(result, session_id=session_id)
         return {
             "oracle_result": result.to_dict(),
@@ -146,18 +389,19 @@ class OracleService:
         serial: Optional[str] = None,
         action_context: Optional[str] = None,
         session_id: Optional[str] = "live_device_session",
+        device: Optional[Any] = None,
     ) -> Dict[str, Any]:
-        devices = AdbDevice.list_devices()
-        if not devices:
-            raise NoDeviceError("No Android device or emulator is attached. Connect phone via USB or start emulator.")
+        """Captures and evaluates screen from Android device under inference mutex."""
+        if device is None:
+            target_serial = AdbDevice.resolve_serial(serial)
+            device = AdbDevice(serial=target_serial, verify=True)
 
-        target_serial = serial or devices[0]
-        device = AdbDevice(serial=target_serial, verify=True)
-        result = self._engine.evaluate_device(
-            device=device,
-            enable_sahi=True,
-            action_context=action_context or f"Direct device evaluation on {device.serial}",
-        )
+        with self._inference_lock:
+            result = self._engine.evaluate_device(
+                device=device,
+                enable_sahi=True,
+                action_context=action_context or f"Direct device evaluation on {getattr(device, 'serial', 'unknown')}",
+            )
         record = self.save_verdict_to_ledger(result, session_id=session_id)
         return {
             "oracle_result": result.to_dict(),
@@ -173,6 +417,7 @@ class OracleService:
         action_context: Optional[str] = None,
         session_id: Optional[str] = None,
     ) -> Dict[str, Any]:
+        """Evaluates consecutive frames for temporal freeze detection under inference mutex."""
         resolved_screens = []
         for s in screens:
             if isinstance(s, str):
@@ -181,13 +426,14 @@ class OracleService:
             else:
                 resolved_screens.append(s)
 
-        result = self._engine.evaluate_sequence(
-            screens=resolved_screens,
-            hierarchies=hierarchies,
-            time_delta_s=time_delta_s,
-            action_dispatched=action_dispatched,
-            action_context=action_context,
-        )
+        with self._inference_lock:
+            result = self._engine.evaluate_sequence(
+                screens=resolved_screens,
+                hierarchies=hierarchies,
+                time_delta_s=time_delta_s,
+                action_dispatched=action_dispatched,
+                action_context=action_context,
+            )
         record = self.save_verdict_to_ledger(result, session_id=session_id)
         return {
             "oracle_result": result.to_dict(),
