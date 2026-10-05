@@ -41,6 +41,26 @@ def set_engine(engine: OracleEngine) -> None:
     set_oracle_service(OracleService(engine=engine))
 
 
+import logging
+from contextlib import asynccontextmanager
+
+logger = logging.getLogger("vision_oracle.server")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Eagerly loads and initializes OracleService and model weights during server startup."""
+    try:
+        service = get_oracle_service()
+        logger.info(
+            "Service startup complete. Model engine: %s",
+            getattr(service.engine, "engine_descriptor", "ready"),
+        )
+    except Exception as exc:
+        logger.warning("Eager model initialization deferred: %s", exc)
+    yield
+
+
 def create_app() -> FastAPI:
     """Application factory for C3 Oracle service."""
     application = FastAPI(
@@ -49,8 +69,8 @@ def create_app() -> FastAPI:
         version=SERVICE_VERSION,
         docs_url=None,
         redoc_url=None,
+        lifespan=lifespan,
     )
-
 
     # Enable CORS for local developer dashboard / loopback access
     application.add_middleware(
