@@ -1,0 +1,24 @@
+{
+  "analysis_timestamp": "2026-10-07T15:23:36Z",
+  "total_failures_analyzed": 1,
+  "attributed_failures_count": 1,
+  "attributions": [
+    {
+      "failure_id": "THEMIS_BUG_42",
+      "failure_type": "PAYMENT_GATEWAY_TIMEOUT",
+      "component_impacted": "CheckoutActivity.OrderPaymentFragment",
+      "primary_trigger": "LATENCY_INJECTED",
+      "confidence": 0.94,
+      "compound_stress_factors": [
+        "NETWORK_HANDOVER:HANDOVER_INITIATED",
+        "NETWORK:STATE_TRANSITION",
+        "NETWORK:STATE_TRANSITION",
+        "NETWORK_HANDOVER:HANDOVER_COMPLETED",
+        "NETWORK_LATENCY:LATENCY_INJECTED",
+        "INTERRUPTION_CALL:INCOMING_CALL_RINGING"
+      ],
+      "root_cause_explanation": "Network failure directly triggered by LATENCY_INJECTED (params: {'latency_ms': 1800, 'delay_profile': 'edge'}). App failed to recover gracefully.",
+      "recommended_mitigation": "Implement resilient exponential backoff, request caching, and optimistic UI state updates."
+    }
+  ]
+}
