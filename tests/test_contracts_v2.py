@@ -187,3 +187,59 @@ def test_verdict_envelope_converts_to_c4_contract():
     assert region.width == 400
     assert region.height == 400
     assert region.label == "component_overlap"
+
+
+def test_verdict_envelope_multi_finding_and_primary_finding_semantics():
+    screenshot = ScreenshotRef(width=1080, height=2400, storage_path="/path/to/screen.png")
+    f1 = Finding(
+        type="component_overlap",
+        bbox_xyxy=[100, 200, 500, 600],
+        explanation="Header overlaps banner",
+        confidence=0.90,
+    )
+    f2 = Finding(
+        type="text_truncation",
+        bbox_xyxy=[50, 700, 300, 800],
+        explanation="Title truncated",
+        confidence=0.85,
+    )
+    f3 = Finding(
+        type="missing_image",
+        bbox_xyxy=[200, 900, 600, 1200],
+        explanation="Broken image placeholder",
+        confidence=0.75,
+    )
+
+    # 1. Automatic primary_finding assignment
+    v2_auto = VerdictEnvelopeV2(
+        capture_id="cap_multi_01",
+        analysis_status=AnalysisStatus.COMPLETE,
+        decision=AnalysisDecision.DEFECT_DETECTED,
+        screenshot=screenshot,
+        findings=[f1, f2, f3],
+    )
+    assert v2_auto.scope == {"mode": "single_primary_visual_finding", "exhaustive": False}
+    assert v2_auto.primary_finding == f1
+    assert len(v2_auto.findings) == 3
+
+    # Bi-directional adapter preserves all 3 regions but uses primary_finding for defect_type
+    c4_auto = v2_auto.to_c4_verdict()
+    assert c4_auto.has_gui_defect is True
+    assert c4_auto.defect_type == "component_overlap"
+    assert c4_auto.confidence == 0.90
+    assert len(c4_auto.regions) == 3
+
+    # 2. Explicit primary_finding designation (e.g. f2 is primary)
+    v2_explicit = VerdictEnvelopeV2(
+        capture_id="cap_multi_02",
+        analysis_status=AnalysisStatus.COMPLETE,
+        decision=AnalysisDecision.DEFECT_DETECTED,
+        screenshot=screenshot,
+        primary_finding=f2,
+        findings=[f1, f2, f3],
+    )
+    assert v2_explicit.primary_finding == f2
+    c4_explicit = v2_explicit.to_c4_verdict()
+    assert c4_explicit.defect_type == "text_truncation"
+    assert c4_explicit.confidence == 0.85
+    assert len(c4_explicit.regions) == 3
