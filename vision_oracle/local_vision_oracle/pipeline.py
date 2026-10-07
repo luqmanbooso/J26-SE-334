@@ -478,6 +478,8 @@ class AnalysisPipeline:
             decision=decision,
             coverage=coverage,
             screenshot=screenshot_ref,
+            scope={"mode": "single_primary_visual_finding", "exhaustive": False},
+            primary_finding=deduped_findings[0] if deduped_findings else None,
             findings=deduped_findings,
             model_run_id=self.model_run_id,
             timings_ms={
