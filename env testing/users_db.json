@@ -1,0 +1,29 @@
+{
+  "sakith@heart.io": {
+    "name": "Sakith Chanlaka",
+    "email": "sakith@heart.io",
+    "password": "password123",
+    "role": "Component 1 Lead",
+    "student_id": "IT23151260",
+    "affiliation": "Software Systems & Technologies (SLIIT)",
+    "avatar_color": "#fb923c"
+  },
+  "luqman@heart.io": {
+    "name": "Luqman Booso",
+    "email": "luqman@heart.io",
+    "password": "password123",
+    "role": "Lead Researcher",
+    "student_id": "IT23150000",
+    "affiliation": "J26-SE-334 Research Group",
+    "avatar_color": "#38bdf8"
+  },
+  "examiner@sliit.lk": {
+    "name": "Academic Examiner",
+    "email": "examiner@sliit.lk",
+    "password": "password123",
+    "role": "Evaluation Committee",
+    "student_id": "EXAM-2026",
+    "affiliation": "Faculty of Computing (SLIIT)",
+    "avatar_color": "#a78bfa"
+  }
+}

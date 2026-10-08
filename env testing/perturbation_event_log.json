@@ -1,175 +1,336 @@
 [
   {
-    "epoch_ms": 1786820204023,
-    "timestamp": "2026-08-16T00:26:44.023292",
-    "category": "DEVICE_POWER",
+    "epoch_ms": 1791384806480,
+    "timestamp": "2026-10-07T20:23:26.480206",
+    "category": "SYSTEM_CPU",
+    "action": "CPU_LOAD_INJECTED",
+    "parameters": {
+      "target_cpu_pct": 88
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384806480,
+    "timestamp": "2026-10-07T20:23:26.480657",
+    "category": "SYSTEM_RAM",
+    "action": "LMK_MEMORY_PRESSURE",
+    "parameters": {
+      "ram_pct": 85,
+      "trim_level": "RUNNING_CRITICAL",
+      "target_package": "com.android.calculator2"
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384806480,
+    "timestamp": "2026-10-07T20:23:26.480675",
+    "category": "SYSTEM_POWER",
     "action": "BATTERY_PRESSURE",
     "parameters": {
-      "level": 3,
+      "level": 4,
       "unplugged": true
     },
-    "status": "APPLIED"
+    "status": "APPLIED",
+    "telemetry": {}
   },
   {
-    "epoch_ms": 1786820204112,
-    "timestamp": "2026-08-16T00:26:44.112605",
-    "category": "DEVICE_THERMAL",
-    "action": "THERMAL_THROTTLE",
+    "epoch_ms": 1791384806481,
+    "timestamp": "2026-10-07T20:23:26.481114",
+    "category": "SYSTEM_THERMAL",
+    "action": "THERMAL_THROTTLE_PROFILE",
     "parameters": {
-      "temperature_c": 47.5
+      "state": "Warn",
+      "simulated_temp_c": 55.0
     },
-    "status": "APPLIED"
+    "status": "APPLIED",
+    "telemetry": {}
   },
   {
-    "epoch_ms": 1786820208310,
-    "timestamp": "2026-08-16T00:26:48.310258",
-    "category": "CONTEXT",
-    "action": "THEME_CHANGE",
+    "epoch_ms": 1791384808981,
+    "timestamp": "2026-10-07T20:23:28.981591",
+    "category": "NETWORK_THROTTLE",
+    "action": "BANDWIDTH_PROFILE_SET",
+    "parameters": {
+      "profile": "edge"
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384808981,
+    "timestamp": "2026-10-07T20:23:28.981616",
+    "category": "NETWORK_LATENCY",
+    "action": "LATENCY_INJECTED",
+    "parameters": {
+      "latency_ms": 1450,
+      "delay_profile": "edge"
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384808981,
+    "timestamp": "2026-10-07T20:23:28.981627",
+    "category": "NETWORK_PACKET_LOSS",
+    "action": "PACKET_LOSS_SIMULATED",
+    "parameters": {
+      "loss_pct": 8,
+      "strategy": "STOCHASTIC_DROP"
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384808981,
+    "timestamp": "2026-10-07T20:23:28.981635",
+    "category": "NETWORK_HANDOVER",
+    "action": "HANDOVER_INITIATED",
+    "parameters": {
+      "from": "wifi_only",
+      "to": "data_only"
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384808981,
+    "timestamp": "2026-10-07T20:23:28.981649",
+    "category": "NETWORK",
+    "action": "STATE_TRANSITION",
+    "parameters": {
+      "mode": "wifi_only"
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384809481,
+    "timestamp": "2026-10-07T20:23:29.481925",
+    "category": "NETWORK",
+    "action": "STATE_TRANSITION",
+    "parameters": {
+      "mode": "data_only"
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384809481,
+    "timestamp": "2026-10-07T20:23:29.481957",
+    "category": "NETWORK_HANDOVER",
+    "action": "HANDOVER_COMPLETED",
+    "parameters": {
+      "active_interface": "data_only"
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384811491,
+    "timestamp": "2026-10-07T20:23:31.491494",
+    "category": "INTERRUPTION_CALL",
+    "action": "INCOMING_CALL_RINGING",
+    "parameters": {
+      "number": "15550192831",
+      "response": "SIMULATED_OK: gsm call 15550192831"
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384813007,
+    "timestamp": "2026-10-07T20:23:33.007618",
+    "category": "INTERRUPTION_CALL",
+    "action": "CALL_ACCEPTED",
+    "parameters": {
+      "action": "KEYCODE_CALL"
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384814513,
+    "timestamp": "2026-10-07T20:23:34.513966",
+    "category": "INTERRUPTION_CALL",
+    "action": "CALL_TERMINATED",
+    "parameters": {
+      "number": "15550192831",
+      "response": "SIMULATED_OK: gsm cancel 15550192831"
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384815520,
+    "timestamp": "2026-10-07T20:23:35.520721",
+    "category": "INTERRUPTION_SMS",
+    "action": "SMS_NOTIFICATION_BANNER",
+    "parameters": {
+      "sender": "15554321000",
+      "message": "Your payment verification token is 492019.",
+      "response": "SIMULATED_OK: sms send 15554321000 Your payment verification token is 492019."
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384815520,
+    "timestamp": "2026-10-07T20:23:35.520754",
+    "category": "INTERRUPTION_LIFECYCLE",
+    "action": "APP_BACKGROUNDED",
+    "parameters": {
+      "duration_sec": 1.5
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384817036,
+    "timestamp": "2026-10-07T20:23:37.036170",
+    "category": "INTERRUPTION_LIFECYCLE",
+    "action": "APP_RESUMED",
+    "parameters": {
+      "package": "com.android.calculator2"
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384818545,
+    "timestamp": "2026-10-07T20:23:38.545420",
+    "category": "CONTEXT_ORIENTATION",
+    "action": "ORIENTATION_CHANGED",
+    "parameters": {
+      "mode": "landscape",
+      "rotation_val": "1"
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384818545,
+    "timestamp": "2026-10-07T20:23:38.545459",
+    "category": "CONTEXT_THEME",
+    "action": "DARK_MODE_TOGGLED",
     "parameters": {
       "dark_mode": true
     },
-    "status": "APPLIED"
+    "status": "APPLIED",
+    "telemetry": {}
   },
   {
-    "epoch_ms": 1786820208593,
-    "timestamp": "2026-08-16T00:26:48.593148",
-    "category": "CONTEXT",
-    "action": "ORIENTATION_CHANGE",
+    "epoch_ms": 1791384818545,
+    "timestamp": "2026-10-07T20:23:38.545477",
+    "category": "CONTEXT_DISPLAY",
+    "action": "FONT_SCALE_CHANGED",
     "parameters": {
-      "mode": "landscape"
+      "font_scale": 1.35
     },
-    "status": "APPLIED"
+    "status": "APPLIED",
+    "telemetry": {}
   },
   {
-    "epoch_ms": 1786820213051,
-    "timestamp": "2026-08-16T00:26:53.051925",
-    "category": "NETWORK",
-    "action": "STATE_TRANSITION",
+    "epoch_ms": 1791384820552,
+    "timestamp": "2026-10-07T20:23:40.552493",
+    "category": "NETWORK_LATENCY",
+    "action": "LATENCY_INJECTED",
     "parameters": {
-      "mode": "offline"
+      "latency_ms": 2500,
+      "delay_profile": "gprs"
     },
-    "status": "APPLIED"
+    "status": "APPLIED",
+    "telemetry": {}
   },
   {
-    "epoch_ms": 1786820217413,
-    "timestamp": "2026-08-16T00:26:57.413070",
+    "epoch_ms": 1791384820567,
+    "timestamp": "2026-10-07T20:23:40.567843",
+    "category": "SYSTEM_CPU",
+    "action": "CPU_LOAD_INJECTED",
+    "parameters": {
+      "target_cpu_pct": 95
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384820567,
+    "timestamp": "2026-10-07T20:23:40.567919",
+    "category": "NETWORK_PACKET_LOSS",
+    "action": "PACKET_LOSS_SIMULATED",
+    "parameters": {
+      "loss_pct": 12,
+      "strategy": "BURST_DROP"
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384822113,
+    "timestamp": "2026-10-07T20:23:42.113816",
+    "category": "SYSTEM_HARDWARE",
+    "action": "SYSTEM_RESET_NOMINAL",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384822113,
+    "timestamp": "2026-10-07T20:23:42.113855",
     "category": "NETWORK",
     "action": "STATE_TRANSITION",
     "parameters": {
       "mode": "normal"
     },
-    "status": "APPLIED"
+    "status": "APPLIED",
+    "telemetry": {}
   },
   {
-    "epoch_ms": 1786820219721,
-    "timestamp": "2026-08-16T00:26:59.721288",
-    "category": "INTERRUPTION",
-    "action": "INCOMING_CALL_RINGING",
-    "parameters": {
-      "number": "15555215554",
-      "console_resp": "OK"
-    },
-    "status": "APPLIED"
-  },
-  {
-    "epoch_ms": 1786820222857,
-    "timestamp": "2026-08-16T00:27:02.857540",
-    "category": "INTERRUPTION",
-    "action": "CALL_ACCEPTED",
-    "parameters": {
-      "action": "keyevent_5_call"
-    },
-    "status": "APPLIED"
-  },
-  {
-    "epoch_ms": 1786820226322,
-    "timestamp": "2026-08-16T00:27:06.322299",
-    "category": "INTERRUPTION",
-    "action": "CALL_DISMISSED",
-    "parameters": {
-      "number": "15555215554",
-      "console_resp": "OK"
-    },
-    "status": "APPLIED"
-  },
-  {
-    "epoch_ms": 1786820228627,
-    "timestamp": "2026-08-16T00:27:08.627088",
-    "category": "INTERRUPTION",
-    "action": "INCOMING_CALL_RINGING",
-    "parameters": {
-      "number": "18009999999",
-      "console_resp": "OK"
-    },
-    "status": "APPLIED"
-  },
-  {
-    "epoch_ms": 1786820231177,
-    "timestamp": "2026-08-16T00:27:11.177682",
-    "category": "INTERRUPTION",
-    "action": "CALL_DISMISSED",
-    "parameters": {
-      "number": "18009999999",
-      "console_resp": "OK"
-    },
-    "status": "APPLIED"
-  },
-  {
-    "epoch_ms": 1786820233496,
-    "timestamp": "2026-08-16T00:27:13.496636",
-    "category": "INTERRUPTION",
-    "action": "SMS_NOTIFICATION",
-    "parameters": {
-      "sender": "15555215554",
-      "message": "Your OTP is 492019. Valid for 5 minutes.",
-      "console_resp": "OK"
-    },
-    "status": "APPLIED"
-  },
-  {
-    "epoch_ms": 1786820237821,
-    "timestamp": "2026-08-16T00:27:17.821432",
-    "category": "INTERRUPTION",
-    "action": "SMS_NOTIFICATION",
-    "parameters": {
-      "sender": "INVALID_SENDER_123",
-      "message": "Purposely invalid sender format test.",
-      "console_resp": "OK"
-    },
-    "status": "APPLIED"
-  },
-  {
-    "epoch_ms": 1786820240060,
-    "timestamp": "2026-08-16T00:27:20.060743",
-    "category": "DEVICE_POWER",
-    "action": "RESET_DEFAULT",
-    "parameters": {},
-    "status": "APPLIED"
-  },
-  {
-    "epoch_ms": 1786820240664,
-    "timestamp": "2026-08-16T00:27:20.664728",
-    "category": "CONTEXT",
-    "action": "RESET_DEFAULT",
-    "parameters": {},
-    "status": "APPLIED"
-  },
-  {
-    "epoch_ms": 1786820241051,
-    "timestamp": "2026-08-16T00:27:21.051118",
+    "epoch_ms": 1791384822113,
+    "timestamp": "2026-10-07T20:23:42.113873",
     "category": "NETWORK",
-    "action": "STATE_TRANSITION",
-    "parameters": {
-      "mode": "normal"
-    },
-    "status": "APPLIED"
+    "action": "NETWORK_RESET_NOMINAL",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
   },
   {
-    "epoch_ms": 1786820241051,
-    "timestamp": "2026-08-16T00:27:21.051291",
+    "epoch_ms": 1791384822113,
+    "timestamp": "2026-10-07T20:23:42.113888",
+    "category": "INTERRUPTION_DOZE",
+    "action": "SYSTEM_DOZE_TRANSITION",
+    "parameters": {
+      "force_idle": false
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384822113,
+    "timestamp": "2026-10-07T20:23:42.113897",
+    "category": "INTERRUPTION",
+    "action": "INTERRUPTIONS_CLEARED",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384822113,
+    "timestamp": "2026-10-07T20:23:42.113923",
+    "category": "CONTEXT",
+    "action": "CONTEXT_RESET_DEFAULTS",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384822113,
+    "timestamp": "2026-10-07T20:23:42.113935",
     "category": "SYSTEM",
     "action": "ENVIRONMENT_FULL_RESET",
     "parameters": {},
-    "status": "APPLIED"
+    "status": "APPLIED",
+    "telemetry": {}
   }
 ]
