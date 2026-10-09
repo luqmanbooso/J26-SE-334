@@ -1,0 +1,28 @@
+# Local Python environment
+.venv/
+
+# Python-generated files
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Local datasets and generated artifacts
+data/*
+!data/README.md
+runs/*
+models/
+artifacts/
+generated_tests/
+logs/
+
+# Build and packaging output
+*.egg-info/
+build/
+dist/
