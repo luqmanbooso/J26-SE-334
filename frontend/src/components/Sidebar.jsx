@@ -20,8 +20,12 @@ import {
   PanelLeft
 } from 'lucide-react';
 
-export default function Sidebar({ activeTab, setActiveTab }) {
+export default function Sidebar({ activeTab, setActiveTab, user }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
+
+  const displayName = user?.name || 'Sakith Chanlaka';
+  const displayRole = user?.role ? `${user.role}${user.studentId ? ` (${user.studentId})` : ''}` : 'Component 1 Lead (IT23151260)';
+  const initials = displayName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'SC';
 
   const navSections = [
     {
@@ -143,15 +147,15 @@ export default function Sidebar({ activeTab, setActiveTab }) {
 
       {/* Pinned Bottom User Card */}
       <div className="sidebar-footer-pinned">
-        <div className="user-card" title="Luqman Booso - Lead Researcher (J26-SE-334)">
-          <div className="user-avatar">LB</div>
+        <div className="user-card" title={`${displayName} - ${displayRole}`}>
+          <div className="user-avatar">{initials}</div>
           {!isCollapsed && (
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: '12px', fontWeight: '700', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                Luqman Booso
+                {displayName}
               </div>
               <div style={{ fontSize: '10px', color: 'var(--text-dim)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                Lead Researcher (J26-SE-334)
+                {displayRole}
               </div>
             </div>
           )}
