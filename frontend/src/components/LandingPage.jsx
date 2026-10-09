@@ -390,6 +390,185 @@ export default function LandingPage({ onLaunchDashboard }) {
         </div>
       </section>
 
+      {/* Section 4.5: Stakeholder Target Matrix */}
+      <section style={{ padding: '80px 24px', maxWidth: '1240px', margin: '0 auto', width: '100%', position: 'relative' }}>
+        <div style={{ textAlign: 'center', marginBottom: '48px' }}>
+          <span className="glow-badge glow-badge-orange" style={{ marginBottom: '12px' }}>Enterprise & Research Value Matrix</span>
+          <h2 style={{ fontSize: '42px', fontWeight: '900', color: '#fff', letterSpacing: '-0.02em', marginTop: '4px' }}>
+            Engineered For Every Stakeholder in Mobile Delivery
+          </h2>
+          <p style={{ fontSize: '15px', color: 'var(--text-muted)', maxWidth: '780px', margin: '8px auto 0', lineHeight: '1.6' }}>
+            HEART bridges the gap between empirical software engineering research and production mobile engineering. Here is how our framework specifically targets and empowers each role:
+          </p>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px' }}>
+          {/* Stakeholder 1: Mobile App Developers */}
+          <motion.div
+            whileHover={{ y: -6 }}
+            className="glass-card stat-accent-card"
+            style={{ padding: '30px 22px', borderTopColor: '#38bdf8', display: 'flex', flexDirection: 'column' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+              <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(56,189,248,0.12)', color: '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>
+                🛠️
+              </div>
+              <div>
+                <span style={{ fontSize: '10px', color: '#38bdf8', fontWeight: '800', textTransform: 'uppercase' }}>Software Engineering</span>
+                <h3 style={{ fontSize: '17px', fontWeight: '800', color: '#fff' }}>Mobile App Developers</h3>
+              </div>
+            </div>
+
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.6', marginBottom: '18px' }}>
+              Stop wasting days chasing elusive Heisenbugs that only occur on bad networks or low battery.
+            </p>
+
+            <div style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: '700', textTransform: 'uppercase', marginBottom: '10px' }}>What You Get:</div>
+            <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '12px', color: 'var(--text-body)', flex: 1, marginBottom: '24px' }}>
+              <li style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                <CheckCircle2 size={14} color="#38bdf8" style={{ marginTop: '2px', flexShrink: 0 }} />
+                <span><strong>Zero-SDK Architecture:</strong> Upload raw .APK without modifying application codebase.</span>
+              </li>
+              <li style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                <CheckCircle2 size={14} color="#38bdf8" style={{ marginTop: '2px', flexShrink: 0 }} />
+                <span><strong>Causal Attribution:</strong> Pinpoint exact environmental trigger (e.g. 1250ms netem lag) causing crash.</span>
+              </li>
+              <li style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                <CheckCircle2 size={14} color="#38bdf8" style={{ marginTop: '2px', flexShrink: 0 }} />
+                <span><strong>Appium Fix Scripts:</strong> Auto-generated Python regression tests with S-BERT remapping.</span>
+              </li>
+            </ul>
+
+            <button className="btn-secondary" onClick={() => onLaunchDashboard('app-integration')} style={{ width: '100%', borderRadius: '20px', fontSize: '12px' }}>
+              Upload Target APK <ArrowRight size={13} />
+            </button>
+          </motion.div>
+
+          {/* Stakeholder 2: QA Automation Engineers */}
+          <motion.div
+            whileHover={{ y: -6 }}
+            className="glass-card stat-accent-card"
+            style={{ padding: '30px 22px', borderTopColor: '#34d399', display: 'flex', flexDirection: 'column' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+              <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(52,211,153,0.12)', color: '#34d399', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>
+                🧪
+              </div>
+              <div>
+                <span style={{ fontSize: '10px', color: '#34d399', fontWeight: '800', textTransform: 'uppercase' }}>Quality Assurance</span>
+                <h3 style={{ fontSize: '17px', fontWeight: '800', color: '#fff' }}>QA Automation Engineers</h3>
+              </div>
+            </div>
+
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.6', marginBottom: '18px' }}>
+              Eliminate brittle UI tests and random blind monkey clicks with synchronized, realistic stress injection.
+            </p>
+
+            <div style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: '700', textTransform: 'uppercase', marginBottom: '10px' }}>What You Get:</div>
+            <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '12px', color: 'var(--text-body)', flex: 1, marginBottom: '24px' }}>
+              <li style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                <CheckCircle2 size={14} color="#34d399" style={{ marginTop: '2px', flexShrink: 0 }} />
+                <span><strong>Multi-Factor Chaos Studio:</strong> Netem latency, packet loss, Doze, calls, SMS & LMK trim.</span>
+              </li>
+              <li style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                <CheckCircle2 size={14} color="#34d399" style={{ marginTop: '2px', flexShrink: 0 }} />
+                <span><strong>CI/CD Pipeline Gates:</strong> Pre-built GitHub Actions matrix failing PRs on robustness regressions.</span>
+              </li>
+              <li style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                <CheckCircle2 size={14} color="#34d399" style={{ marginTop: '2px', flexShrink: 0 }} />
+                <span><strong>94.2% Self-Healing:</strong> Sentence-BERT automatically repairs broken UI locators.</span>
+              </li>
+            </ul>
+
+            <button className="btn-secondary" onClick={() => onLaunchDashboard('profiles')} style={{ width: '100%', borderRadius: '20px', fontSize: '12px' }}>
+              Configure Stress Studio <ArrowRight size={13} />
+            </button>
+          </motion.div>
+
+          {/* Stakeholder 3: Thesis Evaluator / Examiner */}
+          <motion.div
+            whileHover={{ y: -6 }}
+            className="glass-card stat-accent-card"
+            style={{ padding: '30px 22px', borderTopColor: '#a78bfa', display: 'flex', flexDirection: 'column' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+              <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(167,139,250,0.12)', color: '#a78bfa', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>
+                🎓
+              </div>
+              <div>
+                <span style={{ fontSize: '10px', color: '#a78bfa', fontWeight: '800', textTransform: 'uppercase' }}>Academic Audit</span>
+                <h3 style={{ fontSize: '17px', fontWeight: '800', color: '#fff' }}>Thesis Evaluators & Faculty</h3>
+              </div>
+            </div>
+
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.6', marginBottom: '18px' }}>
+              Rigorous empirical methodology validated against peer-reviewed ground-truth datasets.
+            </p>
+
+            <div style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: '700', textTransform: 'uppercase', marginBottom: '10px' }}>What You Get:</div>
+            <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '12px', color: 'var(--text-body)', flex: 1, marginBottom: '24px' }}>
+              <li style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                <CheckCircle2 size={14} color="#a78bfa" style={{ marginTop: '2px', flexShrink: 0 }} />
+                <span><strong>Themis Benchmark:</strong> 52 real-world Android crash bugs reproduced with 100% determinism.</span>
+              </li>
+              <li style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                <CheckCircle2 size={14} color="#a78bfa" style={{ marginTop: '2px', flexShrink: 0 }} />
+                <span><strong>Rico UI Dataset:</strong> 72,000+ screens evaluated for non-crash layout anomalies.</span>
+              </li>
+              <li style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                <CheckCircle2 size={14} color="#a78bfa" style={{ marginTop: '2px', flexShrink: 0 }} />
+                <span><strong>+24% vs Monkey:</strong> Statistically significant reproduction lead over Android Monkey.</span>
+              </li>
+            </ul>
+
+            <button className="btn-secondary" onClick={() => onLaunchDashboard('benchmarks')} style={{ width: '100%', borderRadius: '20px', fontSize: '12px' }}>
+              Audit Benchmarks <ArrowRight size={13} />
+            </button>
+          </motion.div>
+
+          {/* Stakeholder 4: Lead Researcher (Sakith Chanlaka) */}
+          <motion.div
+            whileHover={{ y: -6 }}
+            className="glass-card stat-accent-card"
+            style={{ padding: '30px 22px', borderTopColor: '#fb923c', display: 'flex', flexDirection: 'column', background: 'linear-gradient(180deg, rgba(251,146,60,0.06), rgba(28,33,48,0.82))' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+              <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(251,146,60,0.18)', color: 'var(--accent-orange-bright)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>
+                🔬
+              </div>
+              <div>
+                <span style={{ fontSize: '10px', color: 'var(--accent-orange-bright)', fontWeight: '800', textTransform: 'uppercase' }}>Component 1 Lead</span>
+                <h3 style={{ fontSize: '17px', fontWeight: '800', color: '#fff' }}>Lead Researcher (Sakith)</h3>
+              </div>
+            </div>
+
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.6', marginBottom: '18px' }}>
+              Core architecture for Project J26-SE-334: Context-Aware Environmental Perturbation Engine.
+            </p>
+
+            <div style={{ fontSize: '11px', color: 'var(--accent-orange-bright)', fontWeight: '700', textTransform: 'uppercase', marginBottom: '10px' }}>What You Get:</div>
+            <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '12px', color: 'var(--text-body)', flex: 1, marginBottom: '24px' }}>
+              <li style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                <CheckCircle2 size={14} color="#fb923c" style={{ marginTop: '2px', flexShrink: 0 }} />
+                <span><strong>Adaptive Scheduler:</strong> Runtime escalation triggers when FPS &lt; 35 or latency &gt; 1200ms.</span>
+              </li>
+              <li style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                <CheckCircle2 size={14} color="#fb923c" style={{ marginTop: '2px', flexShrink: 0 }} />
+                <span><strong>5 Empirical Regimes:</strong> Full publication experimental suite in results/experiment_results.json.</span>
+              </li>
+              <li style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                <CheckCircle2 size={14} color="#fb923c" style={{ marginTop: '2px', flexShrink: 0 }} />
+                <span><strong>Figures 1, 2, 3:</strong> Generated publication charts ready for final dissertation submission.</span>
+              </li>
+            </ul>
+
+            <button className="btn-cta" onClick={() => onLaunchDashboard('dashboard')} style={{ width: '100%', borderRadius: '20px', fontSize: '12px' }}>
+              Launch Full Studio <ArrowRight size={13} />
+            </button>
+          </motion.div>
+        </div>
+      </section>
+
       {/* Section 5: FAQ Accordion */}
       <section style={{ padding: '80px 24px', maxWidth: '900px', margin: '0 auto', width: '100%', position: 'relative' }}>
         <h2 style={{ fontSize: '38px', fontWeight: '900', textAlign: 'center', marginBottom: '12px' }}>Frequently Asked Questions</h2>

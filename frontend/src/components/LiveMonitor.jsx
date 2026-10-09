@@ -2,9 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Radio, AlertTriangle, ShieldCheck, Cpu, Wifi, Smartphone, CheckCircle2, Play, Pause, Activity, RefreshCw, Terminal, Layers, Eye, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import AndroidEmulator from './AndroidEmulator';
 
 export default function LiveMonitor({ config, onInspectVision }) {
   const [isInjecting, setIsInjecting] = useState(true);
+  const [liveTelemetry, setLiveTelemetry] = useState(null);
+  const [deviceInfo, setDeviceInfo] = useState(null);
   const [logs, setLogs] = useState([
     { id: 1, time: '14:22:01', tag: 'NETEM', msg: 'Simulating packet loss 3.5% on wlan0 interface', type: 'warning' },
     { id: 2, time: '14:22:04', tag: 'ADB_SHELL', msg: 'Applied stress-ng --cpu 4 --io 2 --vm 1 --vm-bytes 256M', type: 'info' },
@@ -26,11 +29,53 @@ export default function LiveMonitor({ config, onInspectVision }) {
   useEffect(() => {
     let interval;
     if (isInjecting) {
-      interval = setInterval(() => {
+      interval = setInterval(async () => {
+        // Fetch live backend events, telemetry, and device status
+        try {
+          const [eventsRes, telemRes, statusRes] = await Promise.all([
+            fetch('http://127.0.0.1:8001/api/perturbation/events?limit=8', { signal: AbortSignal.timeout(900) }).catch(() => null),
+            fetch('http://127.0.0.1:8001/api/perturbation/telemetry', { signal: AbortSignal.timeout(900) }).catch(() => null),
+            fetch('http://127.0.0.1:8001/api/status', { signal: AbortSignal.timeout(900) }).catch(() => null)
+          ]);
+
+          if (telemRes && telemRes.ok) {
+            const telem = await telemRes.json();
+            setLiveTelemetry(telem);
+          }
+
+          if (statusRes && statusRes.ok) {
+            const status = await statusRes.json();
+            setDeviceInfo(status);
+          }
+
+          if (eventsRes && eventsRes.ok) {
+            const data = await eventsRes.json();
+            if (data.events && data.events.length > 0) {
+              const liveLogs = data.events.map((e, idx) => ({
+                id: `backend-${e.epoch_ms}-${idx}-${Math.random().toString(36).substring(2, 7)}`,
+                time: e.timestamp ? e.timestamp.split('T')[1].split('.')[0] : new Date().toTimeString().split(' ')[0],
+                tag: e.category,
+                msg: `${e.action} -> ${JSON.stringify(e.parameters)}`,
+                type: e.category.includes('CHAOS') || e.category.includes('THROTTLE') || e.category.includes('INTERRUPTION') ? 'warning' : 'info'
+              }));
+              setLogs(prev => {
+                const combined = [...liveLogs, ...prev.filter(p => !liveLogs.some(l => l.msg === p.msg && l.time === p.time))];
+                return combined.slice(0, 20);
+              });
+            }
+          }
+        } catch (_) {
+          // Backend offline - continue client-side simulation
+        }
+
         const nextTime = `${(telemetryData.length * 2)}s`;
-        const nextCpu = Math.min(98, Math.max(40, Math.floor(Math.random() * 30) + 70));
-        const nextLatency = Math.min(1800, Math.max(300, Math.floor(Math.random() * 800) + 700));
-        const nextRam = Math.min(95, Math.max(60, Math.floor(Math.random() * 15) + 75));
+        const baseCpu = liveTelemetry?.system_state?.state?.cpu_pct || config?.cpuStress || 85;
+        const baseLatency = liveTelemetry?.network_state?.state?.latency_ms || config?.latency || 1250;
+        const baseRam = liveTelemetry?.system_state?.state?.ram_pct || config?.ramStress || 75;
+
+        const nextCpu = Math.min(99, Math.max(35, baseCpu + Math.floor(Math.random() * 8) - 4));
+        const nextLatency = Math.min(2200, Math.max(100, baseLatency + Math.floor(Math.random() * 120) - 60));
+        const nextRam = Math.min(95, Math.max(40, baseRam + Math.floor(Math.random() * 6) - 3));
 
         setTelemetryData(prev => {
           const updated = [...prev.slice(1), { time: nextTime, cpu: nextCpu, latency: nextLatency, ram: nextRam }];
@@ -38,10 +83,10 @@ export default function LiveMonitor({ config, onInspectVision }) {
         });
 
         // Add periodic logs
-        if (Math.random() > 0.4) {
+        if (Math.random() > 0.45) {
           const now = new Date().toTimeString().split(' ')[0];
           const newLog = {
-            id: Date.now(),
+            id: `sim-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
             time: now,
             tag: Math.random() > 0.5 ? 'VLM_ORACLE' : 'NETEM_CHAOS',
             msg: Math.random() > 0.5 ? `Telemetry frame verified. Latency: ${nextLatency}ms` : `CPU throttle active: ${nextCpu}% usage`,
@@ -52,7 +97,7 @@ export default function LiveMonitor({ config, onInspectVision }) {
       }, 1500);
     }
     return () => clearInterval(interval);
-  }, [isInjecting, telemetryData]);
+  }, [isInjecting, telemetryData, liveTelemetry, config]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '28px', width: '100%', maxWidth: '1280px', margin: '0 auto' }}>
@@ -92,7 +137,7 @@ export default function LiveMonitor({ config, onInspectVision }) {
         <div className="glass-card stat-accent-card" style={{ padding: '24px 20px', borderTopColor: 'var(--accent-orange)' }}>
           <div style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: '700', textTransform: 'uppercase' }}>CPU Load Target</div>
           <div style={{ fontSize: '34px', fontWeight: '900', color: 'var(--accent-orange-bright)', fontFamily: 'var(--font-display)', margin: '6px 0 2px' }}>
-            {config?.cpuStress || 85}%
+            {liveTelemetry?.system_state?.state?.cpu_pct ?? (config?.cpuStress || 85)}%
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>4 Cores Multi-threaded</div>
         </div>
@@ -100,7 +145,7 @@ export default function LiveMonitor({ config, onInspectVision }) {
         <div className="glass-card stat-accent-card" style={{ padding: '24px 20px', borderTopColor: 'var(--accent-cyan)' }}>
           <div style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: '700', textTransform: 'uppercase' }}>RAM Pressure</div>
           <div style={{ fontSize: '34px', fontWeight: '900', color: 'var(--accent-cyan-bright)', fontFamily: 'var(--font-display)', margin: '6px 0 2px' }}>
-            {config?.ramStress || 75}%
+            {liveTelemetry?.system_state?.state?.ram_pct ?? (config?.ramStress || 75)}%
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>LowMemoryKiller (LMK) active</div>
         </div>
@@ -108,86 +153,128 @@ export default function LiveMonitor({ config, onInspectVision }) {
         <div className="glass-card stat-accent-card" style={{ padding: '24px 20px', borderTopColor: 'var(--accent-amber)' }}>
           <div style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: '700', textTransform: 'uppercase' }}>Simulated Latency</div>
           <div style={{ fontSize: '34px', fontWeight: '900', color: '#fbbf24', fontFamily: 'var(--font-display)', margin: '6px 0 2px' }}>
-            {config?.latency || 1250}<span style={{ fontSize: '14px', fontWeight: '600' }}>ms</span>
+            {liveTelemetry?.network_state?.state?.latency_ms ?? (config?.latency || 1250)}<span style={{ fontSize: '14px', fontWeight: '600' }}>ms</span>
           </div>
-          <div style={{ fontSize: '11px', color: '#fbbf24' }}>Netem 3G Flaky Handoff</div>
+          <div style={{ fontSize: '11px', color: '#fbbf24' }}>
+            {liveTelemetry?.network_state?.state?.packet_loss_pct ? `Packet Loss: ${liveTelemetry.network_state.state.packet_loss_pct}%` : 'Netem 3G Flaky Handoff'}
+          </div>
         </div>
 
         <div className="glass-card stat-accent-card" style={{ padding: '24px 20px', borderTopColor: 'var(--accent-green)' }}>
           <div style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: '700', textTransform: 'uppercase' }}>Active Emulator</div>
-          <div style={{ fontSize: '20px', fontWeight: '800', color: '#fff', margin: '14px 0 6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Smartphone size={20} color="#10b981" /> Pixel 7 Pro
+          <div style={{ fontSize: '18px', fontWeight: '800', color: '#fff', margin: '14px 0 6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Smartphone size={20} color="#10b981" />
+            <span>{deviceInfo?.target_model ? deviceInfo.target_model.split(' [')[0] : 'Pixel 7 Pro'}</span>
           </div>
-          <div style={{ fontSize: '11px', color: '#10b981' }}>Android 14 (API 34) Online</div>
+          <div style={{ fontSize: '11px', color: '#10b981' }}>
+            {deviceInfo?.is_simulated ? 'Virtual Simulator • API 34' : 'Hardware Bridge • USB Online'}
+          </div>
         </div>
       </div>
 
-      {/* Real-Time Telemetry Curve */}
-      <div className="glass-card" style={{ padding: '28px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-          <div className="glass-card-title" style={{ margin: 0 }}>
-            <div className="icon-wrap">
-              <Activity size={18} />
+      {/* Dual Column Workspace: Live Android Device Emulator + Real-Time Telemetry & Terminal */}
+      <div className="live-monitor-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(330px, 370px) 1fr', gap: '24px', alignItems: 'start' }}>
+        {/* Left Column: Real Android Mobile Device Mockup running live simulation */}
+        <div className="glass-card" style={{ padding: '24px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: '16px' }}>
+            <div className="glass-card-title" style={{ margin: 0 }}>
+              <div className="icon-wrap">
+                <Smartphone size={18} />
+              </div>
+              <span>Android 14 Device Mockup</span>
             </div>
-            <span>Live System Stress Curves (CPU & Network Latency)</span>
-          </div>
-          <div style={{ display: 'flex', gap: '16px', fontSize: '12px' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#fb923c' }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#fb923c' }} /> CPU (%)
-            </span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#38bdf8' }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#38bdf8' }} /> Latency (ms)
+            <span className="glow-badge glow-badge-orange" style={{ fontSize: '10px' }}>
+              LIVE ADB VIEWPORT
             </span>
           </div>
+
+          <AndroidEmulator
+            config={{
+              cpuStress: liveTelemetry?.system_state?.state?.cpu_pct ?? (config?.cpuStress || 85),
+              ramStress: liveTelemetry?.system_state?.state?.ram_pct ?? (config?.ramStress || 75),
+              latency: liveTelemetry?.network_state?.state?.latency_ms ?? (config?.latency || 1250),
+              batteryLevel: liveTelemetry?.device?.state?.battery_level ?? 82,
+              batteryUnplugged: liveTelemetry?.device?.state?.battery_unplugged ?? false
+            }}
+            activePerturbations={[
+              ...(liveTelemetry?.interruption_state?.is_active ? ['GSM_CALL'] : []),
+              ...((liveTelemetry?.network_state?.state?.packet_loss_pct || 0) > 0 ? ['PACKET_LOSS'] : [])
+            ]}
+            isSimulating={isInjecting}
+            onToggleSimulation={() => setIsInjecting(!isInjecting)}
+          />
         </div>
 
-        <div style={{ width: '100%', height: '260px' }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={telemetryData}>
-              <defs>
-                <linearGradient id="cpuGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#fb923c" stopOpacity={0.4} />
-                  <stop offset="95%" stopColor="#fb923c" stopOpacity={0.0} />
-                </linearGradient>
-                <linearGradient id="latencyGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.35} />
-                  <stop offset="95%" stopColor="#38bdf8" stopOpacity={0.0} />
-                </linearGradient>
-              </defs>
-              <XAxis dataKey="time" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} />
-              <YAxis stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} />
-              <Tooltip
-                contentStyle={{ background: '#0e121f', border: '1px solid rgba(251,146,60,0.3)', borderRadius: '12px', color: '#fff', fontSize: '12px' }}
-              />
-              <Area type="monotone" dataKey="cpu" stroke="#fb923c" strokeWidth={2.5} fillOpacity={1} fill="url(#cpuGradient)" />
-              <Area type="monotone" dataKey="latency" stroke="#38bdf8" strokeWidth={2} fillOpacity={1} fill="url(#latencyGradient)" />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Live Stream Terminal */}
-      <div className="glass-card" style={{ padding: '28px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
-          <div className="glass-card-title" style={{ margin: 0 }}>
-            <div className="icon-wrap">
-              <Terminal size={18} />
+        {/* Right Column: Telemetry Curves + Terminal Stream */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', minWidth: 0 }}>
+          {/* Real-Time Telemetry Curve */}
+          <div className="glass-card" style={{ padding: '24px 28px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div className="glass-card-title" style={{ margin: 0 }}>
+                <div className="icon-wrap">
+                  <Activity size={18} />
+                </div>
+                <span>Live System Stress Curves (CPU & Network Latency)</span>
+              </div>
+              <div style={{ display: 'flex', gap: '16px', fontSize: '12px' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#fb923c' }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#fb923c' }} /> CPU (%)
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#38bdf8' }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#38bdf8' }} /> Latency (ms)
+                </span>
+              </div>
             </div>
-            <span>ADB Shell Injection Terminal Output</span>
+
+            <div style={{ width: '100%', height: '240px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={telemetryData}>
+                  <defs>
+                    <linearGradient id="cpuGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#fb923c" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#fb923c" stopOpacity={0.0} />
+                    </linearGradient>
+                    <linearGradient id="latencyGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.35} />
+                      <stop offset="95%" stopColor="#38bdf8" stopOpacity={0.0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="time" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} />
+                  <YAxis stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} />
+                  <Tooltip
+                    contentStyle={{ background: '#0e121f', border: '1px solid rgba(251,146,60,0.3)', borderRadius: '12px', color: '#fff', fontSize: '12px' }}
+                  />
+                  <Area type="monotone" dataKey="cpu" stroke="#fb923c" strokeWidth={2.5} fillOpacity={1} fill="url(#cpuGradient)" />
+                  <Area type="monotone" dataKey="latency" stroke="#38bdf8" strokeWidth={2} fillOpacity={1} fill="url(#latencyGradient)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
           </div>
-          <span className="glow-badge glow-badge-orange" style={{ fontSize: '10px' }}>
-            Streaming @ 60 FPS
-          </span>
-        </div>
 
-        <div className="terminal-box" style={{ minHeight: '220px' }}>
-          {logs.map((log) => (
-            <div key={log.id} className="terminal-line">
-              <span className="terminal-time">[{log.time}]</span>
-              <span className="terminal-tag">&lt;{log.tag}&gt;</span>
-              <span className={`terminal-msg ${log.type}`}>{log.msg}</span>
+          {/* Live Stream Terminal */}
+          <div className="glass-card" style={{ padding: '24px 28px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div className="glass-card-title" style={{ margin: 0 }}>
+                <div className="icon-wrap">
+                  <Terminal size={18} />
+                </div>
+                <span>ADB Shell Injection Terminal Output</span>
+              </div>
+              <span className="glow-badge glow-badge-orange" style={{ fontSize: '10px' }}>
+                Streaming @ 60 FPS
+              </span>
             </div>
-          ))}
+
+            <div className="terminal-box" style={{ minHeight: '220px', maxHeight: '280px' }}>
+              {logs.map((log, index) => (
+                <div key={log.id ? `${log.id}-${index}` : index} className="terminal-line">
+                  <span className="terminal-time">[{log.time}]</span>
+                  <span className="terminal-tag">&lt;{log.tag}&gt;</span>
+                  <span className={`terminal-msg ${log.type}`}>{log.msg}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>

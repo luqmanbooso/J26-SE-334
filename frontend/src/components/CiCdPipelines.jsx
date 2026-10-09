@@ -1,10 +1,44 @@
 import React, { useState } from 'react';
-import { GitBranch, GitPullRequest, CheckCircle2, RefreshCw, Zap, ArrowRight, ShieldCheck, Play, Layers, Terminal, Clock, Activity } from 'lucide-react';
+import { GitBranch, GitPullRequest, CheckCircle2, RefreshCw, Zap, ArrowRight, ShieldCheck, Play, Layers, Terminal, Clock, Activity, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function CiCdPipelines() {
   const [isRunning, setIsRunning] = useState(false);
   const [activeStage, setActiveStage] = useState(4);
+  const [yamlNotice, setYamlNotice] = useState(null);
+
+  const workflowYaml = `# Continuous Robustness Verification & Regression Patch Bot
+name: HEART Robustness Pipeline
+on: [push, pull_request]
+
+jobs:
+  robustness-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Run HEART Chaos & Vision Oracle
+        run: |
+          pip install heart-testing-framework
+          heart-test run --apk ./app-release.apk --oracle on-device-vlm --auto-heal
+`;
+
+  const handleExportYaml = () => {
+    const blob = new Blob([workflowYaml], { type: 'text/yaml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'heart-ci.yml';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setYamlNotice('Downloaded .github/workflows/heart-ci.yml');
+    setTimeout(() => setYamlNotice(null), 3000);
+  };
 
   const handleRunPipeline = () => {
     setIsRunning(true);
@@ -69,11 +103,31 @@ export default function CiCdPipelines() {
           </div>
         </div>
 
-        <button className="btn-cta" onClick={handleRunPipeline} disabled={isRunning}>
-          {isRunning ? <RefreshCw size={16} className="spin" /> : <Play size={16} />}
-          {isRunning ? 'Simulating Pipeline Flow...' : 'Trigger CI/CD Simulation'}
-        </button>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button className="btn-secondary" onClick={handleExportYaml} style={{ padding: '8px 16px', fontSize: '12px' }}>
+            <Download size={14} /> Export Workflow YAML
+          </button>
+          <button className="btn-cta" onClick={handleRunPipeline} disabled={isRunning}>
+            {isRunning ? <RefreshCw size={16} className="spin" /> : <Play size={16} />}
+            {isRunning ? 'Simulating Pipeline Flow...' : 'Trigger CI/CD Simulation'}
+          </button>
+        </div>
       </div>
+
+      {/* Notice */}
+      <AnimatePresence>
+        {yamlNotice && (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            style={{ padding: '12px 20px', borderRadius: '12px', background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.35)', color: '#34d399', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
+            <CheckCircle2 size={16} />
+            <span>{yamlNotice}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Interactive 4-Stage Pipeline Graph with Connected Data Cable */}
       <div style={{ position: 'relative' }}>

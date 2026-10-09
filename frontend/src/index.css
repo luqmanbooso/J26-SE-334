@@ -350,6 +350,78 @@ h1, h2, h3, h4, h5, h6 {
   transform: translateY(0);
 }
 
+.btn-outline {
+  background: rgba(251, 146, 60, 0.08);
+  color: var(--accent-orange-bright);
+  border: 1px solid rgba(251, 146, 60, 0.38);
+  padding: 8px 18px;
+  border-radius: 30px;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  backdrop-filter: blur(12px);
+}
+
+.btn-outline:hover {
+  background: rgba(251, 146, 60, 0.18);
+  border-color: var(--accent-orange);
+  color: #fff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 18px rgba(251, 146, 60, 0.28);
+}
+
+.btn-outline:active {
+  transform: translateY(0);
+}
+
+/* Styled Form Inputs & Select Elements */
+.input-styled {
+  background: rgba(22, 26, 38, 0.9);
+  color: var(--text-main);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  width: 100%;
+  outline: none;
+  transition: all 0.25s ease;
+  backdrop-filter: blur(12px);
+}
+
+.input-styled:focus {
+  border-color: var(--accent-orange);
+  box-shadow: 0 0 14px rgba(251, 146, 60, 0.25);
+  background: rgba(26, 31, 46, 0.95);
+}
+
+.input-styled::placeholder {
+  color: var(--text-dim);
+}
+
+select.input-styled {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23fb923c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 38px;
+  cursor: pointer;
+}
+
+select.input-styled option {
+  background-color: #1a1e2b;
+  color: #f8fafc;
+  padding: 12px;
+}
+
 /* Glass Panels & Modern Cards */
 .glass-card {
   background: var(--bg-card);
@@ -423,8 +495,10 @@ h1, h2, h3, h4, h5, h6 {
 .workspace-container {
   display: flex;
   flex: 1;
-  min-height: calc(100vh - 68px);
+  height: calc(100vh - 68px);
+  max-height: calc(100vh - 68px);
   position: relative;
+  overflow: hidden;
 }
 
 .sidebar {
@@ -622,11 +696,74 @@ h1, h2, h3, h4, h5, h6 {
 
 .main-content {
   flex: 1;
-  padding: 32px 40px;
+  height: 100%;
+  max-height: calc(100vh - 68px);
+  padding: 24px 36px 60px;
   overflow-y: auto;
+  overflow-x: hidden;
   background: transparent;
   position: relative;
   z-index: 2;
+  scroll-behavior: smooth;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.main-content::-webkit-scrollbar {
+  width: 8px;
+}
+.main-content::-webkit-scrollbar-track {
+  background: rgba(18, 21, 30, 0.45);
+}
+.main-content::-webkit-scrollbar-thumb {
+  background: rgba(251, 146, 60, 0.28);
+  border-radius: 4px;
+}
+.main-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(251, 146, 60, 0.55);
+}
+
+/* Workspace Top Navigation Bar & Backwards Button */
+.workspace-nav-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 22px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.btn-back-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-body);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-back-nav:hover {
+  background: rgba(251, 146, 60, 0.15);
+  border-color: var(--accent-orange);
+  color: #fff;
+  transform: translateX(-3px);
+}
+
+.breadcrumb-trail {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.breadcrumb-trail span.active {
+  color: #fff;
+  font-weight: 700;
 }
 
 /* High-Tech Badges & Pills */
@@ -1233,5 +1370,19 @@ footer {
 @keyframes kineticExpand {
   0% { transform: translate(-50%, -50%) scale(0.2); opacity: 1; }
   100% { transform: translate(-50%, -50%) scale(2.4); opacity: 0; }
+}
+
+/* 6. Live Monitor Dual Column Layout */
+.live-monitor-grid {
+  display: grid;
+  grid-template-columns: minmax(330px, 370px) 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 1040px) {
+  .live-monitor-grid {
+    grid-template-columns: 1fr !important;
+  }
 }
 
