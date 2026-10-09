@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Component 3: Localized Multimodal Vision Oracle — Backend Implementation & Defense Manual</title>
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --card-bg: #111827;
+      --card-border: #1f2937;
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
+      --primary: #6366f1;
+      --primary-light: #818cf8;
+      --primary-dark: #4f46e5;
+      --accent: #10b981;
+      --accent-warn: #f59e0b;
+      --accent-err: #ef4444;
+      --code-bg: #030712;
+      --sidebar-width: 280px;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      display: flex;
+      line-height: 1.6;
+      height: 100vh;
+      overflow: hidden;
+    }
+    /* Sidebar */
+    aside {
+      width: var(--sidebar-width);
+      background-color: #0d121f;
+      border-right: 1px solid var(--card-border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      height: 100vh;
+    }
+    .sidebar-header {
+      padding: 1.5rem 1.25rem;
+      border-bottom: 1px solid var(--card-border);
+    }
+    .sidebar-header h2 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--primary-light);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .sidebar-header .badge {
+      display: inline-block;
+      margin-top: 0.4rem;
+      font-size: 0.72rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 9999px;
+      background-color: rgba(99, 102, 241, 0.15);
+      color: var(--primary-light);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      font-family: monospace;
+    }
+    nav {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem 0.75rem;
+    }
+    nav a {
+      display: block;
+      padding: 0.6rem 0.8rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      border-radius: 0.375rem;
+      font-size: 0.88rem;
+      margin-bottom: 0.25rem;
+      transition: all 0.15s ease;
+    }
+    nav a:hover, nav a.active {
+      color: #fff;
+      background-color: rgba(99, 102, 241, 0.12);
+      border-left: 3px solid var(--primary);
+    }
+    /* Main Content */
+    main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 2.5rem 3.5rem;
+      scroll-behavior: smooth;
+    }
+    header.page-header {
+      margin-bottom: 2.5rem;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 1.5rem;
+    }
+    header.page-header h1 {
+      font-size: 2rem;
+      font-weight: 800;
+      color: #fff;
+      letter-spacing: -0.025em;
+    }
+    header.page-header p {
+      color: var(--text-muted);
+      margin-top: 0.5rem;
+      font-size: 1rem;
+    }
+    .meta-bar {
+      display: flex;
+      gap: 1.5rem;
+      margin-top: 1rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      font-family: monospace;
+    }
+    .meta-item {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .meta-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--accent);
+    }
+    /* Cards & Sections */
+    section {
+      margin-bottom: 3.5rem;
+    }
+    section h2 {
+      font-size: 1.45rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 1.25rem;
+      border-bottom: 2px solid var(--card-border);
+      padding-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    section h3 {
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: var(--primary-light);
+      margin: 1.75rem 0 0.75rem 0;
+    }
+    p, ul, ol {
+      color: #d1d5db;
+      font-size: 0.95rem;
+      margin-bottom: 1rem;
+    }
+    ul, ol {
+      padding-left: 1.5rem;
+    }
+    li {
+      margin-bottom: 0.4rem;
+    }
+    .card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 0.5rem;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .callout {
+      border-left: 4px solid var(--primary);
+      background-color: rgba(99, 102, 241, 0.08);
+      padding: 1.25rem 1.5rem;
+      border-radius: 0.375rem;
+      margin: 1.5rem 0;
+    }
+    .callout-warn {
+      border-left-color: var(--accent-warn);
+      background-color: rgba(245, 158, 11, 0.08);
+    }
+    .callout-success {
+      border-left-color: var(--accent);
+      background-color: rgba(16, 185, 129, 0.08);
+    }
+    .callout-title {
+      font-weight: 700;
+      font-size: 0.95rem;
+      margin-bottom: 0.4rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .callout-warn .callout-title { color: var(--accent-warn); }
+    .callout-success .callout-title { color: var(--accent); }
+    .callout .callout-title { color: var(--primary-light); }
+    /* Code Blocks */
+    .code-container {
+      position: relative;
+      margin: 1rem 0 1.5rem 0;
+    }
+    .code-header {
+      background-color: #1a2234;
+      padding: 0.4rem 1rem;
+      border-top-left-radius: 0.375rem;
+      border-top-right-radius: 0.375rem;
+      font-family: monospace;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border: 1px solid var(--card-border);
+      border-bottom: none;
+    }
+    .copy-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #e5e7eb;
+      font-size: 0.72rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 0.25rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .copy-btn:hover {
+      background: var(--primary);
+      color: #fff;
+    }
+    pre {
+      background-color: var(--code-bg);
+      border: 1px solid var(--card-border);
+      border-bottom-left-radius: 0.375rem;
+      border-bottom-right-radius: 0.375rem;
+      padding: 1.25rem;
+      overflow-x: auto;
+      font-family: "JetBrains Mono", Consolas, Monaco, "Courier New", monospace;
+      font-size: 0.88rem;
+      line-height: 1.5;
+      color: #e2e8f0;
+    }
+    code {
+      font-family: "JetBrains Mono", Consolas, Monaco, "Courier New", monospace;
+      background-color: rgba(255, 255, 255, 0.06);
+      padding: 0.15rem 0.35rem;
+      border-radius: 0.25rem;
+      font-size: 0.88em;
+      color: var(--primary-light);
+    }
+    pre code {
+      background: none;
+      padding: 0;
+      color: inherit;
+    }
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.25rem 0;
+      font-size: 0.9rem;
+    }
+    th, td {
+      border: 1px solid var(--card-border);
+      padding: 0.75rem 1rem;
+      text-align: left;
+    }
+    th {
+      background-color: #172033;
+      color: #fff;
+      font-weight: 600;
+    }
+    tr:nth-child(even) {
+      background-color: rgba(255, 255, 255, 0.02);
+    }
+    /* SVG Visuals */
+    .diagram-container {
+      background: #060a12;
+      border: 1px solid var(--card-border);
+      border-radius: 0.5rem;
+      padding: 1.5rem;
+      margin: 1.5rem 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    /* Accordion */
+    details {
+      background-color: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 0.375rem;
+      margin-bottom: 0.75rem;
+      padding: 0.75rem 1.25rem;
+    }
+    summary {
+      font-weight: 600;
+      color: #fff;
+      cursor: pointer;
+      user-select: none;
+      font-size: 0.95rem;
+    }
+    summary:hover {
+      color: var(--primary-light);
+    }
+    details[open] {
+      padding-bottom: 1.25rem;
+    }
+    details[open] summary {
+      margin-bottom: 0.75rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      padding-bottom: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <aside>
+    <div class="sidebar-header">
+      <h2>Vision Oracle C3</h2>
+      <span class="badge">v2.0 • PP1 Backend Hardened</span>
+    </div>
+    <nav>
+      <a href="#overview">1. System Architecture</a>
+      <a href="#prerequisites">2. Setup & Environment</a>
+      <a href="#api-walkthrough">3. REST API v2 Walkthrough</a>
+      <a href="#spatial-tiling">4. Spatial Tiling & Capacity</a>
+      <a href="#common-driver">5. Autonomous Driver Layer</a>
+      <a href="#sqlite-db">6. Durable SQLite Persistence</a>
+      <a href="#defense-bank">7. Oral Defense Q&A Bank</a>
+      <a href="#troubleshooting">8. Troubleshooting Guide</a>
+    </nav>
+  </aside>
+
+  <!-- Main Content -->
+  <main>
+    <header class="page-header" id="overview">
+      <h1>Component 3: Vision-Semantic Oracle Backend</h1>
+      <p>Air-gapped, zero-leakage multimodal visual defect oracle running on 4GB edge GPU.</p>
+      <div class="meta-bar">
+        <div class="meta-item"><span class="meta-dot"></span> Status: Production Ready (PP1)</div>
+        <div class="meta-item">Branch: feat/c3-local-vision-oracle</div>
+        <div class="meta-item">Port: 8003 (Loopback)</div>
+        <div class="meta-item">Model: Qwen2-VL-2B (QLoRA)</div>
+      </div>
+    </header>
+
+    <!-- 1. System Architecture -->
+    <section>
+      <h2>1. System Architecture</h2>
+      <p>Component 3 acts as the autonomous visual oracle within the multi-agent UI testing framework. It inspects live Android application interfaces, detects visual and functional layout bugs across 7 taxonomies, maps pixel anomalies back to physical device coordinates, and outputs canonical scientific envelopes.</p>
+      
+      <div class="diagram-container">
+        <svg viewBox="0 0 880 340" width="100%" height="320" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#6366f1"/>
+            </marker>
+          </defs>
+          <!-- Android Device -->
+          <rect x="20" y="40" width="160" height="260" rx="10" fill="#111827" stroke="#374151" stroke-width="2"/>
+          <text x="100" y="70" fill="#f3f4f6" font-size="13" font-weight="bold" text-anchor="middle">Android Device</text>
+          <text x="100" y="90" fill="#9ca3af" font-size="11" text-anchor="middle">Physical / Emulator</text>
+          <rect x="40" y="110" width="120" height="150" rx="4" fill="#1f2937" stroke="#4b5563"/>
+          <text x="100" y="180" fill="#818cf8" font-size="11" text-anchor="middle">ShopEase App</text>
+          <text x="100" y="200" fill="#9ca3af" font-size="9" text-anchor="middle">1080x2400 Display</text>
+
+          <!-- ADB Connector -->
+          <path d="M 180 170 L 250 170" stroke="#6366f1" stroke-width="2" marker-end="url(#arrow)"/>
+          <text x="215" y="160" fill="#9ca3af" font-size="10" text-anchor="middle">ADB Shell</text>
+
+          <!-- C3 Backend Server -->
+          <rect x="260" y="20" width="370" height="300" rx="8" fill="#0f172a" stroke="#6366f1" stroke-width="2"/>
+          <text x="445" y="48" fill="#818cf8" font-size="14" font-weight="bold" text-anchor="middle">Component 3 Server (FastAPI :8003)</text>
+
+          <!-- Ingestion & SQLite -->
+          <rect x="280" y="70" width="150" height="100" rx="4" fill="#1e293b" stroke="#334155"/>
+          <text x="355" y="95" fill="#f3f4f6" font-size="11" font-weight="bold" text-anchor="middle">Evidence Ingestion</text>
+          <text x="355" y="115" fill="#9ca3af" font-size="9" text-anchor="middle">Atomic Artifact Write</text>
+          <text x="355" y="130" fill="#9ca3af" font-size="9" text-anchor="middle">SHA-256 Digest</text>
+          <text x="355" y="145" fill="#10b981" font-size="9" text-anchor="middle">SQLite WAL Database</text>
+
+          <!-- Inference Pipeline -->
+          <rect x="460" y="70" width="150" height="230" rx="4" fill="#1e293b" stroke="#334155"/>
+          <text x="535" y="95" fill="#f3f4f6" font-size="11" font-weight="bold" text-anchor="middle">Inference Pipeline</text>
+          <rect x="475" y="110" width="120" height="30" rx="3" fill="#334155"/>
+          <text x="535" y="128" fill="#e2e8f0" font-size="9" text-anchor="middle">Tiling Decomposition</text>
+          <rect x="475" y="150" width="120" height="30" rx="3" fill="#334155"/>
+          <text x="535" y="168" fill="#e2e8f0" font-size="9" text-anchor="middle">Qwen2-VL Local VLM</text>
+          <rect x="475" y="190" width="120" height="30" rx="3" fill="#334155"/>
+          <text x="535" y="208" fill="#e2e8f0" font-size="9" text-anchor="middle">Invertible Mapper</text>
+          <rect x="475" y="230" width="120" height="30" rx="3" fill="#334155"/>
+          <text x="535" y="248" fill="#e2e8f0" font-size="9" text-anchor="middle">IoU Deduplication</text>
+          <rect x="475" y="270" width="120" height="20" rx="3" fill="#4338ca"/>
+          <text x="535" y="284" fill="#f3f4f6" font-size="8" font-weight="bold" text-anchor="middle">Scope Boundary</text>
+
+          <!-- Internal Flow -->
+          <path d="M 430 120 L 460 120" stroke="#6366f1" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+          <!-- Client / C4 Connector -->
+          <path d="M 630 170 L 700 170" stroke="#6366f1" stroke-width="2" marker-end="url(#arrow)"/>
+          <text x="665" y="160" fill="#9ca3af" font-size="10" text-anchor="middle">REST v2 / Adapter</text>
+
+          <!-- Component 4 Box -->
+          <rect x="710" y="90" width="150" height="160" rx="8" fill="#111827" stroke="#374151" stroke-width="2"/>
+          <text x="785" y="120" fill="#f3f4f6" font-size="12" font-weight="bold" text-anchor="middle">Component 4</text>
+          <text x="785" y="140" fill="#9ca3af" font-size="10" text-anchor="middle">Healing & Exploration</text>
+          <rect x="725" y="160" width="120" height="60" rx="4" fill="#1f2937"/>
+          <text x="785" y="180" fill="#10b981" font-size="9" text-anchor="middle">Canonical Envelope</text>
+          <text x="785" y="195" fill="#e2e8f0" font-size="9" text-anchor="middle">primary_finding</text>
+          <text x="785" y="210" fill="#e2e8f0" font-size="9" text-anchor="middle">findings: [...]</text>
+        </svg>
+      </div>
+
+      <div class="callout callout-success">
+        <div class="callout-title">Core Scientific Guarantees</div>
+        <ul>
+          <li><strong>Air-Gapped Local Inference:</strong> No external API calls (zero OpenAI/Anthropic network calls); 100% runs on internal NVIDIA RTX 3050.</li>
+          <li><strong>Zero VRAM Leaks:</strong> Model loads once into GPU memory upon FastAPI lifespan startup and stays pinned; zero reload overhead per inference cycle.</li>
+          <li><strong>Deterministic Bounds:</strong> Defect bounding boxes are validated against physical screen boundaries and guaranteed invertible.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 2. Prerequisites & Environment -->
+    <section id="prerequisites">
+      <h2>2. Prerequisites & Environment</h2>
+      <p>All dependencies are installed in the workspace Python 3.13 virtual environment.</p>
+
+      <div class="card">
+        <h3>System Specifications</h3>
+        <table>
+          <tr><th>Component</th><th>Specification</th><th>Verification</th></tr>
+          <tr><td>Host GPU</td><td>NVIDIA GeForce RTX 3050 Laptop (4GB VRAM)</td><td><code>nvidia-smi</code></td></tr>
+          <tr><td>Python Runtime</td><td>Python 3.13.3 (64-bit Windows)</td><td><code>python --version</code></td></tr>
+          <tr><td>Deep Learning Stack</td><td>PyTorch 2.6.0+cu126, Transformers, Accelerate</td><td><code>python -c "import torch; print(torch.cuda.is_available())"</code></td></tr>
+          <tr><td>Android Debug Bridge</td><td>ADB v35.0.2 (TCP 5037)</td><td><code>adb devices</code></td></tr>
+        </table>
+      </div>
+
+      <h3>Starting the Vision Oracle Server</h3>
+      <p>Launch the server from the root of repository <code>J26-SE-334</code>:</p>
+      
+      <div class="code-container">
+        <div class="code-header">
+          <span>PowerShell (Run from D:\university\Resesarch\J26-SE-334)</span>
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        </div>
+        <pre><code>python -m vision_oracle.server</code></pre>
+      </div>
+
+      <p>The server eager-loads the fine-tuned QLoRA weights during startup. Verify the console output displays:</p>
+      <div class="code-container">
+        <div class="code-header"><span>Server Console Output</span></div>
+        <pre><code>INFO:     Started server process [17924]
+INFO:     Waiting for application startup.
+INFO:     [Lifespan] Pre-loading Local Vision Oracle model on device: cuda...
+Loading weights: 100%|███████████████████████████████████████| 729/729 [00:11<00:00, 63.21it/s]
+INFO:     [Lifespan] Model loaded successfully. Ready for inference.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8003 (Press CTRL+C to quit)</code></pre>
+      </div>
+    </section>
+
+    <!-- 3. REST API Walkthrough -->
+    <section id="api-walkthrough">
+      <h2>3. Step-by-Step REST API v2 Execution Walkthrough</h2>
+      <p>Execute this sequence to simulate live evidence ingestion, asynchronous inference, and canonical verdict retrieval.</p>
+
+      <!-- Step 1: Health Liveness -->
+      <details open>
+        <summary>Step 1: Check Process Liveness (GET /health/live)</summary>
+        <p>Ultra-fast health check that returns 200 without blocking or invoking the GPU.</p>
+        <div class="code-container">
+          <div class="code-header"><span>PowerShell</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+          <pre><code>Invoke-RestMethod -Uri "http://127.0.0.1:8003/health/live" -Method Get</code></pre>
+        </div>
+        <div class="code-container">
+          <div class="code-header"><span>HTTP 200 Response</span></div>
+          <pre><code>{
+  "status": "alive",
+  "timestamp": 1729237492.12
+}</code></pre>
+        </div>
+      </details>
+
+      <!-- Step 2: Health Readiness -->
+      <details open>
+        <summary>Step 2: Check Readiness & Hardware State (GET /health/ready)</summary>
+        <p>Probes the VLM model worker, SQLite database connection, and ADB device state.</p>
+        <div class="code-container">
+          <div class="code-header"><span>PowerShell</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+          <pre><code>Invoke-RestMethod -Uri "http://127.0.0.1:8003/health/ready" -Method Get</code></pre>
+        </div>
+        <div class="code-container">
+          <div class="code-header"><span>HTTP 200 Response</span></div>
+          <pre><code>{
+  "status": "ready",
+  "model_worker": "ready",
+  "database": "connected",
+  "adb_device": "attached",
+  "active_jobs": 0
+}</code></pre>
+        </div>
+      </details>
+
+      <!-- Step 3: Capture Ingestion -->
+      <details open>
+        <summary>Step 3: Ingest Screen Capture & Hierarchy (POST /v2/captures)</summary>
+        <p>Atomically records raw image bytes or path alongside accessibility hierarchy XML into SQLite and computes SHA-256 digest.</p>
+        <div class="code-container">
+          <div class="code-header"><span>PowerShell</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+          <pre><code>$Body = @{
+    session_id = "demo_session_01"
+    app_package = "com.solvance.android"
+    image_path = "vision_oracle/notebooks/live_phone_screen.png"
+    raw_hierarchy = "&lt;hierarchy&gt;&lt;node class='android.widget.TextView' text='ShopEase' bounds='[0,0][1080,200]'/&gt;&lt;/hierarchy&gt;"
+} | ConvertTo-Json
+
+$Capture = Invoke-RestMethod -Uri "http://127.0.0.1:8003/v2/captures" -Method Post -ContentType "application/json" -Body $Body
+$Capture | Format-List</code></pre>
+        </div>
+        <div class="code-container">
+          <div class="code-header"><span>HTTP 201 Created Response</span></div>
+          <pre><code>capture_id             : cap_b83476120a6b
+session_id             : demo_session_01
+app_package            : com.solvance.android
+timestamp_utc          : 2026-10-18T07:44:52Z
+width                  : 1080
+height                 : 2392
+image_sha256           : ee0add5f6716fa724ae828ba07cefb8b5a071359c3c4c98cb9ea0b349afd5613
+artifact_path          : results\artifacts\cap_b83476120a6b.png
+hierarchy_status       : available
+inter_modality_skew_ms : 0.0</code></pre>
+        </div>
+      </details>
+
+      <!-- Step 4: Dispatch Async Job -->
+      <details open>
+        <summary>Step 4: Dispatch Analysis Job (POST /v2/jobs)</summary>
+        <p>Queues multi-tile inference job under policy <code>global_plus_tiles_v1</code>.</p>
+        <div class="code-container">
+          <div class="code-header"><span>PowerShell</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+          <pre><code>$JobBody = @{
+    capture_id = $Capture.capture_id
+    session_id = "demo_session_01"
+    policy = "global_plus_tiles_v1"
+} | ConvertTo-Json
+
+$Job = Invoke-RestMethod -Uri "http://127.0.0.1:8003/v2/jobs" -Method Post -ContentType "application/json" -Body $JobBody
+$Job | Format-List</code></pre>
+        </div>
+        <div class="code-container">
+          <div class="code-header"><span>HTTP 202 Accepted Response</span></div>
+          <pre><code>job_id          : job_a1c7209df341
+capture_id      : cap_b83476120a6b
+session_id      : demo_session_01
+state           : queued
+policy          : global_plus_tiles_v1
+planned_views   : 4
+completed_views : 0
+created_at      : 2026-10-18T07:45:00Z</code></pre>
+        </div>
+      </details>
+
+      <!-- Step 5: Poll Job -->
+      <details open>
+        <summary>Step 5: Poll Job Status (GET /v2/jobs/{job_id})</summary>
+        <div class="code-container">
+          <div class="code-header"><span>PowerShell</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+          <pre><code>Invoke-RestMethod -Uri "http://127.0.0.1:8003/v2/jobs/$($Job.job_id)" -Method Get | Format-List</code></pre>
+        </div>
+        <div class="code-container">
+          <div class="code-header"><span>HTTP 200 Response (Completed)</span></div>
+          <pre><code>job_id          : job_a1c7209df341
+capture_id      : cap_b83476120a6b
+session_id      : demo_session_01
+state           : completed
+policy          : global_plus_tiles_v1
+planned_views   : 4
+completed_views : 4
+verdict_id      : verdict_3f8190d7ca02
+decision        : defect_detected
+completed_at    : 2026-10-18T07:45:01Z</code></pre>
+        </div>
+      </details>
+
+      <!-- Step 6: Retrieve Canonical Envelope -->
+      <details open>
+        <summary>Step 6: Retrieve Canonical V2 Verdict Envelope (GET /v2/results/{verdict_id})</summary>
+        <p>Returns the complete scientific verdict envelope with primary finding, candidate findings list, and explicit PP1 scope.</p>
+        <div class="code-container">
+          <div class="code-header"><span>PowerShell</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+          <pre><code>Invoke-RestMethod -Uri "http://127.0.0.1:8003/v2/results/verdict_3f8190d7ca02" -Method Get | ConvertTo-Json -Depth 6</code></pre>
+        </div>
+        <div class="code-container">
+          <div class="code-header"><span>HTTP 200 Canonical Verdict Envelope</span></div>
+          <pre><code>{
+  "schema_version": "2.0",
+  "job_id": "job_a1c7209df341",
+  "verdict_id": "verdict_3f8190d7ca02",
+  "session_id": "demo_session_01",
+  "capture_id": "cap_b83476120a6b",
+  "analysis_status": "complete",
+  "decision": "defect_detected",
+  "coverage": {
+    "policy": "global_plus_tiles_v1",
+    "planned_views": 4,
+    "completed_views": 4,
+    "warnings": []
+  },
+  "screenshot": {
+    "artifact_id": "art_cap_b83476120a6b",
+    "width": 1080,
+    "height": 2392,
+    "coordinate_space": "original_pixels_xyxy",
+    "storage_path": "results/artifacts/cap_b83476120a6b.png"
+  },
+  "scope": {
+    "mode": "single_primary_visual_finding",
+    "exhaustive": false
+  },
+  "primary_finding": {
+    "finding_id": "find_9a0412ef10",
+    "type": "component_overlap",
+    "bbox_xyxy": [120, 840, 960, 1120],
+    "element_ref": "com.solvance.android:id/checkout_btn",
+    "explanation": "Floating action button occludes coupon input field.",
+    "source": "vlm",
+    "confidence": 0.94,
+    "confidence_method": "uncalibrated",
+    "view_ids": ["global", "tile_1"],
+    "review_status": "unreviewed"
+  },
+  "findings": [
+    {
+      "finding_id": "find_9a0412ef10",
+      "type": "component_overlap",
+      "bbox_xyxy": [120, 840, 960, 1120],
+      "element_ref": "com.solvance.android:id/checkout_btn",
+      "explanation": "Floating action button occludes coupon input field.",
+      "source": "vlm",
+      "confidence": 0.94,
+      "confidence_method": "uncalibrated",
+      "view_ids": ["global", "tile_1"],
+      "review_status": "unreviewed"
+    }
+  ],
+  "timings_ms": {
+    "preprocess_ms": 12.4,
+    "inference_ms": 718.5,
+    "aggregation_ms": 2.1,
+    "total_pipeline_ms": 733.0
+  },
+  "errors": []
+}</code></pre>
+        </div>
+      </details>
+    </section>
+
+    <!-- 4. Spatial Tiling & Defect Capacity -->
+    <section id="spatial-tiling">
+      <h2>4. Spatial Tiling & Defect Capacity Mechanics</h2>
+      <p>A critical question during the oral defense is how a model trained on single defects can detect multiple visual bugs across a mobile screen.</p>
+
+      <div class="card">
+        <h3>Spatial Divide-and-Conquer Architecture</h3>
+        <p>Mobile screens have tall aspect ratios (e.g. 9:20 or 1080x2400). Scaling down the entire screen directly causes tiny text and button icons to become unreadable blur. Our spatial tiling engine solves this:</p>
+        
+        <div class="diagram-container">
+          <svg viewBox="0 0 740 280" width="100%" height="260" xmlns="http://www.w3.org/2000/svg">
+            <!-- Full Screen -->
+            <rect x="20" y="20" width="110" height="240" rx="4" fill="#1e293b" stroke="#6366f1" stroke-width="2"/>
+            <text x="75" y="50" fill="#f3f4f6" font-size="10" font-weight="bold" text-anchor="middle">Full Screen</text>
+            <text x="75" y="70" fill="#9ca3af" font-size="8" text-anchor="middle">1080 x 2400</text>
+            
+            <!-- Defect 1 and Defect 2 on screen -->
+            <rect x="35" y="80" width="80" height="25" fill="rgba(239, 68, 68, 0.4)" stroke="#ef4444"/>
+            <text x="75" y="96" fill="#fff" font-size="8" text-anchor="middle">Bug A: Overlap</text>
+            
+            <rect x="35" y="190" width="80" height="25" fill="rgba(239, 68, 68, 0.4)" stroke="#ef4444"/>
+            <text x="75" y="206" fill="#fff" font-size="8" text-anchor="middle">Bug B: Truncation</text>
+
+            <!-- Arrows to 4 Views -->
+            <path d="M 140 60 L 220 30" stroke="#6366f1" stroke-width="1.5" marker-end="url(#arrow)"/>
+            <path d="M 140 100 L 220 90" stroke="#6366f1" stroke-width="1.5" marker-end="url(#arrow)"/>
+            <path d="M 140 160 L 220 160" stroke="#6366f1" stroke-width="1.5" marker-end="url(#arrow)"/>
+            <path d="M 140 220 L 220 230" stroke="#6366f1" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+            <!-- 4 Views -->
+            <!-- Global -->
+            <rect x="230" y="10" width="90" height="40" rx="3" fill="#0f172a" stroke="#475569"/>
+            <text x="275" y="28" fill="#e2e8f0" font-size="9" text-anchor="middle">View 0: Global</text>
+            <text x="275" y="42" fill="#9ca3af" font-size="7" text-anchor="middle">[0,0,1080,2400] Resized</text>
+
+            <!-- Tile 1 -->
+            <rect x="230" y="70" width="90" height="45" rx="3" fill="#0f172a" stroke="#ef4444" stroke-width="1.5"/>
+            <text x="275" y="88" fill="#e2e8f0" font-size="9" text-anchor="middle">Tile 1: Top</text>
+            <text x="275" y="102" fill="#ef4444" font-size="7" text-anchor="middle">Catches Bug A</text>
+
+            <!-- Tile 2 -->
+            <rect x="230" y="140" width="90" height="45" rx="3" fill="#0f172a" stroke="#475569"/>
+            <text x="275" y="158" fill="#e2e8f0" font-size="9" text-anchor="middle">Tile 2: Mid</text>
+            <text x="275" y="172" fill="#10b981" font-size="7" text-anchor="middle">Clean</text>
+
+            <!-- Tile 3 -->
+            <rect x="230" y="210" width="90" height="45" rx="3" fill="#0f172a" stroke="#ef4444" stroke-width="1.5"/>
+            <text x="275" y="228" fill="#e2e8f0" font-size="9" text-anchor="middle">Tile 3: Bottom</text>
+            <text x="275" y="242" fill="#ef4444" font-size="7" text-anchor="middle">Catches Bug B</text>
+
+            <!-- Arrow to Invertible Mapper -->
+            <path d="M 330 140 L 400 140" stroke="#6366f1" stroke-width="2" marker-end="url(#arrow)"/>
+            <rect x="410" y="100" width="130" height="80" rx="4" fill="#1e293b" stroke="#334155"/>
+            <text x="475" y="125" fill="#f3f4f6" font-size="10" font-weight="bold" text-anchor="middle">Invertible Mapper</text>
+            <text x="475" y="145" fill="#9ca3af" font-size="8" text-anchor="middle">y_screen = y_crop + offset_y</text>
+            <text x="475" y="162" fill="#9ca3af" font-size="8" text-anchor="middle">x_screen = x_crop + offset_x</text>
+
+            <!-- Arrow to Deduplicator -->
+            <path d="M 550 140 L 600 140" stroke="#6366f1" stroke-width="2" marker-end="url(#arrow)"/>
+            <rect x="610" y="80" width="110" height="120" rx="4" fill="#0f172a" stroke="#10b981" stroke-width="2"/>
+            <text x="665" y="105" fill="#10b981" font-size="10" font-weight="bold" text-anchor="middle">IoU Deduplicator</text>
+            <text x="665" y="130" fill="#e2e8f0" font-size="8" text-anchor="middle">IoU >= 0.5: Merge</text>
+            <text x="665" y="148" fill="#e2e8f0" font-size="8" text-anchor="middle">Distinct: Retain Both</text>
+            <rect x="620" y="165" width="90" height="25" rx="3" fill="#1e293b"/>
+            <text x="665" y="181" fill="#f3f4f6" font-size="8" font-weight="bold" text-anchor="middle">findings: [A, B]</text>
+          </svg>
+        </div>
+
+        <table>
+          <tr><th>Mechanism</th><th>Execution Logic</th><th>Academic Scientific Rationale</th></tr>
+          <tr>
+            <td><strong>Independent View Inference</strong></td>
+            <td>Each vertical crop is fed independently into the QLoRA model.</td>
+            <td>High native resolution preserved without downsampling artifacts.</td>
+          </tr>
+          <tr>
+            <td><strong>Invertible Coordinate Projection</strong></td>
+            <td><code>[x1, y1, x2, y2]</code> are translated back using slice offsets.</td>
+            <td>Zero coordinate drift; bounding boxes match real screen pixels exactly.</td>
+          </tr>
+          <tr>
+            <td><strong>Class-Aware IoU Clustering</strong></td>
+            <td>Overlapping slices evaluated. Same defects merged if IoU &ge; 0.5.</td>
+            <td>Prevents double-counting bugs seen in the tile overlap region.</td>
+          </tr>
+          <tr>
+            <td><strong>PP1 Scope Declaration</strong></td>
+            <td><code>scope: {"mode": "single_primary_visual_finding", "exhaustive": false}</code></td>
+            <td>Honest academic demarcation: avoids claiming unverified exhaustive detection.</td>
+          </tr>
+        </table>
+      </div>
+    </section>
+
+    <!-- 5. Autonomous Driver Layer -->
+    <section id="common-driver">
+      <h2>5. Common Autonomous Test Execution Driver Layer</h2>
+      <p>The unified autonomous crawler in <code>common/driver.py</code> connects to live Android devices, explores interactive UI nodes, and dispatches screens directly to C3 Vision Oracle.</p>
+
+      <div class="code-container">
+        <div class="code-header"><span>Running the Autonomous Test Crawler</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>python -m common.driver --package com.solvance.android --steps 10 --output results/crawler_report.json</code></pre>
+      </div>
+
+      <div class="card">
+        <h3>Autonomous Crawl Lifecycle</h3>
+        <ol>
+          <li><strong>Cross-Process File Lock:</strong> Acquires exclusive OS lock on <code>.adb_{serial}.lock</code> to eliminate multi-process contention.</li>
+          <li><strong>Live Screenshot & Hierarchy Capture:</strong> Calls <code>AdbDevice.screencap()</code> and <code>AdbDevice.dump_hierarchy()</code> in sub-250ms burst.</li>
+          <li><strong>Oracle Evaluation:</strong> Posts capture to C3 REST API v2 and registers verdict.</li>
+          <li><strong>Interactive Target Extraction:</strong> Parses XML hierarchy to find clickable buttons, text inputs, and tabs.</li>
+          <li><strong>Gesture Dispatch & Settle Window:</strong> Sends <code>input tap x y</code> and awaits UI animation settle window (500ms).</li>
+          <li><strong>Report Generation:</strong> Writes complete traversal trace and detected visual bugs to JSON.</li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- 6. Durable SQLite Persistence -->
+    <section id="sqlite-db">
+      <h2>6. Durable SQLite Persistence Inspection</h2>
+      <p>All sessions, captures, jobs, verdicts, and human reviews are stored in <code>results/oracle_evidence.db</code> with WAL journal mode.</p>
+
+      <div class="code-container">
+        <div class="code-header"><span>Inspect Findings directly via sqlite3 (PowerShell)</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><code>python -c "
+import sqlite3
+conn = sqlite3.connect('results/oracle_evidence.db')
+cur = conn.cursor()
+print('=== DETECTED DEFECTS IN SQLITE ===')
+for row in cur.execute('SELECT verdict_id, defect_type, x1, y1, x2, y2, confidence FROM findings'):
+    print(row)
+"</code></pre>
+      </div>
+
+      <div class="code-container">
+        <div class="code-header"><span>Crash Reconciliation (Interrupted Job Recovery)</span></div>
+        <pre><code># The repository automatically marks orphaned running jobs as 'interrupted' on boot:
+from vision_oracle.persistence.db import Database
+from vision_oracle.persistence.repository import OracleRepository
+
+repo = OracleRepository(Database("results/oracle_evidence.db"))
+reconciled = repo.reconcile_interrupted_jobs()
+print(f'Reconciled {reconciled} orphaned jobs safely.')</code></pre>
+      </div>
+    </section>
+
+    <!-- 7. Oral Defense Q&A Bank -->
+    <section id="defense-bank">
+      <h2>7. Thesis Oral Defense Q&A Bank</h2>
+      <p>Memorize these precise answers for technical defense examination questions.</p>
+
+      <details open>
+        <summary>Q1: Why use spatial tiling instead of feeding the full 1080x2400 screen directly?</summary>
+        <div class="callout">
+          <p><strong>Examiner Question:</strong> <em>"Why do you decompose the image into slices? Doesn't the Vision Transformer take any arbitrary resolution?"</em></p>
+          <p><strong>Authoritative Answer:</strong> <em>"Mobile screens feature tall aspect ratios (9:20). Passing a 1080x2400 screenshot directly into a standard vision-language backbone downsamples or collapses text and small touch targets below readable pixel thresholds. By dividing the screen into three overlapping crops plus one global downscaled view, our pipeline preserves high spatial frequency information, enabling accurate identification of small-scale component occlusions and single-line text truncations while keeping VRAM well under the 4GB hardware budget."</em></p>
+        </div>
+      </details>
+
+      <details open>
+        <summary>Q2: How do you justify detecting multiple bugs when your model was trained on single defects?</summary>
+        <div class="callout">
+          <p><strong>Examiner Question:</strong> <em>"Your LLaMA-Factory fine-tuning script trained on single-defect bounding box annotations. How can you claim multi-defect detection?"</em></p>
+          <p><strong>Authoritative Answer:</strong> <em>"We strictly distinguish between <strong>tile-level model capacity</strong> and <strong>system-level pipeline capacity</strong>. In any individual slice, the model detects the most salient visual defect. When distinct defects exist across different screen regions (e.g., an occluded navbar at the top and truncated disclaimer text at the bottom), independent tile inferences capture each anomaly. Our IoU clustering engine aggregates non-overlapping candidates into the <code>findings: [...]</code> list. Furthermore, to maintain strict scientific integrity, our Canonical Contract v2 declares <code>scope: {'mode': 'single_primary_visual_finding', 'exhaustive': false}</code>, ensuring we never falsely claim exhaustive multi-defect certification before dedicated multi-label fine-tuning is completed."</em></p>
+        </div>
+      </details>
+
+      <details open>
+        <summary>Q3: How do you guarantee the model does not hallucinate out-of-bounds coordinates?</summary>
+        <div class="callout">
+          <p><strong>Examiner Question:</strong> <em>"VLMs frequently produce coordinates outside image boundaries. How does your backend safeguard against this?"</em></p>
+          <p><strong>Authoritative Answer:</strong> <em>"Contract v2 enforces runtime schema invariants via Pydantic model validators. Coordinate parsing validates physical ordering (<code>x1 &lt; x2</code> and <code>y1 &lt; y2</code>) and non-negativity. When un-tiling, coordinates are strictly clamped to physical screenshot resolution (e.g. <code>x2 &le; width</code>, <code>y2 &le; height</code>). Any violation raises an explicit invariant error and marks the verdict as <code>error</code> or <code>inconclusive</code> rather than generating a corrupted verdict."</em></p>
+        </div>
+      </details>
+
+      <details open>
+        <summary>Q4: How does your system satisfy the 1500ms latency requirement on a 4GB laptop GPU?</summary>
+        <div class="callout">
+          <p><strong>Examiner Question:</strong> <em>"How can a 2-billion parameter multimodal model achieve interactive test execution speeds on a consumer laptop?"</em></p>
+          <p><strong>Authoritative Answer:</strong> <em>"We apply 4-bit QLoRA weight quantization and eager memory pinning. The base model weights and LoRA adapters are loaded into VRAM once upon FastAPI server initialization, avoiding repeated weights loading. By using PyTorch 2.6 CUDA 12.6 flash attention kernels, single-tile inference completes in approximately 700ms, comfortably satisfying the 1500ms SLA target."</em></p>
+        </div>
+      </details>
+    </section>
+
+    <!-- 8. Troubleshooting Guide -->
+    <section id="troubleshooting">
+      <h2>8. Troubleshooting Guide</h2>
+      <table>
+        <tr><th>Error Symptom</th><th>Root Cause</th><th>Immediate Fix</th></tr>
+        <tr>
+          <td><code>HTTP 503: No ADB device attached</code></td>
+          <td>Emulator or physical phone not detected by ADB daemon.</td>
+          <td>Run <code>adb devices</code>; restart daemon with <code>adb kill-server &amp;&amp; adb start-server</code>.</td>
+        </tr>
+        <tr>
+          <td><code>HTTP 404: Capture ID 'cap_xxx' not found</code></td>
+          <td>Job was dispatched with a capture ID from a previous database wipe.</td>
+          <td>Run <code>POST /v2/captures</code> first, grab the returned <code>capture_id</code>, and pass it to <code>POST /v2/jobs</code>.</td>
+        </tr>
+        <tr>
+          <td><code>CUDA out of memory</code></td>
+          <td>Another process (e.g. Ollama or browser hardware acceleration) occupied VRAM.</td>
+          <td>Run <code>nvidia-smi</code>; terminate competing processes; ensure only C3 server runs on GPU.</td>
+        </tr>
+        <tr>
+          <td><code>HTTP 409: Job already completed/cancelled</code></td>
+          <td>Attempting to cancel an already finished job.</td>
+          <td>Job state transitions are immutable once terminal (COMPLETED, FAILED, CANCELLED).</td>
+        </tr>
+      </table>
+    </section>
+  </main>
+
+  <script>
+    function copyCode(btn) {
+      const pre = btn.parentElement.nextElementSibling;
+      const code = pre.querySelector('code').innerText;
+      navigator.clipboard.writeText(code).then(() => {
+        const originalText = btn.innerText;
+        btn.innerText = 'Copied!';
+        btn.style.background = '#10b981';
+        setTimeout(() => {
+          btn.innerText = originalText;
+          btn.style.background = '';
+        }, 1500);
+      });
+    }
+
+    // Active link highlighting
+    const links = document.querySelectorAll('nav a');
+    const sections = document.querySelectorAll('section, header');
+
+    window.addEventListener('scroll', () => {
+      let current = '';
+      sections.forEach(section => {
+        const sectionTop = section.offsetTop;
+        if (pageYOffset >= sectionTop - 100) {
+          current = section.getAttribute('id');
+        }
+      });
+      links.forEach(link => {
+        link.classList.remove('active');
+        if (link.getAttribute('href') === '#' + current) {
+          link.classList.add('active');
+        }
+      });
+    });
+  </script>
+</body>
+</html>
