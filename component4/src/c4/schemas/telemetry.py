@@ -33,6 +33,9 @@ class NormalizedEvent(BaseModel):
 
     event_id: str
     session_id: str | None = None
+    app_version: str | None = None
+    device: str | None = None
+    os_version: str | None = None
     source: EventSource
     kind: EventKind = EventKind.UNKNOWN
     timestamp: datetime

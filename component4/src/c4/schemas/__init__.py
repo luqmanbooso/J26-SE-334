@@ -2,7 +2,8 @@
 
 from c4.schemas.session import FailureJourney, Session
 from c4.schemas.healing import HealResult, HealingDecision
-from c4.schemas.test_models import TestStep
+from c4.schemas.ingestion import IngestionReport, QuarantinedRecord
+from c4.schemas.test_models import SynthStep
 from c4.schemas.telemetry import EventKind, EventSource, NormalizedEvent
 
 __all__ = [
@@ -11,7 +12,9 @@ __all__ = [
     "FailureJourney",
     "HealResult",
     "HealingDecision",
+    "IngestionReport",
     "NormalizedEvent",
     "Session",
-    "TestStep",
+    "SynthStep",
+    "QuarantinedRecord",
 ]
