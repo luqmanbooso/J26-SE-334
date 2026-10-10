@@ -1,6 +1,8 @@
 # Component 1: Context-Aware Environmental Perturbation Engine
 
-**Student:** G.L.S. Chanlaka (IT23151260)  
+**Student:** Chanlaka G.L.S. (IT23151260)  
+**Supervisor:** Prof. Dilshan De Silva  
+**Co-Supervisor:** Mr. Dinal Senadheera  
 **Research Project:** J26-SE-334 — Human Behavior-Aware Robustness Testing Framework for Mobile Applications (HEART)  
 **Domain:** Software Systems & Technologies (SST)
 
@@ -8,15 +10,17 @@
 
 ## Overview
 
-Modern mobile apps experience unpredictable real-world environmental variations—such as sudden network degradation, thermal throttling, memory pressure, battery drops, and background interruptions. Traditional mobile testing suites execute inside sanitized, static environments, failing to capture environment-induced edge cases and non-crash functional degradations.
+Modern mobile apps operate in highly unpredictable physical environments subject to fluctuating networks, background resource contention, and OS interruptions. Traditional mobile testing suites execute inside sanitized, static environments, failing to capture environment-induced edge cases and non-crash functional degradations.
 
 The **Context-Aware Environmental Perturbation Engine** systematically orchestrates and injects synchronized environmental stressors into the test loop based on runtime state and semantic test steps, outputting structured perturbation event logs correlated to application failures.
 
-### Key Research Novelty
+### Key Research Novelty & Proposal Targets
 1. **Semantic Test-Step Synchronization:** Rather than static context fuzzing, perturbations are injected at semantically critical moments within live test flows (e.g., WiFi $\leftrightarrow$ Mobile Data handover mid-transaction, battery drop during checkout).
 2. **Adaptive Performance Feedback Loop:** Dynamically observes runtime performance signals (FPS drops, frame lag, network RTT surges) and adaptively escalates stress conditions.
 3. **Environment-to-Failure Attribution Engine:** Correlates high-precision timestamped perturbation event logs with crash, ANR, and non-crash GUI defects to output root-cause attribution reports.
 4. **Dual Hardware/Virtual Bridge:** Seamlessly drives physical Android devices/emulators via ADB, or falls back to a high-fidelity Virtual Device Simulator when running in decoupled environments.
+5. **Strict Overhead & Latency Thresholds:** Guaranteed injection latency < 100 ms and host system overhead < 15% (avoiding emulator destabilization).
+6. **Empirical Defect Exposure Gain:** Achieves >30% increase in defect detection rate on curated F-Droid and Themis benchmark apps.
 
 ---
 
@@ -27,8 +31,15 @@ env testing/
 ├── core/
 │   ├── base.py                         # Base perturbation stressor abstraction (BaseStressor)
 │   ├── adb_client.py                   # Hardware ADB bridge & virtual device fallback
-│   ├── event_logger.py                 # High-precision timestamped perturbation telemetry logger
+│   ├── event_logger.py                 # Telemetry logger with latency (<100ms) & overhead (<15%) tracking
+│   ├── profile_parser.py               # YAML & JSON schema validator per Proposal Section 5
 │   └── scheduler.py                    # Semantic step hooks & adaptive signal escalation scheduler
+├── profiles/                           # Standard YAML environmental stress scenario configurations
+│   ├── 3g_network_drop.yaml            # 3G high-latency & packet loss scenario
+│   ├── high_cpu_stress.yaml            # CPU starvation profile (up to 92%)
+│   ├── thermal_throttling_battery_drain.yaml # Critical thermal state & 3% battery drop
+│   ├── aggressive_multitasking_backgrounding.yaml # OS interruptions & call bursts
+│   └── compound_multi_factor_chaos.yaml # Compound multi-vector chaos scenario
 ├── stressors/
 │   ├── system_stressor.py              # CPU load (up to 98%), RAM/LMK trim pressure, disk I/O, battery & thermal
 │   ├── device_stressor.py              # Backward-compatible alias for system_stressor

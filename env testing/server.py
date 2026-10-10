@@ -151,6 +151,52 @@ def attribute_failures(payload: FailureReportPayload):
     report = orchestrator.correlate_failures(payload.failures)
     return report
 
+class YamlParsePayload(BaseModel):
+    yaml_content: str
+
+@app.get("/api/profiles/templates")
+def get_profile_templates():
+    """Lists pre-configured YAML environmental stress scenario profiles."""
+    templates = orchestrator.list_templates()
+    return {
+        "count": len(templates),
+        "templates": templates
+    }
+
+@app.post("/api/profiles/apply_template/{template_name}")
+def apply_profile_template(template_name: str):
+    """Applies a pre-configured YAML stress scenario template."""
+    import os
+    fname = template_name if template_name.endswith((".yaml", ".yml")) else f"{template_name}.yaml"
+    path = os.path.join(orchestrator.profiles_dir, fname)
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail=f"Template file '{fname}' not found in profiles directory.")
+    telemetry = orchestrator.load_profile_file(path)
+    return {
+        "status": "APPLIED",
+        "template": fname,
+        "telemetry": telemetry
+    }
+
+@app.post("/api/profiles/parse_yaml")
+def parse_yaml_profile(payload: YamlParsePayload):
+    """Parses and validates a raw YAML stress profile configuration string."""
+    from core.profile_parser import ProfileParser, ProfileValidationError
+    try:
+        profile = ProfileParser.parse_yaml_string(payload.yaml_content)
+        return {
+            "status": "VALID",
+            "profile": profile,
+            "chaos_score": orchestrator.calculate_chaos_score(profile)
+        }
+    except ProfileValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/api/performance_metrics")
+def get_performance_metrics():
+    """Returns injection latency (<100ms) and host overhead (<15%) compliance per Proposal RQ1."""
+    return orchestrator.logger.get_performance_summary()
+
 # =============================================================================
 # APK UPLOAD & TARGET ENVIRONMENT STRESS TESTING ENDPOINTS
 # =============================================================================

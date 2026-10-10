@@ -1,0 +1,13 @@
+name: "Compound Multi-Factor Chaos (C1 Novelty)"
+description: "Simultaneously engages 3G network latency + high CPU throttling (95%) + thermal warnings + LMK memory pressure."
+targetModule: "End-to-End Checkout / Transaction"
+cpuStress: 95
+ramStress: 85
+diskIo: 500
+latency: 2400
+packetLoss: 12
+dnsFailure: true
+thermalState: "Critical"
+networkProfile: "Edge Handover"
+interruptionType: "LMK Memory Pressure"
+interruptionFreq: 4
