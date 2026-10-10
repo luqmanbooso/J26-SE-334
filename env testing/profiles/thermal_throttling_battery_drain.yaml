@@ -1,0 +1,13 @@
+name: "Thermal Throttling & Low Battery"
+description: "Pushes system thermal state to Critical and drops battery to 3% while unplugged, testing power-saving degrade paths."
+targetModule: "Background Sync / Location Poller"
+cpuStress: 60
+ramStress: 30
+diskIo: 100
+latency: 350
+packetLoss: 2
+dnsFailure: false
+thermalState: "Critical"
+networkProfile: "LTE"
+interruptionType: "Low Battery"
+interruptionFreq: 3

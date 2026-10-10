@@ -1,0 +1,13 @@
+name: "High CPU Starvation"
+description: "Simulates intensive background computation saturating device CPU up to 92%, triggering UI thread frame drops."
+targetModule: "Media Encoding / Image Processing"
+cpuStress: 92
+ramStress: 45
+diskIo: 250
+latency: 120
+packetLoss: 0
+dnsFailure: false
+thermalState: "Warn"
+networkProfile: "LTE"
+interruptionType: "None"
+interruptionFreq: 0

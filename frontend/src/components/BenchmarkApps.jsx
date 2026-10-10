@@ -88,14 +88,14 @@ export default function BenchmarkApps() {
               <span style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: '600', textTransform: 'uppercase' }}>Ground-Truth Evaluation Datasets</span>
             </div>
             <h1 style={{ fontSize: '20px', fontWeight: '900', color: '#fff', marginTop: '2px' }}>
-              Themis Benchmark (52 Crash Bugs) & Rico UI Dataset (72K+ Screens)
+              Themis Benchmark (52 Crash Bugs) & F-Droid Curated Dataset (20–30 Apps)
             </h1>
           </div>
         </div>
 
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           <button className={`nav-link ${activeTab === 'themis' ? 'active' : ''}`} onClick={() => setActiveTab('themis')} style={{ borderRadius: '20px', padding: '6px 18px', fontSize: '12px' }}>
-            Themis Crash Dataset (52)
+            Themis & F-Droid Apps (52)
           </button>
           <button className={`nav-link ${activeTab === 'rico' ? 'active' : ''}`} onClick={() => setActiveTab('rico')} style={{ borderRadius: '20px', padding: '6px 18px', fontSize: '12px' }}>
             Rico UI Dataset (72K)
