@@ -11,7 +11,7 @@ from c4.schemas import (
     HealingDecision,
     NormalizedEvent,
     Session,
-    TestStep as SynthesizedTestStep,
+    SynthStep,
 )
 
 
@@ -54,7 +54,7 @@ def test_session_and_failure_journey_accept_normalized_events() -> None:
 
 def test_test_step_rejects_negative_index() -> None:
     with pytest.raises(ValidationError):
-        SynthesizedTestStep(index=-1, action="tap")
+        SynthStep(index=-1, action="tap")
 
 
 def test_heal_result_rejects_confidence_outside_range() -> None:
