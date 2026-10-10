@@ -139,7 +139,7 @@ export default function CommercializationPlan({ onNavigate }) {
 title HEART - Mobile Robustness Testing Framework (Windows Enterprise)
 echo =========================================================================
 echo   HEART Mobile Robustness Testing Framework - Windows Desktop Edition
-echo   Component 1: Context-Aware Environmental Perturbation Engine
+echo   Context-Aware Environmental Perturbation Engine
 echo   Student: Chanlaka G.L.S. (IT23151260) - Project ID: J26-SE-334
 echo =========================================================================
 cd /d "%~dp0"

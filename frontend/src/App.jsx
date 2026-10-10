@@ -16,8 +16,9 @@ import CommercializationPlan from './components/CommercializationPlan';
 import CustomCursor from './components/CustomCursor';
 import AuthModal from './components/AuthModal';
 import {
-  Activity, ArrowLeft, ChevronRight, User, LogOut, LogIn,
-  Shield, CheckCircle2, Home, Sliders, Radio, Eye, FileText, Smartphone
+  Activity, ArrowLeft, ChevronRight, ChevronDown, User, LogOut, LogIn,
+  Shield, CheckCircle2, Home, Sliders, Radio, Eye, FileText, Smartphone,
+  Briefcase, LayoutDashboard, UserPlus, Monitor, Sparkles
 } from 'lucide-react';
 
 export default function App() {
@@ -30,6 +31,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState(getInitialTab);
   const [historyStack, setHistoryStack] = useState(['landing']);
   const mainContentRef = useRef(null);
+  const userDropdownRef = useRef(null);
 
   // Authentication State with persistent localStorage session
   const [user, setUser] = useState(() => {
@@ -44,6 +46,28 @@ export default function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState('login');
   const [showUserDropdown, setShowUserDropdown] = useState(false);
+
+  // Close user dropdown when clicking outside or pressing Escape
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (userDropdownRef.current && !userDropdownRef.current.contains(event.target)) {
+        setShowUserDropdown(false);
+      }
+    };
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setShowUserDropdown(false);
+      }
+    };
+    if (showUserDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showUserDropdown]);
 
   // Synchronize browser history and hash changes
   useEffect(() => {
@@ -114,12 +138,24 @@ export default function App() {
     exit: { opacity: 0, y: -6, transition: { duration: 0.14, ease: 'easeIn' } }
   };
 
-  const navMenuItems = [
+  const publicNavItems = [
     { id: 'landing', label: 'Overview', match: ['landing'] },
-    { id: 'dashboard', label: 'Testing Core', match: ['dashboard', 'app-integration', 'profiles', 'human-stress'] },
-    { id: 'live', label: 'Visual Oracles & AI', match: ['live', 'vision', 'attribution'] },
-    { id: 'executions', label: 'DevOps Matrix', match: ['executions', 'cicd', 'benchmarks'] },
+    { id: 'profiles', label: 'Chaos Engine', match: ['profiles'] },
+    { id: 'benchmarks', label: 'Ground-Truth Benchmarks', match: ['benchmarks'] },
+    { id: 'commercialization', label: 'Commercialization & Pricing', match: ['commercialization'] },
   ];
+
+  const authenticatedNavItems = [
+    { id: 'landing', label: 'Overview', match: ['landing'] },
+    { id: 'dashboard', label: 'Testing Core', match: ['dashboard', 'app-integration'] },
+    { id: 'profiles', label: 'Chaos Engine', match: ['profiles', 'human-stress'] },
+    { id: 'live', label: 'Visual Oracles & AI', match: ['live', 'vision', 'attribution'] },
+    { id: 'executions', label: 'DevOps Matrix', match: ['executions', 'cicd'] },
+    { id: 'benchmarks', label: 'Empirical Benchmarks', match: ['benchmarks'] },
+    { id: 'commercialization', label: 'Enterprise Licensing', match: ['commercialization'] },
+  ];
+
+  const activeNavItems = user ? authenticatedNavItems : publicNavItems;
 
   const getTabTitle = (tab) => {
     const titles = {
@@ -173,10 +209,18 @@ export default function App() {
               }}
             />
           </div>
+          <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.15, marginLeft: '4px' }}>
+            <span style={{ fontSize: '15px', fontWeight: '900', letterSpacing: '-0.3px', color: '#fff' }}>
+              HEART
+            </span>
+            <span style={{ fontSize: '9px', fontWeight: '700', color: 'var(--accent-orange-bright)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+              Perturbation Engine
+            </span>
+          </div>
         </div>
 
         <nav className="nav-menu">
-          {navMenuItems.map((item) => {
+          {activeNavItems.map((item) => {
             const isActive = item.match.includes(activeTab);
             return (
               <button
@@ -190,129 +234,253 @@ export default function App() {
           })}
         </nav>
 
-        {/* Right Nav: Auth + Demo Workspace Button */}
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+        {/* Right Nav: Dynamic Auth State & Action */}
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           {user ? (
-            <div style={{ position: 'relative' }}>
-              <button
-                onClick={() => setShowUserDropdown(!showUserDropdown)}
-                className="btn-outline"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '6px 14px',
-                  borderRadius: '12px',
-                  borderColor: 'rgba(251, 146, 60, 0.4)',
-                  background: 'rgba(251, 146, 60, 0.08)'
-                }}
-              >
-                <div style={{
-                  width: '26px',
-                  height: '26px',
-                  borderRadius: '50%',
-                  background: 'var(--accent-orange)',
-                  color: '#000',
-                  fontWeight: '900',
-                  fontSize: '11px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
-                  {user.name.charAt(0)}
-                </div>
-                <div style={{ textAlign: 'left', lineHeight: 1.2 }}>
-                  <div style={{ fontSize: '12px', fontWeight: '800', color: '#fff' }}>
-                    {user.name.split(' ')[0]}
-                  </div>
-                  <div style={{ fontSize: '9px', color: 'var(--accent-orange-bright)', fontWeight: '700' }}>
-                    {user.studentId || user.role}
-                  </div>
-                </div>
-              </button>
+            <>
+              {/* Connected Device Status */}
+              <div className="navbar-device-pill" title="ADB Connected via localhost:5554 (Pixel 7 Pro)">
+                <span className="pulse-dot-online" />
+                <span>Pixel 7 Pro (ADB)</span>
+              </div>
 
-              {/* User Dropdown */}
-              <AnimatePresence>
-                {showUserDropdown && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 6 }}
-                    className="glass-card"
-                    style={{
-                      position: 'absolute',
-                      right: 0,
-                      top: '115%',
-                      width: '220px',
-                      padding: '12px',
-                      borderRadius: '14px',
-                      zIndex: 1000,
-                      border: '1px solid rgba(251, 146, 60, 0.3)',
-                      boxShadow: '0 12px 32px rgba(0,0,0,0.5)'
-                    }}
-                  >
-                    <div style={{ padding: '6px 8px 10px', borderBottom: '1px solid rgba(255,255,255,0.08)', marginBottom: '8px' }}>
-                      <div style={{ fontSize: '13px', fontWeight: '800', color: '#fff' }}>{user.name}</div>
-                      <div style={{ fontSize: '11px', color: 'var(--text-dim)', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.email}</div>
-                      <span style={{
-                        display: 'inline-block',
-                        marginTop: '4px',
-                        fontSize: '9px',
-                        padding: '1px 6px',
-                        borderRadius: '6px',
-                        background: 'rgba(251, 146, 60, 0.2)',
-                        color: 'var(--accent-orange-bright)',
-                        fontWeight: '700'
-                      }}>
-                        {user.role}
-                      </span>
+              {/* User Profile Trigger & Dropdown Menu */}
+              <div ref={userDropdownRef} style={{ position: 'relative' }}>
+                <button
+                  onClick={() => setShowUserDropdown(!showUserDropdown)}
+                  className="user-profile-btn"
+                  title="Account Settings & Roles"
+                  aria-expanded={showUserDropdown}
+                >
+                  <div style={{
+                    width: '28px',
+                    height: '28px',
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #fb923c, #f97316)',
+                    color: '#000',
+                    fontWeight: '900',
+                    fontSize: '11px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 0 10px rgba(251, 146, 60, 0.4)'
+                  }}>
+                    {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                  </div>
+                  <div style={{ textAlign: 'left', lineHeight: 1.15 }}>
+                    <div style={{ fontSize: '12px', fontWeight: '800', color: '#fff' }}>
+                      {user.name ? user.name.split(' ')[0] : 'User'}
                     </div>
+                    <div style={{ fontSize: '9px', color: 'var(--accent-orange-bright)', fontWeight: '700' }}>
+                      {user.studentId || user.role || 'Member'}
+                    </div>
+                  </div>
+                  <ChevronDown size={12} color="var(--accent-orange-bright)" />
+                </button>
 
-                    <button
-                      onClick={handleLogout}
+                {/* Rich User Dropdown Menu */}
+                <AnimatePresence>
+                  {showUserDropdown && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 6, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 6, scale: 0.98 }}
+                      transition={{ duration: 0.15 }}
+                      className="glass-card"
                       style={{
-                        width: '100%',
-                        padding: '8px 10px',
-                        borderRadius: '8px',
-                        border: 'none',
-                        background: 'rgba(244, 63, 94, 0.1)',
-                        color: '#fb7185',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        fontSize: '12px',
-                        fontWeight: '700'
+                        position: 'absolute',
+                        right: 0,
+                        top: '120%',
+                        width: '260px',
+                        padding: '14px',
+                        borderRadius: '16px',
+                        zIndex: 1000,
+                        border: '1px solid rgba(251, 146, 60, 0.35)',
+                        boxShadow: '0 16px 38px rgba(0,0,0,0.6)',
+                        background: 'rgba(18, 22, 34, 0.98)',
+                        backdropFilter: 'blur(20px)'
                       }}
                     >
-                      <LogOut size={14} /> Sign Out
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button
-                className="btn-outline"
-                onClick={() => { setAuthModalMode('login'); setIsAuthModalOpen(true); }}
-                style={{ padding: '8px 14px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
-              >
-                <LogIn size={13} /> Sign In
-              </button>
-              <button
-                className="btn-secondary"
-                onClick={() => { setAuthModalMode('signup'); setIsAuthModalOpen(true); }}
-                style={{ padding: '8px 14px', fontSize: '12px' }}
-              >
-                Register
-              </button>
-            </div>
-          )}
+                      {/* Profile Card Header */}
+                      <div style={{ paddingBottom: '10px', borderBottom: '1px solid rgba(255,255,255,0.08)', marginBottom: '10px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <div style={{
+                            width: '36px',
+                            height: '36px',
+                            borderRadius: '50%',
+                            background: 'linear-gradient(135deg, #fb923c, #f97316)',
+                            color: '#000',
+                            fontWeight: '900',
+                            fontSize: '14px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: '13px', fontWeight: '800', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {user.name}
+                            </div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-dim)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {user.email}
+                            </div>
+                          </div>
+                        </div>
 
-          <button className="btn-cta" onClick={() => navigateTo('dashboard')} style={{ padding: '8px 16px', fontSize: '13px' }}>
-            <Activity size={14} /> Demo Workspace
-          </button>
+                        <div style={{ display: 'flex', gap: '6px', marginTop: '8px', flexWrap: 'wrap' }}>
+                          <span style={{
+                            fontSize: '9px',
+                            padding: '2px 7px',
+                            borderRadius: '6px',
+                            background: 'rgba(251, 146, 60, 0.18)',
+                            color: 'var(--accent-orange-bright)',
+                            fontWeight: '700',
+                            border: '1px solid rgba(251, 146, 60, 0.3)'
+                          }}>
+                            {user.studentId ? `${user.studentId} • ` : ''}{user.role}
+                          </span>
+                          <span style={{
+                            fontSize: '9px',
+                            padding: '2px 7px',
+                            borderRadius: '6px',
+                            background: 'rgba(16, 185, 129, 0.15)',
+                            color: '#34d399',
+                            fontWeight: '700',
+                            border: '1px solid rgba(16, 185, 129, 0.3)'
+                          }}>
+                            Active License
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Navigation Shortcuts */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginBottom: '10px' }}>
+                        <button
+                          className="user-dropdown-item"
+                          onClick={() => { navigateTo('dashboard'); setShowUserDropdown(false); }}
+                        >
+                          <LayoutDashboard size={14} color="var(--accent-orange-bright)" />
+                          <span>Workspace Dashboard</span>
+                        </button>
+                        <button
+                          className="user-dropdown-item"
+                          onClick={() => { navigateTo('profiles'); setShowUserDropdown(false); }}
+                        >
+                          <Sliders size={14} color="#38bdf8" />
+                          <span>Chaos Profiles</span>
+                        </button>
+                        <button
+                          className="user-dropdown-item"
+                          onClick={() => { navigateTo('live'); setShowUserDropdown(false); }}
+                        >
+                          <Radio size={14} color="#f43f5e" />
+                          <span>Live Perturbation Stream</span>
+                        </button>
+                        <button
+                          className="user-dropdown-item"
+                          onClick={() => { navigateTo('vision'); setShowUserDropdown(false); }}
+                        >
+                          <Eye size={14} color="#a78bfa" />
+                          <span>Vision Oracle Debugger</span>
+                        </button>
+                        <button
+                          className="user-dropdown-item"
+                          onClick={() => { navigateTo('benchmarks'); setShowUserDropdown(false); }}
+                        >
+                          <Activity size={14} color="#34d399" />
+                          <span>Themis & Rico Benchmarks</span>
+                        </button>
+                        <button
+                          className="user-dropdown-item"
+                          onClick={() => { navigateTo('commercialization'); setShowUserDropdown(false); }}
+                        >
+                          <Briefcase size={14} color="#c084fc" />
+                          <span>Enterprise Licensing & EXE</span>
+                        </button>
+                      </div>
+
+                      {/* Windows Desktop Studio Status */}
+                      <div style={{
+                        padding: '8px 10px',
+                        borderRadius: '8px',
+                        background: 'rgba(255, 255, 255, 0.03)',
+                        border: '1px solid rgba(255, 255, 255, 0.06)',
+                        marginBottom: '10px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                          <Monitor size={12} color="#94a3b8" />
+                          <span style={{ fontSize: '10.5px', color: 'var(--text-dim)', fontWeight: '600' }}>Windows Desktop App</span>
+                        </div>
+                        <span style={{ fontSize: '9px', color: '#10b981', fontWeight: '800' }}>ONLINE</span>
+                      </div>
+
+                      {/* Sign Out Button */}
+                      <button
+                        onClick={handleLogout}
+                        style={{
+                          width: '100%',
+                          padding: '8px 10px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          background: 'rgba(244, 63, 94, 0.1)',
+                          color: '#fb7185',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          fontSize: '12px',
+                          fontWeight: '700',
+                          transition: 'all 0.2s ease'
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(244, 63, 94, 0.2)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(244, 63, 94, 0.1)'; }}
+                      >
+                        <LogOut size={13} /> Sign Out
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              <button className="btn-cta" onClick={() => navigateTo('dashboard')} style={{ padding: '8px 16px', fontSize: '13px' }}>
+                <Activity size={14} /> My Workspace
+              </button>
+            </>
+          ) : (
+            <>
+              {/* Public Guest Demo Status */}
+              <div className="navbar-guest-pill" title="Public Evaluation Mode">
+                <span className="pulse-dot-demo" />
+                <span>Demo Mode</span>
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  className="btn-outline"
+                  onClick={() => { setAuthModalMode('login'); setIsAuthModalOpen(true); }}
+                  style={{ padding: '7px 14px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <LogIn size={13} /> Sign In
+                </button>
+                <button
+                  className="btn-secondary"
+                  onClick={() => { setAuthModalMode('signup'); setIsAuthModalOpen(true); }}
+                  style={{ padding: '7px 14px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <UserPlus size={13} /> Register
+                </button>
+              </div>
+
+              <button className="btn-cta" onClick={() => navigateTo('dashboard')} style={{ padding: '8px 16px', fontSize: '13px' }}>
+                <Activity size={14} /> Demo Workspace
+              </button>
+            </>
+          )}
         </div>
       </header>
 
@@ -324,7 +492,12 @@ export default function App() {
           </motion.div>
         ) : (
           <motion.div key="workspace" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="workspace-container">
-            <Sidebar activeTab={activeTab} setActiveTab={navigateTo} user={user} />
+            <Sidebar
+              activeTab={activeTab}
+              setActiveTab={navigateTo}
+              user={user}
+              onOpenAuth={(mode) => { setAuthModalMode(mode); setIsAuthModalOpen(true); }}
+            />
 
             <main ref={mainContentRef} className="main-content">
               {/* Workspace Top Navigation Bar & Backwards Button */}

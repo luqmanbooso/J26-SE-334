@@ -276,6 +276,104 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 4px 16px rgba(251, 146, 60, 0.28);
 }
 
+/* Navbar Device Status & Guest Pill */
+.navbar-device-pill {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.28);
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #34d399;
+}
+
+.navbar-guest-pill {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(251, 146, 60, 0.08);
+  border: 1px solid rgba(251, 146, 60, 0.28);
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent-orange-bright);
+}
+
+.pulse-dot-online {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+  animation: pulseGreen 2s infinite ease-in-out;
+}
+
+.pulse-dot-demo {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #fb923c;
+  box-shadow: 0 0 8px #fb923c;
+  animation: pulseAmber 2s infinite ease-in-out;
+}
+
+@keyframes pulseGreen {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.85); }
+}
+
+@keyframes pulseAmber {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.85); }
+}
+
+/* User Profile Navbar Button */
+.user-profile-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px 4px 5px;
+  border-radius: 22px;
+  border: 1px solid rgba(251, 146, 60, 0.35);
+  background: rgba(251, 146, 60, 0.08);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.user-profile-btn:hover {
+  background: rgba(251, 146, 60, 0.16);
+  border-color: rgba(251, 146, 60, 0.6);
+  box-shadow: 0 0 16px rgba(251, 146, 60, 0.2);
+}
+
+/* User Dropdown Links */
+.user-dropdown-item {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: #cbd5e1;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  transition: all 0.18s ease;
+}
+
+.user-dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: #fff;
+  transform: translateX(3px);
+}
+
 /* CTA Buttons */
 .btn-cta {
   background: linear-gradient(135deg, #fb923c 0%, #ea580c 100%);
