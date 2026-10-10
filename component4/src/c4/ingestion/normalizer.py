@@ -5,6 +5,9 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
+import hashlib
+import json
+
 
 def parse_timestamp(value: Any) -> datetime:
     """Parse an ISO timestamp and return a timezone-aware UTC datetime."""
@@ -25,6 +28,13 @@ def parse_timestamp(value: Any) -> datetime:
     if timestamp.tzinfo is None:
         timestamp = timestamp.replace(tzinfo=timezone.utc)
     return timestamp.astimezone(timezone.utc)
+
+
+def payload_id(payload: Any, prefix: str) -> str:
+    """Create a stable ID when a provider omits its event ID."""
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
+    digest = hashlib.sha256(encoded.encode("utf-8")).hexdigest()[:16]
+    return f"{prefix}-{digest}"
 
 
 def attributes_without_keys(
