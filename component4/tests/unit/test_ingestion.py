@@ -55,6 +55,58 @@ def test_sentry_adapter_extracts_actions_and_error_in_time_order() -> None:
     assert events[0].name == "Open login"
     assert events[1].locator == {"text": "SUBMIT"}
     assert all(event.session_id == "sess-1" for event in events)
+    assert events[-1].name == "ValueError"
+    assert events[-1].error == {"type": "ValueError"}
+
+
+def test_sentry_quarantines_bad_and_missing_breadcrumbs() -> None:
+    report = SentryAdapter().parse_report(
+        {
+            "breadcrumbs": [
+                {"timestamp": "not-a-time", "category": "user", "message": "bad"},
+                {"category": "user", "message": "missing"},
+                {"timestamp": "2026-01-01T00:00:00Z", "category": "user", "message": "ok"},
+            ]
+        }
+    )
+
+    assert report.accepted_count == 1
+    assert len(report.quarantined) == 2
+
+
+def test_sentry_deduplicates_and_uses_deterministic_fallback_id() -> None:
+    payload = {
+        "breadcrumbs": [
+            {
+                "timestamp": "2026-01-01T00:00:00Z",
+                "category": "ui.click",
+                "message": "Submit",
+                "data": {"view.id": "submit"},
+            },
+            {
+                "timestamp": "2026-01-01T00:00:00Z",
+                "category": "ui.click",
+                "message": "Submit",
+                "data": {"view.id": "submit"},
+            },
+        ]
+    }
+    first = SentryAdapter().parse_report(payload)
+    second = SentryAdapter().parse_report(payload)
+
+    assert first.accepted_count == 1
+    assert first.deduped_count == 1
+    assert first.events[0].locator == {"resource_id": "submit"}
+    assert first.events[0].event_id == second.events[0].event_id
+
+
+def test_sentry_missing_event_timestamp_does_not_fabricate_error_time() -> None:
+    report = SentryAdapter().parse_report(
+        {"exception": {"values": [{"type": "RuntimeError", "value": "failed"}]}}
+    )
+
+    assert report.accepted_count == 0
+    assert report.quarantined[0].reason == "missing event timestamp"
 
 
 def test_crashlytics_adapter_creates_failure_event() -> None:
@@ -79,6 +131,23 @@ def test_crashlytics_adapter_creates_failure_event() -> None:
     assert events[0].locator == {"resource_id": "login_submit"}
     assert events[-1].kind == EventKind.ERROR
     assert events[-1].name == "NullPointerException"
+
+
+def test_crashlytics_quarantines_malformed_log_and_preserves_error_details() -> None:
+    report = CrashlyticsAdapter().parse_report(
+        {
+            "timestamp": "2026-01-01T00:00:01Z",
+            "stack_trace": "Traceback...",
+            "logs": [
+                {"time": "bad", "action": "tap"},
+                {"time": "2026-01-01T00:00:00Z", "action": "tap", "name": "OK"},
+            ],
+        }
+    )
+
+    assert report.accepted_count == 2
+    assert len(report.quarantined) == 1
+    assert report.events[-1].error == {"stack_trace": "Traceback..."}
 
 
 def test_ingestion_service_dispatches_and_loads_json(tmp_path) -> None:
@@ -108,3 +177,16 @@ def test_ingestion_service_dispatches_and_loads_json(tmp_path) -> None:
 def test_ingestion_service_reports_unknown_source() -> None:
     with pytest.raises(TelemetryIngestionError, match="Unsupported telemetry source"):
         TelemetryIngestionService().parse({}, "unknown")
+
+
+def test_ingestion_service_reads_jsonl_batches(tmp_path) -> None:
+    path = tmp_path / "events.jsonl"
+    path.write_text(
+        '{"event_id":"one","timestamp":"2026-01-01T00:00:00Z","exception":{"values":[{"type":"ValueError"}]}}\n'
+        '{"event_id":"two","timestamp":"2026-01-01T00:00:01Z","exception":{"values":[{"type":"TypeError"}]}}\n',
+        encoding="utf-8",
+    )
+
+    report = TelemetryIngestionService().parse_jsonl_report(path, EventSource.SENTRY)
+
+    assert report.accepted_count == 2
