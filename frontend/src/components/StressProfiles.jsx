@@ -353,7 +353,7 @@ interruptionFreq: ${config.interruptionFreq ?? 2}
     setIsLiveRunning(true);
     setLiveRunnerStage(1);
     setLiveRunnerLogs([
-      '[HEART C1] Initializing Context-Aware Environmental Perturbation Suite...',
+      '[HEART] Initializing Context-Aware Environmental Perturbation Suite...',
       `[ADB Bridge] Target: ${targetDevice || 'Google Pixel 7 (API 34)'}`
     ]);
 
@@ -418,7 +418,7 @@ interruptionFreq: ${config.interruptionFreq ?? 2}
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
               <span style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: '700', letterSpacing: '0.8px', textTransform: 'uppercase' }}>
-                Component 1 • Research Engine (IT23151260)
+                Environmental Perturbation Engine (IT23151260)
               </span>
               <span style={{
                 fontSize: '11px',
@@ -1494,7 +1494,7 @@ interruptionFreq: ${config.interruptionFreq ?? 2}
                   </div>
                   <div>
                     <h3 style={{ fontSize: '18px', fontWeight: '900', color: '#fff' }}>Live 7-Stage Perturbation Suite Runner</h3>
-                    <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Component 1 Live ADB Execution & Attribution Test Trace</p>
+                    <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Live ADB Execution & Attribution Test Trace</p>
                   </div>
                 </div>
 

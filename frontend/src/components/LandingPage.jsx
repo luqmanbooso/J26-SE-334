@@ -540,7 +540,7 @@ export default function LandingPage({ onLaunchDashboard }) {
                 🔬
               </div>
               <div>
-                <span style={{ fontSize: '10px', color: 'var(--accent-orange-bright)', fontWeight: '800', textTransform: 'uppercase' }}>Component 1 Lead</span>
+                <span style={{ fontSize: '10px', color: 'var(--accent-orange-bright)', fontWeight: '800', textTransform: 'uppercase' }}>Environmental Engine Lead</span>
                 <h3 style={{ fontSize: '17px', fontWeight: '800', color: '#fff' }}>Lead Researcher (Sakith)</h3>
               </div>
             </div>

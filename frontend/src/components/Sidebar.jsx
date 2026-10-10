@@ -21,12 +21,17 @@ import {
   Briefcase
 } from 'lucide-react';
 
-export default function Sidebar({ activeTab, setActiveTab, user }) {
+export default function Sidebar({ activeTab, setActiveTab, user, onOpenAuth }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
-  const displayName = user?.name || 'Sakith Chanlaka';
-  const displayRole = user?.role ? `${user.role}${user.studentId ? ` (${user.studentId})` : ''}` : 'Component 1 Lead (IT23151260)';
-  const initials = displayName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'SC';
+  const isGuest = !user;
+  const displayName = user?.name || 'Guest Researcher';
+  const displayRole = user?.role
+    ? `${user.role}${user.studentId ? ` (${user.studentId})` : ''}`
+    : 'Public Evaluation Session';
+  const initials = isGuest
+    ? 'GR'
+    : (displayName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'U');
 
   const navSections = [
     {
@@ -149,15 +154,25 @@ export default function Sidebar({ activeTab, setActiveTab, user }) {
 
       {/* Pinned Bottom User Card */}
       <div className="sidebar-footer-pinned">
-        <div className="user-card" title={`${displayName} - ${displayRole}`}>
-          <div className="user-avatar">{initials}</div>
+        <div
+          className="user-card"
+          onClick={() => { if (isGuest && onOpenAuth) onOpenAuth('login'); }}
+          style={{ cursor: isGuest ? 'pointer' : 'default' }}
+          title={isGuest ? 'Click to Sign In with researcher credentials' : `${displayName} - ${displayRole}`}
+        >
+          <div
+            className="user-avatar"
+            style={isGuest ? { background: 'rgba(251, 146, 60, 0.2)', color: 'var(--accent-orange-bright)', border: '1px dashed rgba(251, 146, 60, 0.5)' } : {}}
+          >
+            {initials}
+          </div>
           {!isCollapsed && (
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: '12px', fontWeight: '700', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {displayName}
               </div>
-              <div style={{ fontSize: '10px', color: 'var(--text-dim)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {displayRole}
+              <div style={{ fontSize: '10px', color: isGuest ? 'var(--accent-orange-bright)' : 'var(--text-dim)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: isGuest ? '600' : '400' }}>
+                {isGuest ? '🔑 Click to Sign In' : displayRole}
               </div>
             </div>
           )}

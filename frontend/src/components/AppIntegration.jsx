@@ -124,7 +124,7 @@ export default function AppIntegration() {
       if (res.ok) {
         setStatusMessage({
           type: 'success',
-          text: `Component 1 environmental stress suite dispatched against active package "${packageName}"!`
+          text: `Environmental stress suite dispatched against active package "${packageName}"!`
         });
       } else {
         setStatusMessage({ type: 'info', text: `Executing multi-factor stress loop on "${packageName}"...` });
@@ -151,7 +151,7 @@ heart-test run \\
 
     appium: `from env_testing.orchestrator import PerturbationOrchestrator
 
-# Initialize Component 1 Environmental Perturbation Engine
+# Initialize Context-Aware Environmental Perturbation Engine
 orchestrator = PerturbationOrchestrator()
 
 # Install uploaded APK onto target device
@@ -182,7 +182,7 @@ on:
 
 jobs:
   environmental-robustness:
-    name: Execute Component 1 Chaos Engine
+    name: Execute Environmental Chaos Engine
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -190,7 +190,7 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-      - name: Run Component 1 Environmental Suite
+      - name: Run Environmental Perturbation Suite
         run: |
           cd "env testing"
           pip install -r requirements.txt
