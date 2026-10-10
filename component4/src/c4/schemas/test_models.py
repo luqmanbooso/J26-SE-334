@@ -7,7 +7,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class TestStep(BaseModel):
+class SynthStep(BaseModel):
     """One executable action in a synthesized Appium journey."""
 
     model_config = ConfigDict(extra="allow")

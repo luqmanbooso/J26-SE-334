@@ -18,6 +18,9 @@ class Session(BaseModel):
     session_id: str
     started_at: datetime
     ended_at: datetime | None = None
+    app_version: str | None = None
+    device: str | None = None
+    os_version: str | None = None
     events: list[NormalizedEvent] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
 
