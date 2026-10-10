@@ -28,3 +28,7 @@ __pycache__/
 *.pyd
 .pytest_cache/
 env testing/uploads/*.apk
+
+# PyInstaller build artifacts
+build/
+*.spec
