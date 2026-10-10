@@ -12,6 +12,7 @@ import AttributionReport from './components/AttributionReport';
 import TestExecutions from './components/TestExecutions';
 import CiCdPipelines from './components/CiCdPipelines';
 import BenchmarkApps from './components/BenchmarkApps';
+import CommercializationPlan from './components/CommercializationPlan';
 import CustomCursor from './components/CustomCursor';
 import AuthModal from './components/AuthModal';
 import {
@@ -132,7 +133,8 @@ export default function App() {
       'attribution': 'Self-Healing Synthesizer',
       'executions': 'Test Execution History',
       'cicd': 'CI/CD Matrix',
-      'benchmarks': 'Themis & Rico Benchmarks'
+      'benchmarks': 'Themis & Rico Benchmarks',
+      'commercialization': 'Commercialization & Enterprise Deployment'
     };
     return titles[tab] || 'Workspace';
   };
@@ -362,6 +364,7 @@ export default function App() {
                   {activeTab === 'executions' && <TestExecutions onReRunTest={() => navigateTo('profiles')} />}
                   {activeTab === 'cicd' && <CiCdPipelines />}
                   {activeTab === 'benchmarks' && <BenchmarkApps />}
+                  {activeTab === 'commercialization' && <CommercializationPlan onNavigate={navigateTo} />}
                 </motion.div>
               </AnimatePresence>
 
