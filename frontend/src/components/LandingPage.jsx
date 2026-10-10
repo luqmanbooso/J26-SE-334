@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowUpRight, ArrowRight, ChevronDown, CheckCircle2, Zap, Shield, Activity, Terminal, Layers, RefreshCw, Smartphone, Cpu, Eye, GitBranch, Database, ShieldAlert, CpuIcon } from 'lucide-react';
+import { ArrowUpRight, ArrowRight, ChevronDown, CheckCircle2, Zap, Shield, Activity, Terminal, Layers, RefreshCw, Smartphone, Cpu, Eye, GitBranch, Database, ShieldAlert, CpuIcon, Briefcase, Monitor } from 'lucide-react';
 import ThreeHeroCanvas from './ThreeHeroCanvas';
 
 export default function LandingPage({ onLaunchDashboard }) {
@@ -65,13 +65,16 @@ export default function LandingPage({ onLaunchDashboard }) {
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.3 }}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '18px', marginBottom: '70px', flexWrap: 'wrap' }}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', marginBottom: '70px', flexWrap: 'wrap' }}
           >
-            <button className="btn-cta" onClick={() => onLaunchDashboard('dashboard')} style={{ padding: '14px 36px', fontSize: '14px' }}>
+            <button className="btn-cta" onClick={() => onLaunchDashboard('dashboard')} style={{ padding: '14px 34px', fontSize: '14px' }}>
               <Activity size={18} /> Launch Demo Workspace
             </button>
-            <button className="btn-secondary" onClick={() => onLaunchDashboard('profiles')} style={{ padding: '14px 32px', fontSize: '14px' }}>
-              <Terminal size={18} /> Explore Perturbation Suite
+            <button className="btn-secondary" onClick={() => onLaunchDashboard('profiles')} style={{ padding: '14px 30px', fontSize: '14px' }}>
+              <Terminal size={18} /> Perturbation Suite
+            </button>
+            <button className="btn-outline" onClick={() => onLaunchDashboard('commercialization')} style={{ padding: '14px 26px', fontSize: '14px', borderRadius: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Briefcase size={16} /> Commercialization & Windows App
             </button>
           </motion.div>
 

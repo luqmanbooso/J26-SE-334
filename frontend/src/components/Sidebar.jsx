@@ -17,7 +17,8 @@ import {
   Flame,
   Activity,
   PanelLeftClose,
-  PanelLeft
+  PanelLeft,
+  Briefcase
 } from 'lucide-react';
 
 export default function Sidebar({ activeTab, setActiveTab, user }) {
@@ -51,6 +52,7 @@ export default function Sidebar({ activeTab, setActiveTab, user }) {
         { id: 'executions', label: 'Test Executions', icon: History },
         { id: 'cicd', label: 'CI/CD Pipelines', icon: GitBranch },
         { id: 'benchmarks', label: 'Benchmark Datasets', icon: Database },
+        { id: 'commercialization', label: 'Commercialization', icon: Briefcase, badge: 'Tiers' },
       ]
     }
   ];
