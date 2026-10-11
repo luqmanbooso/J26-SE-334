@@ -1,8 +1,4 @@
-# Component 1: Context-Aware Environmental Perturbation Engine
-
-**Student:** Chanlaka G.L.S. (IT23151260)  
-**Supervisor:** Prof. Dilshan De Silva  
-**Co-Supervisor:** Mr. Dinal Senadheera  
+# Context-Aware Environmental Perturbation Engine Studio
 **Research Project:** J26-SE-334 — Human Behavior-Aware Robustness Testing Framework for Mobile Applications (HEART)  
 **Domain:** Software Systems & Technologies (SST)
 

@@ -3,9 +3,8 @@ from orchestrator import PerturbationOrchestrator
 
 def main():
     print("=" * 80)
-    print("  HEART FRAMEWORK - COMPONENT 1: CONTEXT-AWARE ENVIRONMENTAL PERTURBATION ENGINE")
-    print("  Lead Researcher: G.L.S. Chanlaka (IT23151260)")
-    print("  Project: J26-SE-334 | Multi-Factor Mobile Robustness Testing")
+    print("  HEART FRAMEWORK - CONTEXT-AWARE ENVIRONMENTAL PERTURBATION ENGINE")
+    print("  Project: J26-SE-334 | Multi-Factor Mobile Robustness Testing Platform")
     print("=" * 80)
 
     orchestrator = PerturbationOrchestrator()

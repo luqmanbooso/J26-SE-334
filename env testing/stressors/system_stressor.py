@@ -102,6 +102,16 @@ class SystemStressor(BaseStressor):
             "target_package": target
         })
 
+    def inject_memory_pressure(self, trim_level: str = "RUNNING_LOW", target_package: Optional[str] = None) -> None:
+        """Broadcasts arbitrary Android trim memory intent directly."""
+        target = target_package or "com.android.settings"
+        clean_level = trim_level if trim_level.startswith("TRIM_MEMORY_") else f"TRIM_MEMORY_{trim_level}"
+        self.adb.run_shell(f"am send-trim-memory {target} {clean_level}")
+        self.logger.record("SYSTEM_RAM", "LMK_TRIM_BROADCAST", {
+            "trim_level": clean_level,
+            "target_package": target
+        })
+
     def inject_disk_io_bottleneck(self, duration_mb: int = 30) -> None:
         """Induces disk I/O saturation by writing unbuffered blocks to device tmpfs."""
         cmd = f"dd if=/dev/zero of={self.io_stress_file} bs=1M count={duration_mb} conv=fsync"
@@ -118,14 +128,21 @@ class SystemStressor(BaseStressor):
         self.adb.run_shell(f"dumpsys battery set level {level}")
         self.logger.record("SYSTEM_POWER", "BATTERY_PRESSURE", {"level": level, "unplugged": unplugged})
 
-    def set_thermal_state(self, state: str = "Warn") -> None:
+    def set_thermal_state(self, state: Any = "Warn") -> None:
         """Triggers thermal throttling profiles: 'Normal' (35°C), 'Warn' (55°C), 'Critical' (80°C)."""
         temp_map = {
             "Normal": 35.0,
+            "Light": 42.0,
+            "Moderate": 50.0,
             "Warn": 55.0,
+            "Severe": 65.0,
             "Critical": 80.0
         }
-        temp_c = temp_map.get(state, 55.0)
+        int_to_str = {0: "Normal", 1: "Light", 2: "Moderate", 3: "Severe", 4: "Critical"}
+        if isinstance(state, (int, float)):
+            state = int_to_str.get(int(state), "Warn")
+
+        temp_c = temp_map.get(str(state), 55.0)
         raw_temp = int(temp_c * 10)
 
         self.current_state["thermal_state"] = state

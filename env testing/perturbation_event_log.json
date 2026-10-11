@@ -1,336 +1,232 @@
 [
   {
-    "epoch_ms": 1791384806480,
-    "timestamp": "2026-10-07T20:23:26.480206",
+    "epoch_ms": 1791633451913,
+    "timestamp": "2026-10-10T17:27:31.913242",
     "category": "SYSTEM_CPU",
     "action": "CPU_LOAD_INJECTED",
     "parameters": {
-      "target_cpu_pct": 88
+      "target_cpu_pct": 65
     },
     "status": "APPLIED",
+    "injection_latency_ms": 30.12,
+    "latency_compliant": true,
+    "host_overhead": {
+      "cpu_percent": 38.0,
+      "mem_percent": 95.5,
+      "compliant": true
+    },
     "telemetry": {}
   },
   {
-    "epoch_ms": 1791384806480,
-    "timestamp": "2026-10-07T20:23:26.480657",
+    "epoch_ms": 1791633451915,
+    "timestamp": "2026-10-10T17:27:31.915526",
     "category": "SYSTEM_RAM",
     "action": "LMK_MEMORY_PRESSURE",
     "parameters": {
-      "ram_pct": 85,
-      "trim_level": "RUNNING_CRITICAL",
-      "target_package": "com.android.calculator2"
+      "ram_pct": 60,
+      "trim_level": "RUNNING_LOW",
+      "target_package": "com.android.settings"
     },
     "status": "APPLIED",
+    "injection_latency_ms": 30.12,
+    "latency_compliant": true,
+    "host_overhead": {
+      "cpu_percent": 0.0,
+      "mem_percent": 95.5,
+      "compliant": true
+    },
     "telemetry": {}
   },
   {
-    "epoch_ms": 1791384806480,
-    "timestamp": "2026-10-07T20:23:26.480675",
-    "category": "SYSTEM_POWER",
-    "action": "BATTERY_PRESSURE",
-    "parameters": {
-      "level": 4,
-      "unplugged": true
-    },
-    "status": "APPLIED",
-    "telemetry": {}
-  },
-  {
-    "epoch_ms": 1791384806481,
-    "timestamp": "2026-10-07T20:23:26.481114",
+    "epoch_ms": 1791633451915,
+    "timestamp": "2026-10-10T17:27:31.915778",
     "category": "SYSTEM_THERMAL",
     "action": "THERMAL_THROTTLE_PROFILE",
     "parameters": {
-      "state": "Warn",
-      "simulated_temp_c": 55.0
+      "state": "Normal",
+      "simulated_temp_c": 35.0
     },
     "status": "APPLIED",
+    "injection_latency_ms": 30.12,
+    "latency_compliant": true,
+    "host_overhead": {
+      "cpu_percent": 0.0,
+      "mem_percent": 95.5,
+      "compliant": true
+    },
     "telemetry": {}
   },
   {
-    "epoch_ms": 1791384808981,
-    "timestamp": "2026-10-07T20:23:28.981591",
-    "category": "NETWORK_THROTTLE",
-    "action": "BANDWIDTH_PROFILE_SET",
-    "parameters": {
-      "profile": "edge"
-    },
-    "status": "APPLIED",
-    "telemetry": {}
-  },
-  {
-    "epoch_ms": 1791384808981,
-    "timestamp": "2026-10-07T20:23:28.981616",
+    "epoch_ms": 1791633451915,
+    "timestamp": "2026-10-10T17:27:31.915948",
     "category": "NETWORK_LATENCY",
     "action": "LATENCY_INJECTED",
     "parameters": {
-      "latency_ms": 1450,
+      "latency_ms": 850,
       "delay_profile": "edge"
     },
     "status": "APPLIED",
+    "injection_latency_ms": 30.12,
+    "latency_compliant": true,
+    "host_overhead": {
+      "cpu_percent": 0.0,
+      "mem_percent": 95.5,
+      "compliant": true
+    },
     "telemetry": {}
   },
   {
-    "epoch_ms": 1791384808981,
-    "timestamp": "2026-10-07T20:23:28.981627",
+    "epoch_ms": 1791633451916,
+    "timestamp": "2026-10-10T17:27:31.916097",
     "category": "NETWORK_PACKET_LOSS",
     "action": "PACKET_LOSS_SIMULATED",
     "parameters": {
-      "loss_pct": 8,
+      "loss_pct": 2,
       "strategy": "STOCHASTIC_DROP"
     },
     "status": "APPLIED",
+    "injection_latency_ms": 30.12,
+    "latency_compliant": true,
+    "host_overhead": {
+      "cpu_percent": 0.0,
+      "mem_percent": 95.5,
+      "compliant": true
+    },
     "telemetry": {}
   },
   {
-    "epoch_ms": 1791384808981,
-    "timestamp": "2026-10-07T20:23:28.981635",
-    "category": "NETWORK_HANDOVER",
-    "action": "HANDOVER_INITIATED",
+    "epoch_ms": 1791633451916,
+    "timestamp": "2026-10-10T17:27:31.916545",
+    "category": "ORCHESTRATOR",
+    "action": "PROFILE_APPLIED",
     "parameters": {
-      "from": "wifi_only",
-      "to": "data_only"
+      "profile_name": "Live Manual Stress Deck",
+      "chaos_score": 56
     },
     "status": "APPLIED",
-    "telemetry": {}
-  },
-  {
-    "epoch_ms": 1791384808981,
-    "timestamp": "2026-10-07T20:23:28.981649",
-    "category": "NETWORK",
-    "action": "STATE_TRANSITION",
-    "parameters": {
-      "mode": "wifi_only"
+    "injection_latency_ms": 22.33,
+    "latency_compliant": true,
+    "host_overhead": {
+      "cpu_percent": 0.0,
+      "mem_percent": 95.5,
+      "compliant": true
     },
-    "status": "APPLIED",
     "telemetry": {}
   },
   {
-    "epoch_ms": 1791384809481,
-    "timestamp": "2026-10-07T20:23:29.481925",
-    "category": "NETWORK",
-    "action": "STATE_TRANSITION",
-    "parameters": {
-      "mode": "data_only"
-    },
-    "status": "APPLIED",
-    "telemetry": {}
-  },
-  {
-    "epoch_ms": 1791384809481,
-    "timestamp": "2026-10-07T20:23:29.481957",
-    "category": "NETWORK_HANDOVER",
-    "action": "HANDOVER_COMPLETED",
-    "parameters": {
-      "active_interface": "data_only"
-    },
-    "status": "APPLIED",
-    "telemetry": {}
-  },
-  {
-    "epoch_ms": 1791384811491,
-    "timestamp": "2026-10-07T20:23:31.491494",
-    "category": "INTERRUPTION_CALL",
-    "action": "INCOMING_CALL_RINGING",
-    "parameters": {
-      "number": "15550192831",
-      "response": "SIMULATED_OK: gsm call 15550192831"
-    },
-    "status": "APPLIED",
-    "telemetry": {}
-  },
-  {
-    "epoch_ms": 1791384813007,
-    "timestamp": "2026-10-07T20:23:33.007618",
-    "category": "INTERRUPTION_CALL",
-    "action": "CALL_ACCEPTED",
-    "parameters": {
-      "action": "KEYCODE_CALL"
-    },
-    "status": "APPLIED",
-    "telemetry": {}
-  },
-  {
-    "epoch_ms": 1791384814513,
-    "timestamp": "2026-10-07T20:23:34.513966",
-    "category": "INTERRUPTION_CALL",
-    "action": "CALL_TERMINATED",
-    "parameters": {
-      "number": "15550192831",
-      "response": "SIMULATED_OK: gsm cancel 15550192831"
-    },
-    "status": "APPLIED",
-    "telemetry": {}
-  },
-  {
-    "epoch_ms": 1791384815520,
-    "timestamp": "2026-10-07T20:23:35.520721",
-    "category": "INTERRUPTION_SMS",
-    "action": "SMS_NOTIFICATION_BANNER",
-    "parameters": {
-      "sender": "15554321000",
-      "message": "Your payment verification token is 492019.",
-      "response": "SIMULATED_OK: sms send 15554321000 Your payment verification token is 492019."
-    },
-    "status": "APPLIED",
-    "telemetry": {}
-  },
-  {
-    "epoch_ms": 1791384815520,
-    "timestamp": "2026-10-07T20:23:35.520754",
-    "category": "INTERRUPTION_LIFECYCLE",
-    "action": "APP_BACKGROUNDED",
-    "parameters": {
-      "duration_sec": 1.5
-    },
-    "status": "APPLIED",
-    "telemetry": {}
-  },
-  {
-    "epoch_ms": 1791384817036,
-    "timestamp": "2026-10-07T20:23:37.036170",
-    "category": "INTERRUPTION_LIFECYCLE",
-    "action": "APP_RESUMED",
-    "parameters": {
-      "package": "com.android.calculator2"
-    },
-    "status": "APPLIED",
-    "telemetry": {}
-  },
-  {
-    "epoch_ms": 1791384818545,
-    "timestamp": "2026-10-07T20:23:38.545420",
-    "category": "CONTEXT_ORIENTATION",
-    "action": "ORIENTATION_CHANGED",
-    "parameters": {
-      "mode": "landscape",
-      "rotation_val": "1"
-    },
-    "status": "APPLIED",
-    "telemetry": {}
-  },
-  {
-    "epoch_ms": 1791384818545,
-    "timestamp": "2026-10-07T20:23:38.545459",
-    "category": "CONTEXT_THEME",
-    "action": "DARK_MODE_TOGGLED",
-    "parameters": {
-      "dark_mode": true
-    },
-    "status": "APPLIED",
-    "telemetry": {}
-  },
-  {
-    "epoch_ms": 1791384818545,
-    "timestamp": "2026-10-07T20:23:38.545477",
-    "category": "CONTEXT_DISPLAY",
-    "action": "FONT_SCALE_CHANGED",
-    "parameters": {
-      "font_scale": 1.35
-    },
-    "status": "APPLIED",
-    "telemetry": {}
-  },
-  {
-    "epoch_ms": 1791384820552,
-    "timestamp": "2026-10-07T20:23:40.552493",
-    "category": "NETWORK_LATENCY",
-    "action": "LATENCY_INJECTED",
-    "parameters": {
-      "latency_ms": 2500,
-      "delay_profile": "gprs"
-    },
-    "status": "APPLIED",
-    "telemetry": {}
-  },
-  {
-    "epoch_ms": 1791384820567,
-    "timestamp": "2026-10-07T20:23:40.567843",
-    "category": "SYSTEM_CPU",
-    "action": "CPU_LOAD_INJECTED",
-    "parameters": {
-      "target_cpu_pct": 95
-    },
-    "status": "APPLIED",
-    "telemetry": {}
-  },
-  {
-    "epoch_ms": 1791384820567,
-    "timestamp": "2026-10-07T20:23:40.567919",
-    "category": "NETWORK_PACKET_LOSS",
-    "action": "PACKET_LOSS_SIMULATED",
-    "parameters": {
-      "loss_pct": 12,
-      "strategy": "BURST_DROP"
-    },
-    "status": "APPLIED",
-    "telemetry": {}
-  },
-  {
-    "epoch_ms": 1791384822113,
-    "timestamp": "2026-10-07T20:23:42.113816",
+    "epoch_ms": 1791633451937,
+    "timestamp": "2026-10-10T17:27:31.937039",
     "category": "SYSTEM_HARDWARE",
     "action": "SYSTEM_RESET_NOMINAL",
     "parameters": {},
     "status": "APPLIED",
+    "injection_latency_ms": 16.38,
+    "latency_compliant": true,
+    "host_overhead": {
+      "cpu_percent": 42.1,
+      "mem_percent": 95.5,
+      "compliant": true
+    },
     "telemetry": {}
   },
   {
-    "epoch_ms": 1791384822113,
-    "timestamp": "2026-10-07T20:23:42.113855",
+    "epoch_ms": 1791633451937,
+    "timestamp": "2026-10-10T17:27:31.937383",
     "category": "NETWORK",
     "action": "STATE_TRANSITION",
     "parameters": {
       "mode": "normal"
     },
     "status": "APPLIED",
+    "injection_latency_ms": 16.38,
+    "latency_compliant": true,
+    "host_overhead": {
+      "cpu_percent": 0.0,
+      "mem_percent": 95.5,
+      "compliant": true
+    },
     "telemetry": {}
   },
   {
-    "epoch_ms": 1791384822113,
-    "timestamp": "2026-10-07T20:23:42.113873",
+    "epoch_ms": 1791633451937,
+    "timestamp": "2026-10-10T17:27:31.937631",
     "category": "NETWORK",
     "action": "NETWORK_RESET_NOMINAL",
     "parameters": {},
     "status": "APPLIED",
+    "injection_latency_ms": 16.38,
+    "latency_compliant": true,
+    "host_overhead": {
+      "cpu_percent": 0.0,
+      "mem_percent": 95.5,
+      "compliant": true
+    },
     "telemetry": {}
   },
   {
-    "epoch_ms": 1791384822113,
-    "timestamp": "2026-10-07T20:23:42.113888",
+    "epoch_ms": 1791633451937,
+    "timestamp": "2026-10-10T17:27:31.937756",
     "category": "INTERRUPTION_DOZE",
     "action": "SYSTEM_DOZE_TRANSITION",
     "parameters": {
       "force_idle": false
     },
     "status": "APPLIED",
+    "injection_latency_ms": 16.38,
+    "latency_compliant": true,
+    "host_overhead": {
+      "cpu_percent": 0.0,
+      "mem_percent": 95.5,
+      "compliant": true
+    },
     "telemetry": {}
   },
   {
-    "epoch_ms": 1791384822113,
-    "timestamp": "2026-10-07T20:23:42.113897",
+    "epoch_ms": 1791633451937,
+    "timestamp": "2026-10-10T17:27:31.937854",
     "category": "INTERRUPTION",
     "action": "INTERRUPTIONS_CLEARED",
     "parameters": {},
     "status": "APPLIED",
+    "injection_latency_ms": 16.38,
+    "latency_compliant": true,
+    "host_overhead": {
+      "cpu_percent": 0.0,
+      "mem_percent": 95.5,
+      "compliant": true
+    },
     "telemetry": {}
   },
   {
-    "epoch_ms": 1791384822113,
-    "timestamp": "2026-10-07T20:23:42.113923",
+    "epoch_ms": 1791633451937,
+    "timestamp": "2026-10-10T17:27:31.937968",
     "category": "CONTEXT",
     "action": "CONTEXT_RESET_DEFAULTS",
     "parameters": {},
     "status": "APPLIED",
+    "injection_latency_ms": 16.38,
+    "latency_compliant": true,
+    "host_overhead": {
+      "cpu_percent": 0.0,
+      "mem_percent": 95.5,
+      "compliant": true
+    },
     "telemetry": {}
   },
   {
-    "epoch_ms": 1791384822113,
-    "timestamp": "2026-10-07T20:23:42.113935",
+    "epoch_ms": 1791633451938,
+    "timestamp": "2026-10-10T17:27:31.938207",
     "category": "SYSTEM",
     "action": "ENVIRONMENT_FULL_RESET",
     "parameters": {},
     "status": "APPLIED",
+    "injection_latency_ms": 16.38,
+    "latency_compliant": true,
+    "host_overhead": {
+      "cpu_percent": 0.0,
+      "mem_percent": 95.5,
+      "compliant": true
+    },
     "telemetry": {}
   }
 ]
