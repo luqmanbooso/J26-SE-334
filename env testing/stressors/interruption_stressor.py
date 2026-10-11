@@ -98,6 +98,10 @@ class InterruptionStressor(BaseStressor):
             "response": resp
         }, status=status)
 
+    def trigger_sms_notification(self, message: str = "Verification code", sender: str = "15555215554") -> None:
+        """Alias for send_sms_banner."""
+        self.send_sms_banner(message=message, sender=sender)
+
     def background_app(self, duration_sec: float = 3.0, package_name: Optional[str] = None) -> None:
         """Sends active app to background via Home button, pauses, then reopens app."""
         self.logger.record("INTERRUPTION_LIFECYCLE", "APP_BACKGROUNDED", {"duration_sec": duration_sec})
