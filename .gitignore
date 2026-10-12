@@ -21,6 +21,17 @@ Thumbs.db
 /environment_failure_attribution.json
 /results/
 
+# Vision Oracle Models
+# Base model (>4GB, download separately via scripts/download_base_model.py)
+/models/Qwen2-VL-2B-Instruct/
+models/Qwen2-VL-2B-Instruct/
+models/base/
+/models/base/
+
+# Ensure fine-tuned LoRA weights are tracked in repo
+!/models/c3_lora_final/
+!/models/c3_lora_final/**
+
 # Large documents & binaries (>100MB exceeds GitHub limits)
 *.pdf
 *.zip

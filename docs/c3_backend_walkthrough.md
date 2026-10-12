@@ -10,10 +10,13 @@
 ## 1. System Architecture & Prerequisites
 
 ### 1.1 Local Model & Weights Staging
-The backend requires local weights. Zero cloud fallbacks or synthetic mock paths exist in production mode:
-- **Base Model (Qwen2-VL-2B-Instruct):** `RD/models/Qwen2-VL-2B-Instruct`
-- **Fine-Tuned Adapter (QLoRA 4-bit):** `results/c3_lora_final`
-- **Evidence Database:** `results/oracle_store.db` (SQLite with WAL mode)
+The backend operates in 100% offline air-gapped mode:
+- **Fine-Tuned Adapter (QLoRA 4-bit):** Tracked in repository at `models/c3_lora_final` (`adapter_model.safetensors`, 73.9 MB). Automatically available upon `git pull`.
+- **Base Model (Qwen2-VL-2B-Instruct):** Staged at `models/Qwen2-VL-2B-Instruct` (or `RD/models/Qwen2-VL-2B-Instruct`). Downloadable via:
+  ```powershell
+  python scripts/download_base_model.py
+  ```
+- **Evidence Database:** `results/oracle_evidence.db` (SQLite with WAL mode)
 - **Screenshot Artifacts:** `results/artifacts/`
 
 ### 1.2 Android ADB Connection
