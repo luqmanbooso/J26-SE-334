@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://heart.example.org/schemas/c3-verdict-1.0.json",
+  "title": "HEART Component 3 Verdict",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "verdict_id",
+    "session_id",
+    "has_gui_defect",
+    "defect_type",
+    "confidence",
+    "screenshot",
+    "regions",
+    "evidence",
+    "metadata"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "verdict_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "session_id": {
+      "type": ["string", "null"]
+    },
+    "has_gui_defect": {
+      "type": "boolean"
+    },
+    "defect_type": {
+      "type": ["string", "null"]
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "screenshot": {
+      "oneOf": [
+        {"$ref": "#/$defs/screenshot"},
+        {"type": "null"}
+      ]
+    },
+    "regions": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/region"}
+    },
+    "evidence": {
+      "type": "object"
+    },
+    "metadata": {
+      "type": "object"
+    }
+  },
+  "$defs": {
+    "screenshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "width", "height"],
+      "properties": {
+        "path": {"type": ["string", "null"]},
+        "width": {"type": "integer", "exclusiveMinimum": 0},
+        "height": {"type": "integer", "exclusiveMinimum": 0}
+      }
+    },
+    "region": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "width", "height", "label"],
+      "properties": {
+        "x": {"type": "integer", "minimum": 0},
+        "y": {"type": "integer", "minimum": 0},
+        "width": {"type": "integer", "exclusiveMinimum": 0},
+        "height": {"type": "integer", "exclusiveMinimum": 0},
+        "label": {"type": ["string", "null"]}
+      }
+    }
+  }
+}
