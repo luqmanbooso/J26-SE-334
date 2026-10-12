@@ -195,6 +195,15 @@ class AdbDevice:
     def tap(self, x, y):
         self.run("shell", "input", "tap", str(int(round(x))), str(int(round(y))))
 
+    def swipe(self, x1, y1, x2, y2, duration_ms=300):
+        """One straight swipe. `input swipe` cannot replay a curved path —
+        a caller with a multi-point gesture sends its endpoints and keeps the
+        full path in its own record."""
+        self.run("shell", "input", "swipe",
+                 str(int(round(x1))), str(int(round(y1))),
+                 str(int(round(x2))), str(int(round(y2))),
+                 str(int(round(duration_ms))))
+
     # --- hierarchy, cached --------------------------------------------------
 
     def dump_hierarchy(self, max_age_s: float = 0.0, max_retries: int = 2, backoff_s: float = 0.2) -> str:
