@@ -5,16 +5,20 @@ hardware fails: the app under test is replaced by a stub whose responsiveness we
 script, everything else is the real engine.
 """
 import os
+from statistics import mean
 
 import numpy as np
 
+from bridge.hierarchy import parse_hierarchy, tappable_targets
 from bridge.latency_probe import LatencyProbe
 from engine.controller import AdaptiveFeedbackController
 from engine.visualise import plot_comparison, plot_timeline
 from models.cognitive import CognitiveStateModel, StaticStress
 from simulation.simulator import BiometricSimulator
 
-TARGET = {"id": "btn_submit", "x": 500.0, "y": 800.0, "width": 110.0, "height": 44.0}
+# Real targets from a saved dialer screen, so the run exercises the actual spread
+# of element sizes rather than one synthetic rectangle.
+TARGETS = [e.as_target() for e in tappable_targets(parse_hierarchy("window_dump.xml"))]
 ACTIONS = 120
 
 
@@ -67,9 +71,9 @@ def run(stress_source, seed=2026):
         clock=clock,
         run_id="demo-adaptive",
     )
-    for _ in range(ACTIONS):
+    for i in range(ACTIONS):
         app.action += 1
-        controller.act(TARGET)
+        controller.act(TARGETS[i % len(TARGETS)])
     return controller.timeline
 
 
@@ -79,20 +83,31 @@ def main():
     adaptive = run(CognitiveStateModel(rng=np.random.default_rng(2026)))
     static = run(StaticStress(0.05))
 
-    hits = sum(1 for r in adaptive.records if r.hit_flag)
-    print(f"adaptive run: {len(adaptive.records)} actions, "
-          f"{len(adaptive.records) - hits} missed the target")
-    print(f"  stress {adaptive.records[0].stress_s:.2f} -> "
-          f"{max(r.stress_s for r in adaptive.records):.2f} (peak)")
-    static_hits = sum(1 for r in static.records if r.hit_flag)
-    print(f"static run:   {len(static.records)} actions, "
-          f"{len(static.records) - static_hits} missed the target")
+    def summarise(name, timeline):
+        rs = timeline.records
+        calm = [r.error_px for r in rs if r.stress_s < 0.15]
+        tense = [r.error_px for r in rs if r.stress_s > 0.60]
+        missed = sum(1 for r in rs if not r.hit_flag)
+        peak = max(r.stress_s for r in rs)
+        print(f"{name:<9} {len(rs)} actions, stress peaks at {peak:.2f}, {missed} missed")
+        if calm:
+            print(f"          mean error when calm:       {mean(calm):6.1f} px  ({len(calm)} actions)")
+        if tense:
+            print(f"          mean error when frustrated: {mean(tense):6.1f} px  ({len(tense)} actions)")
+            print(f"          -> {mean(tense) / mean(calm):.2f}x wider under stress")
+        else:
+            print("          never left the calm state")
 
-    plot_timeline(adaptive, TARGET, path="results/adaptive_loop_timeline.png",
+    summarise("adaptive", adaptive)
+    print()
+    summarise("static", static)
+    print()
+
+    plot_timeline(adaptive, TARGETS[0], path="results/adaptive_loop_timeline.png",
                   title="Adaptive loop: app latency drives cognitive state drives input error")
     plot_comparison({"adaptive (feedback on)": adaptive,
                      "static (feedback off)": static},
-                    TARGET, path="results/adaptive_vs_static.png")
+                    TARGETS[0], path="results/adaptive_vs_static.png")
     print("\nwrote results/adaptive_loop_timeline.png")
     print("wrote results/adaptive_vs_static.png")
     adaptive.write_json("results/adaptive_loop_timeline.json")
