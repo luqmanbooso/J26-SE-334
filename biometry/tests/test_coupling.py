@@ -44,7 +44,7 @@ def test_one_instance_reaches_every_module():
 def test_one_alpha_moves_spatial_and_temporal_together():
     """Raising alpha alone widens both scatter and delay spread — the coupling."""
     def spread(alpha):
-        sim = BiometricSimulator(sigma_absolute=8.0, alpha=alpha, seed=4)
+        sim = BiometricSimulator(alpha=alpha, seed=4)
         rs = [sim.simulate_tap(500, 800, 160, 70, 1.0) for _ in range(4000)]
         return (np.std([r["error_distance"] for r in rs]),
                 np.std([r["delay"] for r in rs]))

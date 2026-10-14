@@ -40,7 +40,7 @@ def main():
               else CognitiveStateModel(rng=np.random.default_rng(args.seed)))
 
     controller = AdaptiveFeedbackController(
-        simulator=BiometricSimulator(sigma_absolute=8.0, seed=args.seed),
+        simulator=BiometricSimulator(seed=args.seed),
         cognitive=source,
         probe=live_probe(bridge, poll_interval=0.08, timeout=2.5),
         dispatch=AdbDispatcher(bridge),

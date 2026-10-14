@@ -31,19 +31,46 @@ def model(seed=1, **kw):
 # --- FFitts variance decomposition -----------------------------------------
 
 def test_spread_grows_with_target_size():
-    """The relative term scales with the target, so a bigger target is aimed at less carefully."""
+    """The relative term grows with the target, so a bigger target is aimed at less carefully."""
     m = model()
     sizes = [(40, 18), (100, 44), (160, 70), (320, 140)]
     spreads = [m.base_sigma(w, h) for w, h in sizes]
     assert spreads == sorted(spreads), spreads
-    assert spreads[-1] > 2 * spreads[0]
+    assert spreads[-1] > spreads[0]
+
+
+def test_spread_grows_far_more_slowly_than_the_target():
+    """Growth is sub-linear, not proportional.
+
+    Fitting Bi et al.'s published sigma_relative against width (EXP-03) rules out a
+    linear form at R^2 = -0.25 and supports k*sqrt(W) at R^2 = 0.94. Their own 2D
+    table bears it out: tripling W from 2.4 to 7.2 mm raises sigma only ~1.16x.
+    An eightfold target must therefore not produce anything near eightfold spread.
+    """
+    m = model()
+    small = m.base_sigma(40, 18)
+    large = m.base_sigma(320, 140)      # ~7.8x the binding dimension
+    growth = large / small
+    assert 1.05 < growth < 2.0, growth
 
 
 def test_absolute_floor_survives_a_vanishing_target():
     """Spread never falls below the finger-imprecision floor, however small the target."""
-    m = model(sigma_absolute=4.0)
-    assert m.base_sigma(1, 1) >= 4.0
-    assert m.base_sigma(0, 0) == pytest.approx(4.0)
+    m = model(sigma_absolute_mm=1.5, px_per_mm=16.0)
+    floor_px = 1.5 * 16.0
+    assert m.base_sigma(1, 1) >= floor_px
+    assert m.base_sigma(0, 0) == pytest.approx(floor_px)
+
+
+def test_spread_matches_the_published_decomposition():
+    """At a given target width the model must reproduce Bi et al.'s sigma_observed.
+
+    Their 2D table reports sigma = 1.84 mm at W = 4.8 mm with sigma_a = 1.50 mm.
+    """
+    m = model(sigma_absolute_mm=1.5, relative_coeff=0.493, px_per_mm=16.0)
+    width_px = 4.8 * 16.0
+    predicted_mm = m.base_sigma(width_px, width_px) / 16.0
+    assert predicted_mm == pytest.approx(1.84, abs=0.06)
 
 
 def test_small_targets_are_effectively_smaller():
