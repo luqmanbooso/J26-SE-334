@@ -1,0 +1,29 @@
+{
+  "admin@heart.io": {
+    "name": "System Administrator",
+    "email": "admin@heart.io",
+    "password": "password123",
+    "role": "Lead Engineer",
+    "student_id": "SYS-001",
+    "affiliation": "HEART Mobile Robustness Research",
+    "avatar_color": "#fb923c"
+  },
+  "researcher@heart.io": {
+    "name": "HEART Researcher",
+    "email": "researcher@heart.io",
+    "password": "password123",
+    "role": "Research Lead",
+    "student_id": "RES-002",
+    "affiliation": "J26-SE-334 Research Group",
+    "avatar_color": "#38bdf8"
+  },
+  "examiner@sliit.lk": {
+    "name": "Evaluation Examiner",
+    "email": "examiner@sliit.lk",
+    "password": "password123",
+    "role": "Evaluation Committee",
+    "student_id": "EXAM-2026",
+    "affiliation": "Faculty of Computing (SLIIT)",
+    "avatar_color": "#a78bfa"
+  }
+}

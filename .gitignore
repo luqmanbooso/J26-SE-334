@@ -17,6 +17,21 @@ Thumbs.db
 
 # Task & system logs
 *.log
+/perturbation_event_log.json
+/environment_failure_attribution.json
+/results/
 
 # Large documents & binaries (>100MB exceeds GitHub limits)
 *.pdf
+
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+env testing/uploads/*.apk
+
+# PyInstaller build artifacts
+build/
+*.spec
