@@ -43,7 +43,7 @@ def main():
 
     bridge = ADBBridge()
     # Initialize simulator with Rotational Dual Gaussian Model
-    simulator = BiometricSimulator(base_sigma=12.0, base_time=0.3)
+    simulator = BiometricSimulator(sigma_absolute=12.0, base_time=0.3)
 
     # Sequence of digits to dial: '1', '5', '9', '0'
     dial_sequence = ["1", "5", "9", "0"]

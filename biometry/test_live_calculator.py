@@ -66,7 +66,7 @@ def main():
 
     bridge = ADBBridge()
     # Initialize simulator with Rotational Dual Gaussian Spatial Model[cite: 1]
-    simulator = BiometricSimulator(base_sigma=12.0, base_time=0.3)
+    simulator = BiometricSimulator(sigma_absolute=12.0, base_time=0.3)
 
     # Sequence of buttons to tap: '7', '+', '5', '='
     test_sequence = ["7", "+", "5", "="]

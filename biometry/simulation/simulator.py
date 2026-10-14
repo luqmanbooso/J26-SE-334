@@ -15,15 +15,17 @@ class BiometricSimulator:
     lets two engine variants be compared on identical random draws.
     """
 
-    def __init__(self, base_sigma=6.0, base_time=0.3, seed=None, rng=None):
+    def __init__(self, sigma_absolute=4.0, base_time=0.3, seed=None, rng=None):
         self.rng = rng if rng is not None else np.random.default_rng(seed)
-        self.spatial_model = RotationalSpatialModel(base_sigma=base_sigma, rng=self.rng)
+        self.spatial_model = RotationalSpatialModel(sigma_absolute=sigma_absolute, rng=self.rng)
         self.timing_model = TimingModel(base_time=base_time, rng=self.rng)
 
     def simulate_tap(self, target_x, target_y, width, height, stress, prev_x=None, prev_y=None, angle=None):
         actual_x, actual_y, theta = self.spatial_model.generate_touch(
             target_x=target_x,
             target_y=target_y,
+            width=width,
+            height=height,
             stress=stress,
             prev_x=prev_x,
             prev_y=prev_y,
