@@ -84,7 +84,7 @@ jobs:
         env:
           PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/env testing
         run: |
-          xvfb-run python -m pytest "env testing/tests" -v --junitxml=reports/test-results.xml
+          xvfb-run -a python -m pytest "env testing/tests" -v --junitxml=reports/test-results.xml
 
       - name: Generate CI Summary Report
         if: always()
@@ -130,14 +130,14 @@ jobs:
           pip install -r "env testing/requirements.txt"
           pip install uvicorn httpx pyyaml psutil
 
-      - name: Start FastAPI Background Service
+      - name: Start FastAPI Service & Verify Live Probes
         run: |
+          export PYTHONPATH="${{ github.workspace }}:${{ github.workspace }}/env testing"
           python -m uvicorn server:app --app-dir "env testing" --host 127.0.0.1 --port 8000 &
-          sleep 3
-
-      - name: Verify Live API Health & Telemetry Endpoints
-        run: |
-          curl --fail --retry 3 --retry-delay 2 http://127.0.0.1:8000/ || exit 1
+          SERVER_PID=$!
+          sleep 4
+          curl --fail --retry 5 --retry-delay 2 http://127.0.0.1:8000/ || exit 1
           curl --fail http://127.0.0.1:8000/api/status || exit 1
           curl --fail http://127.0.0.1:8000/api/device/telemetry || exit 1
           echo "✓ All core API endpoints responding with HTTP 200 OK"
+          kill -9 $SERVER_PID || true
