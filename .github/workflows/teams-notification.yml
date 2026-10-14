@@ -1,0 +1,57 @@
+name: Teams Notification - Pull Request Merged
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  notify-teams:
+    if: github.event.pull_request.merged == true
+    name: Post PR Card to MS Teams
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Notification to MS Teams Channel
+        env:
+          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+        if: env.TEAMS_WEBHOOK_URL != ''
+        run: |
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          PR_AUTHOR="${{ github.event.pull_request.user.login }}"
+          SRC_BRANCH="${{ github.event.pull_request.head.ref }}"
+          TGT_BRANCH="${{ github.event.pull_request.base.ref }}"
+          PR_URL="${{ github.event.pull_request.html_url }}"
+          CREATED_AT="${{ github.event.pull_request.created_at }}"
+          MERGED_AT="${{ github.event.pull_request.merged_at }}"
+
+          PAYLOAD=$(cat <<EOF
+          {
+            "@type": "MessageCard",
+            "@context": "http://schema.org/extensions",
+            "themeColor": "22c55e",
+            "summary": "Pull Request #$PR_NUMBER Merged",
+            "sections": [{
+              "activityTitle": "✅ **Pull Request Merged**",
+              "activitySubtitle": "Pull request #$PR_NUMBER has been merged.",
+              "facts": [
+                { "name": "📝 Title", "value": "$PR_TITLE" },
+                { "name": "🆔 PR Number", "value": "$PR_NUMBER" },
+                { "name": "👤 Author", "value": "$PR_AUTHOR" },
+                { "name": "📊 Status", "value": "Merged" },
+                { "name": "🌿 Source Branch", "value": "$SRC_BRANCH" },
+                { "name": "🎯 Target Branch", "value": "$TGT_BRANCH" },
+                { "name": "📅 Created", "value": "$CREATED_AT" },
+                { "name": "✅ Merged At", "value": "$MERGED_AT" }
+              ],
+              "markdown": true
+            }],
+            "potentialAction": [{
+              "@type": "OpenUri",
+              "name": "View on GitHub",
+              "targets": [{ "os": "default", "uri": "$PR_URL" }]
+            }]
+          }
+          EOF
+          )
+
+          curl -H "Content-Type: application/json" -d "$PAYLOAD" "$TEAMS_WEBHOOK_URL"
