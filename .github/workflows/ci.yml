@@ -78,7 +78,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r "env testing/requirements.txt"
-          pip install pytest pytest-cov httpx pillow pyyaml customtkinter psutil
+          pip install pytest pytest-cov httpx pillow pyyaml customtkinter psutil python-multipart
 
       - name: Run Pytest Test Suite (57 Automated Test Cases)
         env:
@@ -138,17 +138,23 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r "env testing/requirements.txt"
-          pip install uvicorn httpx pyyaml psutil
+          pip install uvicorn httpx pyyaml psutil python-multipart
+
 
       - name: Start FastAPI Service & Verify Live Probes
         run: |
-          python "env testing/verify_api_live.py"
+          python "env testing/verify_api_live.py" 2>&1 | tee live_probe.log
 
       - name: Report Smoke Test Summary
         if: always()
         run: |
           echo "### ⚡ REST API Smoke Test Verification" >> $GITHUB_STEP_SUMMARY
-          echo "Live FastAPI uvicorn daemon and endpoints (/, /api/status, /api/perturbation/telemetry) verified with HTTP 200 OK." >> $GITHUB_STEP_SUMMARY
+          if [ -f live_probe.log ]; then
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat live_probe.log >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+
 
 
 
