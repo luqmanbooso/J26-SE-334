@@ -141,39 +141,3 @@ jobs:
           curl --fail http://127.0.0.1:8000/api/status || exit 1
           curl --fail http://127.0.0.1:8000/api/device/telemetry || exit 1
           echo "✓ All core API endpoints responding with HTTP 200 OK"
-
-  # =========================================================================
-  # STAGE 4: FRONTEND REACT & VITE PRODUCTION BUILD
-  # =========================================================================
-  frontend-build:
-    name: 📦 Frontend React & Vite Production Build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install Frontend Dependencies
-        working-directory: frontend
-        run: |
-          if [ -f package-lock.json ]; then
-            npm ci
-          else
-            npm install
-          fi
-
-      - name: Build Production Assets
-        working-directory: frontend
-        run: npm run build
-
-      - name: Upload Production Dist Bundle
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-dist-bundle
-          path: frontend/dist
