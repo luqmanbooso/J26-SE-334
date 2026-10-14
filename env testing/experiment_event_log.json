@@ -1,0 +1,630 @@
+[
+  {
+    "epoch_ms": 1791384886814,
+    "timestamp": "2026-10-07T20:24:46.814462",
+    "category": "SYSTEM_HARDWARE",
+    "action": "SYSTEM_RESET_NOMINAL",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886814,
+    "timestamp": "2026-10-07T20:24:46.814511",
+    "category": "NETWORK",
+    "action": "STATE_TRANSITION",
+    "parameters": {
+      "mode": "normal"
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886814,
+    "timestamp": "2026-10-07T20:24:46.814521",
+    "category": "NETWORK",
+    "action": "NETWORK_RESET_NOMINAL",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886814,
+    "timestamp": "2026-10-07T20:24:46.814526",
+    "category": "INTERRUPTION_DOZE",
+    "action": "SYSTEM_DOZE_TRANSITION",
+    "parameters": {
+      "force_idle": false
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886814,
+    "timestamp": "2026-10-07T20:24:46.814530",
+    "category": "INTERRUPTION",
+    "action": "INTERRUPTIONS_CLEARED",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886814,
+    "timestamp": "2026-10-07T20:24:46.814544",
+    "category": "CONTEXT",
+    "action": "CONTEXT_RESET_DEFAULTS",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886814,
+    "timestamp": "2026-10-07T20:24:46.814548",
+    "category": "SYSTEM",
+    "action": "ENVIRONMENT_FULL_RESET",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886815,
+    "timestamp": "2026-10-07T20:24:46.815039",
+    "category": "SYSTEM_HARDWARE",
+    "action": "SYSTEM_RESET_NOMINAL",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886815,
+    "timestamp": "2026-10-07T20:24:46.815049",
+    "category": "NETWORK",
+    "action": "STATE_TRANSITION",
+    "parameters": {
+      "mode": "normal"
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886815,
+    "timestamp": "2026-10-07T20:24:46.815056",
+    "category": "NETWORK",
+    "action": "NETWORK_RESET_NOMINAL",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886815,
+    "timestamp": "2026-10-07T20:24:46.815060",
+    "category": "INTERRUPTION_DOZE",
+    "action": "SYSTEM_DOZE_TRANSITION",
+    "parameters": {
+      "force_idle": false
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886815,
+    "timestamp": "2026-10-07T20:24:46.815064",
+    "category": "INTERRUPTION",
+    "action": "INTERRUPTIONS_CLEARED",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886815,
+    "timestamp": "2026-10-07T20:24:46.815071",
+    "category": "CONTEXT",
+    "action": "CONTEXT_RESET_DEFAULTS",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886815,
+    "timestamp": "2026-10-07T20:24:46.815075",
+    "category": "SYSTEM",
+    "action": "ENVIRONMENT_FULL_RESET",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886815,
+    "timestamp": "2026-10-07T20:24:46.815379",
+    "category": "NETWORK_THROTTLE",
+    "action": "BANDWIDTH_PROFILE_SET",
+    "parameters": {
+      "profile": "edge"
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886815,
+    "timestamp": "2026-10-07T20:24:46.815389",
+    "category": "NETWORK_LATENCY",
+    "action": "LATENCY_INJECTED",
+    "parameters": {
+      "latency_ms": 1200,
+      "delay_profile": "edge"
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886815,
+    "timestamp": "2026-10-07T20:24:46.815395",
+    "category": "NETWORK_PACKET_LOSS",
+    "action": "PACKET_LOSS_SIMULATED",
+    "parameters": {
+      "loss_pct": 7,
+      "strategy": "STOCHASTIC_DROP"
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886815,
+    "timestamp": "2026-10-07T20:24:46.815675",
+    "category": "SYSTEM_HARDWARE",
+    "action": "SYSTEM_RESET_NOMINAL",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886815,
+    "timestamp": "2026-10-07T20:24:46.815710",
+    "category": "NETWORK",
+    "action": "STATE_TRANSITION",
+    "parameters": {
+      "mode": "normal"
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886815,
+    "timestamp": "2026-10-07T20:24:46.815729",
+    "category": "NETWORK",
+    "action": "NETWORK_RESET_NOMINAL",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886815,
+    "timestamp": "2026-10-07T20:24:46.815737",
+    "category": "INTERRUPTION_DOZE",
+    "action": "SYSTEM_DOZE_TRANSITION",
+    "parameters": {
+      "force_idle": false
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886815,
+    "timestamp": "2026-10-07T20:24:46.815744",
+    "category": "INTERRUPTION",
+    "action": "INTERRUPTIONS_CLEARED",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886815,
+    "timestamp": "2026-10-07T20:24:46.815753",
+    "category": "CONTEXT",
+    "action": "CONTEXT_RESET_DEFAULTS",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886815,
+    "timestamp": "2026-10-07T20:24:46.815758",
+    "category": "SYSTEM",
+    "action": "ENVIRONMENT_FULL_RESET",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886831,
+    "timestamp": "2026-10-07T20:24:46.831548",
+    "category": "SYSTEM_CPU",
+    "action": "CPU_LOAD_INJECTED",
+    "parameters": {
+      "target_cpu_pct": 90
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886831,
+    "timestamp": "2026-10-07T20:24:46.831609",
+    "category": "SYSTEM_RAM",
+    "action": "LMK_MEMORY_PRESSURE",
+    "parameters": {
+      "ram_pct": 85,
+      "trim_level": "RUNNING_CRITICAL",
+      "target_package": "com.android.settings"
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886831,
+    "timestamp": "2026-10-07T20:24:46.831631",
+    "category": "SYSTEM_THERMAL",
+    "action": "THERMAL_THROTTLE_PROFILE",
+    "parameters": {
+      "state": "Warn",
+      "simulated_temp_c": 55.0
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886831,
+    "timestamp": "2026-10-07T20:24:46.831759",
+    "category": "SYSTEM_HARDWARE",
+    "action": "SYSTEM_RESET_NOMINAL",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886831,
+    "timestamp": "2026-10-07T20:24:46.831774",
+    "category": "NETWORK",
+    "action": "STATE_TRANSITION",
+    "parameters": {
+      "mode": "normal"
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886831,
+    "timestamp": "2026-10-07T20:24:46.831783",
+    "category": "NETWORK",
+    "action": "NETWORK_RESET_NOMINAL",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886831,
+    "timestamp": "2026-10-07T20:24:46.831789",
+    "category": "INTERRUPTION_DOZE",
+    "action": "SYSTEM_DOZE_TRANSITION",
+    "parameters": {
+      "force_idle": false
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886831,
+    "timestamp": "2026-10-07T20:24:46.831796",
+    "category": "INTERRUPTION",
+    "action": "INTERRUPTIONS_CLEARED",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886831,
+    "timestamp": "2026-10-07T20:24:46.831808",
+    "category": "CONTEXT",
+    "action": "CONTEXT_RESET_DEFAULTS",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886831,
+    "timestamp": "2026-10-07T20:24:46.831814",
+    "category": "SYSTEM",
+    "action": "ENVIRONMENT_FULL_RESET",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886863,
+    "timestamp": "2026-10-07T20:24:46.863347",
+    "category": "INTERRUPTION_CALL",
+    "action": "INCOMING_CALL_RINGING",
+    "parameters": {
+      "number": "15550192831",
+      "response": "SIMULATED_OK: gsm call 15550192831"
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886863,
+    "timestamp": "2026-10-07T20:24:46.863378",
+    "category": "CONTEXT_ORIENTATION",
+    "action": "ORIENTATION_CHANGED",
+    "parameters": {
+      "mode": "landscape",
+      "rotation_val": "1"
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886863,
+    "timestamp": "2026-10-07T20:24:46.863498",
+    "category": "SYSTEM_HARDWARE",
+    "action": "SYSTEM_RESET_NOMINAL",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886863,
+    "timestamp": "2026-10-07T20:24:46.863510",
+    "category": "NETWORK",
+    "action": "STATE_TRANSITION",
+    "parameters": {
+      "mode": "normal"
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886863,
+    "timestamp": "2026-10-07T20:24:46.863519",
+    "category": "NETWORK",
+    "action": "NETWORK_RESET_NOMINAL",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886863,
+    "timestamp": "2026-10-07T20:24:46.863530",
+    "category": "INTERRUPTION_CALL",
+    "action": "CALL_TERMINATED",
+    "parameters": {
+      "number": "15550192831",
+      "response": "SIMULATED_OK: gsm cancel 15550192831"
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886863,
+    "timestamp": "2026-10-07T20:24:46.863537",
+    "category": "INTERRUPTION_DOZE",
+    "action": "SYSTEM_DOZE_TRANSITION",
+    "parameters": {
+      "force_idle": false
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886863,
+    "timestamp": "2026-10-07T20:24:46.863542",
+    "category": "INTERRUPTION",
+    "action": "INTERRUPTIONS_CLEARED",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886863,
+    "timestamp": "2026-10-07T20:24:46.863552",
+    "category": "CONTEXT",
+    "action": "CONTEXT_RESET_DEFAULTS",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886863,
+    "timestamp": "2026-10-07T20:24:46.863557",
+    "category": "SYSTEM",
+    "action": "ENVIRONMENT_FULL_RESET",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886877,
+    "timestamp": "2026-10-07T20:24:46.877927",
+    "category": "SYSTEM_CPU",
+    "action": "CPU_LOAD_INJECTED",
+    "parameters": {
+      "target_cpu_pct": 92
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886877,
+    "timestamp": "2026-10-07T20:24:46.877993",
+    "category": "SYSTEM_RAM",
+    "action": "LMK_MEMORY_PRESSURE",
+    "parameters": {
+      "ram_pct": 88,
+      "trim_level": "RUNNING_CRITICAL",
+      "target_package": "com.android.settings"
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886878,
+    "timestamp": "2026-10-07T20:24:46.878040",
+    "category": "SYSTEM_THERMAL",
+    "action": "THERMAL_THROTTLE_PROFILE",
+    "parameters": {
+      "state": "Critical",
+      "simulated_temp_c": 80.0
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886878,
+    "timestamp": "2026-10-07T20:24:46.878062",
+    "category": "NETWORK_LATENCY",
+    "action": "LATENCY_INJECTED",
+    "parameters": {
+      "latency_ms": 1600,
+      "delay_profile": "edge"
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886878,
+    "timestamp": "2026-10-07T20:24:46.878069",
+    "category": "NETWORK_PACKET_LOSS",
+    "action": "PACKET_LOSS_SIMULATED",
+    "parameters": {
+      "loss_pct": 10,
+      "strategy": "STOCHASTIC_DROP"
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886878,
+    "timestamp": "2026-10-07T20:24:46.878080",
+    "category": "NETWORK_THROTTLE",
+    "action": "BANDWIDTH_PROFILE_SET",
+    "parameters": {
+      "profile": "edge"
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886878,
+    "timestamp": "2026-10-07T20:24:46.878095",
+    "category": "INTERRUPTION_CALL",
+    "action": "INCOMING_CALL_RINGING",
+    "parameters": {
+      "number": "15555215554",
+      "response": "SIMULATED_OK: gsm call 15555215554"
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886878,
+    "timestamp": "2026-10-07T20:24:46.878104",
+    "category": "SYSTEM_POWER",
+    "action": "BATTERY_PRESSURE",
+    "parameters": {
+      "level": 3,
+      "unplugged": true
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886878,
+    "timestamp": "2026-10-07T20:24:46.878115",
+    "category": "ORCHESTRATOR",
+    "action": "PROFILE_APPLIED",
+    "parameters": {
+      "profile_name": "Compound Stress",
+      "chaos_score": 87
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886878,
+    "timestamp": "2026-10-07T20:24:46.878229",
+    "category": "SYSTEM_HARDWARE",
+    "action": "SYSTEM_RESET_NOMINAL",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886878,
+    "timestamp": "2026-10-07T20:24:46.878239",
+    "category": "NETWORK",
+    "action": "STATE_TRANSITION",
+    "parameters": {
+      "mode": "normal"
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886878,
+    "timestamp": "2026-10-07T20:24:46.878244",
+    "category": "NETWORK",
+    "action": "NETWORK_RESET_NOMINAL",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886878,
+    "timestamp": "2026-10-07T20:24:46.878252",
+    "category": "INTERRUPTION_CALL",
+    "action": "CALL_TERMINATED",
+    "parameters": {
+      "number": "15555215554",
+      "response": "SIMULATED_OK: gsm cancel 15555215554"
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886878,
+    "timestamp": "2026-10-07T20:24:46.878257",
+    "category": "INTERRUPTION_DOZE",
+    "action": "SYSTEM_DOZE_TRANSITION",
+    "parameters": {
+      "force_idle": false
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886878,
+    "timestamp": "2026-10-07T20:24:46.878261",
+    "category": "INTERRUPTION",
+    "action": "INTERRUPTIONS_CLEARED",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886878,
+    "timestamp": "2026-10-07T20:24:46.878268",
+    "category": "CONTEXT",
+    "action": "CONTEXT_RESET_DEFAULTS",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791384886878,
+    "timestamp": "2026-10-07T20:24:46.878272",
+    "category": "SYSTEM",
+    "action": "ENVIRONMENT_FULL_RESET",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
+  }
+]

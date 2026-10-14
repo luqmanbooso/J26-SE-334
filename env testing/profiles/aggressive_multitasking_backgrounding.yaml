@@ -1,0 +1,13 @@
+name: "Aggressive OS Interruptions"
+description: "Simulates frequent GSM incoming phone calls, SMS push notifications, and backgrounding transitions."
+targetModule: "Interactive Form / Transaction Workflow"
+cpuStress: 40
+ramStress: 50
+diskIo: 80
+latency: 200
+packetLoss: 0
+dnsFailure: false
+thermalState: "None"
+networkProfile: "LTE"
+interruptionType: "Incoming Call"
+interruptionFreq: 5
