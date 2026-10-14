@@ -49,9 +49,9 @@ biometry/
 │   └── simulator.py                 # BiometricSimulator — composes spatial + timing into one tap
 ├── experiment_rotational_model.py   # Offline scatter-vs-approach-angle experiment (no device)
 ├── main.py                          # Batch runner: distributions across stress levels
-├── test_live_calculator.py          # Live demo script against the Android Calculator
-├── test_live_dialer.py              # Live demo script against the Android Dialer
-├── test_live_pixel_detector.py      # Screen capture + clickable-element overlay
+├── demo_live_calculator.py          # Live demo script against the Android Calculator
+├── demo_live_dialer.py              # Live demo script against the Android Dialer
+├── demo_live_pixel_detector.py      # Screen capture + clickable-element overlay
 └── results/                         # Generated figures and summary metrics
 ```
 
@@ -85,17 +85,18 @@ Validate the Rotational Dual Gaussian touch endpoints:
 python experiment_rotational_model.py
 ```
 
-> **Note:** `test_live_*.py` are demonstration scripts that drive a real device, not an
-> automated test suite. They are not collected by pytest.
+> **Note:** `demo_live_*.py` drive a real device and are demonstrations, not tests. The
+> automated suite is in `tests/` and needs no device.
+
 
 ### 2. Run Live Application Tests
 Execute stress-conditioned human-like touch inputs on a connected device:
 ```bash
 # Test on Calculator:
-python test_live_calculator.py
+python demo_live_calculator.py
 
 # Test on Dialer:
-python test_live_dialer.py
+python demo_live_dialer.py
 
 # General test runner:
 python main.py
