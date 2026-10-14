@@ -7,18 +7,25 @@ import subprocess
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
+# Bypass system/runner proxies for local loopback verification
+proxy_handler = urllib.request.ProxyHandler({})
+opener = urllib.request.build_opener(proxy_handler)
+urllib.request.install_opener(opener)
+
 def main():
     root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     env_dir = os.path.join(root_dir, "env testing")
     
     env = os.environ.copy()
     env["PYTHONPATH"] = f"{root_dir}{os.pathsep}{env_dir}"
+    env["NO_PROXY"] = "127.0.0.1,localhost"
+    env["no_proxy"] = "127.0.0.1,localhost"
     
-    print("[+] Launching live Uvicorn FastAPI server on 127.0.0.1:8000...")
+    print("[+] Launching live Uvicorn FastAPI server on 0.0.0.0:8000...")
     cmd = [
         sys.executable, "-m", "uvicorn", "server:app",
         "--app-dir", env_dir,
-        "--host", "127.0.0.1",
+        "--host", "0.0.0.0",
         "--port", "8000",
         "--log-level", "info"
     ]
@@ -30,6 +37,7 @@ def main():
         "http://127.0.0.1:8000/api/status",
         "http://127.0.0.1:8000/api/perturbation/telemetry"
     ]
+
     
     success = False
     try:
