@@ -1,0 +1,42 @@
+{
+  "1_BASELINE_NOMINAL": {
+    "mean_latency_ms": 66.32,
+    "p95_latency_ms": 91.28,
+    "mean_fps": 58.51,
+    "jank_frame_drop_pct": 2.48,
+    "failure_rate_pct": 0.0,
+    "total_failures": 0
+  },
+  "2_NETWORK_DEGRADATION": {
+    "mean_latency_ms": 1334.38,
+    "p95_latency_ms": 1715.78,
+    "mean_fps": 53.37,
+    "jank_frame_drop_pct": 11.05,
+    "failure_rate_pct": 13.33,
+    "total_failures": 4
+  },
+  "3_HARDWARE_STARVATION": {
+    "mean_latency_ms": 178.72,
+    "p95_latency_ms": 225.31,
+    "mean_fps": 31.66,
+    "jank_frame_drop_pct": 47.23,
+    "failure_rate_pct": 16.67,
+    "total_failures": 5
+  },
+  "4_INTERRUPTION_BURST": {
+    "mean_latency_ms": 112.79,
+    "p95_latency_ms": 144.75,
+    "mean_fps": 46.06,
+    "jank_frame_drop_pct": 23.23,
+    "failure_rate_pct": 20.0,
+    "total_failures": 6
+  },
+  "5_COMPOUND_MULTI_FACTOR": {
+    "mean_latency_ms": 1816.84,
+    "p95_latency_ms": 2399.98,
+    "mean_fps": 23.0,
+    "jank_frame_drop_pct": 61.67,
+    "failure_rate_pct": 53.33,
+    "total_failures": 16
+  }
+}

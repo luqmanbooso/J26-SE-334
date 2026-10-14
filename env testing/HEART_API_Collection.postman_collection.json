@@ -1,0 +1,2633 @@
+{
+  "info": {
+    "_postman_id": "heart-engine-postman-suite-v1",
+    "name": "HEART - Environmental Perturbation Engine REST API",
+    "description": "Comprehensive Postman Test Collection for HEART (Context-Aware Environmental Perturbation Engine). Covers multi-factor fault injection, ADB device bridge, hardware starvation, network chaos, OS interruptions, declarative YAML scenarios, Themis ground-truth benchmarks, and RQ1 latency validation.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01. System & Device Telemetry",
+      "description": "Endpoints for device connectivity status, telemetry snapshots, audit event log, and RQ1 latency metrics.",
+      "item": [
+        {
+          "name": "Get Device Status & Bridge Health",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "status"
+              ]
+            },
+            "description": "Probes ADB bridge status, target model (Google Pixel 7), emulator/hardware status, and total active events."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response time is acceptable (< 500ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test(\"Response has valid JSON format\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"Device status is READY\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data.status).to.eql(\"READY\");",
+                  "    pm.expect(data.device).to.be.an(\"object\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Live Telemetry Snapshot",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/perturbation/telemetry",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "perturbation",
+                "telemetry"
+              ]
+            },
+            "description": "Retrieves live sensor telemetry (CPU %, RAM %, Latency, Packet Loss, Chaos Score, Thermal state)."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response time is acceptable (< 500ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test(\"Response has valid JSON format\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"Contains Chaos Score and hardware metrics\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.have.property(\"chaos_score\");",
+                  "    pm.expect(data).to.have.property(\"latency_ms\");",
+                  "    pm.expect(data).to.have.property(\"cpu_stress\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Recorded Event Stream",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/perturbation/events?limit=25",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "perturbation",
+                "events?limit=25"
+              ]
+            },
+            "description": "Retrieves recorded audit logs of environmental injections and benchmark results."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response time is acceptable (< 500ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test(\"Response has valid JSON format\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"Contains events list and total count\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.have.property(\"events\");",
+                  "    pm.expect(data.events).to.be.an(\"array\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get RQ1 Latency & Overhead SLA Metrics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/performance_metrics",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "performance_metrics"
+              ]
+            },
+            "description": "Verifies empirical compliance with RQ1 requirements: injection latency < 100ms and host resource overhead < 15%."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response time is acceptable (< 500ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test(\"Response has valid JSON format\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"RQ1 latency and overhead constraints PASS\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data.latency_pass).to.eql(true);",
+                  "    pm.expect(data.overhead_pass).to.eql(true);",
+                  "    pm.expect(data.latency_stats.mean_ms).to.be.below(100.0);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02. Multi-Factor Perturbation Control",
+      "description": "Endpoints to apply synchronized compound stress profiles, execute presets, reset to nominal baseline, and correlate failures.",
+      "item": [
+        {
+          "name": "Apply Interactive Multi-Factor Stress",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/perturbation/apply",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "perturbation",
+                "apply"
+              ]
+            },
+            "description": "Applies synchronized multi-factor environmental stressors and returns updated chaos score and telemetry snapshot.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Interactive Stress Profile\",\n  \"targetModule\": \"Checkout Service\",\n  \"cpuStress\": 75,\n  \"ramStress\": 65,\n  \"diskIo\": 450,\n  \"latency\": 950,\n  \"packetLoss\": 4,\n  \"dnsFailure\": false,\n  \"thermalState\": \"Moderate\",\n  \"networkProfile\": \"3G HSDPA\",\n  \"interruptionType\": \"Incoming Call\",\n  \"interruptionFreq\": 2\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response time is acceptable (< 500ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test(\"Response has valid JSON format\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"Perturbations applied with valid Chaos Score\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data.status).to.eql(\"APPLIED\");",
+                  "    pm.expect(data.chaos_score).to.be.above(0);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Apply Preset Research Profile",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/perturbation/profile?profile_name=Mid-Transaction%20Stress%20Test",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "perturbation",
+                "profile?profile_name=Mid-Transaction%20Stress%20Test"
+              ]
+            },
+            "description": "Applies standardized pre-configured empirical research stress profile."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response time is acceptable (< 500ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test(\"Response has valid JSON format\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"Profile applied successfully\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data.status).to.eql(\"APPLIED\");",
+                  "    pm.expect(data.profile.name).to.eql(\"Mid-Transaction Stress Test\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reset Environment to Nominal Baseline",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/perturbation/reset",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "perturbation",
+                "reset"
+              ]
+            },
+            "description": "Reverts all hardware, network, and interruption stressors back to nominal 0% / nominal connectivity baseline."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response time is acceptable (< 500ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test(\"Response has valid JSON format\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"Environment returned to baseline\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data.status).to.eql(\"RESET_NOMINAL\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Attribute Failures to Environmental Stressors",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/perturbation/attribution",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "perturbation",
+                "attribution"
+              ]
+            },
+            "description": "Correlates crash logs with active perturbation parameters to compute fault attribution confidence.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"failures\": [\n    {\n      \"timestamp\": \"2026-10-10 22:30:15\",\n      \"component\": \"com.target.checkout.PaymentGateway\",\n      \"error\": \"SocketTimeoutException: Connection timed out after 1850ms\",\n      \"type\": \"TIMEOUT\"\n    },\n    {\n      \"timestamp\": \"2026-10-10 22:30:18\",\n      \"component\": \"com.target.checkout.LocalDatabase\",\n      \"error\": \"SQLiteDatabaseLockedException: database is locked (code 5)\",\n      \"type\": \"CRASH\"\n    }\n  ]\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response time is acceptable (< 500ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test(\"Response has valid JSON format\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"Generates correlation attribution report\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.have.property(\"correlated_failures\");",
+                  "    pm.expect(data).to.have.property(\"primary_attribution\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03. Hardware Starvation (RQ1 Pillar 1)",
+      "description": "Direct endpoints for CPU governor throttling, RAM pressure, thermal throttling, and battery drain.",
+      "item": [
+        {
+          "name": "Inject CPU Throttle Load",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/stressor/hardware/cpu",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "stressor",
+                "hardware",
+                "cpu"
+              ]
+            },
+            "description": "Scales CPU governor throttle to 75% load.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cpu_pct\": 75\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response time is acceptable (< 500ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test(\"Response has valid JSON format\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"RQ1 Compliance: Injection latency satisfies <100ms SLA\", function () {",
+                  "    var data = pm.response.json();",
+                  "    if (data.latency_ms !== undefined) {",
+                  "        pm.expect(data.latency_ms).to.be.below(100.0);",
+                  "    }",
+                  "    if (data.injection_latency_ms !== undefined) {",
+                  "        pm.expect(data.injection_latency_ms).to.be.below(100.0);",
+                  "    }",
+                  "    if (data.rq1_pass !== undefined) {",
+                  "        pm.expect(data.rq1_pass).to.eql(true);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Inject RAM Allocation Pressure & LMK Trim",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/stressor/hardware/ram",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "stressor",
+                "hardware",
+                "ram"
+              ]
+            },
+            "description": "Allocates RAM buffers and broadcasts Low Memory Killer memory trim intents.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ram_pct\": 80,\n  \"trim_level\": \"TRIM_MEMORY_RUNNING_CRITICAL\",\n  \"package\": \"{{targetPackage}}\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response time is acceptable (< 500ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test(\"Response has valid JSON format\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"RQ1 Compliance: Injection latency satisfies <100ms SLA\", function () {",
+                  "    var data = pm.response.json();",
+                  "    if (data.latency_ms !== undefined) {",
+                  "        pm.expect(data.latency_ms).to.be.below(100.0);",
+                  "    }",
+                  "    if (data.injection_latency_ms !== undefined) {",
+                  "        pm.expect(data.injection_latency_ms).to.be.below(100.0);",
+                  "    }",
+                  "    if (data.rq1_pass !== undefined) {",
+                  "        pm.expect(data.rq1_pass).to.eql(true);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Set Thermal Throttling State",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/stressor/hardware/thermal",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "stressor",
+                "hardware",
+                "thermal"
+              ]
+            },
+            "description": "Forces Android OS thermal state to Severe (status 3).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"state\": \"Severe\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response time is acceptable (< 500ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test(\"Response has valid JSON format\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"RQ1 Compliance: Injection latency satisfies <100ms SLA\", function () {",
+                  "    var data = pm.response.json();",
+                  "    if (data.latency_ms !== undefined) {",
+                  "        pm.expect(data.latency_ms).to.be.below(100.0);",
+                  "    }",
+                  "    if (data.injection_latency_ms !== undefined) {",
+                  "        pm.expect(data.injection_latency_ms).to.be.below(100.0);",
+                  "    }",
+                  "    if (data.rq1_pass !== undefined) {",
+                  "        pm.expect(data.rq1_pass).to.eql(true);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Set Battery Level & Unplug",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/stressor/hardware/battery",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "stressor",
+                "hardware",
+                "battery"
+              ]
+            },
+            "description": "Simulates battery critical drain (4%) and unplugs AC charger.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"level\": 4,\n  \"unplugged\": true\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response time is acceptable (< 500ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test(\"Response has valid JSON format\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"RQ1 Compliance: Injection latency satisfies <100ms SLA\", function () {",
+                  "    var data = pm.response.json();",
+                  "    if (data.latency_ms !== undefined) {",
+                  "        pm.expect(data.latency_ms).to.be.below(100.0);",
+                  "    }",
+                  "    if (data.injection_latency_ms !== undefined) {",
+                  "        pm.expect(data.injection_latency_ms).to.be.below(100.0);",
+                  "    }",
+                  "    if (data.rq1_pass !== undefined) {",
+                  "        pm.expect(data.rq1_pass).to.eql(true);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04. Network Chaos Engine (RQ1 Pillar 2)",
+      "description": "Direct endpoints for RTT latency, packet loss, bandwidth throttling, DNS failures, and interface handover.",
+      "item": [
+        {
+          "name": "Inject RTT Network Latency Spike",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/stressor/network/latency",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "stressor",
+                "network",
+                "latency"
+              ]
+            },
+            "description": "Injects 1450ms RTT delay using kernel Netem emulation.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"latency_ms\": 1450\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response time is acceptable (< 500ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test(\"Response has valid JSON format\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"RQ1 Compliance: Injection latency satisfies <100ms SLA\", function () {",
+                  "    var data = pm.response.json();",
+                  "    if (data.latency_ms !== undefined) {",
+                  "        pm.expect(data.latency_ms).to.be.below(100.0);",
+                  "    }",
+                  "    if (data.injection_latency_ms !== undefined) {",
+                  "        pm.expect(data.injection_latency_ms).to.be.below(100.0);",
+                  "    }",
+                  "    if (data.rq1_pass !== undefined) {",
+                  "        pm.expect(data.rq1_pass).to.eql(true);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Inject Kernel Packet Loss",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/stressor/network/packet_loss",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "stressor",
+                "network",
+                "packet_loss"
+              ]
+            },
+            "description": "Configures 8% deterministic TCP/UDP packet discard rate.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"packet_loss_pct\": 8\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response time is acceptable (< 500ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test(\"Response has valid JSON format\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"RQ1 Compliance: Injection latency satisfies <100ms SLA\", function () {",
+                  "    var data = pm.response.json();",
+                  "    if (data.latency_ms !== undefined) {",
+                  "        pm.expect(data.latency_ms).to.be.below(100.0);",
+                  "    }",
+                  "    if (data.injection_latency_ms !== undefined) {",
+                  "        pm.expect(data.injection_latency_ms).to.be.below(100.0);",
+                  "    }",
+                  "    if (data.rq1_pass !== undefined) {",
+                  "        pm.expect(data.rq1_pass).to.eql(true);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Set Bandwidth Profile (2G / EDGE)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/stressor/network/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "stressor",
+                "network",
+                "profile"
+              ]
+            },
+            "description": "Restricts bandwidth to 2G EDGE speeds (100 Kbps).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"profile\": \"edge\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response time is acceptable (< 500ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test(\"Response has valid JSON format\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"RQ1 Compliance: Injection latency satisfies <100ms SLA\", function () {",
+                  "    var data = pm.response.json();",
+                  "    if (data.latency_ms !== undefined) {",
+                  "        pm.expect(data.latency_ms).to.be.below(100.0);",
+                  "    }",
+                  "    if (data.injection_latency_ms !== undefined) {",
+                  "        pm.expect(data.injection_latency_ms).to.be.below(100.0);",
+                  "    }",
+                  "    if (data.rq1_pass !== undefined) {",
+                  "        pm.expect(data.rq1_pass).to.eql(true);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Simulate DNS Resolution Blackhole",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/stressor/network/dns_fail",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "stressor",
+                "network",
+                "dns_fail"
+              ]
+            },
+            "description": "Blocks all outbound port 53 DNS lookup queries.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enabled\": true\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response time is acceptable (< 500ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test(\"Response has valid JSON format\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"RQ1 Compliance: Injection latency satisfies <100ms SLA\", function () {",
+                  "    var data = pm.response.json();",
+                  "    if (data.latency_ms !== undefined) {",
+                  "        pm.expect(data.latency_ms).to.be.below(100.0);",
+                  "    }",
+                  "    if (data.injection_latency_ms !== undefined) {",
+                  "        pm.expect(data.injection_latency_ms).to.be.below(100.0);",
+                  "    }",
+                  "    if (data.rq1_pass !== undefined) {",
+                  "        pm.expect(data.rq1_pass).to.eql(true);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Simulate Wi-Fi to Cellular Handoff",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/stressor/network/handoff",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "stressor",
+                "network",
+                "handoff"
+              ]
+            },
+            "description": "Forces network interface route mutation mid-request.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"handoff_type\": \"wifi_to_cellular\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response time is acceptable (< 500ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test(\"Response has valid JSON format\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"RQ1 Compliance: Injection latency satisfies <100ms SLA\", function () {",
+                  "    var data = pm.response.json();",
+                  "    if (data.latency_ms !== undefined) {",
+                  "        pm.expect(data.latency_ms).to.be.below(100.0);",
+                  "    }",
+                  "    if (data.injection_latency_ms !== undefined) {",
+                  "        pm.expect(data.injection_latency_ms).to.be.below(100.0);",
+                  "    }",
+                  "    if (data.rq1_pass !== undefined) {",
+                  "        pm.expect(data.rq1_pass).to.eql(true);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05. OS System Interruptions (RQ1 Pillar 3)",
+      "description": "Endpoints to simulate telephony calls, SMS OTP alerts, app backgrounding, and Android Doze deep sleep.",
+      "item": [
+        {
+          "name": "Trigger Incoming Telephony GSM Call",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/stressor/interruption/call",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "stressor",
+                "interruption",
+                "call"
+              ]
+            },
+            "description": "Broadcasts incoming telephony GSM call to preempt foreground UI.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"number\": \"15550192831\",\n  \"action\": \"ring\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response time is acceptable (< 500ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test(\"Response has valid JSON format\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"RQ1 Compliance: Injection latency satisfies <100ms SLA\", function () {",
+                  "    var data = pm.response.json();",
+                  "    if (data.latency_ms !== undefined) {",
+                  "        pm.expect(data.latency_ms).to.be.below(100.0);",
+                  "    }",
+                  "    if (data.injection_latency_ms !== undefined) {",
+                  "        pm.expect(data.injection_latency_ms).to.be.below(100.0);",
+                  "    }",
+                  "    if (data.rq1_pass !== undefined) {",
+                  "        pm.expect(data.rq1_pass).to.eql(true);",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test(\"Call is ringing\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data.status).to.eql(\"RINGING\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Accept Telephony Call (Steal Audio Focus)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/stressor/interruption/call_accept",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "stressor",
+                "interruption",
+                "call_accept"
+              ]
+            },
+            "description": "Answers telephony call and asserts AUDIOFOCUS_GAIN_TRANSIENT."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response time is acceptable (< 500ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test(\"Response has valid JSON format\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"RQ1 Compliance: Injection latency satisfies <100ms SLA\", function () {",
+                  "    var data = pm.response.json();",
+                  "    if (data.latency_ms !== undefined) {",
+                  "        pm.expect(data.latency_ms).to.be.below(100.0);",
+                  "    }",
+                  "    if (data.injection_latency_ms !== undefined) {",
+                  "        pm.expect(data.injection_latency_ms).to.be.below(100.0);",
+                  "    }",
+                  "    if (data.rq1_pass !== undefined) {",
+                  "        pm.expect(data.rq1_pass).to.eql(true);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Dismiss / Terminate Telephony Call",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/stressor/interruption/call_dismiss",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "stressor",
+                "interruption",
+                "call_dismiss"
+              ]
+            },
+            "description": "Cancels active telephony call and restores nominal audio focus."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response time is acceptable (< 500ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test(\"Response has valid JSON format\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"RQ1 Compliance: Injection latency satisfies <100ms SLA\", function () {",
+                  "    var data = pm.response.json();",
+                  "    if (data.latency_ms !== undefined) {",
+                  "        pm.expect(data.latency_ms).to.be.below(100.0);",
+                  "    }",
+                  "    if (data.injection_latency_ms !== undefined) {",
+                  "        pm.expect(data.injection_latency_ms).to.be.below(100.0);",
+                  "    }",
+                  "    if (data.rq1_pass !== undefined) {",
+                  "        pm.expect(data.rq1_pass).to.eql(true);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Broadcast Heads-Up SMS OTP Notification",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/stressor/interruption/sms",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "stressor",
+                "interruption",
+                "sms"
+              ]
+            },
+            "description": "Dispatches system-level SMS OTP banner.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sender\": \"15550192831\",\n  \"message\": \"Your verification code is 849-204.\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response time is acceptable (< 500ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test(\"Response has valid JSON format\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"RQ1 Compliance: Injection latency satisfies <100ms SLA\", function () {",
+                  "    var data = pm.response.json();",
+                  "    if (data.latency_ms !== undefined) {",
+                  "        pm.expect(data.latency_ms).to.be.below(100.0);",
+                  "    }",
+                  "    if (data.injection_latency_ms !== undefined) {",
+                  "        pm.expect(data.injection_latency_ms).to.be.below(100.0);",
+                  "    }",
+                  "    if (data.rq1_pass !== undefined) {",
+                  "        pm.expect(data.rq1_pass).to.eql(true);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Background Application Lifecycle",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/stressor/interruption/lifecycle",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "stressor",
+                "interruption",
+                "lifecycle"
+              ]
+            },
+            "description": "Simulates Android home key press to background target app.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"background\",\n  \"duration_sec\": 3.0,\n  \"package_name\": \"{{targetPackage}}\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response time is acceptable (< 500ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test(\"Response has valid JSON format\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"RQ1 Compliance: Injection latency satisfies <100ms SLA\", function () {",
+                  "    var data = pm.response.json();",
+                  "    if (data.latency_ms !== undefined) {",
+                  "        pm.expect(data.latency_ms).to.be.below(100.0);",
+                  "    }",
+                  "    if (data.injection_latency_ms !== undefined) {",
+                  "        pm.expect(data.injection_latency_ms).to.be.below(100.0);",
+                  "    }",
+                  "    if (data.rq1_pass !== undefined) {",
+                  "        pm.expect(data.rq1_pass).to.eql(true);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Force Android Doze Deep Sleep Mode",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/stressor/interruption/doze",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "stressor",
+                "interruption",
+                "doze"
+              ]
+            },
+            "description": "Forces Android dumpsys deviceidle force-idle state.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enabled\": true\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response time is acceptable (< 500ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test(\"Response has valid JSON format\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"RQ1 Compliance: Injection latency satisfies <100ms SLA\", function () {",
+                  "    var data = pm.response.json();",
+                  "    if (data.latency_ms !== undefined) {",
+                  "        pm.expect(data.latency_ms).to.be.below(100.0);",
+                  "    }",
+                  "    if (data.injection_latency_ms !== undefined) {",
+                  "        pm.expect(data.injection_latency_ms).to.be.below(100.0);",
+                  "    }",
+                  "    if (data.rq1_pass !== undefined) {",
+                  "        pm.expect(data.rq1_pass).to.eql(true);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "06. Context Variations (RQ1 Pillar 4)",
+      "description": "Endpoints for device orientation, Dark/Night theme, accessibility font scaling, and mock GPS.",
+      "item": [
+        {
+          "name": "Set Display Orientation (Landscape)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/stressor/context/orientation",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "stressor",
+                "context",
+                "orientation"
+              ]
+            },
+            "description": "Rotates Android device display 90 degrees.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mode\": \"landscape\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response time is acceptable (< 500ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test(\"Response has valid JSON format\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"RQ1 Compliance: Injection latency satisfies <100ms SLA\", function () {",
+                  "    var data = pm.response.json();",
+                  "    if (data.latency_ms !== undefined) {",
+                  "        pm.expect(data.latency_ms).to.be.below(100.0);",
+                  "    }",
+                  "    if (data.injection_latency_ms !== undefined) {",
+                  "        pm.expect(data.injection_latency_ms).to.be.below(100.0);",
+                  "    }",
+                  "    if (data.rq1_pass !== undefined) {",
+                  "        pm.expect(data.rq1_pass).to.eql(true);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Toggle Android System Dark Mode",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/stressor/context/dark_mode",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "stressor",
+                "context",
+                "dark_mode"
+              ]
+            },
+            "description": "Enables night mode styling on Android OS system looper.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enabled\": true\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response time is acceptable (< 500ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test(\"Response has valid JSON format\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"RQ1 Compliance: Injection latency satisfies <100ms SLA\", function () {",
+                  "    var data = pm.response.json();",
+                  "    if (data.latency_ms !== undefined) {",
+                  "        pm.expect(data.latency_ms).to.be.below(100.0);",
+                  "    }",
+                  "    if (data.injection_latency_ms !== undefined) {",
+                  "        pm.expect(data.injection_latency_ms).to.be.below(100.0);",
+                  "    }",
+                  "    if (data.rq1_pass !== undefined) {",
+                  "        pm.expect(data.rq1_pass).to.eql(true);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Set Accessibility Font Scale",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/stressor/context/font_scale",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "stressor",
+                "context",
+                "font_scale"
+              ]
+            },
+            "description": "Updates font scale factor to 1.35x to test UI truncation.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"scale\": 1.35\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response time is acceptable (< 500ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test(\"Response has valid JSON format\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"RQ1 Compliance: Injection latency satisfies <100ms SLA\", function () {",
+                  "    var data = pm.response.json();",
+                  "    if (data.latency_ms !== undefined) {",
+                  "        pm.expect(data.latency_ms).to.be.below(100.0);",
+                  "    }",
+                  "    if (data.injection_latency_ms !== undefined) {",
+                  "        pm.expect(data.injection_latency_ms).to.be.below(100.0);",
+                  "    }",
+                  "    if (data.rq1_pass !== undefined) {",
+                  "        pm.expect(data.rq1_pass).to.eql(true);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Inject Mock GPS Coordinates",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/stressor/context/gps",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "stressor",
+                "context",
+                "gps"
+              ]
+            },
+            "description": "Sets mock latitude/longitude fixes on LocationService.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lat\": 6.9271,\n  \"lon\": 79.8612\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response time is acceptable (< 500ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test(\"Response has valid JSON format\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"RQ1 Compliance: Injection latency satisfies <100ms SLA\", function () {",
+                  "    var data = pm.response.json();",
+                  "    if (data.latency_ms !== undefined) {",
+                  "        pm.expect(data.latency_ms).to.be.below(100.0);",
+                  "    }",
+                  "    if (data.injection_latency_ms !== undefined) {",
+                  "        pm.expect(data.injection_latency_ms).to.be.below(100.0);",
+                  "    }",
+                  "    if (data.rq1_pass !== undefined) {",
+                  "        pm.expect(data.rq1_pass).to.eql(true);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "07. APK Package Management & Testing",
+      "description": "Endpoints to list uploaded APK files, launch activities, and execute synchronized fault injection.",
+      "item": [
+        {
+          "name": "List Uploaded APK Packages",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/apk/list",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "apk",
+                "list"
+              ]
+            },
+            "description": "Lists all local APK files available on the server."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response time is acceptable (< 500ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test(\"Response has valid JSON format\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"Contains list of APK packages\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.have.property(\"apks\");",
+                  "    pm.expect(data.apks).to.be.an(\"array\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Launch Target Application Activity",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/apk/launch",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "apk",
+                "launch"
+              ]
+            },
+            "description": "Dispatches monkey/am start intent to launch target app.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"package_name\": \"{{targetPackage}}\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response time is acceptable (< 500ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test(\"Response has valid JSON format\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Execute Synchronized Stress on Target APK",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/apk/stress_test",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "apk",
+                "stress_test"
+              ]
+            },
+            "description": "Launches APK and injects synchronized multi-factor environmental stress.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"package_name\": \"{{targetPackage}}\",\n  \"apk_name\": \"APhotoManager-0.6.4.apk\",\n  \"profile\": {\n    \"name\": \"Compound Stress Profile\",\n    \"cpuStress\": 85,\n    \"ramStress\": 80,\n    \"latency\": 1500,\n    \"packetLoss\": 5,\n    \"thermalState\": \"Warn\",\n    \"interruptionType\": \"Incoming Call\"\n  }\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response time is acceptable (< 500ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test(\"Response has valid JSON format\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"Stress test is executing\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data.status).to.eql(\"EXECUTING_STRESS_TEST\");",
+                  "    pm.expect(data.target_package).to.eql(pm.environment.get(\"targetPackage\"));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "08. Declarative YAML Scenarios",
+      "description": "Endpoints to list templates, execute declarative Section 5 YAML scenarios on ADB, and validate AST schemas.",
+      "item": [
+        {
+          "name": "List YAML Scenario Templates",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles/templates",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profiles",
+                "templates"
+              ]
+            },
+            "description": "Lists pre-configured YAML scenario files from the profiles directory."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response time is acceptable (< 500ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test(\"Response has valid JSON format\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"Contains template list\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data.templates).to.be.an(\"array\");",
+                  "    pm.expect(data.count).to.be.above(0);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Execute YAML Scenario Template on Device",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles/apply_template/{{templateName}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profiles",
+                "apply_template",
+                "{{templateName}}"
+              ]
+            },
+            "description": "Parses and executes declarative scenario on ADB."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response time is acceptable (< 500ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test(\"Response has valid JSON format\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"Scenario template applied\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data.status).to.eql(\"APPLIED\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Validate Raw YAML Schema (AST Parser)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles/parse_yaml",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profiles",
+                "parse_yaml"
+              ]
+            },
+            "description": "Validates YAML string against Proposal Section 5 AST rules.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"yaml_content\": \"version: \\\"1.0\\\"\\nmetadata:\\n  name: \\\"Postman Test Scenario\\\"\\n  target_package: \\\"com.target.sample\\\"\\ntriggers:\\n  - lifecycle_step: \\\"CHECKOUT\\\"\\n    injection_delay_ms: 100\\nhardware:\\n  cpu_throttle_pct: 80\\nnetwork:\\n  profile: \\\"3G_HSDPA\\\"\\n  rtt_latency_ms: 1200\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response time is acceptable (< 500ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test(\"Response has valid JSON format\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"Schema is valid AST\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data.status).to.eql(\"VALID\");",
+                  "    pm.expect(data.profile.name).to.eql(\"Postman Test Scenario\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "09. Themis Ground-Truth Suite",
+      "description": "Endpoints to retrieve ACM/IEEE FSE ground-truth benchmark bugs and trigger deterministic 100% crash reproduction.",
+      "item": [
+        {
+          "name": "List Ground-Truth Themis Benchmarks",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/themis/benchmarks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "themis",
+                "benchmarks"
+              ]
+            },
+            "description": "Returns catalog of 52 empirical Android bugs with trigger conditions and attribution metrics."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response time is acceptable (< 500ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test(\"Response has valid JSON format\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"Contains benchmarks array\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data.benchmarks).to.be.an(\"array\");",
+                  "    pm.expect(data.count).to.be.above(0);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reproduce Ground-Truth Bug Deterministically",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/themis/reproduce/{{themisBugId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "themis",
+                "reproduce",
+                "{{themisBugId}}"
+              ]
+            },
+            "description": "Executes targeted stress hook (e.g. SQLite battery lock or socket timeout) and validates attribution score."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response time is acceptable (< 500ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test(\"Response has valid JSON format\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"RQ1 Compliance: Injection latency satisfies <100ms SLA\", function () {",
+                  "    var data = pm.response.json();",
+                  "    if (data.latency_ms !== undefined) {",
+                  "        pm.expect(data.latency_ms).to.be.below(100.0);",
+                  "    }",
+                  "    if (data.injection_latency_ms !== undefined) {",
+                  "        pm.expect(data.injection_latency_ms).to.be.below(100.0);",
+                  "    }",
+                  "    if (data.rq1_pass !== undefined) {",
+                  "        pm.expect(data.rq1_pass).to.eql(true);",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test(\"Bug successfully reproduced with attribution > 90%\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data.status).to.eql(\"REPRODUCED\");",
+                  "    pm.expect(data.bug_id).to.eql(pm.environment.get(\"themisBugId\"));",
+                  "    pm.expect(data.attribution_score).to.be.above(0.90);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "10. Lifecycle Scheduler & Adaptive Signals",
+      "description": "Endpoints to trigger lifecycle perturbation hooks and evaluate adaptive signals for runtime escalation.",
+      "item": [
+        {
+          "name": "Trigger Lifecycle Step Perturbation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/scheduler/trigger_step",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "scheduler",
+                "trigger_step"
+              ]
+            },
+            "description": "Injects coordinated perturbation corresponding to mid-transaction lifecycle phase.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"step\": \"MID_TRANSACTION\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response time is acceptable (< 500ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test(\"Response has valid JSON format\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"RQ1 Compliance: Injection latency satisfies <100ms SLA\", function () {",
+                  "    var data = pm.response.json();",
+                  "    if (data.latency_ms !== undefined) {",
+                  "        pm.expect(data.latency_ms).to.be.below(100.0);",
+                  "    }",
+                  "    if (data.injection_latency_ms !== undefined) {",
+                  "        pm.expect(data.injection_latency_ms).to.be.below(100.0);",
+                  "    }",
+                  "    if (data.rq1_pass !== undefined) {",
+                  "        pm.expect(data.rq1_pass).to.eql(true);",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test(\"Lifecycle step fired\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data.status).to.eql(\"STEP_FIRED\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Evaluate Runtime Telemetry Signals",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/scheduler/evaluate_signals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "scheduler",
+                "evaluate_signals"
+              ]
+            },
+            "description": "Evaluates frame drops and latency against adaptive escalation thresholds.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fps\": 22.5,\n  \"latency_ms\": 1850.0,\n  \"cpu_pct\": 88.0\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response time is acceptable (< 500ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test(\"Response has valid JSON format\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"Signals evaluated\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data.status).to.eql(\"EVALUATED\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "11. Academic Audit & Compliance Reports",
+      "description": "Endpoints to generate structured research audit reports, historical execution logs, and empirical data.",
+      "item": [
+        {
+          "name": "Generate Comprehensive Academic Audit Report",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/audit/report",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "audit",
+                "report"
+              ]
+            },
+            "description": "Generates complete compliance report verifying injection latency < 100ms and host resource overhead < 15%."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response time is acceptable (< 500ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test(\"Response has valid JSON format\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"Contains project metadata and compliance verdict\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data.project_metadata.project_id).to.eql(\"J26-SE-334\");",
+                  "    pm.expect(data.rq1_empirical_compliance.injection_latency.compliance_verdict).to.eql(true);",
+                  "    pm.expect(data.rq1_empirical_compliance.host_overhead.compliance_verdict).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Latest Failure Attribution Report",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/attribution/report",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "attribution",
+                "report"
+              ]
+            },
+            "description": "Retrieves persisted root-cause attribution diagnostics."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response time is acceptable (< 500ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test(\"Response has valid JSON format\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Historical Test Execution Runs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/executions/history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "executions",
+                "history"
+              ]
+            },
+            "description": "Returns list of recorded test execution runs and healing verdicts."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response time is acceptable (< 500ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test(\"Response has valid JSON format\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"Contains runs list\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.have.property(\"runs\");",
+                  "    pm.expect(data.runs).to.be.an(\"array\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Research Benchmark Empirical Curves",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/research/benchmark_data",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "research",
+                "benchmark_data"
+              ]
+            },
+            "description": "Returns empirical latency, FPS, and failure rate comparison curves across 5 research treatment groups."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response time is acceptable (< 500ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test(\"Response has valid JSON format\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"Contains 5 empirical comparison groups\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.have.property(\"1_baseline_nominal\");",
+                  "    pm.expect(data).to.have.property(\"5_compound_multi_factor\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "12. Authentication & User Management",
+      "description": "Endpoints for user login, registration, and user listing.",
+      "item": [
+        {
+          "name": "User Login & Token Issuance",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Authenticates researcher credentials and sets authToken environment variable.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@heart.io\",\n  \"password\": \"password123\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response time is acceptable (< 500ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test(\"Response has valid JSON format\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"User authenticated and token saved\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data.status).to.eql(\"AUTHENTICATED\");",
+                  "    pm.expect(data).to.have.property(\"token\");",
+                  "    pm.environment.set(\"authToken\", data.token);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register New Researcher Account",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "register"
+              ]
+            },
+            "description": "Registers a new research evaluator account.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Evaluation Examiner\",\n  \"email\": \"eval_reviewer@heart.io\",\n  \"password\": \"password123\",\n  \"role\": \"External Examiner\",\n  \"student_id\": \"EXAM-2026\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 or 400 (if already registered)\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 400]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Authorized System Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "users"
+              ]
+            },
+            "description": "Retrieves list of active registered accounts."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response time is acceptable (< 500ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "pm.test(\"Response has valid JSON format\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"Contains users array\", function () {",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data.users).to.be.an(\"array\");",
+                  "    pm.expect(data.users.length).to.be.above(0);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
