@@ -15,33 +15,44 @@ The **Human Stress-Aware Input Interaction Engine** operationalizes validated hu
 
 ## Key Features & Capabilities
 
-- **Cognitive Stress Modeling:** Simulates stress profiles (Calm, Frustration, Urgency, Distraction) adjusting tap frequencies, touch durations, and interaction intervals dynamically.
-- **Biomechanical Touch Modeling:**
-  - **FFitts Law:** Models movement time, finger tremor, and precision boundaries.
-  - **Rotational Dual Gaussian Distribution:** Simulates orientation-elongated touch contact endpoints.
-- **Gesture Distortions:** Produces natural shaky swipes, incomplete drag gestures, and Bézier-path deviations.
-- **Live Device ADB Integration:** Injects calculated biomechanical touches and gestures directly into attached Android devices via ADB/UIAutomator dumps.
-- **Adaptive Escalation:** Dynamically increases distortion and tap aggression when UI latency or repeated tap failures are encountered.
+### Implemented
+- **Rotational Dual Gaussian touch distortion:** samples a touch offset from two Gaussians in the
+  movement frame, rotated to the approach angle, so scatter elongates along the direction of travel.
+- **Stress-scaled spread:** both axes of that distribution widen as the modelled stress value rises.
+- **Inter-action delay sampling:** a per-action delay drawn around a base interval, its variance
+  rising with stress.
+- **Live device integration:** UIAutomator hierarchy dump, element lookup by text / content-desc /
+  resource-id, and coordinate tap injection over ADB.
+- **Offline validation harness:** scatter-versus-approach-angle experiment that runs with no device
+  attached.
 
----
+### Designed, not yet implemented
+- **Cognitive stress model** — a Markov state machine (calm → impatient → frustrated) driven by app
+  behaviour. `models/stress.py` is currently only a clamped scalar, not this model.
+- **Adaptive feedback loop** — raising stress in response to measured UI latency, ANR and
+  no-response conditions.
+- **FFitts target-width dependence** — scatter growing as the target shrinks.
+- **Right-skewed delays, hesitation gaps and rage-click bursts.**
+- **Gesture distortion** — Bézier-path deviation, shaky swipes, early-release drags.
 
 ## Directory Structure
 
 ```text
 biometry/
 ├── bridge/
-│   └── adb_bridge.py                # ADB command interface & touch injection bridge
+│   └── adb_bridge.py                # ADB interface: hierarchy dump, element lookup, tap injection
 ├── models/
-│   ├── biomechanical_models.py      # FFitts Law & Rotational Dual Gaussian implementations
-│   └── stress_model.py              # Cognitive stress state machines & parameter scaling
+│   ├── spatial.py                   # RotationalSpatialModel — anisotropic touch scatter
+│   ├── timing.py                    # TimingModel — inter-action delay sampling
+│   └── stress.py                    # StressModel — scalar stress holder (not the cognitive model)
 ├── simulation/
-│   └── gesture_engine.py            # Bézier curve generator & distorted gesture synthesis
-├── experiment_rotational_model.py   # Statistical validation script for touch distributions
-├── test_live_calculator.py          # Live test script against Android Calculator app
-├── test_live_dialer.py              # Live test script against Android Dialer app
-├── test_live_pixel_detector.py      # Screen extraction & pixel-level hit validation
-├── main.py                          # Main runner for biometrical test sessions
-└── results/                         # Output evaluation figures and touch coordinate traces
+│   └── simulator.py                 # BiometricSimulator — composes spatial + timing into one tap
+├── experiment_rotational_model.py   # Offline scatter-vs-approach-angle experiment (no device)
+├── main.py                          # Batch runner: distributions across stress levels
+├── test_live_calculator.py          # Live demo script against the Android Calculator
+├── test_live_dialer.py              # Live demo script against the Android Dialer
+├── test_live_pixel_detector.py      # Screen capture + clickable-element overlay
+└── results/                         # Generated figures and summary metrics
 ```
 
 ---
@@ -61,7 +72,7 @@ biometry/
    .venv\Scripts\activate
    # Linux/macOS:
    source .venv/bin/activate
-   pip install numpy matplotlib opencv-python
+   pip install matplotlib pillow
    ```
 
 ---
@@ -73,6 +84,9 @@ Validate the Rotational Dual Gaussian touch endpoints:
 ```bash
 python experiment_rotational_model.py
 ```
+
+> **Note:** `test_live_*.py` are demonstration scripts that drive a real device, not an
+> automated test suite. They are not collected by pytest.
 
 ### 2. Run Live Application Tests
 Execute stress-conditioned human-like touch inputs on a connected device:
