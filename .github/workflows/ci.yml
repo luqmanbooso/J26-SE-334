@@ -72,7 +72,7 @@ jobs:
       - name: Install System Dependencies for Headless GUI Testing
         run: |
           sudo apt-get update
-          sudo apt-get install -y xvfb libtk8.6 libtcl8.6
+          sudo apt-get install -y xvfb python3-tk libtk8.6 libtcl8.6
 
       - name: Install Testing & Framework Dependencies
         run: |
@@ -84,6 +84,7 @@ jobs:
         env:
           PYTHONPATH: "${{ github.workspace }}:${{ github.workspace }}/env testing"
         run: |
+          mkdir -p reports
           xvfb-run -a python -m pytest "env testing/tests" -v --junitxml=reports/test-results.xml
 
       - name: Generate CI Summary Report
@@ -133,11 +134,13 @@ jobs:
       - name: Start FastAPI Service & Verify Live Probes
         run: |
           export PYTHONPATH="${{ github.workspace }}:${{ github.workspace }}/env testing"
-          python -m uvicorn server:app --app-dir "env testing" --host 127.0.0.1 --port 8000 &
+          python -m uvicorn server:app --app-dir "env testing" --host 127.0.0.1 --port 8000 > uvicorn.log 2>&1 &
           SERVER_PID=$!
-          sleep 4
-          curl --fail --retry 5 --retry-delay 2 http://127.0.0.1:8000/ || exit 1
-          curl --fail http://127.0.0.1:8000/api/status || exit 1
-          curl --fail http://127.0.0.1:8000/api/perturbation/telemetry || exit 1
+          sleep 5
+          cat uvicorn.log
+          curl --fail --retry 5 --retry-delay 2 http://127.0.0.1:8000/ || (cat uvicorn.log && exit 1)
+          curl --fail --retry 5 --retry-delay 2 http://127.0.0.1:8000/api/status || (cat uvicorn.log && exit 1)
+          curl --fail --retry 5 --retry-delay 2 http://127.0.0.1:8000/api/perturbation/telemetry || (cat uvicorn.log && exit 1)
           echo "✓ All core API endpoints responding with HTTP 200 OK"
           kill -9 $SERVER_PID || true
+
