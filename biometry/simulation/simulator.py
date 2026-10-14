@@ -16,12 +16,13 @@ class BiometricSimulator:
     lets two engine variants be compared on identical random draws.
     """
 
-    def __init__(self, sigma_absolute=4.0, base_time=0.3, alpha=2.5,
+    def __init__(self, sigma_absolute_mm=1.50, px_per_mm=16.0, base_time=0.3, alpha=2.5,
                  seed=None, rng=None, coupling=None):
         self.rng = rng if rng is not None else np.random.default_rng(seed)
         self.coupling = coupling if coupling is not None else StressCoupling(alpha=alpha)
         self.spatial_model = RotationalSpatialModel(
-            sigma_absolute=sigma_absolute, coupling=self.coupling, rng=self.rng)
+            sigma_absolute_mm=sigma_absolute_mm, px_per_mm=px_per_mm,
+            coupling=self.coupling, rng=self.rng)
         self.timing_model = TimingModel(
             base_time=base_time, coupling=self.coupling, rng=self.rng)
 
