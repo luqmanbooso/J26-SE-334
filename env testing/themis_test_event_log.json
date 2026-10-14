@@ -1,0 +1,229 @@
+[
+  {
+    "epoch_ms": 1791386609806,
+    "timestamp": "2026-10-07T20:53:29.806193",
+    "category": "SYSTEM_HARDWARE",
+    "action": "SYSTEM_RESET_NOMINAL",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791386609806,
+    "timestamp": "2026-10-07T20:53:29.806290",
+    "category": "NETWORK",
+    "action": "STATE_TRANSITION",
+    "parameters": {
+      "mode": "normal"
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791386609806,
+    "timestamp": "2026-10-07T20:53:29.806314",
+    "category": "NETWORK",
+    "action": "NETWORK_RESET_NOMINAL",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791386609806,
+    "timestamp": "2026-10-07T20:53:29.806328",
+    "category": "INTERRUPTION_DOZE",
+    "action": "SYSTEM_DOZE_TRANSITION",
+    "parameters": {
+      "force_idle": false
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791386609806,
+    "timestamp": "2026-10-07T20:53:29.806339",
+    "category": "INTERRUPTION",
+    "action": "INTERRUPTIONS_CLEARED",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791386609806,
+    "timestamp": "2026-10-07T20:53:29.806365",
+    "category": "CONTEXT",
+    "action": "CONTEXT_RESET_DEFAULTS",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791386609806,
+    "timestamp": "2026-10-07T20:53:29.806374",
+    "category": "SYSTEM",
+    "action": "ENVIRONMENT_FULL_RESET",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791386610807,
+    "timestamp": "2026-10-07T20:53:30.807507",
+    "category": "SYSTEM_POWER",
+    "action": "BATTERY_PRESSURE",
+    "parameters": {
+      "level": 5,
+      "unplugged": true
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791386612308,
+    "timestamp": "2026-10-07T20:53:32.308063",
+    "category": "NETWORK_HANDOVER",
+    "action": "HANDOVER_INITIATED",
+    "parameters": {
+      "from": "wifi_only",
+      "to": "data_only"
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791386612308,
+    "timestamp": "2026-10-07T20:53:32.308113",
+    "category": "NETWORK",
+    "action": "STATE_TRANSITION",
+    "parameters": {
+      "mode": "wifi_only"
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791386612808,
+    "timestamp": "2026-10-07T20:53:32.808455",
+    "category": "NETWORK",
+    "action": "STATE_TRANSITION",
+    "parameters": {
+      "mode": "data_only"
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791386612808,
+    "timestamp": "2026-10-07T20:53:32.808511",
+    "category": "NETWORK_HANDOVER",
+    "action": "HANDOVER_COMPLETED",
+    "parameters": {
+      "active_interface": "data_only"
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791386612808,
+    "timestamp": "2026-10-07T20:53:32.808548",
+    "category": "NETWORK_LATENCY",
+    "action": "LATENCY_INJECTED",
+    "parameters": {
+      "latency_ms": 1800,
+      "delay_profile": "edge"
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791386614808,
+    "timestamp": "2026-10-07T20:53:34.808992",
+    "category": "INTERRUPTION_CALL",
+    "action": "INCOMING_CALL_RINGING",
+    "parameters": {
+      "number": "15550192831",
+      "response": "SIMULATED_OK: gsm call 15550192831"
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791386616310,
+    "timestamp": "2026-10-07T20:53:36.310537",
+    "category": "SYSTEM_HARDWARE",
+    "action": "SYSTEM_RESET_NOMINAL",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791386616310,
+    "timestamp": "2026-10-07T20:53:36.310573",
+    "category": "NETWORK",
+    "action": "STATE_TRANSITION",
+    "parameters": {
+      "mode": "normal"
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791386616310,
+    "timestamp": "2026-10-07T20:53:36.310588",
+    "category": "NETWORK",
+    "action": "NETWORK_RESET_NOMINAL",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791386616310,
+    "timestamp": "2026-10-07T20:53:36.310617",
+    "category": "INTERRUPTION_CALL",
+    "action": "CALL_TERMINATED",
+    "parameters": {
+      "number": "15550192831",
+      "response": "SIMULATED_OK: gsm cancel 15550192831"
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791386616310,
+    "timestamp": "2026-10-07T20:53:36.310628",
+    "category": "INTERRUPTION_DOZE",
+    "action": "SYSTEM_DOZE_TRANSITION",
+    "parameters": {
+      "force_idle": false
+    },
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791386616310,
+    "timestamp": "2026-10-07T20:53:36.310636",
+    "category": "INTERRUPTION",
+    "action": "INTERRUPTIONS_CLEARED",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791386616310,
+    "timestamp": "2026-10-07T20:53:36.310658",
+    "category": "CONTEXT",
+    "action": "CONTEXT_RESET_DEFAULTS",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1791386616310,
+    "timestamp": "2026-10-07T20:53:36.310671",
+    "category": "SYSTEM",
+    "action": "ENVIRONMENT_FULL_RESET",
+    "parameters": {},
+    "status": "APPLIED",
+    "telemetry": {}
+  }
+]
