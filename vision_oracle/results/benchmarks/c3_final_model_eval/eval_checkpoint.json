@@ -1,0 +1,371 @@
+{
+  "last_index": 20,
+  "tp": 4,
+  "fp": 0,
+  "fn": 6,
+  "tn": 10,
+  "defect_type_correct": 3,
+  "ious": [
+    0.0,
+    0.9989,
+    0.4962,
+    0.954
+  ],
+  "loc_correct_iou50": 2,
+  "latencies": [
+    13929.612636566162,
+    8120.04828453064,
+    8075.641632080078,
+    7953.979969024658,
+    9497.348308563232,
+    7959.21516418457,
+    7968.374252319336,
+    8011.328935623169,
+    7855.968952178955,
+    7832.659482955933,
+    8151.923179626465,
+    8026.949644088745,
+    7832.648038864136,
+    7927.839756011963,
+    11298.698663711548,
+    8065.5717849731445,
+    12820.175647735596,
+    8173.316478729248,
+    7789.623022079468,
+    7970.196008682251
+  ],
+  "mcnemar_b": 4,
+  "mcnemar_c": 0,
+  "detailed_records": [
+    {
+      "index": 0,
+      "image": "D:/university/Resesarch/dataset/mutated_bugs/15158_mut_overlap.jpg",
+      "true_has_defect": true,
+      "pred_has_defect": true,
+      "true_defect_type": "component_overlap",
+      "pred_defect_type": "text_truncation",
+      "true_bbox": [
+        51,
+        819,
+        188,
+        1000
+      ],
+      "pred_bbox": [
+        525,
+        130,
+        609,
+        1000
+      ],
+      "iou": 0.0,
+      "latency_ms": 13929.61,
+      "raw_output": "{\"has_defect\": true, \"defect_type\": \"text_truncation\", \"confidence\": 1.0, \"bounding_box\": [525, 130, 609, 1000], \"affected_element_id\": \"com.dovechannel.android:id/menu_item_name\", \"explanation\": \"Tex"
+    },
+    {
+      "index": 1,
+      "image": "D:/university/Resesarch/dataset/clean/13401.jpg",
+      "true_has_defect": false,
+      "pred_has_defect": false,
+      "true_defect_type": "none",
+      "pred_defect_type": "none",
+      "true_bbox": null,
+      "pred_bbox": null,
+      "iou": 0.0,
+      "latency_ms": 8120.05,
+      "raw_output": "{\"has_defect\": false, \"defect_type\": \"none\", \"confidence\": 1.0, \"bounding_box\": null, \"affected_element_id\": null, \"explanation\": \"Clean mobile UI screen. Elements render with proper spacing, alignmen"
+    },
+    {
+      "index": 2,
+      "image": "D:/university/Resesarch/dataset/bugs/bug.4182.jpg",
+      "true_has_defect": true,
+      "pred_has_defect": false,
+      "true_defect_type": "component_overlap",
+      "pred_defect_type": "none",
+      "true_bbox": [
+        5,
+        0,
+        935,
+        1000
+      ],
+      "pred_bbox": null,
+      "iou": 0.0,
+      "latency_ms": 8075.64,
+      "raw_output": "{\"has_defect\": false, \"defect_type\": \"none\", \"confidence\": 1.0, \"bounding_box\": null, \"affected_element_id\": null, \"explanation\": \"Clean mobile UI screen. Elements render with proper spacing, alignmen"
+    },
+    {
+      "index": 3,
+      "image": "D:/university/Resesarch/dataset/clean/16529.jpg",
+      "true_has_defect": false,
+      "pred_has_defect": false,
+      "true_defect_type": "none",
+      "pred_defect_type": "none",
+      "true_bbox": null,
+      "pred_bbox": null,
+      "iou": 0.0,
+      "latency_ms": 7953.98,
+      "raw_output": "{\"has_defect\": false, \"defect_type\": \"none\", \"confidence\": 1.0, \"bounding_box\": null, \"affected_element_id\": null, \"explanation\": \"Clean mobile UI screen. Elements render with proper spacing, alignmen"
+    },
+    {
+      "index": 4,
+      "image": "D:/university/Resesarch/dataset/bugs/bug.4100.jpg",
+      "true_has_defect": true,
+      "pred_has_defect": true,
+      "true_defect_type": "component_overlap",
+      "pred_defect_type": "component_overlap",
+      "true_bbox": [
+        0,
+        0,
+        934,
+        1000
+      ],
+      "pred_bbox": [
+        0,
+        0,
+        935,
+        1000
+      ],
+      "iou": 0.9989,
+      "latency_ms": 9497.35,
+      "raw_output": "{\"has_defect\": true, \"defect_type\": \"component_overlap\", \"confidence\": 1.0, \"bounding_box\": [0, 0, 935, 1000], \"affected_element_id\": null, \"explanation\": \"Visual UI rendering defect: abnormal compone"
+    },
+    {
+      "index": 5,
+      "image": "D:/university/Resesarch/dataset/clean/1262.jpg",
+      "true_has_defect": false,
+      "pred_has_defect": false,
+      "true_defect_type": "none",
+      "pred_defect_type": "none",
+      "true_bbox": null,
+      "pred_bbox": null,
+      "iou": 0.0,
+      "latency_ms": 7959.22,
+      "raw_output": "{\"has_defect\": false, \"defect_type\": \"none\", \"confidence\": 1.0, \"bounding_box\": null, \"affected_element_id\": null, \"explanation\": \"Clean mobile UI screen. Elements render with proper spacing, alignmen"
+    },
+    {
+      "index": 6,
+      "image": "D:/university/Resesarch/dataset/bugs/bug.4190.jpg",
+      "true_has_defect": true,
+      "pred_has_defect": false,
+      "true_defect_type": "component_overlap",
+      "pred_defect_type": "none",
+      "true_bbox": [
+        0,
+        0,
+        935,
+        1000
+      ],
+      "pred_bbox": null,
+      "iou": 0.0,
+      "latency_ms": 7968.37,
+      "raw_output": "{\"has_defect\": false, \"defect_type\": \"none\", \"confidence\": 1.0, \"bounding_box\": null, \"affected_element_id\": null, \"explanation\": \"Clean mobile UI screen. Elements render with proper spacing, alignmen"
+    },
+    {
+      "index": 7,
+      "image": "D:/university/Resesarch/dataset/clean/14511.jpg",
+      "true_has_defect": false,
+      "pred_has_defect": false,
+      "true_defect_type": "none",
+      "pred_defect_type": "none",
+      "true_bbox": null,
+      "pred_bbox": null,
+      "iou": 0.0,
+      "latency_ms": 8011.33,
+      "raw_output": "{\"has_defect\": false, \"defect_type\": \"none\", \"confidence\": 1.0, \"bounding_box\": null, \"affected_element_id\": null, \"explanation\": \"Clean mobile UI screen. Elements render with proper spacing, alignmen"
+    },
+    {
+      "index": 8,
+      "image": "D:/university/Resesarch/dataset/clean/18141.jpg",
+      "true_has_defect": false,
+      "pred_has_defect": false,
+      "true_defect_type": "none",
+      "pred_defect_type": "none",
+      "true_bbox": null,
+      "pred_bbox": null,
+      "iou": 0.0,
+      "latency_ms": 7855.97,
+      "raw_output": "{\"has_defect\": false, \"defect_type\": \"none\", \"confidence\": 1.0, \"bounding_box\": null, \"affected_element_id\": null, \"explanation\": \"Clean mobile UI screen. Elements render with proper spacing, alignmen"
+    },
+    {
+      "index": 9,
+      "image": "D:/university/Resesarch/dataset/clean/16844.jpg",
+      "true_has_defect": false,
+      "pred_has_defect": false,
+      "true_defect_type": "none",
+      "pred_defect_type": "none",
+      "true_bbox": null,
+      "pred_bbox": null,
+      "iou": 0.0,
+      "latency_ms": 7832.66,
+      "raw_output": "{\"has_defect\": false, \"defect_type\": \"none\", \"confidence\": 1.0, \"bounding_box\": null, \"affected_element_id\": null, \"explanation\": \"Clean mobile UI screen. Elements render with proper spacing, alignmen"
+    },
+    {
+      "index": 10,
+      "image": "D:/university/Resesarch/dataset/mutated_bugs/1672_mut_overlap.jpg",
+      "true_has_defect": true,
+      "pred_has_defect": false,
+      "true_defect_type": "component_overlap",
+      "pred_defect_type": "none",
+      "true_bbox": [
+        970,
+        396,
+        1000,
+        1000
+      ],
+      "pred_bbox": null,
+      "iou": 0.0,
+      "latency_ms": 8151.92,
+      "raw_output": "{\"has_defect\": false, \"defect_type\": \"none\", \"confidence\": 1.0, \"bounding_box\": null, \"affected_element_id\": null, \"explanation\": \"Clean mobile UI screen. Elements render with proper spacing, alignmen"
+    },
+    {
+      "index": 11,
+      "image": "D:/university/Resesarch/dataset/mutated_bugs/154_mut_missing.jpg",
+      "true_has_defect": true,
+      "pred_has_defect": false,
+      "true_defect_type": "missing_component",
+      "pred_defect_type": "none",
+      "true_bbox": [
+        44,
+        0,
+        149,
+        1000
+      ],
+      "pred_bbox": null,
+      "iou": 0.0,
+      "latency_ms": 8026.95,
+      "raw_output": "{\"has_defect\": false, \"defect_type\": \"none\", \"confidence\": 1.0, \"bounding_box\": null, \"affected_element_id\": null, \"explanation\": \"Clean mobile UI screen. Elements render with proper spacing, alignmen"
+    },
+    {
+      "index": 12,
+      "image": "D:/university/Resesarch/dataset/mutated_bugs/14423_mut_trunc.jpg",
+      "true_has_defect": true,
+      "pred_has_defect": false,
+      "true_defect_type": "text_truncation",
+      "pred_defect_type": "none",
+      "true_bbox": [
+        896,
+        887,
+        926,
+        1000
+      ],
+      "pred_bbox": null,
+      "iou": 0.0,
+      "latency_ms": 7832.65,
+      "raw_output": "{\"has_defect\": false, \"defect_type\": \"none\", \"confidence\": 1.0, \"bounding_box\": null, \"affected_element_id\": null, \"explanation\": \"Clean mobile UI screen. Elements render with proper spacing, alignmen"
+    },
+    {
+      "index": 13,
+      "image": "D:/university/Resesarch/dataset/clean/10183.jpg",
+      "true_has_defect": false,
+      "pred_has_defect": false,
+      "true_defect_type": "none",
+      "pred_defect_type": "none",
+      "true_bbox": null,
+      "pred_bbox": null,
+      "iou": 0.0,
+      "latency_ms": 7927.84,
+      "raw_output": "{\"has_defect\": false, \"defect_type\": \"none\", \"confidence\": 1.0, \"bounding_box\": null, \"affected_element_id\": null, \"explanation\": \"Clean mobile UI screen. Elements render with proper spacing, alignmen"
+    },
+    {
+      "index": 14,
+      "image": "D:/university/Resesarch/dataset/mutated_bugs/16225_mut_overlap.jpg",
+      "true_has_defect": true,
+      "pred_has_defect": true,
+      "true_defect_type": "component_overlap",
+      "pred_defect_type": "component_overlap",
+      "true_bbox": [
+        942,
+        430,
+        1000,
+        1000
+      ],
+      "pred_bbox": [
+        954,
+        0,
+        1000,
+        1000
+      ],
+      "iou": 0.4962,
+      "latency_ms": 11298.7,
+      "raw_output": "{\"has_defect\": true, \"defect_type\": \"component_overlap\", \"confidence\": 1.0, \"bounding_box\": [954, 0, 1000, 1000], \"affected_element_id\": \"com.android.browser:id/lock\", \"explanation\": \"Component overla"
+    },
+    {
+      "index": 15,
+      "image": "D:/university/Resesarch/dataset/mutated_bugs/12707_mut_overlap.jpg",
+      "true_has_defect": true,
+      "pred_has_defect": false,
+      "true_defect_type": "component_overlap",
+      "pred_defect_type": "none",
+      "true_bbox": [
+        88,
+        0,
+        292,
+        667
+      ],
+      "pred_bbox": null,
+      "iou": 0.0,
+      "latency_ms": 8065.57,
+      "raw_output": "{\"has_defect\": false, \"defect_type\": \"none\", \"confidence\": 1.0, \"bounding_box\": null, \"affected_element_id\": null, \"explanation\": \"Clean mobile UI screen. Elements render with proper spacing, alignmen"
+    },
+    {
+      "index": 16,
+      "image": "D:/university/Resesarch/dataset/mutated_bugs/15171_mut_missing.jpg",
+      "true_has_defect": true,
+      "pred_has_defect": true,
+      "true_defect_type": "missing_component",
+      "pred_defect_type": "missing_component",
+      "true_bbox": [
+        88,
+        0,
+        1000,
+        1000
+      ],
+      "pred_bbox": [
+        44,
+        0,
+        1000,
+        1000
+      ],
+      "iou": 0.954,
+      "latency_ms": 12820.18,
+      "raw_output": "{\"has_defect\": true, \"defect_type\": \"missing_component\", \"confidence\": 1.0, \"bounding_box\": [44, 0, 1000, 1000], \"affected_element_id\": \"com.facebook.katana:id/platform_dialog_webview\", \"explanation\":"
+    },
+    {
+      "index": 17,
+      "image": "D:/university/Resesarch/dataset/clean/18598.jpg",
+      "true_has_defect": false,
+      "pred_has_defect": false,
+      "true_defect_type": "none",
+      "pred_defect_type": "none",
+      "true_bbox": null,
+      "pred_bbox": null,
+      "iou": 0.0,
+      "latency_ms": 8173.32,
+      "raw_output": "{\"has_defect\": false, \"defect_type\": \"none\", \"confidence\": 1.0, \"bounding_box\": null, \"affected_element_id\": null, \"explanation\": \"Clean mobile UI screen. Elements render with proper spacing, alignmen"
+    },
+    {
+      "index": 18,
+      "image": "D:/university/Resesarch/dataset/clean/14236.jpg",
+      "true_has_defect": false,
+      "pred_has_defect": false,
+      "true_defect_type": "none",
+      "pred_defect_type": "none",
+      "true_bbox": null,
+      "pred_bbox": null,
+      "iou": 0.0,
+      "latency_ms": 7789.62,
+      "raw_output": "{\"has_defect\": false, \"defect_type\": \"none\", \"confidence\": 1.0, \"bounding_box\": null, \"affected_element_id\": null, \"explanation\": \"Clean mobile UI screen. Elements render with proper spacing, alignmen"
+    },
+    {
+      "index": 19,
+      "image": "D:/university/Resesarch/dataset/clean/11571.jpg",
+      "true_has_defect": false,
+      "pred_has_defect": false,
+      "true_defect_type": "none",
+      "pred_defect_type": "none",
+      "true_bbox": null,
+      "pred_bbox": null,
+      "iou": 0.0,
+      "latency_ms": 7970.2,
+      "raw_output": "{\"has_defect\": false, \"defect_type\": \"none\", \"confidence\": 1.0, \"bounding_box\": null, \"affected_element_id\": null, \"explanation\": \"Clean mobile UI screen. Elements render with proper spacing, alignmen"
+    }
+  ]
+}

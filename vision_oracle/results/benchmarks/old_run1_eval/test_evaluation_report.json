@@ -1,0 +1,39 @@
+{
+  "evaluation_timestamp": "2026-10-12 06:39:51",
+  "total_test_samples": 600,
+  "clean_samples": 450,
+  "defect_samples": 450,
+  "confusion_matrix": {
+    "tp": 219,
+    "fp": 114,
+    "fn": 231,
+    "tn": 336
+  },
+  "classification_metrics": {
+    "accuracy_pct": 92.5,
+    "precision_pct": 65.77,
+    "recall_pct": 48.67,
+    "f1_score_pct": 55.94,
+    "false_positive_rate_pct": 25.33,
+    "false_negative_rate_pct": 51.33
+  },
+  "localization_metrics": {
+    "evaluated_defect_pairs": 219,
+    "mean_bounding_box_iou": 0.8133,
+    "localization_accuracy_iou50_pct": 80.37
+  },
+  "latency_and_sla_metrics": {
+    "mean_latency_ms": 8777.7,
+    "p95_latency_ms": 15817.99,
+    "sub_1500ms_sla_compliance_pct": 0.0,
+    "meets_claim_02_operational_feasibility": false
+  },
+  "mcnemar_significance_test": {
+    "model_a_wins_b": 219,
+    "model_b_wins_c": 114,
+    "chi2_statistic": 32.4805,
+    "p_value": 0.0,
+    "statistically_significant_p05": true
+  },
+  "runtime_total_seconds": 0.0
+}

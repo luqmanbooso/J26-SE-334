@@ -1,0 +1,34 @@
+{
+  "timestamp": "2026-10-14 19:52:57",
+  "total_samples": 600,
+  "clean_samples": 300,
+  "defect_samples": 300,
+  "weights_path": "C:\\Users\\hp\\Downloads\\Downloads\\c3_lora_run4_fp16_weights\\kaggle\\working\\qwen2vl_fp16_lora_run4",
+  "dataset_path": "D:\\university\\Resesarch\\dataset\\test.json",
+  "confusion_matrix": {
+    "tp": 83,
+    "fp": 19,
+    "fn": 217,
+    "tn": 281
+  },
+  "metrics": {
+    "accuracy_pct": 60.67,
+    "precision_pct": 81.37,
+    "recall_pct": 27.67,
+    "f1_score_pct": 41.29,
+    "defect_type_accuracy_pct": 61.45,
+    "mean_bbox_iou": 0.2619,
+    "loc_accuracy_iou50_pct": 21.69,
+    "mean_latency_ms": 40679.03,
+    "p95_latency_ms": 59778.35,
+    "sla_under_1500ms_pct": 0.0
+  },
+  "mcnemar": {
+    "lora_wins_b": 83,
+    "baseline_wins_c": 19,
+    "chi2": 38.9118,
+    "p_value": 0.0,
+    "statistically_significant": true
+  },
+  "evaluation_duration_seconds": 24462.95
+}
