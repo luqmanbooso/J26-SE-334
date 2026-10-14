@@ -82,7 +82,7 @@ jobs:
 
       - name: Run Pytest Test Suite (57 Automated Test Cases)
         env:
-          PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/env testing
+          PYTHONPATH: "${{ github.workspace }}:${{ github.workspace }}/env testing"
         run: |
           xvfb-run -a python -m pytest "env testing/tests" -v --junitxml=reports/test-results.xml
 
@@ -138,6 +138,6 @@ jobs:
           sleep 4
           curl --fail --retry 5 --retry-delay 2 http://127.0.0.1:8000/ || exit 1
           curl --fail http://127.0.0.1:8000/api/status || exit 1
-          curl --fail http://127.0.0.1:8000/api/device/telemetry || exit 1
+          curl --fail http://127.0.0.1:8000/api/perturbation/telemetry || exit 1
           echo "✓ All core API endpoints responding with HTTP 200 OK"
           kill -9 $SERVER_PID || true
