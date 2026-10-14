@@ -2,6 +2,8 @@ import math
 
 import numpy as np
 
+from models.coupling import StressCoupling
+
 
 class RotationalSpatialModel:
     """
@@ -21,7 +23,14 @@ class RotationalSpatialModel:
     why small targets are effectively smaller than their nominal bounds.
     """
 
-    def __init__(self, sigma_absolute=4.0, relative_ratio=0.10, aspect_ratio=0.45, rng=None):
+    # Relative sensitivity of each axis to stress. A hurried finger scatters more
+    # along the direction of travel than across it. Both are weights on the single
+    # shared alpha held by StressCoupling.
+    SENSITIVITY_ALONG = 1.00
+    SENSITIVITY_LATERAL = 0.48
+
+    def __init__(self, sigma_absolute=4.0, relative_ratio=0.10, aspect_ratio=0.45,
+                 coupling=None, rng=None):
         # sigma_absolute: finger-imprecision floor in pixels, independent of target size.
         # relative_ratio: sigma_relative as a fraction of the target's binding dimension.
         # Both defaults are placeholders pending calibration against published
@@ -29,6 +38,7 @@ class RotationalSpatialModel:
         self.sigma_absolute = sigma_absolute
         self.relative_ratio = relative_ratio
         self.aspect_ratio = aspect_ratio  # minor axis as a fraction of the major
+        self.coupling = coupling if coupling is not None else StressCoupling()
         self.rng = rng if rng is not None else np.random.default_rng()
 
     def base_sigma(self, width, height):
@@ -56,8 +66,9 @@ class RotationalSpatialModel:
             theta = math.pi / 4.0  # default bottom-right thumb reach
 
         sigma_base = self.base_sigma(width, height)
-        sigma_u = sigma_base * (1.0 + (stress * 2.5))
-        sigma_v = (sigma_base * self.aspect_ratio) * (1.0 + (stress * 1.2))
+        sigma_u = sigma_base * self.coupling.factor(stress, self.SENSITIVITY_ALONG)
+        sigma_v = (sigma_base * self.aspect_ratio) * self.coupling.factor(
+            stress, self.SENSITIVITY_LATERAL)
 
         delta_u = self.rng.normal(0.0, sigma_u)
         delta_v = self.rng.normal(0.0, sigma_v)
