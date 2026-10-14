@@ -5,7 +5,9 @@ Compliant with Phase F, H, and I of HEART C3 Full Implementation Plan.
 """
 
 import os
+import io
 import json
+import uuid
 import logging
 import queue
 import threading
@@ -26,7 +28,12 @@ from local_vision_oracle.engine import (
     MockInferenceBackend,
     TransformersInferenceBackend,
 )
-from local_vision_oracle.schemas import C3OracleResult
+from local_vision_oracle.schemas import (
+    C3OracleResult,
+    Verdict,
+    LatencyBreakdown,
+    DefectType,
+)
 from common.adb import AdbDevice, NoDeviceError
 
 from vision_oracle.contracts.v2 import (
@@ -38,7 +45,8 @@ from vision_oracle.contracts.v2 import (
     VerdictEnvelopeV2,
 )
 from vision_oracle.persistence.repository import OracleRepository, get_repository
-from vision_oracle.local_vision_oracle.pipeline import AnalysisPipeline
+from vision_oracle.local_vision_oracle.pipeline import AnalysisPipeline, CoordinateMapper
+from vision_oracle.core.manifest import log_model_configuration
 
 logger = logging.getLogger("vision_oracle.service")
 
@@ -90,11 +98,17 @@ class OracleService:
         self._verdict_lock = threading.Lock()
         self._recent_verdicts: deque = deque(maxlen=100)
         self._cancelled_jobs: set[str] = set()
-        self._job_queue: queue.Queue = queue.Queue()
+        self._job_queue: queue.Queue = queue.Queue(maxsize=20)
 
         backend = getattr(self._engine, "backend", self._engine)
         descriptor = getattr(self._engine, "engine_descriptor", "qwen2-vl-local")
         self._pipeline = AnalysisPipeline(backend=backend, model_run_id=descriptor)
+
+        # Log startup model configuration and manifest
+        try:
+            log_model_configuration(logger)
+        except Exception as exc:
+            logger.debug("Model manifest logging skipped: %s", exc)
 
         # Reconcile interrupted jobs from previous server runs
         try:
@@ -193,6 +207,13 @@ class OracleService:
         if not capture:
             raise ValueError(f"Capture ID '{capture_id}' not found in evidence repository.")
 
+        # Idempotency check: Return existing active job for this capture and policy
+        existing_jobs = self._repo.list_capture_jobs(capture_id)
+        for ej in existing_jobs:
+            if ej["policy"] == policy and ej["state"] in (JobState.QUEUED.value, JobState.RUNNING.value):
+                logger.info("Returning active job '%s' for capture '%s' (idempotency)", ej["job_id"], capture_id)
+                return ej
+
         planned_views = 4 if policy == CoveragePolicy.GLOBAL_PLUS_TILES_V1.value else 1
         job_record = self._repo.create_job(
             capture_id=capture_id,
@@ -200,7 +221,17 @@ class OracleService:
             policy=policy,
             planned_views=planned_views,
         )
-        self._job_queue.put(job_record["job_id"])
+
+        try:
+            self._job_queue.put_nowait(job_record["job_id"])
+        except queue.Full:
+            self._repo.update_job(
+                job_record["job_id"],
+                JobState.FAILED,
+                error_message="Job queue capacity exceeded (backpressure maxsize=20)",
+            )
+            raise RuntimeError("Analysis job queue is full (capacity=20). Request rejected under backpressure.")
+
         return job_record
 
     def cancel_job(self, job_id: str) -> bool:
@@ -259,6 +290,18 @@ class OracleService:
                             policy=pol,
                             job_id=job_id,
                         )
+
+                    # Post-generation cancellation check: never publish completed verdict if job was cancelled
+                    if job_id in self._cancelled_jobs:
+                        self._cancelled_jobs.discard(job_id)
+                        self._repo.update_job(job_id, JobState.CANCELLED, error_message="Cancelled during inference")
+                        self._job_queue.task_done()
+                        continue
+
+                    latest_job = self._repo.get_job(job_id)
+                    if latest_job and latest_job["state"] == JobState.CANCELLED.value:
+                        self._job_queue.task_done()
+                        continue
 
                     # Persist verdict to SQLite
                     self._repo.save_verdict(verdict_v2)
@@ -364,24 +407,118 @@ class OracleService:
         enable_sahi: bool = True,
         session_id: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Synchronously evaluates screen image and hierarchy under inference mutex."""
+        """Synchronously evaluates screen image and hierarchy via canonical AnalysisPipeline."""
         if isinstance(image_input, str):
             resolved = resolve_path(image_input)
-            if resolved:
-                image_input = str(resolved)
+            img_path = resolved if resolved else Path(image_input)
+            pil_img = Image.open(img_path).convert("RGB")
+        elif isinstance(image_input, Image.Image):
+            pil_img = image_input.convert("RGB")
+        else:
+            raise ValueError(f"Unsupported image_input type: {type(image_input)}")
+
+        buf = io.BytesIO()
+        pil_img.save(buf, format="PNG")
+        image_bytes = buf.getvalue()
+        width, height = pil_img.size
+
+        capture_id = f"cap_{uuid.uuid4().hex[:12]}"
+        artifact_path, sha256_hex = self._repo.save_image_artifact(capture_id, image_bytes)
+
+        bundle = CaptureBundle(
+            capture_id=capture_id,
+            session_id=session_id or "default_session",
+            action_id=action_context if (action_context and action_context.startswith("act_")) else None,
+            width=width,
+            height=height,
+            image_sha256=sha256_hex,
+            artifact_path=str(artifact_path),
+            raw_hierarchy=raw_hierarchy,
+            hierarchy_status="available" if raw_hierarchy else "missing",
+        )
+        self._repo.save_capture(bundle)
+
+        policy = CoveragePolicy.GLOBAL_PLUS_TILES_V1 if enable_sahi else CoveragePolicy.GLOBAL_ONLY_V1
 
         with self._inference_lock:
-            result = self._engine.evaluate(
-                image_input=image_input,
-                raw_hierarchy=raw_hierarchy,
-                screen_id=screen_id,
-                action_context=action_context,
-                enable_sahi=enable_sahi,
+            verdict_v2 = self._pipeline.analyze(
+                bundle=bundle,
+                image=pil_img,
+                policy=policy,
             )
-        record = self.save_verdict_to_ledger(result, session_id=session_id)
+
+        self._repo.save_verdict(verdict_v2)
+
+        c4_envelope = verdict_v2.to_c4_verdict(schema_version="1.0.0").model_dump(mode="json")
+
+        primary = verdict_v2.primary_finding
+        defect_type = (
+            DefectType(primary.type)
+            if primary and primary.type in [d.value for d in DefectType]
+            else (DefectType.OTHER if primary else DefectType.NONE)
+        )
+        confidence = (
+            float(primary.confidence)
+            if primary and primary.confidence is not None
+            else (0.95 if verdict_v2.decision == AnalysisDecision.DEFECT_DETECTED else 0.05)
+        )
+
+        norm_box = None
+        if primary and primary.bbox_xyxy:
+            x1, y1, x2, y2 = primary.bbox_xyxy
+            norm_box = CoordinateMapper.pixels_to_model(x1, y1, x2, y2, width, height)
+
+        verdict = Verdict(
+            has_defect=(verdict_v2.decision == AnalysisDecision.DEFECT_DETECTED),
+            defect_type=defect_type,
+            confidence=confidence,
+            bounding_box=norm_box,
+            affected_element_id=primary.element_ref if primary else None,
+            explanation=primary.explanation
+            if primary
+            else (
+                "Clean screen rendering without visual or functional defects."
+                if verdict_v2.decision == AnalysisDecision.NO_DEFECT_DETECTED
+                else "Inconclusive scan"
+            ),
+        )
+        res_meta = {**verdict_v2.metadata, "action_context": action_context or ""}
+        if verdict_v2.findings:
+            res_meta["detected_by"] = "sahi_dynamic_tiling" if any(v != "global" for f in verdict_v2.findings for v in f.view_ids) else "global_vlm"
+
+        oracle_result = C3OracleResult(
+            screen_id=screen_id or bundle.capture_id,
+            verdict=verdict,
+            latency_breakdown=LatencyBreakdown(
+                inference_ms=verdict_v2.timings_ms.get("pipeline_total_ms", 0.0),
+                total_pipeline_ms=verdict_v2.timings_ms.get("pipeline_total_ms", 0.0),
+            ),
+            timestamp=bundle.timestamp_utc,
+            engine_used=verdict_v2.model_run_id,
+            metadata=res_meta,
+        )
+
+        record = {
+            "verdict_id": verdict_v2.verdict_id,
+            "session_id": verdict_v2.session_id or "default_session",
+            "timestamp": verdict_v2.screenshot.artifact_id,
+            "oracle_result": oracle_result.to_dict(),
+            "c4_verdict": c4_envelope,
+            "verdict_v2": verdict_v2.model_dump(),
+        }
+        with self._verdict_lock:
+            self._recent_verdicts.appendleft(record)
+
+        try:
+            out_file = VERDICTS_DIR / f"{record['verdict_id']}.json"
+            out_file.write_text(json.dumps(record, indent=2), encoding="utf-8")
+        except Exception:
+            pass
+
         return {
-            "oracle_result": result.to_dict(),
-            "c4_verdict": record["c4_verdict"],
+            "oracle_result": oracle_result.to_dict(),
+            "c4_verdict": c4_envelope,
+            "verdict_v2": verdict_v2.model_dump(),
         }
 
     def evaluate_device(
@@ -391,22 +528,43 @@ class OracleService:
         session_id: Optional[str] = "live_device_session",
         device: Optional[Any] = None,
     ) -> Dict[str, Any]:
-        """Captures and evaluates screen from Android device under inference mutex."""
+        """Captures and evaluates screen from Android device via canonical AnalysisPipeline."""
         if device is None:
             target_serial = AdbDevice.resolve_serial(serial)
             device = AdbDevice(serial=target_serial, verify=True)
 
-        with self._inference_lock:
-            result = self._engine.evaluate_device(
-                device=device,
-                enable_sahi=True,
-                action_context=action_context or f"Direct device evaluation on {getattr(device, 'serial', 'unknown')}",
-            )
-        record = self.save_verdict_to_ledger(result, session_id=session_id)
-        return {
-            "oracle_result": result.to_dict(),
-            "c4_verdict": record["c4_verdict"],
-        }
+        t_cap_start = time.perf_counter()
+        screenshot = device.screencap(as_pil=True)
+        xml_text = device.dump_hierarchy(max_age_s=0.5)
+        t_cap_end = time.perf_counter()
+        capture_ms = round((t_cap_end - t_cap_start) * 1000.0, 2)
+
+        try:
+            metrics = device.get_display_metrics()
+        except Exception:
+            metrics = {"width": screenshot.width, "height": screenshot.height, "density": 0}
+
+        eval_res = self.evaluate(
+            image_input=screenshot,
+            raw_hierarchy=xml_text,
+            screen_id=f"live_{getattr(device, 'serial', 'unknown')}",
+            action_context=action_context or f"Direct device evaluation on {getattr(device, 'serial', 'unknown')}",
+            enable_sahi=True,
+            session_id=session_id,
+        )
+
+        eval_res["oracle_result"]["latency_breakdown"]["capture_ms"] = capture_ms
+        eval_res["oracle_result"]["latency_breakdown"]["total_pipeline_ms"] = round(
+            eval_res["oracle_result"]["latency_breakdown"]["inference_ms"] + capture_ms, 2
+        )
+        eval_res["oracle_result"]["metadata"]["device_serial"] = getattr(device, "serial", "unknown")
+        eval_res["oracle_result"]["metadata"]["viewport_resolution"] = [
+            metrics.get("width", screenshot.width),
+            metrics.get("height", screenshot.height),
+        ]
+        eval_res["oracle_result"]["metadata"]["viewport_density"] = metrics.get("density", 0)
+
+        return eval_res
 
     def evaluate_sequence(
         self,

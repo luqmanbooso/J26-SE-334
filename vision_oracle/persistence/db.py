@@ -50,6 +50,7 @@ class DatabaseManager:
                         CREATE TABLE IF NOT EXISTS captures (
                             capture_id TEXT PRIMARY KEY,
                             session_id TEXT,
+                            action_id TEXT,
                             app_package TEXT,
                             device_serial TEXT,
                             image_path TEXT NOT NULL,
@@ -76,6 +77,7 @@ class DatabaseManager:
                             started_at TEXT,
                             completed_at TEXT,
                             error_message TEXT,
+                            c4_delivery_status TEXT DEFAULT 'pending',
                             FOREIGN KEY(capture_id) REFERENCES captures(capture_id)
                         );
                     """)
@@ -129,7 +131,18 @@ class DatabaseManager:
                             FOREIGN KEY(verdict_id) REFERENCES verdicts(verdict_id)
                         );
                     """)
+                    # Graceful migration for existing tables
+                    try:
+                        conn.execute("ALTER TABLE captures ADD COLUMN action_id TEXT;")
+                    except sqlite3.OperationalError:
+                        pass
+                    try:
+                        conn.execute("ALTER TABLE jobs ADD COLUMN c4_delivery_status TEXT DEFAULT 'pending';")
+                    except sqlite3.OperationalError:
+                        pass
+
                     conn.execute("CREATE INDEX IF NOT EXISTS idx_captures_session ON captures(session_id);")
+                    conn.execute("CREATE INDEX IF NOT EXISTS idx_captures_action ON captures(action_id);")
                     conn.execute("CREATE INDEX IF NOT EXISTS idx_jobs_capture ON jobs(capture_id);")
                     conn.execute("CREATE INDEX IF NOT EXISTS idx_jobs_state ON jobs(state);")
                     conn.execute("CREATE INDEX IF NOT EXISTS idx_verdicts_job ON verdicts(job_id);")

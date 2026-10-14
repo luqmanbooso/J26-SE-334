@@ -153,6 +153,9 @@ class CaptureBundle(BaseModel):
         default=0.0,
         description="Time difference between screenshot capture and hierarchy capture"
     )
+    capture_started_epoch_ms: Optional[int] = Field(default=None)
+    capture_completed_epoch_ms: Optional[int] = Field(default=None)
+    warnings: List[str] = Field(default_factory=list)
 
 
 class VerdictEnvelopeV2(BaseModel):
@@ -238,7 +241,7 @@ class VerdictEnvelopeV2(BaseModel):
 
         return self
 
-    def to_c4_verdict(self) -> Any:
+    def to_c4_verdict(self, schema_version: str = "2.0.0") -> Any:
         """Bi-directional adapter: Converts V2 envelope to Component 4 C3Verdict contract."""
         try:
             from c4.c3_interface.contract import C3Verdict, ScreenshotEvidence, DefectRegion
@@ -281,11 +284,55 @@ class VerdictEnvelopeV2(BaseModel):
 
         primary = self.primary_finding or (self.findings[0] if self.findings else None)
         primary_defect = primary.type if primary else None
-        has_defect = (self.decision == AnalysisDecision.DEFECT_DETECTED)
-        primary_confidence = float(primary.confidence) if (primary and primary.confidence is not None) else (0.85 if has_defect else 0.0)
+
+        # Status-aware mapping: do not reduce inconclusive to has_gui_defect=False!
+        if self.decision == AnalysisDecision.DEFECT_DETECTED:
+            has_defect: Optional[bool] = True
+        elif self.decision == AnalysisDecision.NO_DEFECT_DETECTED:
+            has_defect = False
+        else:
+            # INCONCLUSIVE (analysis_status is PARTIAL or ERROR)
+            has_defect = None
+
+        primary_confidence = float(primary.confidence) if (primary and primary.confidence is not None) else 0.0
+
+        # Handover outcome (PP1 Section 7):
+        # - Ready for test generation: enough action and target information exists.
+        # - Evidence only: finding is preserved, but reproduction context is insufficient.
+        if has_defect is True:
+            action_ctx = self.action_id or self.metadata.get("action_id")
+            target_elem = (primary.element_ref if primary else None) or self.metadata.get("target_element_id")
+            if action_ctx and target_elem:
+                handover_outcome = "ready_for_test_generation"
+            else:
+                handover_outcome = "evidence_only"
+        elif has_defect is False:
+            handover_outcome = "evidence_only"
+        else:
+            handover_outcome = "unsupported_inconclusive"
+
+        evidence_payload = {
+            "decision": self.decision.value,
+            "analysis_status": self.analysis_status.value,
+            "handover_outcome": handover_outcome,
+            "capture_id": self.capture_id,
+            "model_run_id": self.model_run_id,
+            "coverage": self.coverage.model_dump(),
+            "findings": [f.model_dump() for f in self.findings],
+            "timings_ms": self.timings_ms,
+            "errors": self.errors,
+        }
+        if self.action_id:
+            evidence_payload["action_id"] = self.action_id
+
+        meta = dict(self.metadata)
+        meta["model_run_id"] = self.model_run_id
+        meta["capture_id"] = self.capture_id
+        if self.action_id:
+            meta["action_id"] = self.action_id
 
         return C3Verdict(
-            schema_version="2.0.0",
+            schema_version=schema_version,
             verdict_id=self.verdict_id,
             session_id=self.session_id,
             has_gui_defect=has_defect,
@@ -293,13 +340,6 @@ class VerdictEnvelopeV2(BaseModel):
             confidence=primary_confidence,
             screenshot=screenshot_evidence,
             regions=regions,
-            evidence={
-                "decision": self.decision.value,
-                "analysis_status": self.analysis_status.value,
-                "coverage": self.coverage.model_dump(),
-                "findings": [f.model_dump() for f in self.findings],
-                "timings_ms": self.timings_ms,
-                "errors": self.errors,
-            },
-            metadata=self.metadata,
+            evidence=evidence_payload,
+            metadata=meta,
         )

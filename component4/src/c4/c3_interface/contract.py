@@ -37,9 +37,9 @@ class C3Verdict(BaseModel):
     schema_version: str = Field(min_length=1)
     verdict_id: str = Field(min_length=1)
     session_id: str | None = None
-    has_gui_defect: bool
+    has_gui_defect: bool | None = None
     defect_type: str | None = None
-    confidence: float = Field(ge=0.0, le=1.0)
+    confidence: float = Field(default=0.0, ge=0.0, le=1.0)
     screenshot: ScreenshotEvidence | None = None
     regions: list[DefectRegion] = Field(default_factory=list)
     evidence: dict[str, Any] = Field(default_factory=dict)
@@ -48,7 +48,7 @@ class C3Verdict(BaseModel):
     @model_validator(mode="after")
     def validate_defect_and_regions(self) -> C3Verdict:
         """Require defect context and keep regions within screenshot bounds."""
-        if self.has_gui_defect and not self.defect_type:
+        if self.has_gui_defect is True and not self.defect_type:
             raise ValueError("defect_type is required when has_gui_defect is true")
         if self.regions and self.screenshot is None:
             raise ValueError("screenshot is required when regions are present")
