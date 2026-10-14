@@ -17,6 +17,9 @@ Thumbs.db
 
 # Task & system logs
 *.log
+/perturbation_event_log.json
+/environment_failure_attribution.json
+/results/
 
 # Large documents & binaries (>100MB exceeds GitHub limits)
 *.pdf
