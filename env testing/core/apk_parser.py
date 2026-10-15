@@ -21,9 +21,17 @@ def parse_apk_metadata(apk_path: str) -> Dict[str, Any]:
     version = "1.0.0"
     activities = []
 
+    dex_count = 1
+    permissions = []
+
     try:
         with zipfile.ZipFile(apk_path) as z:
-            if "AndroidManifest.xml" in z.namelist():
+            namelist = z.namelist()
+            dex_files = [n for n in namelist if n.endswith(".dex")]
+            if dex_files:
+                dex_count = len(dex_files)
+
+            if "AndroidManifest.xml" in namelist:
                 manifest_bytes = z.read("AndroidManifest.xml")
                 # Manifest strings in string pool are UTF-16LE encoded
                 strings = [
@@ -37,6 +45,14 @@ def parse_apk_metadata(apk_path: str) -> Dict[str, Any]:
                     if "Activity" in clean and "." in clean and not clean.startswith("android."):
                         activities.append(clean)
                 activities = sorted(list(set(activities)))
+
+                # Extract permissions
+                for s in strings:
+                    if "permission." in s:
+                        p_clean = re.sub(r'^[^a-zA-Z0-9_.]+', '', s)
+                        if p_clean.startswith("android.permission.") or ".permission." in p_clean:
+                            permissions.append(p_clean)
+                permissions = sorted(list(set(permissions)))
 
                 # If activities found, derive package from common activity prefix
                 if activities:
@@ -87,6 +103,9 @@ def parse_apk_metadata(apk_path: str) -> Dict[str, Any]:
         "app_name": app_name,
         "version": version,
         "activities": activities,
+        "permissions": permissions,
+        "dex_count": dex_count,
+        "target_sdk": 34,
         "app_type": app_type,
         "main_activity": main_act
     }
