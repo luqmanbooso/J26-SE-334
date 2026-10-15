@@ -136,3 +136,19 @@ def test_alpha_zero_removes_the_stress_response():
     calm = np.std([p[0] for p in sample(model(seed=13, coupling=flat), 5000, stress=0.0)])
     tense = np.std([p[0] for p in sample(model(seed=13, coupling=flat), 5000, stress=1.0)])
     assert tense == pytest.approx(calm, rel=0.05)
+
+
+def test_delivered_spread_matches_the_calibrated_value():
+    """SDxy of generated points must equal base_sigma.
+
+    The anisotropy splits one sigma across two axes. Without renormalising, the
+    delivered bivariate deviation falls below the calibrated figure — it measured
+    22.8% low until EXP-03 compared sampled output against the published curve.
+    Bi et al. report sigma as SDxy, so this is the quantity that must agree.
+    """
+    m = model(seed=21)
+    for w, h in [(60.0, 60.0), (110.0, 110.0), (180.0, 180.0)]:
+        pts = sample(m, 30000, width=w, height=h, stress=0.0, angle=0.0)
+        u = np.std([p[0] for p in pts]); v = np.std([p[1] for p in pts])
+        sdxy = math.sqrt((u ** 2 + v ** 2) / 2)
+        assert sdxy == pytest.approx(m.base_sigma(w, h), rel=0.03), (w, sdxy)
