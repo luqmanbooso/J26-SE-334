@@ -4,6 +4,8 @@ import time
 import subprocess
 import xml.etree.ElementTree as ET
 
+from bridge.hierarchy import parse_bounds
+
 
 class ADBBridge:
 
@@ -95,11 +97,7 @@ class ADBBridge:
         """
         Parses Android bounds string: '[x1,y1][x2,y2]' -> center (x, y), width, height
         """
-        match = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", bounds_str)
-        if not match:
-            raise ValueError(f"Invalid bounds format: {bounds_str}")
-
-        x1, y1, x2, y2 = map(int, match.groups())
+        x1, y1, x2, y2 = parse_bounds(bounds_str)
         width = x2 - x1
         height = y2 - y1
         center_x = x1 + (width // 2)
