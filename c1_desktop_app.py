@@ -1148,7 +1148,7 @@ class PerturbationStudioApp(ctk.CTk):
             font=ctk.CTkFont(family="Segoe UI", size=11),
             height=32,
             corner_radius=6,
-            command=lambda: self._run_external_script("biometry/test_live_calculator.py", "Biometry: Calculator Live Touch Test")
+            command=lambda: self._run_external_script("biometry/demo_live_calculator.py", "Biometry: Calculator Live Touch Test")
         ).pack(fill="x", pady=(0, 4))
 
         # Right Display Card
