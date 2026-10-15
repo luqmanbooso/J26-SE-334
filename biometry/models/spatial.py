@@ -51,6 +51,8 @@ class RotationalSpatialModel:
         self.relative_coeff = relative_coeff
         self.px_per_mm = px_per_mm
         self.aspect_ratio = aspect_ratio  # minor axis as a fraction of the major
+        # Keeps SDxy equal to sigma_base for this aspect ratio (see generate_touch).
+        self.ANISOTROPY_NORM = math.sqrt(2.0 / (1.0 + aspect_ratio ** 2))
         self.coupling = coupling if coupling is not None else StressCoupling()
         self.rng = rng if rng is not None else np.random.default_rng()
 
@@ -80,8 +82,13 @@ class RotationalSpatialModel:
             theta = math.pi / 4.0  # default bottom-right thumb reach
 
         sigma_base = self.base_sigma(width, height)
-        sigma_u = sigma_base * self.coupling.factor(stress, self.SENSITIVITY_ALONG)
-        sigma_v = (sigma_base * self.aspect_ratio) * self.coupling.factor(
+        # Split sigma_base across the two axes so that the resulting bivariate
+        # deviation SDxy = sqrt((sigma_u^2 + sigma_v^2)/2) equals sigma_base.
+        # Without this the anisotropy quietly shrinks the delivered spread below
+        # the calibrated value — it measured 22.8% low before EXP-03 caught it.
+        sigma_u = sigma_base * self.ANISOTROPY_NORM * self.coupling.factor(
+            stress, self.SENSITIVITY_ALONG)
+        sigma_v = (sigma_base * self.ANISOTROPY_NORM * self.aspect_ratio) * self.coupling.factor(
             stress, self.SENSITIVITY_LATERAL)
 
         delta_u = self.rng.normal(0.0, sigma_u)
