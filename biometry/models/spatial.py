@@ -17,10 +17,20 @@ class RotationalSpatialModel:
 
     The spread itself follows the FFitts variance decomposition
     (Bi, Li & Zhai 2013): sigma^2_observed = sigma^2_relative + sigma^2_absolute.
-    The relative term scales with the size of the target, because a forgiving
+    The relative term grows with the size of the target, because a forgiving
     target is aimed at less carefully. The absolute term is a fixed
     finger-imprecision floor that does not shrink with the target — which is
     why small targets are effectively smaller than their nominal bounds.
+
+    Parameters are calibrated against that paper's published 2D results rather
+    than invented. Fitting its reported sigma_relative against target width
+    (EXP-03) shows the growth is sub-linear: a linear form fits at R^2 = -0.25,
+    worse than a horizontal line, while k*sqrt(W) fits at R^2 = 0.94. The
+    relative term is therefore sqrt in W, and sigma_absolute defaults to the
+    1.50 mm the paper reports for 2D tasks.
+
+    Lengths are handled in millimetres internally, because that is the unit the
+    published data is in, and converted to pixels on the way out.
     """
 
     # Relative sensitivity of each axis to stress. A hurried finger scatters more
@@ -29,23 +39,27 @@ class RotationalSpatialModel:
     SENSITIVITY_ALONG = 1.00
     SENSITIVITY_LATERAL = 0.48
 
-    def __init__(self, sigma_absolute=4.0, relative_ratio=0.10, aspect_ratio=0.45,
-                 coupling=None, rng=None):
-        # sigma_absolute: finger-imprecision floor in pixels, independent of target size.
-        # relative_ratio: sigma_relative as a fraction of the target's binding dimension.
-        # Both defaults are placeholders pending calibration against published
-        # distributions (EXP-03) and a sensitivity sweep (EXP-04).
-        self.sigma_absolute = sigma_absolute
-        self.relative_ratio = relative_ratio
+    def __init__(self, sigma_absolute_mm=1.50, relative_coeff=0.493, px_per_mm=16.0,
+                 aspect_ratio=0.45, coupling=None, rng=None):
+        # sigma_absolute_mm: finger-imprecision floor. 1.50 mm is the bivariate SDxy
+        #   Bi et al. report for 2D finger calibration tasks (their Table 3).
+        # relative_coeff:    k in sigma_relative = k * sqrt(W_mm), fitted to the same
+        #   table in EXP-03 (k = 0.493, R^2 = 0.94).
+        # px_per_mm:         device scale. 16.0 approximates a ~400 ppi phone and
+        #   MUST be set per device for the calibration to mean anything.
+        self.sigma_absolute_mm = sigma_absolute_mm
+        self.relative_coeff = relative_coeff
+        self.px_per_mm = px_per_mm
         self.aspect_ratio = aspect_ratio  # minor axis as a fraction of the major
         self.coupling = coupling if coupling is not None else StressCoupling()
         self.rng = rng if rng is not None else np.random.default_rng()
 
     def base_sigma(self, width, height):
-        """Spread before stress, from the FFitts decomposition over this target."""
-        target_extent = min(width, height)  # the dimension that decides a hit
-        sigma_relative = self.relative_ratio * target_extent
-        return math.hypot(sigma_relative, self.sigma_absolute)
+        """Spread in pixels before stress, from the FFitts decomposition."""
+        width_mm = min(width, height) / self.px_per_mm  # the dimension deciding a hit
+        sigma_relative_mm = self.relative_coeff * math.sqrt(width_mm)
+        sigma_mm = math.hypot(sigma_relative_mm, self.sigma_absolute_mm)
+        return sigma_mm * self.px_per_mm
 
     def calculate_approach_angle(self, prev_x, prev_y, target_x, target_y):
         """Angle theta (radians) of the vector from the previous touch to the target."""

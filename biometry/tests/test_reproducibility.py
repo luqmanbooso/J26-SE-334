@@ -7,7 +7,7 @@ from simulation.simulator import BiometricSimulator
 
 
 def run(seed, stress=0.5, n=40, **kw):
-    sim = BiometricSimulator(sigma_absolute=8.0, seed=seed, **kw)
+    sim = BiometricSimulator(seed=seed, **kw)
     return [sim.simulate_tap(500, 800, 160, 70, stress) for _ in range(n)]
 
 

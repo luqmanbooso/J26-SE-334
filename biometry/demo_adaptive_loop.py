@@ -64,7 +64,7 @@ def run(stress_source, seed=2026):
     probe = LatencyProbe(app.signature, clock=clock, sleep=clock.sleep,
                          poll_interval=0.05, timeout=1.6)
     controller = AdaptiveFeedbackController(
-        simulator=BiometricSimulator(sigma_absolute=8.0, seed=seed),
+        simulator=BiometricSimulator(seed=seed),
         cognitive=stress_source,
         probe=probe,
         dispatch=lambda x, y, d: None,

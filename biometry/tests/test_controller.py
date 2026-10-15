@@ -51,7 +51,7 @@ def build(lag_polls=1, cognitive=None, seed=5):
                          poll_interval=0.05, timeout=1.0)
     taps = []
     controller = AdaptiveFeedbackController(
-        simulator=BiometricSimulator(sigma_absolute=8.0, seed=seed),
+        simulator=BiometricSimulator(seed=seed),
         cognitive=cognitive if cognitive is not None
         else CognitiveStateModel(rng=np.random.default_rng(seed)),
         probe=probe,
