@@ -1,18 +1,37 @@
 import math
+
+import numpy as np
+
+from models.coupling import StressCoupling
 from models.spatial import RotationalSpatialModel
 from models.timing import TimingModel
 
 
 class BiometricSimulator:
+    """
+    Composes the spatial and timing models into one simulated tap.
 
-    def __init__(self, base_sigma=6.0, base_time=0.3):
-        self.spatial_model = RotationalSpatialModel(base_sigma=base_sigma)
-        self.timing_model = TimingModel(base_time=base_time)
+    A single seed drives the whole engine: both models draw from the same
+    numpy Generator, so a run is reproducible from `seed` alone. This is what
+    lets two engine variants be compared on identical random draws.
+    """
+
+    def __init__(self, sigma_absolute_mm=1.50, px_per_mm=16.0, base_time=0.3, alpha=2.5,
+                 seed=None, rng=None, coupling=None):
+        self.rng = rng if rng is not None else np.random.default_rng(seed)
+        self.coupling = coupling if coupling is not None else StressCoupling(alpha=alpha)
+        self.spatial_model = RotationalSpatialModel(
+            sigma_absolute_mm=sigma_absolute_mm, px_per_mm=px_per_mm,
+            coupling=self.coupling, rng=self.rng)
+        self.timing_model = TimingModel(
+            base_time=base_time, coupling=self.coupling, rng=self.rng)
 
     def simulate_tap(self, target_x, target_y, width, height, stress, prev_x=None, prev_y=None, angle=None):
         actual_x, actual_y, theta = self.spatial_model.generate_touch(
             target_x=target_x,
             target_y=target_y,
+            width=width,
+            height=height,
             stress=stress,
             prev_x=prev_x,
             prev_y=prev_y,
