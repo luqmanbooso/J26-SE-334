@@ -1,14 +1,15 @@
-"""Generation of executable Python Appium scripts."""
+"""Generation of explicit Python Appium scripts."""
 
 from __future__ import annotations
 
 from collections.abc import Iterable
 
 from c4.schemas import SynthStep
+from c4.synthesis.locators import to_appium_locator
 
 
 class AppiumScriptGenerator:
-    """Render validated synthesis steps into a safe standalone script."""
+    """Render validated synthesis steps into explicit Appium statements."""
 
     def generate(
         self,
@@ -17,7 +18,7 @@ class AppiumScriptGenerator:
         appium_url: str = "http://127.0.0.1:4723",
         capabilities: dict[str, object] | None = None,
     ) -> str:
-        """Return Python source without writing files or executing actions."""
+        """Return compilable Python source without executing it."""
         caps = capabilities or {
             "platformName": "Android",
             "automationName": "UiAutomator2",
@@ -27,37 +28,51 @@ class AppiumScriptGenerator:
             "",
             "from appium import webdriver",
             "from appium.options.android import UiAutomator2Options",
+            "from appium.webdriver.common.appiumby import AppiumBy",
             "",
             f"APPIUM_URL = {appium_url!r}",
             f"CAPABILITIES = {caps!r}",
-            f"STEPS = {[step.model_dump(mode='json') for step in steps]!r}",
             "",
             "def run_test() -> None:",
             "    options = UiAutomator2Options().load_capabilities(CAPABILITIES)",
             "    driver = webdriver.Remote(APPIUM_URL, options=options)",
+            "    driver.implicitly_wait(10)",
             "    try:",
-            "        for step in STEPS:",
-            "            execute_step(driver, step)",
-            "    finally:",
-            "        driver.quit()",
-            "",
-            "def execute_step(driver, step) -> None:",
-            "    action = step['action']",
-            "    if action == 'tap':",
-            "        driver.find_element(**step['target']).click()",
-            "    elif action == 'input':",
-            "        driver.find_element(**step['target']).send_keys(step.get('value', ''))",
-            "    elif action == 'navigate':",
-            "        driver.find_element(**step['target']).click()",
-            "    elif action == 'back':",
-            "        driver.back()",
-            "    elif action == 'scroll':",
-            "        driver.swipe(0, 0, 0, -400, 400)",
-            "    else:",
-            "        raise ValueError(f'Unsupported synthesized action: {action}')",
-            "",
-            "if __name__ == '__main__':",
-            "    run_test()",
-            "",
         ]
+        for step in steps:
+            lines.append(
+                f"        # step {step.index} source={step.source_event_id or 'none'}"
+            )
+            lines.extend(_render_step(step))
+        lines.extend(
+            [
+                "    finally:",
+                "        driver.quit()",
+                "",
+                'if __name__ == "__main__":',
+                "    run_test()",
+                "",
+            ]
+        )
         return "\n".join(lines)
+
+
+def _render_step(step: SynthStep) -> list[str]:
+    if step.action in {"tap", "navigate", "input"}:
+        strategy, value = to_appium_locator(step.target)
+        locator = f"AppiumBy.{strategy}, {value!r}"
+        if step.action == "input":
+            return [
+                f"        driver.find_element({locator}).send_keys({step.value!r})"
+            ]
+        return [f"        driver.find_element({locator}).click()"]
+    if step.action == "back":
+        return ["        driver.back()"]
+    if step.action == "scroll":
+        return [
+            '        driver.execute_script("mobile: scrollGesture", {',
+            '            "left": 100, "top": 300, "width": 600, "height": 1000,',
+            '            "direction": "down", "percent": 0.75,',
+            "        })",
+        ]
+    raise ValueError(f"Unsupported synthesized action: {step.action}")
