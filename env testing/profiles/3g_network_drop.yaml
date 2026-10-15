@@ -1,0 +1,13 @@
+name: "3G Network Drop"
+description: "Emulates high-latency cellular 3G connection with flaky packet loss and DNS resolution hiccups."
+targetModule: "Payment Gateway / Network Sync"
+cpuStress: 15
+ramStress: 20
+diskIo: 50
+latency: 1850
+packetLoss: 8
+dnsFailure: false
+thermalState: "None"
+networkProfile: "3G Slow"
+interruptionType: "None"
+interruptionFreq: 0

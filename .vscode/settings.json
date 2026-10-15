@@ -1,0 +1,14 @@
+{
+  "python.analysis.extraPaths": [
+    "./env testing",
+    "."
+  ],
+  "python.autoComplete.extraPaths": [
+    "./env testing",
+    "."
+  ],
+  "python.testing.pytestEnabled": true,
+  "python.testing.pytestArgs": [
+    "env testing/tests"
+  ]
+}
