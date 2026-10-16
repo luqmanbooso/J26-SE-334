@@ -17,6 +17,30 @@ class ExecutionStatus(str, Enum):
     SKIPPED = "skipped"
 
 
+class FailureKind(str, Enum):
+    """Classification used to decide whether execution is retryable."""
+
+    LOCATOR_NOT_FOUND = "locator_not_found"
+    ELEMENT_STATE = "element_state"
+    INFRASTRUCTURE = "infrastructure"
+    SCRIPT_ERROR = "script_error"
+    UNKNOWN = "unknown"
+
+
+class FailureInfo(BaseModel):
+    """Structured failure details captured from a generated script."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    step_index: int | None = None
+    action: str | None = None
+    exception_type: str | None = None
+    message: str | None = None
+    kind: FailureKind
+    page_source_path: str | None = None
+    screenshot_path: str | None = None
+
+
 class ExecutionAttempt(BaseModel):
     """Result captured for one subprocess attempt."""
 
@@ -31,6 +55,7 @@ class ExecutionAttempt(BaseModel):
     exit_code: int | None = None
     error_type: str | None = None
     error_message: str | None = None
+    failure: FailureInfo | None = None
 
 
 class ExecutionResult(BaseModel):
@@ -47,3 +72,4 @@ class ExecutionResult(BaseModel):
     script_path: str | None = None
     error_type: str | None = None
     error_message: str | None = None
+    failure: FailureInfo | None = None
