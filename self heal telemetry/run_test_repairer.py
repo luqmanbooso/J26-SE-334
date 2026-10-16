@@ -17,7 +17,7 @@ def main():
 
     # 1. Capture current live layout
     print("\n[Step 1] Inspecting Live UI Screen Layout...")
-    xml_path = adb.dump_hierarchy("window_dump.xml")
+    xml_path = adb.dump_hierarchy("c4_window_dump.xml")
 
     healed_test_records = []
 

@@ -127,3 +127,47 @@ def test_no_response_is_maximally_provoking():
 def test_provocation_is_always_a_valid_stress_input(delay):
     p, _ = probe(FakeScreen())
     assert 0.0 <= p.provocation(Observation(delay, True, 0)) <= 1.0
+
+
+# --- contention with other components' ADB access ---------------------------
+
+class SlowScreen:
+    """A screen whose read is itself expensive — what another component dumping
+    the hierarchy concurrently looks like from here."""
+
+    def __init__(self, clock, read_cost, changes_after=None):
+        self.clock, self.read_cost = clock, read_cost
+        self.changes_after, self.reads = changes_after, 0
+
+    def __call__(self):
+        self.reads += 1
+        self.clock.now += self.read_cost          # the read itself takes time
+        if self.changes_after is not None and self.reads > self.changes_after:
+            return "screen-b"
+        return "screen-a"
+
+
+def test_a_cheap_read_is_not_flagged_as_contended():
+    clock = FakeClock()
+    screen = SlowScreen(clock, read_cost=0.005, changes_after=1)
+    p = LatencyProbe(screen, clock=clock, sleep=clock.sleep, poll_interval=0.05)
+    obs = p.observe(before="screen-a")
+    assert not obs.contended
+    assert obs.read_cost_s == pytest.approx(0.005)
+
+
+def test_an_expensive_read_is_flagged_as_contended():
+    """If reading the screen costs more than the poll interval, polling cannot keep
+    up and the measured delay is contention rather than app latency."""
+    clock = FakeClock()
+    screen = SlowScreen(clock, read_cost=0.40, changes_after=1)
+    p = LatencyProbe(screen, clock=clock, sleep=clock.sleep, poll_interval=0.05)
+    obs = p.observe(before="screen-a")
+    assert obs.contended
+    assert obs.read_cost_s >= 0.40
+
+
+def test_contention_is_carried_through_to_the_run_record():
+    """The flag has to reach the timeline, or analysis cannot exclude bad samples."""
+    from engine.controller import ActionRecord
+    assert "contended" in ActionRecord.__dataclass_fields__

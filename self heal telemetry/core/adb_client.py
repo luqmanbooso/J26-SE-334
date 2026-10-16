@@ -1,3 +1,10 @@
+import os
+import shlex
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from common.adb import AdbDevice  # noqa: E402
+
 import subprocess
 import os
 import time
@@ -6,18 +13,21 @@ import re
 class ADBClient:
     """ADB bridge for live screen capture, hierarchy dumping, and event dispatch."""
     def __init__(self):
+        self._device = None
         self.verify_connection()
 
     def run_cmd(self, cmd: str) -> str:
-        full_cmd = f"adb {cmd}"
-        res = subprocess.run(full_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        return res.stdout.strip()
+        # Routed through the shared device layer: list arguments rather than a
+        # shell string, and serialised against C1's and C2's device traffic.
+        if self._device is None:
+            self._device = AdbDevice(serial=None, verify=False)
+        return self._device.run(*shlex.split(cmd)).stdout.strip()
 
     def wake_and_unlock(self):
         self.run_cmd("shell input keyevent KEYCODE_WAKEUP")
         self.run_cmd("shell wm dismiss-keyguard")
 
-    def dump_hierarchy(self, output_path: str = "window_dump.xml") -> str:
+    def dump_hierarchy(self, output_path: str = "c4_window_dump.xml") -> str:
         self.wake_and_unlock()
 
         if os.path.exists(output_path):

@@ -1,4 +1,5 @@
 import os
+import shlex
 import re
 import subprocess
 import xml.etree.ElementTree as ET
@@ -6,22 +7,23 @@ from PIL import Image, ImageDraw, ImageFont
 
 def run_adb_cmd(cmd):
     """Run an ADB shell command and return stdout."""
-    full_cmd = f"adb {cmd}"
-    res = subprocess.run(full_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    # List arguments, no shell string interpolation.
+    res = subprocess.run(["adb"] + shlex.split(cmd),
+                         stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     return res.stdout.strip()
 
 def capture_live_state():
     """Captures screenshot PNG and UI dump XML from the live emulator."""
     print("[ADB Bridge] Dumping live UI view hierarchy...")
     run_adb_cmd("shell uiautomator dump /sdcard/window_dump.xml")
-    run_adb_cmd("pull /sdcard/window_dump.xml window_dump.xml")
+    run_adb_cmd("pull /sdcard/window_dump.xml live_window_dump.xml")
     
     print("[ADB Bridge] Capturing live screenshot...")
     # Direct binary capture to avoid line-ending corruption on Windows
     with open("screen.png", "wb") as f:
-        subprocess.run("adb exec-out screencap -p", shell=True, stdout=f)
+        subprocess.run(["adb", "exec-out", "screencap", "-p"], stdout=f)
 
-def parse_pixel_elements(xml_path="window_dump.xml"):
+def parse_pixel_elements(xml_path="live_window_dump.xml"):
     """Parses XML and dynamically extracts pixel bounds for all interactive UI nodes."""
     if not os.path.exists(xml_path):
         print("[-] XML dump file not found.")
@@ -99,5 +101,5 @@ def draw_detected_pixels(image_path="screen.png", elements=[], output_path="dete
 
 if __name__ == "__main__":
     capture_live_state()
-    detected = parse_pixel_elements("window_dump.xml")
+    detected = parse_pixel_elements("live_window_dump.xml")
     draw_detected_pixels("screen.png", detected, "detected_pixels.png")
