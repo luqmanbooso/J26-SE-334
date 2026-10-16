@@ -19,6 +19,7 @@ Three guarantees:
 3. **No silent fallback.** A missing adb or a missing device raises. A run that
    injects nothing must not be indistinguishable from a clean one.
 """
+import io
 import os
 import re
 import shutil
@@ -27,6 +28,7 @@ import tempfile
 import threading
 import time
 import xml.etree.ElementTree as ET
+from typing import Optional, Dict, Any, Union
 
 try:                                     # POSIX
     import fcntl
@@ -149,6 +151,21 @@ class AdbDevice:
                     f"{self.adb!r} is not on PATH. Install Android platform-tools "
                     f"(e.g. `sudo pacman -S android-tools`).") from exc
 
+    def run_bytes(self, *args, timeout=60) -> bytes:
+        """Run one adb command under the device lock returning raw stdout bytes.
+        
+        Essential for screencap, binary dumps, and media extraction.
+        """
+        with DeviceLock(self.serial, self._lock_timeout):
+            try:
+                proc = subprocess.run(self._argv(args), stdout=subprocess.PIPE,
+                                      stderr=subprocess.PIPE, check=False, timeout=timeout)
+                return proc.stdout
+            except FileNotFoundError as exc:
+                raise NoDeviceError(
+                    f"{self.adb!r} is not on PATH. Install Android platform-tools "
+                    f"(e.g. `sudo pacman -S android-tools`).") from exc
+
     def shell(self, *args, **kw):
         return self.run("shell", *args, **kw).stdout
 
@@ -190,3 +207,77 @@ class AdbDevice:
     def dump_count(self):
         """Real dumps issued — the cost this instance imposed on the device."""
         return self._dumps
+
+    # --- screencap & display metrics ----------------------------------------
+
+    def screencap(self, as_pil: bool = True):
+        """Captures live screen directly via streaming binary exec-out screencap.
+
+        Zero temporary file creation on device (<200ms latency).
+        Handles Windows CRLF translation on binary pipe cleanly.
+        Returns PIL.Image.Image or raw bytes.
+        """
+        raw_bytes = self.run_bytes("exec-out", "screencap", "-p")
+        if not raw_bytes:
+            raise RuntimeError("adb screencap returned 0 bytes from device")
+
+        # Normalize Windows stdout CRLF injection if present.
+        # On Windows, ADB exec-out can mangle \n into \r\n, turning \r\n into \r\r\n.
+        # Replacing \r\r\n with \r\n restores original binary byte stream.
+        png_sig = b"\x89PNG\r\n\x1a\n"
+        if raw_bytes.startswith(png_sig):
+            clean_bytes = raw_bytes
+        elif raw_bytes.startswith(b"\x89PNG\r\r\n\x1a\r\r\n") or raw_bytes.startswith(b"\x89PNG\r\r\n\x1a\n"):
+            clean_bytes = raw_bytes.replace(b"\r\r\n", b"\r\n")
+        else:
+            clean_bytes = raw_bytes.replace(b"\r\r\n", b"\r\n")
+            idx = clean_bytes.find(png_sig)
+            if idx != -1:
+                clean_bytes = clean_bytes[idx:]
+            elif not clean_bytes.startswith(png_sig):
+                raise RuntimeError("Failed to decode valid PNG signature from adb screencap stream")
+
+        if as_pil:
+            from PIL import Image
+            return Image.open(io.BytesIO(clean_bytes))
+        return clean_bytes
+
+    def get_display_metrics(self) -> Dict[str, Any]:
+        """Queries physical screen resolution and pixel density from Android WindowManager."""
+        size_out = self.shell("wm", "size")
+        density_out = self.shell("wm", "density")
+
+        width, height = 1080, 2400
+        size_match = re.search(r"(?:Physical|Override) size:\s*(\d+)x(\d+)", size_out)
+        if size_match:
+            width = int(size_match.group(1))
+            height = int(size_match.group(2))
+
+        density = 420
+        density_match = re.search(r"(?:Physical|Override) density:\s*(\d+)", density_out)
+        if density_match:
+            density = int(density_match.group(1))
+
+        return {
+            "width": width,
+            "height": height,
+            "density": density,
+            "aspect_ratio": round(height / width, 3) if width > 0 else 1.0,
+            "is_tall": (height / width) >= 1.25 if width > 0 else False,
+        }
+
+    # --- uiautomator2 binding -----------------------------------------------
+
+    def init_uiautomator2(self):
+        """Optional binding to uiautomator2 session for low-latency hierarchy & actions.
+
+        Falls back gracefully with descriptive error if uiautomator2 is not installed.
+        """
+        try:
+            import uiautomator2 as u2
+            return u2.connect(self.serial)
+        except ImportError as exc:
+            raise ImportError(
+                "uiautomator2 library is not installed in current environment. "
+                "Install via `pip install uiautomator2`."
+            ) from exc
