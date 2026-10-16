@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "component": "Component 3 (Local Vision-Semantic Test Oracle)",
+  "version": "2.0.0",
+  "evaluation_milestone": "PP1",
+  "author": "M.L. Booso (IT23452916)",
+  "group": "J26-SE-334",
+  "generated_at": "2026-10-18T20:25:00+05:30",
+  "model": {
+    "base_model": "Qwen/Qwen2-VL-2B-Instruct",
+    "adapter_path": "models/c3_lora_final",
+    "adapter_safetensors_sha256": "F66C05CAA735E7AE0226312553560942AC8621541b2ECC819CD4CC1BE5E125F4",
+    "parameters": 2209470464,
+    "trainable_lora_parameters": 19988480,
+    "quantization": "BitsAndBytes NF4",
+    "final_train_loss": 0.1582,
+    "training_steps": 350,
+    "training_epochs": 2.0
+  },
+  "metrics": {
+    "held_out_300_test": {
+      "sample_size": 300,
+      "clean_count": 150,
+      "defective_count": 150,
+      "accuracy": 0.7100,
+      "precision": 0.8058,
+      "recall": 0.5533,
+      "f1_score": 0.6561,
+      "specificity": 0.8667,
+      "confusion_matrix": {
+        "true_positives": 83,
+        "false_positives": 20,
+        "false_negatives": 67,
+        "true_negatives": 130
+      }
+    },
+    "ablations": {
+      "base_vs_lora_recall_gain": 0.5533,
+      "mcnemar_chi2": 81.01,
+      "mcnemar_p_value": 1.0e-18,
+      "sahi_small_defect_f1_gain": 0.1955,
+      "ast_token_reduction_pct": 78.4
+    },
+    "hardware": {
+      "device": "NVIDIA GeForce RTX 3050 Laptop GPU (4GB VRAM)",
+      "peak_vram_mb": 3242,
+      "vram_leak_50_cycles_mb": 0,
+      "latency_p50_ms": 1420,
+      "latency_p90_ms": 1610,
+      "latency_p99_ms": 1890,
+      "c2_capture_ack_p50_ms": 112,
+      "zero_cloud_egress": true
+    }
+  },
+  "claims": [
+    {
+      "id": "CLAIM-C3-LOCAL",
+      "statement": "Runs locally on consumer laptop GPU (RTX 3050 4GB) with zero cloud egress.",
+      "evidence_path": "08_offline_execution/zero_cloud_egress_proof.json"
+    },
+    {
+      "id": "CLAIM-C3-DETECT",
+      "statement": "71.0% accuracy, 80.58% precision, 55.33% recall on held-out 300 screen benchmark.",
+      "evidence_path": "03_detection_evaluation/evaluation_summary.json"
+    },
+    {
+      "id": "CLAIM-C3-ADAPT",
+      "statement": "QLoRA fine-tuning statistically necessary (0% -> 55.33% recall, p < 1e-18).",
+      "evidence_path": "04_comparison_and_ablations/baseline_vs_lora_comparison.csv"
+    },
+    {
+      "id": "CLAIM-C3-TILE",
+      "statement": "SAHI dynamic slicing yields +19.55% F1 gain on small UI defects.",
+      "evidence_path": "04_comparison_and_ablations/sahi_tiling_ablation.csv"
+    },
+    {
+      "id": "CLAIM-C3-RESOURCE",
+      "statement": "3.24 GB peak VRAM with zero memory leak across 50 continuous cycles.",
+      "evidence_path": "06_hardware_measurements/vram_profile.csv"
+    },
+    {
+      "id": "CLAIM-C3-RELIABLE",
+      "statement": "Malformed outputs evaluate strictly as inconclusive, never false clean.",
+      "evidence_path": "07_backend_reliability/reliability_test_report.json"
+    },
+    {
+      "id": "CLAIM-C3-C2",
+      "statement": "Synchronous C2 capture ACK in <150ms without blocking on neural inference.",
+      "evidence_path": "05_live_demonstration/demo3_c2_c3_integration_trace.json"
+    },
+    {
+      "id": "CLAIM-C3-C4",
+      "statement": "Contract V2 preserves inconclusive verdicts and provides structured bounding boxes.",
+      "evidence_path": "05_live_demonstration/demo3_c2_c3_integration_trace.json"
+    }
+  ],
+  "quarantine_log": {
+    "quarantined_functions": [
+      "vision_oracle.local_vision_oracle.confusion_matrix.compare_c3_vs_owleye"
+    ],
+    "reason": "Synthetic unit test mock with hardcoded TP=288, FP=3. Expressly excluded from PP1 thesis claims."
+  }
+}
