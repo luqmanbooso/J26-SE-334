@@ -10,6 +10,7 @@ _IMPORT_ROOTS = [
     ROOT_DIR,                                   # common/, tests/
     os.path.join(ROOT_DIR, "env testing"),      # C1
     os.path.join(ROOT_DIR, "component4", "src"),  # C4's packaged component
+    os.path.join(ROOT_DIR, "vision_oracle"),    # C3 Oracle
 ]
 
 for _path in _IMPORT_ROOTS:
