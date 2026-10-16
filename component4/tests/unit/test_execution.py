@@ -78,7 +78,7 @@ def test_execution_service_retries_failed_execution(tmp_path) -> None:
     result = ExecutionService(
         retry_config=ExecutionRetryConfig(max_attempts=2, timeout_seconds=5)
     ).execute(
-        synthesis("raise RuntimeError('failed')"),
+        synthesis("raise ConnectionRefusedError('failed')"),
         runs_dir=tmp_path,
         run_id="run-2",
     )
