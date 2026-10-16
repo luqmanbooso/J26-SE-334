@@ -18,22 +18,33 @@ class OllamaQwenClient:
 
     base_url: str = "http://127.0.0.1:11434"
     model: str = "qwen3:8b"
-    temperature: float = 0.2
+    seed: int = 42
+    num_ctx: int = 8192
+    num_predict: int = 1024
+    temperature: float = 0.0
+    think: bool = False
+    json_mode: bool = True
     timeout_seconds: float = 120.0
 
     def generate(self, prompt: str) -> str:
         """Generate one non-streaming response from the configured model."""
-        payload = json.dumps(
-            {
-                "model": self.model,
-                "prompt": prompt,
-                "stream": False,
-                "options": {"temperature": self.temperature},
-            }
-        ).encode("utf-8")
+        request_body: dict[str, object] = {
+            "model": self.model,
+            "prompt": prompt,
+            "stream": False,
+            "think": self.think,
+            "options": {
+                "temperature": self.temperature,
+                "seed": self.seed,
+                "num_ctx": self.num_ctx,
+                "num_predict": self.num_predict,
+            },
+        }
+        if self.json_mode:
+            request_body["format"] = "json"
         request = Request(
             f"{self.base_url.rstrip('/')}/api/generate",
-            data=payload,
+            data=json.dumps(request_body).encode("utf-8"),
             headers={"Content-Type": "application/json"},
             method="POST",
         )
