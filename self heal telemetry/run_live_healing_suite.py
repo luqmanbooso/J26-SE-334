@@ -16,7 +16,7 @@ def main():
     breadcrumbs = TelemetryParser.load_trace("data/sample_telemetry.json")
 
     print("\n[Step 1] Capturing Live Emulator UI View Hierarchy Tree...")
-    xml_path = adb.dump_hierarchy("window_dump.xml")
+    xml_path = adb.dump_hierarchy("c4_window_dump.xml")
 
     print("\n[Step 2] Executing Self-Healing Test Synthesis Loop...")
     for item in breadcrumbs:

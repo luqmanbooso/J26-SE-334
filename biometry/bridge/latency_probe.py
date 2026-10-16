@@ -30,6 +30,8 @@ class Observation:
     ui_delay_s: float
     changed: bool
     consecutive_unchanged: int
+    read_cost_s: float = 0.0
+    contended: bool = False
 
     @property
     def ui_delay_ms(self):
@@ -53,6 +55,15 @@ class LatencyProbe:
     upper bound on the true latency and never an underestimate. A shorter
     interval buys precision at the cost of more hierarchy dumps, which are
     themselves slow enough to perturb what is being measured.
+
+    **The measurement assumes C2 is the only thing touching the device.**
+    `uiautomator dump` is exclusive and slow, and three components in this
+    project open their own independent ADB connections with nothing coordinating
+    them. If another component dumps the hierarchy during a run, the time this
+    probe measures is contention, not the app responding. Each observation
+    therefore carries the cost of its own screen reads and a `contended` flag
+    raised when that cost exceeds the poll interval — at which point polling can
+    no longer keep up and the delay figure should not be trusted as app latency.
     """
 
     def __init__(self, read_signature, clock=time.monotonic, sleep=time.sleep,
@@ -70,18 +81,30 @@ class LatencyProbe:
         self.intolerable_s = intolerable_s
         self._consecutive_unchanged = 0
 
+    def _timed_read(self):
+        """Read the screen signature, returning (signature, seconds it took)."""
+        start = self.clock()
+        signature = self.read_signature()
+        return signature, self.clock() - start
+
     def observe(self, before=None):
         """Block until the screen changes or the timeout expires; return an Observation."""
-        before = before if before is not None else self.read_signature()
+        if before is None:
+            before, _ = self._timed_read()
         started = self.clock()
+        worst_read = 0.0
         while True:
             elapsed = self.clock() - started
-            if self.read_signature() != before:
+            signature, cost = self._timed_read()
+            worst_read = max(worst_read, cost)
+            contended = worst_read > self.poll_interval
+            if signature != before:
                 self._consecutive_unchanged = 0
-                return Observation(elapsed, True, 0)
+                return Observation(elapsed, True, 0, worst_read, contended)
             if elapsed >= self.timeout:
                 self._consecutive_unchanged += 1
-                return Observation(elapsed, False, self._consecutive_unchanged)
+                return Observation(elapsed, False, self._consecutive_unchanged,
+                                   worst_read, contended)
             self.sleep(self.poll_interval)
 
     def provocation(self, observation):
