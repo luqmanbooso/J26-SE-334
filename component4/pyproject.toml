@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "Telemetry-driven self-healing test synthesis engine"
 requires-python = ">=3.10"
 dependencies = [
+    "Appium-Python-Client>=3,<4",
     "pydantic>=2,<3",
 ]
 
@@ -21,3 +22,6 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "live_llm: requires a running local Ollama Qwen3 service",
+]
