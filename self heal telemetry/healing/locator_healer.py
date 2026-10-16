@@ -15,7 +15,7 @@ class LocatorHealer:
         text = re.sub(r'([a-z])([A-Z])', r'\1 \2', text)
         return text.strip()
 
-    def extract_live_candidates(self, xml_path: str = "window_dump.xml") -> List[Dict[str, Any]]:
+    def extract_live_candidates(self, xml_path: str = "c4_window_dump.xml") -> List[Dict[str, Any]]:
         tree = ET.parse(xml_path)
         root = tree.getroot()
         candidates = []
@@ -51,7 +51,7 @@ class LocatorHealer:
                     })
         return candidates
 
-    def resolve_locator(self, original_locator: Dict[str, str], xml_path: str = "window_dump.xml", threshold: float = 0.30):
+    def resolve_locator(self, original_locator: Dict[str, str], xml_path: str = "c4_window_dump.xml", threshold: float = 0.30):
         candidates = self.extract_live_candidates(xml_path)
 
         # 1. Exact match fast-path
