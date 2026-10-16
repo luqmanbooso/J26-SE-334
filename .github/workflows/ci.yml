@@ -97,8 +97,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r "env testing/requirements.txt"
           pip install -r "biometry/requirements.txt"
-          pip install -r "self heal telemetry/requirements.txt"
           pip install -r "vision_oracle/requirements.txt"
+          pip install -e component4
           pip install pytest pytest-cov httpx pillow pyyaml customtkinter psutil python-multipart pydantic
 
       - name: Run Pytest Test Suite (whole repository)
@@ -187,7 +187,6 @@ jobs:
             cat live_probe.log >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi
-
 
 
 
