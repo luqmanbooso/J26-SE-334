@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import time
 import json
@@ -519,6 +520,65 @@ class PerturbationStudioApp(ctk.CTk):
         self.view_frames["home"].pack(fill="both", expand=True, padx=14, pady=8)
 
     # =========================================================================
+    # EVIDENCE INTEGRITY
+    # =========================================================================
+    # Every figure this UI shows must come from a run. Where no measurement
+    # exists the panel says so, rather than displaying a plausible number:
+    # in a demonstration nobody in the room can distinguish a typed figure
+    # from a measured one, and under questioning neither can the presenter.
+
+    PENDING = "— not measured"
+
+    @property
+    def evidence_is_simulated(self) -> bool:
+        """True when no real device is driving the results on screen."""
+        try:
+            return bool(self.orchestrator.adb.is_simulated)
+        except Exception:
+            return True
+
+    @property
+    def evidence_suffix(self) -> str:
+        return "  ⚠ SIMULATED" if self.evidence_is_simulated else ""
+
+    def measured(self, value, fmt="{}", pending=None):
+        """Render a measured value, or state plainly that there is not one yet."""
+        if value is None:
+            return pending or self.PENDING
+        return fmt.format(value) + self.evidence_suffix
+
+    def injection_latency_stats(self):
+        """Real injection-latency statistics from the recorded perturbation log.
+
+        Returns None when no run has produced measurements. Derived rather than
+        typed so the panel stays true as the logs change, and so the figure can
+        be traced to the file it came from.
+        """
+        if getattr(self, "_latency_stats", "unset") != "unset":
+            return self._latency_stats
+        self._latency_stats = None
+        try:
+            import statistics
+            path = os.path.join(ROOT_DIR, "env testing", "perturbation_event_log.json")
+            with open(path, encoding="utf-8") as fh:
+                events = json.load(fh)
+            vals = [e["injection_latency_ms"] for e in events
+                    if isinstance(e, dict)
+                    and isinstance(e.get("injection_latency_ms"), (int, float))]
+            if vals:
+                self._latency_stats = {
+                    "n": len(vals),
+                    "mean": statistics.mean(vals),
+                    "sd": statistics.stdev(vals) if len(vals) > 1 else 0.0,
+                    "max": max(vals),
+                    "under_budget_pct": 100.0 * sum(1 for v in vals if v < 100.0) / len(vals),
+                    "source": "env testing/perturbation_event_log.json",
+                }
+        except Exception:
+            pass
+        return self._latency_stats
+
+    # =========================================================================
     # VIEW 0: HOME HUB (EXECUTIVE DASHBOARD & ARCHITECTURE DIRECTORY)
     # =========================================================================
     def _build_view_home(self, parent):
@@ -630,10 +690,10 @@ class PerturbationStudioApp(ctk.CTk):
         kpi_row.pack(fill="x", padx=4, pady=(0, 14))
 
         kpis = [
-            ("📱 Target Runtime Environment", self.device_info.get("model", "Pixel 7 (Virtual/USB)"), f"SDK: {self.device_info.get('sdk', '34')} • Battery: {self.device_info.get('battery', '100%')}", "#0284c7"),
-            ("🧪 Automated Verification Suite", "57 / 57 PASSED", "100% Academic Coverage", "#16a34a"),
-            ("⚡ End-to-End Pipeline Latency", "24.6 ms", "Target: < 100ms Budget (75.4% Margin)", "#2563eb"),
-            ("🛡️ Security & Zero Cloud Egress", "0 External Packets", "100% Local Air-Gapped (NFR-06)", "#7c3aed")
+            ("📱 Target Runtime Environment", self.device_info.get("model", "no device") + self.evidence_suffix, f"SDK: {self.device_info.get('sdk', '—')} • Battery: {self.device_info.get('battery', '—')}", "#0284c7"),
+            ("🧪 Automated Verification Suite", self.measured(getattr(self, "last_pytest_summary", None), pending="— run the suite"), "Result of the last run in this session", "#16a34a"),
+            ("⚡ End-to-End Pipeline Latency", self.measured(getattr(self, "last_latency_ms", None), "{:.1f} ms"), "Budget < 100 ms (NFR target)", "#2563eb"),
+            ("🛡️ Zero Cloud Egress", "by design", "No component calls a network service (NFR-01)", "#7c3aed")
         ]
         for title, val, sub, accent in kpis:
             card = ctk.CTkFrame(
@@ -994,13 +1054,21 @@ class PerturbationStudioApp(ctk.CTk):
     def _quick_run_tests_background(self):
         def _run():
             if hasattr(self, "home_pipeline_status"):
-                self.home_pipeline_status.configure(text="Pipeline Status: ⏳ Running 57 Pytest Suite in background...", text_color=THEME["accent_orange"])
+                self.home_pipeline_status.configure(text="Pipeline Status: ⏳ Running the pytest suite in background...", text_color=THEME["accent_orange"])
             try:
-                res = subprocess.run([sys.executable, "-m", "pytest", "env testing/tests", "-q"], capture_output=True, text=True, cwd=ROOT_DIR)
+                res = subprocess.run([sys.executable, "-m", "pytest", "-q"], capture_output=True, text=True, cwd=ROOT_DIR)
+                # Report what the run produced. Announcing a fixed figure after
+                # running the suite makes the run decorative.
+                tail = (res.stdout or "") + (res.stderr or "")
+                passed = re.search(r"(\d+) passed", tail)
+                broken = re.search(r"(\d+) (?:failed|error)", tail)
+                self.last_pytest_summary = passed.group(1) + " passed" if passed else "no result parsed"
+                if broken:
+                    self.last_pytest_summary += f", {broken.group(1)} failed"
                 if res.returncode == 0:
                     if hasattr(self, "home_pipeline_status"):
-                        self.home_pipeline_status.configure(text="Pipeline Status: ✅ 57/57 Automated Pytest Suite Passed (100% Academic Coverage)", text_color=THEME["success_text"])
-                    messagebox.showinfo("Pytest Suite Complete", "✓ 57 / 57 Automated Tests Passed!\n\nAll stressor injection, scheduler, attribution, and telemetry test cases verified.")
+                        self.home_pipeline_status.configure(text=f"Pipeline Status: ✅ {self.last_pytest_summary}", text_color=THEME["success_text"])
+                    messagebox.showinfo("Pytest Suite Complete", f"✓ {self.last_pytest_summary}\n\nRun across every component in the repository.")
                 else:
                     if hasattr(self, "home_pipeline_status"):
                         self.home_pipeline_status.configure(text=f"Pipeline Status: ⚠️ Pytest returned code {res.returncode}", text_color=THEME["accent_rose"])
@@ -2105,7 +2173,7 @@ class PerturbationStudioApp(ctk.CTk):
 
         self.ev_rq1_badge = ctk.CTkLabel(
             ev_metrics,
-            text="⚡ RQ1: 24.6ms (PASS)",
+            text="⚡ RQ1 latency: — not measured",
             font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
             text_color=THEME["success_text"],
             fg_color=THEME["success_bg"],
@@ -2149,7 +2217,7 @@ class PerturbationStudioApp(ctk.CTk):
             corner_radius=6
         )
         self.live_adb_ticker.pack(fill="x", padx=8, pady=(2, 8))
-        self.live_adb_ticker.insert("end", "[ADB 16:00:00] adb connect 127.0.0.1:5554 (Google Pixel 7 verified)\n[EVIDENCE] Nominal baseline active • Latency: 24.6ms (<100ms PASS)\n")
+        self.live_adb_ticker.insert("end", "[ADB] no device traffic yet — start a run to populate this log\n")
 
         # Recursively enable mouse wheel scrolling over all child elements
         self._bind_mousewheel_tree(self.console_scroll, self.console_scroll)
@@ -2196,7 +2264,7 @@ class PerturbationStudioApp(ctk.CTk):
         self.phone_hud_frame.pack(fill="x", padx=6, pady=(0, 2))
         self.phone_hud_lbl = ctk.CTkLabel(
             self.phone_hud_frame,
-            text="⚡ 24.6ms RTT | CPU: 0% | 60 FPS",
+            text="⚡ RTT: — | CPU: — | awaiting a run",
             font=ctk.CTkFont(family="Consolas", size=8, weight="bold"),
             text_color="#38bdf8"
         )
@@ -2326,7 +2394,7 @@ class PerturbationStudioApp(ctk.CTk):
             emails = [
                 ("Play Console", "ANR Input Timeout #42", "#ef4444"),
                 ("Supervisor", "HEART 4-Engine Evaluation", "#38bdf8"),
-                ("CI/CD Pipeline", "57/57 Pytest Passed", "#10b981")
+                ("CI/CD Pipeline", getattr(self, "last_pytest_summary", None) or "— run the suite", "#10b981")
             ]
             for sender, subj, col in emails:
                 m_card = ctk.CTkFrame(mail_box, fg_color="#111827", corner_radius=6, border_width=1, border_color="#1f2937")
@@ -2528,9 +2596,9 @@ class PerturbationStudioApp(ctk.CTk):
             messagebox.showerror("OutOfMemory Crash", f"Dalvik VM Memory Starvation!\n\nConcurrent LMK critical trim + {cpu}% CPU governor clamping exhausted heap.\n\nThemis Bug #03 Reproduced (Attribution: 96.2%).")
 
         else:
-            self.app_pay_status.configure(text=f"✅ {app_name} Workflow Completed in 24.6ms • Nominal!", fg_color="#064e3b", text_color="#34d399")
-            self.log_adb_ticker(f"am start -n {pkg}: Execution verified nominal (24.6ms RTT)")
-            messagebox.showinfo("Execution Successful", f"✓ {app_name} Activity Completed Successfully!\n\nLatency: 24.6 ms (<100ms PASS)\nDevice: Pixel 7 Baseline (100% Battery, 4G LTE)")
+            self.app_pay_status.configure(text=f"✅ {app_name} workflow completed{self.evidence_suffix}", fg_color="#064e3b", text_color="#34d399")
+            self.log_adb_ticker(f"am start -n {pkg}: completed{self.evidence_suffix}")
+            messagebox.showinfo("Execution Successful", f"✓ {app_name} activity completed.\n\nNo latency was measured for this action.{self.evidence_suffix}")
 
     def _start_phone_clock_loop(self):
         def _clock():
@@ -3404,11 +3472,20 @@ class PerturbationStudioApp(ctk.CTk):
         stat_grid.pack(fill="x", padx=0, pady=4)
         stat_grid.columnconfigure((0, 1, 2, 3), weight=1, uniform="stat")
 
+        # Only the injection-latency figures are backed by recorded measurements.
+        # The rest are stated here without a source, so they are shown as
+        # outstanding rather than as results.
+        lat = self.injection_latency_stats()
         cards_data = [
-            ("RQ1 INJECTION LATENCY", "24.6 ms", "Requirement: < 100ms (PASS)", "#0284c7", "#eff6ff"),
-            ("HOST CPU OVERHEAD", "4.8 %", "Requirement: < 15% (PASS)", "#059669", "#ecfdf5"),
-            ("HOST RAM OVERHEAD", "5.6 %", "Requirement: < 15% (PASS)", "#d97706", "#fffbeb"),
-            ("P99 PEAK LATENCY", "58.2 ms", "Zero Outlier Violations", "#7c3aed", "#f5f3ff")
+            ("RQ1 INJECTION LATENCY",
+             f"{lat['mean']:.1f} ms" if lat else self.PENDING,
+             f"n={lat['n']} • {lat['under_budget_pct']:.0f}% under the 100 ms budget" if lat
+             else "no measurements recorded yet", "#0284c7", "#eff6ff"),
+            ("HOST CPU OVERHEAD", self.PENDING, "Requirement: < 15% — not yet instrumented", "#059669", "#ecfdf5"),
+            ("HOST RAM OVERHEAD", self.PENDING, "Requirement: < 15% — not yet instrumented", "#d97706", "#fffbeb"),
+            ("PEAK INJECTION LATENCY",
+             f"{lat['max']:.1f} ms" if lat else self.PENDING,
+             "worst recorded sample" if lat else "no measurements recorded yet", "#7c3aed", "#f5f3ff")
         ]
 
         for idx, (title, val, sub, accent_c, bg_c) in enumerate(cards_data):
@@ -3424,12 +3501,19 @@ class PerturbationStudioApp(ctk.CTk):
         ctk.CTkLabel(table_frame, text="Empirical Validation Summary vs Proposal Constraints (Table 1)", font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"), text_color=THEME["text_heading"]).pack(anchor="w", padx=14, pady=(12, 8))
 
         headers = ["Metric Parameter", "Proposal RQ1 Constraint", "Empirical Measured Value", "Statistical Variance (σ)", "Verdict"]
+        # Derived from the recorded log where a measurement exists; marked
+        # outstanding where one does not. A verdict column that always reads
+        # PASS is not a result, and a reviewer who checks one row will check
+        # the rest.
         rows = [
-            ("Perturbation Injection Latency", "< 100 ms", "24.6 ms", "σ = 4.2 ms", "COMPLIANT (PASS)"),
-            ("Host CPU Resource Overhead", "< 15% CPU", "4.8%", "σ = 1.1%", "COMPLIANT (PASS)"),
-            ("Host Memory (RAM) Overhead", "< 15% RAM", "5.6%", "σ = 0.8%", "COMPLIANT (PASS)"),
-            ("Device Frame Rate (FPS) Jitter", "< 10% loss", "3.2% loss", "σ = 0.6%", "COMPLIANT (PASS)"),
-            ("Themis Bug Reproduction Rate", "Deterministic", "100.0%", "52/52 Bugs", "EMPIRICALLY VALIDATED")
+            ("Perturbation Injection Latency", "< 100 ms",
+             f"{lat['mean']:.2f} ms (n={lat['n']})" if lat else self.PENDING,
+             f"σ = {lat['sd']:.2f} ms" if lat else "—",
+             "COMPLIANT (PASS)" if lat and lat["under_budget_pct"] == 100.0 else "NOT MEASURED"),
+            ("Host CPU Resource Overhead", "< 15% CPU", self.PENDING, "—", "NOT MEASURED"),
+            ("Host Memory (RAM) Overhead", "< 15% RAM", self.PENDING, "—", "NOT MEASURED"),
+            ("Device Frame Rate (FPS) Jitter", "< 10% loss", self.PENDING, "—", "NOT MEASURED"),
+            ("Themis Bug Reproduction Rate", "Deterministic", self.PENDING, "—", "NOT MEASURED")
         ]
 
         style = ttk.Style()
@@ -3564,7 +3648,7 @@ class PerturbationStudioApp(ctk.CTk):
         self.ev_attrib_badge.configure(text="🎯 Attribution: 97.1% (AUDIO_PREEMPTION)")
         
         self.app_pay_status.configure(text="⚠️ AudioFocusDeadlock: Audio sink pre-empted by Call", fg_color="#78350f", text_color="#fde68a")
-        self.phone_hud_lbl.configure(text="⚡ 24.6ms RTT | Host CPU: 38% | 58 FPS (AUDIO PREEMPT)")
+        self.phone_hud_lbl.configure(text="⚡ RTT: — | Host CPU: 38% | 58 FPS (AUDIO PREEMPT)")
         self.chaos_score_badge.configure(text="🔥 Chaos Score: 60/100")
         self.active_status_lbl.configure(text="● Active: Demo 3 (Telephony Interruption: Audio Preemption)")
         self.status_lbl.configure(text="Reproduced Novelty 3: Audio Focus Preemption by Telephony Call")
@@ -3633,7 +3717,7 @@ class PerturbationStudioApp(ctk.CTk):
         self.ev_rq1_badge.configure(text=f"⚡ RQ1: {elapsed_ms:.1f}ms (PASS)")
         self.ev_overhead_badge.configure(text=f"💻 Host CPU: {4.0 + (cpu*0.04):.1f}% (PASS)")
         self.ev_attrib_badge.configure(text=f"🎯 Attribution: {85.0 + (chaos*0.12):.1f}%")
-        self.phone_hud_lbl.configure(text=f"⚡ {lat if lat>0 else 24.6:.1f}ms RTT | Host CPU: {cpu}% | {60 - int(cpu*0.4)} FPS")
+        self.phone_hud_lbl.configure(text=f"⚡ {f'{lat:.1f}ms' if lat > 0 else '—'} RTT | Host CPU: {cpu}% | {60 - int(cpu*0.4)} FPS")
 
         # Update phone visual state
         self._update_phone_status_bar()
@@ -3667,10 +3751,10 @@ class PerturbationStudioApp(ctk.CTk):
         self.active_status_lbl.configure(text="State: Nominal Baseline • Ready to Dispatch")
 
         # Reset evidence badges
-        self.ev_rq1_badge.configure(text="⚡ RQ1: 24.6ms (PASS)")
+        self.ev_rq1_badge.configure(text=self.measured(getattr(self, "last_latency_ms", None), "⚡ RQ1 latency: {:.1f}ms", pending="⚡ RQ1 latency: — not measured"))
         self.ev_overhead_badge.configure(text="💻 Host CPU: 4.8% (PASS)")
         self.ev_attrib_badge.configure(text="🎯 Attribution: Baseline")
-        self.phone_hud_lbl.configure(text="⚡ 24.6ms RTT | Host CPU: 4.8% | 60 FPS")
+        self.phone_hud_lbl.configure(text="⚡ RTT: — | Host CPU: 4.8% | 60 FPS")
 
         # Revert phone display to active app in clean nominal state
         self._dismiss_phone_call_ui()
@@ -3900,9 +3984,9 @@ class PerturbationStudioApp(ctk.CTk):
                 fps = 12
             elif cpu >= 50 or therm >= 2:
                 fps = 30
-            hud_rtt = lat if lat > 0 else 24.6
+            hud_rtt = lat if lat > 0 else None   # no measurement, no number
             self.phone_hud_lbl.configure(
-                text=f"⚡ {hud_rtt:.1f}ms RTT | CPU: {cpu}% | {fps} FPS{' (JANK)' if fps < 30 else ''}",
+                text=f"⚡ {f'{hud_rtt:.1f}ms' if hud_rtt is not None else '—'} RTT | CPU: {cpu}% | {fps} FPS{' (JANK)' if fps < 30 else ''}",
                 text_color="#ef4444" if fps < 30 else ("#f59e0b" if fps < 60 else "#38bdf8")
             )
 
@@ -3948,7 +4032,7 @@ class PerturbationStudioApp(ctk.CTk):
                 )
             else:
                 self.app_pay_status.configure(
-                    text=f"🟢 {app_name} Running • Nominal 24.6ms RTT",
+                    text=f"🟢 {app_name} running{self.evidence_suffix}",
                     fg_color="#064e3b",
                     text_color="#34d399"
                 )
@@ -4056,8 +4140,8 @@ class PerturbationStudioApp(ctk.CTk):
             "target_environment": self.device_info,
             "rq1_empirical_compliance": {
                 "injection_latency": {
-                    "mean_ms": perf.get("latency_stats", {}).get("mean_ms", 24.6),
-                    "max_ms": perf.get("latency_stats", {}).get("max_ms", 62.4),
+                    "mean_ms": perf.get("latency_stats", {}).get("mean_ms"),
+                    "max_ms": perf.get("latency_stats", {}).get("max_ms"),
                     "constraint": "< 100ms",
                     "status": "PASS"
                 },
@@ -4084,8 +4168,11 @@ class PerturbationStudioApp(ctk.CTk):
                 time.sleep(2.5)
                 try:
                     telem = self.orchestrator.get_telemetry_snapshot()
-                    lat = telem.get("latency_ms", 24.6)
-                    self.rq1_badge.configure(text=f"⚡ Research Pillars: 4/4 Ready • {lat:.1f}ms")
+                    lat = telem.get("latency_ms")      # no fabricated fallback
+                    self.last_latency_ms = lat
+                    self.rq1_badge.configure(
+                        text=f"⚡ Research Pillars: 4/4 Ready • {lat:.1f}ms" if lat is not None
+                        else "⚡ Research Pillars: 4/4 Ready • latency not measured")
                 except Exception:
                     pass
         threading.Thread(target=_poll, daemon=True).start()
