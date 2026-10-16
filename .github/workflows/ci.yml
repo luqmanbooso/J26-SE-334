@@ -98,6 +98,7 @@ jobs:
           pip install -r "env testing/requirements.txt"
           pip install -r "biometry/requirements.txt"
           pip install -r "self heal telemetry/requirements.txt"
+          pip install -r "vision_oracle/requirements.txt"
           pip install pytest pytest-cov httpx pillow pyyaml customtkinter psutil python-multipart pydantic
 
       - name: Run Pytest Test Suite (whole repository)
