@@ -64,7 +64,7 @@ def create_default_engine() -> OracleEngine:
     if not (LORA_WEIGHTS_PATH and LORA_WEIGHTS_PATH.exists()):
         raise RuntimeError(
             f"C3 LoRA adapter path not found: {LORA_WEIGHTS_PATH}. "
-            "Ensure results/c3_lora_final exists on disk."
+            "Ensure models/c3_lora_final exists on disk."
         )
 
     logger.info(

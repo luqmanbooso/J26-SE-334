@@ -28,8 +28,15 @@ def main():
     parser.add_argument("--serial", type=str, default=None, help="ADB serial of target device/emulator")
     parser.add_argument("--mock", action="store_true", help="Use MockInferenceBackend for rapid smoke testing")
     parser.add_argument("--no-sahi", action="store_true", help="Disable SAHI dynamic tiling fallback")
-    parser.add_argument("--base-model", type=str, default=r"D:\university\Resesarch\RD\models\Qwen2-VL-2B-Instruct")
-    parser.add_argument("--weights", type=str, default=r"D:\university\Resesarch\results\c3_lora_final")
+    try:
+        from vision_oracle.core.config import BASE_MODEL_PATH, LORA_WEIGHTS_PATH
+        default_base = str(BASE_MODEL_PATH) if BASE_MODEL_PATH else r"D:\university\Resesarch\RD\models\Qwen2-VL-2B-Instruct"
+        default_lora = str(LORA_WEIGHTS_PATH) if LORA_WEIGHTS_PATH else r"D:\university\Resesarch\J26-SE-334\models\c3_lora_final"
+    except Exception:
+        default_base = r"D:\university\Resesarch\RD\models\Qwen2-VL-2B-Instruct"
+        default_lora = r"D:\university\Resesarch\J26-SE-334\models\c3_lora_final"
+    parser.add_argument("--base-model", type=str, default=default_base)
+    parser.add_argument("--weights", type=str, default=default_lora)
     parser.add_argument("--output", type=str, default=None, help="Save C4 JSON verdict to file")
     args = parser.parse_args()
 
