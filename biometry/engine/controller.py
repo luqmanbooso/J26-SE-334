@@ -114,7 +114,7 @@ class AdaptiveFeedbackController:
             delay_s=tap["delay"],
             stress_s=stress,
             cognitive_state=state_before.value if state_before is not None else "static",
-            ui_delay_ms=observation.ui_delay_ms,
+            ui_delay_ms=observation.ui_delay_ms,   # None when nothing rendered
             responded=observation.changed,
             provocation=provocation,
             contended=observation.contended,
