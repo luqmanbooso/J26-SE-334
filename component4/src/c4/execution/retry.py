@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+
+from c4.execution.models import FailureKind
 
 
 @dataclass(frozen=True)
@@ -11,6 +13,9 @@ class ExecutionRetryConfig:
 
     max_attempts: int = 2
     timeout_seconds: float = 120.0
+    retry_kinds: frozenset[FailureKind] = field(
+        default_factory=lambda: frozenset({FailureKind.INFRASTRUCTURE})
+    )
 
     def __post_init__(self) -> None:
         if self.max_attempts < 1:
