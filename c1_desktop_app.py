@@ -21,49 +21,65 @@ from orchestrator import PerturbationOrchestrator  # type: ignore
 from core.profile_parser import ProfileParser, ProfileValidationError  # type: ignore
 from core.apk_parser import parse_apk_metadata  # type: ignore
 
-# Configure modern light appearance
-ctk.set_appearance_mode("light")
+# Configure modern dark appearance
+ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
-# Modern Executive Light Theme Design Tokens
+# Modern Executive Obsidian Dark Theme Design Tokens
 THEME = {
-    "bg_app": "#f8fafc",               # Slate-50 main canvas
-    "bg_card": "#ffffff",              # Pure white cards
-    "border_card": "#e2e8f0",          # Slate-200 subtle borders
-    "border_focus": "#cbd5e1",         # Slate-300 borders
-    "text_heading": "#0f172a",         # Slate-900 primary headers
-    "text_body": "#334155",            # Slate-700 label text
-    "text_muted": "#64748b",           # Slate-500 secondary text
-    "primary": "#2563eb",              # Royal Blue (Core CTA)
-    "primary_hover": "#1d4ed8",
-    "primary_subtle": "#eff6ff",
-    "accent_orange": "#ea580c",        # Amber/Orange (Hardware)
-    "accent_orange_hover": "#c2410c",
-    "accent_orange_subtle": "#fff7ed",
-    "accent_sky": "#0284c7",           # Sky Blue (Network)
+    "bg_app": "#080c14",               # Deep Obsidian canvas
+    "bg_card": "#0f172a",              # Elevated Slate-900 surface
+    "bg_card_hover": "#1e293b",        # Slate-800 interactive card hover
+    "bg_subtle_box": "#0b1120",        # Deep dark recessed container
+    "border_card": "#1e293b",          # Slate-800 subtle 1px border
+    "border_focus": "#334155",         # Slate-700 active border
+    "text_heading": "#f8fafc",         # Slate-50 crisp high-contrast title
+    "text_body": "#cbd5e1",            # Slate-300 clean readable body
+    "text_muted": "#94a3b8",           # Slate-400 secondary metadata
+    "primary": "#6366f1",              # Indigo 500 (Linear/Vercel modern accent)
+    "primary_hover": "#4f46e5",        # Indigo 600
+    "primary_subtle": "#1e1b4b",       # Deep Indigo tint
+    "accent_orange": "#f97316",        # Amber-Orange Hardware Stress
+    "accent_orange_hover": "#ea580c",
+    "accent_orange_subtle": "#2e1005", # Deep dark amber
+    "accent_sky": "#0284c7",           # Sky Blue Network Perturbations
     "accent_sky_hover": "#0369a1",
-    "accent_sky_subtle": "#f0f9ff",
-    "accent_rose": "#e11d48",          # Crimson Rose (Interruptions)
-    "accent_rose_hover": "#be123c",
-    "accent_rose_subtle": "#fff1f2",
-    "accent_purple": "#7c3aed",        # Vibrant Violet (Context)
-    "accent_purple_hover": "#6d28d9",
-    "accent_purple_subtle": "#f5f3ff",
-    "success_bg": "#ecfdf5",           # Emerald-50
-    "success_border": "#a7f3d0",       # Emerald-200
-    "success_text": "#047857",         # Emerald-700
-    "info_bg": "#eff6ff",              # Blue-50
-    "info_border": "#bfdbfe",          # Blue-200
-    "info_text": "#1d4ed8",            # Blue-700
-    "code_bg": "#0f172a",              # Deep Slate-900 monospace console
-    "code_text": "#f8fafc",
-    "code_accent": "#38bdf8",
-    "phone_chassis": "#0f172a",        # Titanium dark smartphone bezel
-    "phone_screen_bg": "#020617",      # Phone AMOLED display background
-    "btn_secondary_bg": "#ffffff",
-    "btn_secondary_hover": "#f1f5f9",
-    "btn_secondary_border": "#cbd5e1",
-    "btn_secondary_text": "#1e293b",
+    "accent_sky_subtle": "#082f49",    # Deep sky blue tint
+    "accent_rose": "#f43f5e",          # Rose Red Interruptions
+    "accent_rose_hover": "#e11d48",
+    "accent_rose_subtle": "#4c0519",   # Deep crimson tint
+    "accent_purple": "#a855f7",        # Purple Context Changes
+    "accent_purple_hover": "#9333ea",
+    "accent_purple_subtle": "#3b0764", # Deep purple tint
+    "badge_teal_bg": "#042f2e",        # Deep Teal for Biometry
+    "badge_teal_text": "#2dd4bf",      # Bright Teal
+    "badge_teal_border": "#0d9488",
+    "success_bg": "#064e3b",           # Emerald Dark Background
+    "success_border": "#059669",       # Emerald Border
+    "success_text": "#34d399",         # Emerald-400 Vibrant
+    "danger_bg": "#450a0a",            # Deep Crimson Background
+    "danger_border": "#991b1b",        # Crimson Border
+    "danger_text": "#f87171",          # Coral Red Vibrant
+    "warning_bg": "#451a03",           # Deep Amber Background
+    "warning_border": "#b45309",       # Amber Border
+    "warning_text": "#fbbf24",         # Vibrant Amber
+    "info_bg": "#1e1b4b",              # Indigo Dark Background
+    "info_border": "#4338ca",          # Indigo Border
+    "info_text": "#818cf8",            # Indigo-400 Vibrant
+    "code_bg": "#030712",              # Pitch Black Monospace Terminal
+    "code_text": "#38bdf8",            # Cyan 400 Monospace Output
+    "code_accent": "#818cf8",
+    "input_bg": "#0b1120",             # Clean recessed input fill
+    "input_border": "#334155",         # Input border
+    "optionmenu_bg": "#1e293b",        # Modern option menu base
+    "optionmenu_btn": "#334155",       # Dropdown button
+    "optionmenu_hover": "#475569",
+    "phone_chassis": "#1e293b",        # Titanium Slate Smartphone Bezel
+    "phone_screen_bg": "#000000",      # AMOLED Pure Black Display
+    "btn_secondary_bg": "#1e293b",     # Slate-800 secondary button
+    "btn_secondary_hover": "#334155",  # Slate-700
+    "btn_secondary_border": "#334155",
+    "btn_secondary_text": "#f8fafc",
 }
 
 THEMIS_BUGS = [
@@ -266,7 +282,7 @@ class PerturbationStudioApp(ctk.CTk):
             title_row,
             text="HEART",
             font=ctk.CTkFont(family="Segoe UI", size=20, weight="bold"),
-            text_color="#0f172a"
+            text_color=THEME["text_heading"]
         ).pack(side="left")
 
         ctk.CTkLabel(
@@ -280,8 +296,8 @@ class PerturbationStudioApp(ctk.CTk):
             title_row,
             text="v4.0 PRO",
             font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
-            text_color="#1d4ed8",
-            fg_color="#dbeafe",
+            text_color=THEME["info_text"],
+            fg_color=THEME["info_bg"],
             corner_radius=6,
             padx=8,
             pady=2
@@ -366,25 +382,25 @@ class PerturbationStudioApp(ctk.CTk):
         # Left: Segmented Capsule Track for Tab Buttons
         nav_track = ctk.CTkFrame(
             nav_container,
-            fg_color="#f1f5f9",
+            fg_color=THEME["bg_card"],
             height=44,
             corner_radius=10,
             border_width=1,
-            border_color="#e2e8f0"
+            border_color=THEME["border_card"]
         )
         nav_track.pack(side="left", padx=16, pady=7)
 
         self.nav_tabs = [
-            ("home", "🏠 Overview Hub"),
-            ("console", "🌐 Environmental Chaos"),
-            ("biometry", "👆 Biomechanical HCI"),
-            ("vision", "👁️ Vision Oracle"),
+            ("home", "🏠 Overview"),
+            ("console", "⚡ Perturbations"),
+            ("biometry", "👆 Biometry"),
+            ("vision", "👁️ Vision"),
             ("healing", "🔄 Self-Healing"),
-            ("themis", "🧪 Themis Benchmarks"),
-            ("apk", "📦 APK Fault Studio"),
+            ("themis", "🧪 Themis"),
+            ("apk", "📦 APK Studio"),
             ("yaml", "📄 Scenarios"),
-            ("metrics", "📊 Empirical Metrics"),
-            ("logs", "📋 System Logs")
+            ("metrics", "📊 Metrics"),
+            ("logs", "📋 Logs")
         ]
         self.nav_buttons = {}
 
@@ -397,8 +413,8 @@ class PerturbationStudioApp(ctk.CTk):
                 corner_radius=8,
                 border_width=0,
                 fg_color=THEME["primary"] if is_active else "transparent",
-                hover_color=THEME["primary_hover"] if is_active else "#e2e8f0",
-                text_color="#ffffff" if is_active else "#334155",
+                hover_color=THEME["primary_hover"] if is_active else THEME["bg_card_hover"],
+                text_color="#ffffff" if is_active else THEME["text_muted"],
                 font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
                 command=lambda k=key: self._switch_view(k)
             )
@@ -454,8 +470,8 @@ class PerturbationStudioApp(ctk.CTk):
             else:
                 btn.configure(
                     fg_color="transparent",
-                    text_color="#334155",
-                    hover_color="#e2e8f0",
+                    text_color=THEME["text_muted"],
+                    hover_color=THEME["bg_card_hover"],
                     font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold")
                 )
 
@@ -566,13 +582,13 @@ class PerturbationStudioApp(ctk.CTk):
 
         ctk.CTkButton(
             hero_actions,
-            text="📊 View Empirical Report",
-            font=ctk.CTkFont(family="Segoe UI", size=11),
-            fg_color="#f1f5f9",
-            hover_color="#e2e8f0",
+            text="📊 Empirical Report",
+            font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
+            fg_color=THEME["btn_secondary_bg"],
+            hover_color=THEME["btn_secondary_hover"],
             border_width=1,
-            border_color="#cbd5e1",
-            text_color=THEME["text_body"],
+            border_color=THEME["btn_secondary_border"],
+            text_color=THEME["btn_secondary_text"],
             height=36,
             corner_radius=8,
             command=lambda: self._switch_view("metrics")
@@ -580,13 +596,13 @@ class PerturbationStudioApp(ctk.CTk):
 
         ctk.CTkButton(
             hero_actions,
-            text="🧪 Run 57 Pytest Suite",
+            text="🧪 Run 57 Pytests",
             font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
-            fg_color="#f0fdf4",
-            hover_color="#dcfce7",
+            fg_color=THEME["success_bg"],
+            hover_color="#047857",
             border_width=1,
-            border_color="#86efac",
-            text_color="#15803d",
+            border_color=THEME["success_border"],
+            text_color=THEME["success_text"],
             height=36,
             corner_radius=8,
             command=self._quick_run_tests_background
@@ -609,9 +625,9 @@ class PerturbationStudioApp(ctk.CTk):
 
         badges = [
             ("🌐 Pillar 1: Environmental Chaos (Online)", THEME["accent_sky_subtle"], THEME["accent_sky"]),
-            ("👆 Pillar 2: Biomechanical HCI (Ready)", "#f0fdfa", "#0d9488"),
-            ("👁️ Pillar 3: Vision-Semantic Oracle (Active)", "#f5f3ff", "#7c3aed"),
-            ("🔄 Pillar 4: Telemetry Self-Healing (Active)", "#fff7ed", "#ea580c")
+            ("👆 Pillar 2: Biomechanical HCI (Ready)", THEME["badge_teal_bg"], THEME["badge_teal_text"]),
+            ("👁️ Pillar 3: Vision-Semantic Oracle (Active)", THEME["accent_purple_subtle"], THEME["accent_purple"]),
+            ("🔄 Pillar 4: Telemetry Self-Healing (Active)", THEME["accent_orange_subtle"], THEME["accent_orange"])
         ]
         for b_text, bg_col, text_col in badges:
             ctk.CTkLabel(
@@ -676,7 +692,7 @@ class PerturbationStudioApp(ctk.CTk):
             row1,
             title="Environmental Perturbation Engine",
             tag="● Active & Online",
-            tag_color=("#f0f9ff", "#0284c7"),
+            tag_color=(THEME["accent_sky_subtle"], THEME["accent_sky"]),
             desc="Injects dynamic multi-factor environmental noise into mobile executions: CPU/thermal throttling, 2G/3G packet loss, incoming telephony interrupts, and context mutation.",
             caps=["4 Stress Pillars (Compute, Network, Telephony, Context)", "Themis Benchmark Bug Catalog (#01 - #05)", "Causal Attribution Engine with Correlation Scoring"],
             primary_btn_text="Open Perturbation Deck ➔",
@@ -689,7 +705,7 @@ class PerturbationStudioApp(ctk.CTk):
             row1,
             title="Biomechanical Input Interaction Engine",
             tag="● Ready (biometry)",
-            tag_color=("#f0fdfa", "#0d9488"),
+            tag_color=(THEME["badge_teal_bg"], THEME["badge_teal_text"]),
             desc="Models realistic human motor variations using FFitts Law and Rotational Dual Gaussian distributions to simulate tremor, fatigue, and cognitive stress taps.",
             caps=["Cognitive Stress States: Calm, Frustration, Urgency", "Rotational Dual Gaussian Touch Elongation", "Live ADB Injection for Android Calculator & Dialer"],
             primary_btn_text="Open Biomechanical Controls ➔",
@@ -706,7 +722,7 @@ class PerturbationStudioApp(ctk.CTk):
             row2,
             title="Multimodal Vision-Semantic Oracle",
             tag="● Quantized Qwen2-VL",
-            tag_color=("#f5f3ff", "#7c3aed"),
+            tag_color=(THEME["accent_purple_subtle"], THEME["accent_purple"]),
             desc="Employs localized on-device Vision-Language Models (Qwen2-VL) to detect non-crash visual anomalies—including widget overlaps, occlusions, and frozen states—without cloud data egress.",
             caps=["Joint Screenshot + Accessibility Hierarchy Analysis", "Visual Anomaly Localization & Bounding Boxes", "Zero Cloud Egress for Confidential QA Environments"],
             primary_btn_text="Open Vision Oracle Studio ➔",
@@ -719,7 +735,7 @@ class PerturbationStudioApp(ctk.CTk):
             row2,
             title="Telemetry-Driven Self-Healing Engine",
             tag="● S-BERT Active",
-            tag_color=("#fff7ed", "#ea580c"),
+            tag_color=(THEME["accent_orange_subtle"], THEME["accent_orange"]),
             desc="Transforms raw production telemetry (Sentry, Firebase) into executable Appium regression tests and automatically repairs broken UI locators using Sentence-BERT cosine similarity.",
             caps=["Sentry/Firebase Breadcrumbs-to-Test Compilation", "Sentence-BERT Semantic Cosine Similarity Locator Repair", "AST Structural DOM Tree Comparator"],
             primary_btn_text="Open Self-Healing Studio ➔",
@@ -755,7 +771,7 @@ class PerturbationStudioApp(ctk.CTk):
             text_color=THEME["text_muted"]
         ).pack(anchor="w", pady=(2, 10))
 
-        steps_frame = ctk.CTkFrame(p_inner, fg_color="#f8fafc", corner_radius=8, border_width=1, border_color="#e2e8f0")
+        steps_frame = ctk.CTkFrame(p_inner, fg_color=THEME["bg_subtle_box"], corner_radius=8, border_width=1, border_color=THEME["border_card"])
         steps_frame.pack(fill="x", pady=(0, 10))
 
         steps = [
@@ -836,11 +852,11 @@ class PerturbationStudioApp(ctk.CTk):
             tl_actions,
             text="🔄 Refresh Event Stream",
             font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
-            fg_color="#f1f5f9",
-            hover_color="#e2e8f0",
-            text_color=THEME["text_body"],
+            fg_color=THEME["btn_secondary_bg"],
+            hover_color=THEME["btn_secondary_hover"],
+            text_color=THEME["btn_secondary_text"],
             border_width=1,
-            border_color="#cbd5e1",
+            border_color=THEME["btn_secondary_border"],
             height=28,
             corner_radius=6,
             command=self._refresh_home_event_log
@@ -916,7 +932,7 @@ class PerturbationStudioApp(ctk.CTk):
             justify="left"
         ).pack(anchor="w", pady=(8, 8))
 
-        caps_box = ctk.CTkFrame(inner, fg_color="#f8fafc", corner_radius=6, border_width=1, border_color="#f1f5f9")
+        caps_box = ctk.CTkFrame(inner, fg_color=THEME["bg_subtle_box"], corner_radius=6, border_width=1, border_color=THEME["border_card"])
         caps_box.pack(fill="x", pady=(0, 10))
 
         c_inner = ctk.CTkFrame(caps_box, fg_color="transparent")
@@ -1180,7 +1196,7 @@ class PerturbationStudioApp(ctk.CTk):
 
         # Output Log Box
         ctk.CTkLabel(r_inner, text="Biomechanical Touch Engine Log:", font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold")).pack(anchor="w")
-        self.bio_log_box = ctk.CTkTextbox(r_inner, height=130, font=ctk.CTkFont(family="Consolas", size=10), fg_color="#0f172a", text_color="#f8fafc")
+        self.bio_log_box = ctk.CTkTextbox(r_inner, height=130, font=ctk.CTkFont(family="Consolas", size=10), fg_color=THEME["code_bg"], text_color=THEME["code_text"], corner_radius=8, border_width=1, border_color=THEME["border_card"])
         self.bio_log_box.pack(fill="both", expand=True, pady=(4, 0))
         self.bio_log_box.insert("end", "[Biometry Engine] Simulator initialized with base sigma=10.0, base_time=0.25s\n[Biometry Engine] Ready for touch distribution synthesis.\n")
 
@@ -1308,7 +1324,7 @@ class PerturbationStudioApp(ctk.CTk):
             ("Inference Engine", "Localized Transformers / BitsAndBytes"),
             ("Cloud Data Egress", "0 Bytes (Fully Air-Gapped)")
         ]
-        spec_box = ctk.CTkFrame(l_inner, fg_color="#f8fafc", corner_radius=8, border_width=1, border_color="#e2e8f0")
+        spec_box = ctk.CTkFrame(l_inner, fg_color=THEME["bg_subtle_box"], corner_radius=8, border_width=1, border_color=THEME["border_card"])
         spec_box.pack(fill="x", pady=(8, 12))
         s_inner = ctk.CTkFrame(spec_box, fg_color="transparent")
         s_inner.pack(fill="x", padx=12, pady=10)
@@ -1378,24 +1394,24 @@ class PerturbationStudioApp(ctk.CTk):
         ctk.CTkLabel(r_inner, text="Multimodal Visual Oracle Decision Deck", font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"), text_color=THEME["text_heading"]).pack(anchor="w")
 
         # Detected Defect Banner
-        self.vision_defect_card = ctk.CTkFrame(r_inner, fg_color="#fff1f2", corner_radius=8, border_width=1, border_color="#fecdd3")
+        self.vision_defect_card = ctk.CTkFrame(r_inner, fg_color=THEME["danger_bg"], corner_radius=8, border_width=1, border_color=THEME["danger_border"])
         self.vision_defect_card.pack(fill="x", pady=(8, 10))
         vd_inner = ctk.CTkFrame(self.vision_defect_card, fg_color="transparent")
         vd_inner.pack(fill="x", padx=14, pady=10)
 
-        ctk.CTkLabel(vd_inner, text="⚠️ [NON-CRASH DEFECT DETECTED BY VLM]", font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"), text_color="#be123c").pack(anchor="w")
+        ctk.CTkLabel(vd_inner, text="⚠️ [NON-CRASH DEFECT DETECTED BY VLM]", font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"), text_color=THEME["danger_text"]).pack(anchor="w")
         self.vision_defect_lbl = ctk.CTkLabel(
             vd_inner,
             text="Classification: WIDGET_OCCLUSION • Confidence: 96.4%\nComponent: Primary CTA Button (Bounds: [140, 820, 580, 930])\nRoot Cause: Banner promotion element overlapping clickable bounds during network state handoff",
             font=ctk.CTkFont(family="Segoe UI", size=10),
-            text_color="#881337",
+            text_color="#fca5a5",
             justify="left"
         )
         self.vision_defect_lbl.pack(anchor="w", pady=(4, 0))
 
         # Output Log Box
         ctk.CTkLabel(r_inner, text="Vision Oracle Inference Log:", font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold")).pack(anchor="w", pady=(6, 2))
-        self.vision_log_box = ctk.CTkTextbox(r_inner, height=220, font=ctk.CTkFont(family="Consolas", size=10), fg_color="#0f172a", text_color="#f8fafc")
+        self.vision_log_box = ctk.CTkTextbox(r_inner, height=220, font=ctk.CTkFont(family="Consolas", size=10), fg_color=THEME["code_bg"], text_color=THEME["code_text"], corner_radius=8, border_width=1, border_color=THEME["border_card"])
         self.vision_log_box.pack(fill="both", expand=True, pady=(2, 0))
         self.vision_log_box.insert("end", "[Qwen2-VL Oracle] Localized 4-bit VLM weights verified in qwen_vl_task/\n[Qwen2-VL Oracle] Standby for joint multimodal screenshot + accessibility hierarchy evaluation.\n")
 
@@ -1460,12 +1476,12 @@ class PerturbationStudioApp(ctk.CTk):
         ctk.CTkLabel(l_inner, text="Sentence-BERT Semantic Locator Repair", font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"), text_color=THEME["text_heading"]).pack(anchor="w")
 
         ctk.CTkLabel(l_inner, text="Stale / Broken UI Selector:", font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold")).pack(anchor="w", pady=(8, 2))
-        self.stale_selector_entry = ctk.CTkEntry(l_inner, height=32, font=ctk.CTkFont(family="Consolas", size=10))
+        self.stale_selector_entry = ctk.CTkEntry(l_inner, height=32, font=ctk.CTkFont(family="Consolas", size=10), fg_color=THEME["input_bg"], border_color=THEME["input_border"], text_color=THEME["text_heading"])
         self.stale_selector_entry.insert(0, "//android.widget.Button[@resource-id='com.app:id/btn_checkout_old']")
         self.stale_selector_entry.pack(fill="x", pady=(0, 8))
 
         ctk.CTkLabel(l_inner, text="Candidate DOM Nodes in Updated APK:", font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold")).pack(anchor="w", pady=(4, 2))
-        self.candidates_entry = ctk.CTkTextbox(l_inner, height=70, font=ctk.CTkFont(family="Consolas", size=9))
+        self.candidates_entry = ctk.CTkTextbox(l_inner, height=70, font=ctk.CTkFont(family="Consolas", size=9), fg_color=THEME["code_bg"], text_color=THEME["code_text"], border_width=1, border_color=THEME["border_card"])
         self.candidates_entry.insert("end", "1. id: btn_pay_now_v2, text: 'Proceed to Payment'\n2. id: btn_cart_cancel, text: 'Cancel'\n3. id: btn_nav_home, text: 'Back to Home'")
         self.candidates_entry.pack(fill="x", pady=(0, 10))
 
@@ -1520,7 +1536,7 @@ class PerturbationStudioApp(ctk.CTk):
         ctk.CTkLabel(r_inner, text="Semantic Locator Repair Diff & Telemetry Stream", font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"), text_color=THEME["text_heading"]).pack(anchor="w")
 
         # Healed Diff Card
-        diff_card = ctk.CTkFrame(r_inner, fg_color="#f8fafc", corner_radius=8, border_width=1, border_color="#e2e8f0")
+        diff_card = ctk.CTkFrame(r_inner, fg_color=THEME["bg_subtle_box"], corner_radius=8, border_width=1, border_color=THEME["border_card"])
         diff_card.pack(fill="x", pady=(8, 10))
         d_inner = ctk.CTkFrame(diff_card, fg_color="transparent")
         d_inner.pack(fill="x", padx=12, pady=10)
@@ -1536,7 +1552,7 @@ class PerturbationStudioApp(ctk.CTk):
 
         # Output Log Box
         ctk.CTkLabel(r_inner, text="Self-Healing Execution Log:", font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold")).pack(anchor="w", pady=(6, 2))
-        self.heal_log_box = ctk.CTkTextbox(r_inner, height=220, font=ctk.CTkFont(family="Consolas", size=10), fg_color="#0f172a", text_color="#f8fafc")
+        self.heal_log_box = ctk.CTkTextbox(r_inner, height=220, font=ctk.CTkFont(family="Consolas", size=10), fg_color=THEME["code_bg"], text_color=THEME["code_text"], corner_radius=8, border_width=1, border_color=THEME["border_card"])
         self.heal_log_box.pack(fill="both", expand=True, pady=(2, 0))
         self.heal_log_box.insert("end", "[Self-Healing Engine] Sentence-BERT matcher ready.\n[Self-Healing Engine] Sample telemetry loaded: self heal telemetry/data/sample_telemetry.json\n")
 
@@ -1639,7 +1655,7 @@ class PerturbationStudioApp(ctk.CTk):
             text="🔥 Chaos Score: 0/100",
             font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
             text_color=THEME["accent_orange"],
-            fg_color="#fff7ed",
+            fg_color=THEME["accent_orange_subtle"],
             corner_radius=8,
             padx=12,
             pady=4
@@ -1660,9 +1676,12 @@ class PerturbationStudioApp(ctk.CTk):
             command=self._on_scenario_selected,
             width=290,
             height=34,
-            fg_color="#f8fafc",
+            fg_color=THEME["optionmenu_bg"],
             text_color=THEME["text_heading"],
-            button_color="#cbd5e1",
+            button_color=THEME["optionmenu_btn"],
+            button_hover_color=THEME["optionmenu_hover"],
+            dropdown_fg_color=THEME["bg_card"],
+            dropdown_text_color=THEME["text_heading"],
             corner_radius=8,
             font=ctk.CTkFont(family="Segoe UI", size=11)
         )
@@ -1685,11 +1704,11 @@ class PerturbationStudioApp(ctk.CTk):
             text="🔄 Reset Baseline",
             width=130,
             height=36,
-            fg_color="#f8fafc",
-            hover_color="#f1f5f9",
+            fg_color=THEME["btn_secondary_bg"],
+            hover_color=THEME["btn_secondary_hover"],
             border_width=1,
-            border_color="#cbd5e1",
-            text_color=THEME["text_body"],
+            border_color=THEME["btn_secondary_border"],
+            text_color=THEME["btn_secondary_text"],
             font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
             corner_radius=8,
             command=self.reset_all_nominal
@@ -1746,7 +1765,7 @@ class PerturbationStudioApp(ctk.CTk):
         cpu_r = ctk.CTkFrame(card_hw, fg_color="transparent")
         cpu_r.pack(fill="x", padx=12, pady=(2, 0))
         ctk.CTkLabel(cpu_r, text="CPU Throttle", font=ctk.CTkFont(family="Segoe UI", size=11), text_color=THEME["text_body"]).pack(side="left")
-        self.cpu_val_lbl = ctk.CTkLabel(cpu_r, text="0%", font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"), text_color=THEME["accent_orange"], fg_color="#fff7ed", corner_radius=6, padx=8, pady=1)
+        self.cpu_val_lbl = ctk.CTkLabel(cpu_r, text="0%", font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"), text_color=THEME["accent_orange"], fg_color=THEME["accent_orange_subtle"], corner_radius=6, padx=8, pady=1)
         self.cpu_val_lbl.pack(side="right")
         self.cpu_slider = ctk.CTkSlider(card_hw, from_=0, to=100, number_of_steps=100, command=self._update_cpu_lbl, progress_color=THEME["accent_orange"], button_color=THEME["accent_orange"], height=14)
         self.cpu_slider.set(0)
@@ -1756,7 +1775,7 @@ class PerturbationStudioApp(ctk.CTk):
         ram_r = ctk.CTkFrame(card_hw, fg_color="transparent")
         ram_r.pack(fill="x", padx=12, pady=(2, 0))
         ctk.CTkLabel(ram_r, text="RAM Pressure", font=ctk.CTkFont(family="Segoe UI", size=11), text_color=THEME["text_body"]).pack(side="left")
-        self.ram_val_lbl = ctk.CTkLabel(ram_r, text="0%", font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"), text_color=THEME["accent_orange"], fg_color="#fff7ed", corner_radius=6, padx=8, pady=1)
+        self.ram_val_lbl = ctk.CTkLabel(ram_r, text="0%", font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"), text_color=THEME["accent_orange"], fg_color=THEME["accent_orange_subtle"], corner_radius=6, padx=8, pady=1)
         self.ram_val_lbl.pack(side="right")
         self.ram_slider = ctk.CTkSlider(card_hw, from_=0, to=100, number_of_steps=100, command=self._update_ram_lbl, progress_color=THEME["accent_orange"], button_color=THEME["accent_orange"], height=14)
         self.ram_slider.set(0)
@@ -1766,7 +1785,7 @@ class PerturbationStudioApp(ctk.CTk):
         bat_r = ctk.CTkFrame(card_hw, fg_color="transparent")
         bat_r.pack(fill="x", padx=12, pady=(2, 0))
         ctk.CTkLabel(bat_r, text="Battery Level", font=ctk.CTkFont(family="Segoe UI", size=11), text_color=THEME["text_body"]).pack(side="left")
-        self.bat_val_lbl = ctk.CTkLabel(bat_r, text="100%", font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"), text_color=THEME["accent_orange"], fg_color="#fff7ed", corner_radius=6, padx=8, pady=1)
+        self.bat_val_lbl = ctk.CTkLabel(bat_r, text="100%", font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"), text_color=THEME["accent_orange"], fg_color=THEME["accent_orange_subtle"], corner_radius=6, padx=8, pady=1)
         self.bat_val_lbl.pack(side="right")
         self.bat_slider = ctk.CTkSlider(card_hw, from_=1, to=100, number_of_steps=100, command=self._update_bat_lbl, progress_color=THEME["accent_orange"], button_color=THEME["accent_orange"], height=14)
         self.bat_slider.set(100)
@@ -1786,9 +1805,12 @@ class PerturbationStudioApp(ctk.CTk):
             values=["0 - Normal", "1 - Light", "2 - Moderate", "3 - Severe", "4 - Critical"],
             command=self._on_thermal_menu_changed,
             height=28,
-            fg_color="#f8fafc",
+            fg_color=THEME["optionmenu_bg"],
             text_color=THEME["text_heading"],
-            button_color="#cbd5e1",
+            button_color=THEME["optionmenu_btn"],
+            button_hover_color=THEME["optionmenu_hover"],
+            dropdown_fg_color=THEME["bg_card"],
+            dropdown_text_color=THEME["text_heading"],
             corner_radius=6,
             font=ctk.CTkFont(family="Segoe UI", size=10)
         )
@@ -1807,9 +1829,12 @@ class PerturbationStudioApp(ctk.CTk):
             values=["Nominal (No Trim)", "TRIM_MODERATE", "TRIM_LOW", "TRIM_CRITICAL"],
             command=self._on_lmk_menu_changed,
             height=28,
-            fg_color="#f8fafc",
+            fg_color=THEME["optionmenu_bg"],
             text_color=THEME["text_heading"],
-            button_color="#cbd5e1",
+            button_color=THEME["optionmenu_btn"],
+            button_hover_color=THEME["optionmenu_hover"],
+            dropdown_fg_color=THEME["bg_card"],
+            dropdown_text_color=THEME["text_heading"],
             corner_radius=6,
             font=ctk.CTkFont(family="Segoe UI", size=10)
         )
@@ -1825,12 +1850,12 @@ class PerturbationStudioApp(ctk.CTk):
                 text=p_label,
                 width=58,
                 height=22,
-                font=ctk.CTkFont(family="Segoe UI", size=9),
-                fg_color="#f8fafc",
-                hover_color="#f1f5f9",
+                font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+                fg_color=THEME["btn_secondary_bg"],
+                hover_color=THEME["btn_secondary_hover"],
                 border_width=1,
-                border_color="#cbd5e1",
-                text_color=THEME["text_body"],
+                border_color=THEME["btn_secondary_border"],
+                text_color=THEME["btn_secondary_text"],
                 corner_radius=4,
                 command=lambda c=cpu_val, b=bat_val: (self.cpu_slider.set(c), self._update_cpu_lbl(c), self.bat_slider.set(b), self._update_bat_lbl(b))
             ).pack(side="left", padx=2)
@@ -1854,14 +1879,14 @@ class PerturbationStudioApp(ctk.CTk):
         ctk.CTkLabel(net_head, text="🌐 Network Chaos Engine", font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"), text_color=THEME["text_heading"]).pack(side="left", padx=8)
 
         ctk.CTkLabel(card_net, text="Bandwidth & Profile Preset:", font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"), text_color=THEME["text_body"]).pack(anchor="w", padx=12, pady=(2, 0))
-        self.net_preset_menu = ctk.CTkOptionMenu(card_net, values=["4G LTE (Nominal)", "3G HSDPA (1.5 Mbps)", "2G / EDGE (100 Kbps)", "Flaky Wi-Fi (Jitter)", "Tunnel Dead-Zone"], command=self._on_net_preset_changed, height=28, fg_color="#f8fafc", text_color=THEME["text_heading"], button_color="#cbd5e1", corner_radius=6)
+        self.net_preset_menu = ctk.CTkOptionMenu(card_net, values=["4G LTE (Nominal)", "3G HSDPA (1.5 Mbps)", "2G / EDGE (100 Kbps)", "Flaky Wi-Fi (Jitter)", "Tunnel Dead-Zone"], command=self._on_net_preset_changed, height=28, fg_color=THEME["optionmenu_bg"], text_color=THEME["text_heading"], button_color=THEME["optionmenu_btn"], button_hover_color=THEME["optionmenu_hover"], dropdown_fg_color=THEME["bg_card"], dropdown_text_color=THEME["text_heading"], corner_radius=6)
         self.net_preset_menu.pack(fill="x", padx=12, pady=(2, 6))
 
         # Latency
         lat_r = ctk.CTkFrame(card_net, fg_color="transparent")
         lat_r.pack(fill="x", padx=12, pady=(2, 0))
         ctk.CTkLabel(lat_r, text="RTT Socket Latency", font=ctk.CTkFont(family="Segoe UI", size=11), text_color=THEME["text_body"]).pack(side="left")
-        self.lat_val_lbl = ctk.CTkLabel(lat_r, text="0 ms", font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"), text_color=THEME["accent_sky"], fg_color="#f0f9ff", corner_radius=6, padx=8, pady=1)
+        self.lat_val_lbl = ctk.CTkLabel(lat_r, text="0 ms", font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"), text_color=THEME["accent_sky"], fg_color=THEME["accent_sky_subtle"], corner_radius=6, padx=8, pady=1)
         self.lat_val_lbl.pack(side="right")
         self.lat_slider = ctk.CTkSlider(card_net, from_=0, to=3000, number_of_steps=60, command=self._update_lat_lbl, progress_color=THEME["accent_sky"], button_color=THEME["accent_sky"], height=14)
         self.lat_slider.set(0)
@@ -1871,7 +1896,7 @@ class PerturbationStudioApp(ctk.CTk):
         loss_r = ctk.CTkFrame(card_net, fg_color="transparent")
         loss_r.pack(fill="x", padx=12, pady=(2, 0))
         ctk.CTkLabel(loss_r, text="Packet Loss Rate", font=ctk.CTkFont(family="Segoe UI", size=11), text_color=THEME["text_body"]).pack(side="left")
-        self.loss_val_lbl = ctk.CTkLabel(loss_r, text="0%", font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"), text_color=THEME["accent_sky"], fg_color="#f0f9ff", corner_radius=6, padx=8, pady=1)
+        self.loss_val_lbl = ctk.CTkLabel(loss_r, text="0%", font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"), text_color=THEME["accent_sky"], fg_color=THEME["accent_sky_subtle"], corner_radius=6, padx=8, pady=1)
         self.loss_val_lbl.pack(side="right")
         self.loss_slider = ctk.CTkSlider(card_net, from_=0, to=25, number_of_steps=25, command=self._update_loss_lbl, progress_color=THEME["accent_sky"], button_color=THEME["accent_sky"], height=14)
         self.loss_slider.set(0)
@@ -1890,12 +1915,12 @@ class PerturbationStudioApp(ctk.CTk):
                 text=p_label,
                 width=58,
                 height=22,
-                font=ctk.CTkFont(family="Segoe UI", size=9),
-                fg_color="#f8fafc",
-                hover_color="#f1f5f9",
+                font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+                fg_color=THEME["btn_secondary_bg"],
+                hover_color=THEME["btn_secondary_hover"],
                 border_width=1,
-                border_color="#cbd5e1",
-                text_color=THEME["text_body"],
+                border_color=THEME["btn_secondary_border"],
+                text_color=THEME["btn_secondary_text"],
                 corner_radius=4,
                 command=lambda l=lat_val, p=loss_val: (self.lat_slider.set(l), self._update_lat_lbl(l), self.loss_slider.set(p), self._update_loss_lbl(p))
             ).pack(side="left", padx=2)
@@ -1921,7 +1946,7 @@ class PerturbationStudioApp(ctk.CTk):
         ctk.CTkLabel(card_int, text="Incoming Telephony GSM Call:", font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"), text_color=THEME["text_body"]).pack(anchor="w", padx=12, pady=(2, 0))
         call_box = ctk.CTkFrame(card_int, fg_color="transparent")
         call_box.pack(fill="x", padx=12, pady=(2, 4))
-        self.phone_entry = ctk.CTkEntry(call_box, placeholder_text="15550192831", height=28, fg_color="#f8fafc", border_color=THEME["border_focus"], text_color=THEME["text_heading"], font=ctk.CTkFont(family="Segoe UI", size=10), corner_radius=6)
+        self.phone_entry = ctk.CTkEntry(call_box, placeholder_text="15550192831", height=28, fg_color=THEME["input_bg"], border_color=THEME["input_border"], text_color=THEME["text_heading"], font=ctk.CTkFont(family="Segoe UI", size=10), corner_radius=6)
         self.phone_entry.insert(0, "15550192831")
         self.phone_entry.pack(side="left", fill="x", expand=True, padx=(0, 4))
         self.call_action_btn = ctk.CTkButton(
@@ -1941,7 +1966,7 @@ class PerturbationStudioApp(ctk.CTk):
         ctk.CTkLabel(card_int, text="SMS OTP Push Notification:", font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"), text_color=THEME["text_body"]).pack(anchor="w", padx=12, pady=(2, 0))
         sms_box = ctk.CTkFrame(card_int, fg_color="transparent")
         sms_box.pack(fill="x", padx=12, pady=(2, 6))
-        self.sms_entry = ctk.CTkEntry(sms_box, placeholder_text="Verification Code", height=28, fg_color="#f8fafc", border_color=THEME["border_focus"], text_color=THEME["text_heading"], font=ctk.CTkFont(family="Segoe UI", size=10), corner_radius=6)
+        self.sms_entry = ctk.CTkEntry(sms_box, placeholder_text="Verification Code", height=28, fg_color=THEME["input_bg"], border_color=THEME["input_border"], text_color=THEME["text_heading"], font=ctk.CTkFont(family="Segoe UI", size=10), corner_radius=6)
         self.sms_entry.insert(0, "Your verification code is 849-204.")
         self.sms_entry.pack(side="left", fill="x", expand=True, padx=(0, 4))
         ctk.CTkButton(sms_box, text="💬 Send SMS", width=86, height=28, fg_color="#059669", hover_color="#047857", text_color="#ffffff", font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"), corner_radius=6, command=self.dispatch_sms_notification).pack(side="right")
@@ -1960,9 +1985,9 @@ class PerturbationStudioApp(ctk.CTk):
         int_presets = ctk.CTkFrame(card_int, fg_color="transparent")
         int_presets.pack(fill="x", padx=12, pady=(0, 10))
         ctk.CTkLabel(int_presets, text="Quick Triggers:", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color=THEME["text_muted"]).pack(side="left", padx=(0, 4))
-        ctk.CTkButton(int_presets, text="📞 Ring (3s)", width=70, height=22, font=ctk.CTkFont(family="Segoe UI", size=9), fg_color="#fff1f2", hover_color="#ffe4e6", border_width=1, border_color="#fecdd3", text_color=THEME["accent_rose"], corner_radius=4, command=self.dispatch_incoming_call).pack(side="left", padx=2)
-        ctk.CTkButton(int_presets, text="💬 OTP SMS", width=70, height=22, font=ctk.CTkFont(family="Segoe UI", size=9), fg_color="#ecfdf5", hover_color="#d1fae5", border_width=1, border_color="#a7f3d0", text_color="#047857", corner_radius=4, command=self.dispatch_sms_notification).pack(side="left", padx=2)
-        ctk.CTkButton(int_presets, text="🌙 Doze Mode", width=74, height=22, font=ctk.CTkFont(family="Segoe UI", size=9), fg_color="#f8fafc", hover_color="#f1f5f9", border_width=1, border_color="#cbd5e1", text_color=THEME["text_body"], corner_radius=4, command=self.toggle_doze_mode).pack(side="left", padx=2)
+        ctk.CTkButton(int_presets, text="📞 Ring (3s)", width=70, height=22, font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), fg_color=THEME["accent_rose_subtle"], hover_color="#881337", border_width=1, border_color=THEME["accent_rose"], text_color=THEME["accent_rose"], corner_radius=4, command=self.dispatch_incoming_call).pack(side="left", padx=2)
+        ctk.CTkButton(int_presets, text="💬 OTP SMS", width=70, height=22, font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), fg_color=THEME["success_bg"], hover_color="#047857", border_width=1, border_color=THEME["success_border"], text_color=THEME["success_text"], corner_radius=4, command=self.dispatch_sms_notification).pack(side="left", padx=2)
+        ctk.CTkButton(int_presets, text="🌙 Doze Mode", width=74, height=22, font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), fg_color=THEME["btn_secondary_bg"], hover_color=THEME["btn_secondary_hover"], border_width=1, border_color=THEME["btn_secondary_border"], text_color=THEME["btn_secondary_text"], corner_radius=4, command=self.toggle_doze_mode).pack(side="left", padx=2)
 
         # --- Pillar 4: Context Variations ---
         card_ctx = ctk.CTkFrame(grid_cards, fg_color=THEME["bg_card"], corner_radius=12, border_width=1, border_color=THEME["border_card"])
@@ -2000,7 +2025,7 @@ class PerturbationStudioApp(ctk.CTk):
         font_r = ctk.CTkFrame(card_ctx, fg_color="transparent")
         font_r.pack(fill="x", padx=12, pady=(2, 0))
         ctk.CTkLabel(font_r, text="Accessibility Font Scale", font=ctk.CTkFont(family="Segoe UI", size=11), text_color=THEME["text_body"]).pack(side="left")
-        self.font_val_lbl = ctk.CTkLabel(font_r, text="1.00x", font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"), text_color=THEME["accent_purple"], fg_color="#f5f3ff", corner_radius=6, padx=8, pady=1)
+        self.font_val_lbl = ctk.CTkLabel(font_r, text="1.00x", font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"), text_color=THEME["accent_purple"], fg_color=THEME["accent_purple_subtle"], corner_radius=6, padx=8, pady=1)
         self.font_val_lbl.pack(side="right")
         self.font_slider = ctk.CTkSlider(card_ctx, from_=0.85, to=1.50, number_of_steps=13, command=self._update_font_lbl, progress_color=THEME["accent_purple"], button_color=THEME["accent_purple"], height=14)
         self.font_slider.set(1.00)
@@ -2014,9 +2039,9 @@ class PerturbationStudioApp(ctk.CTk):
         ctx_presets = ctk.CTkFrame(card_ctx, fg_color="transparent")
         ctx_presets.pack(fill="x", padx=12, pady=(0, 10))
         ctk.CTkLabel(ctx_presets, text="Quick Toggles:", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color=THEME["text_muted"]).pack(side="left", padx=(0, 4))
-        ctk.CTkButton(ctx_presets, text="🔄 Portrait (0°)", width=78, height=22, font=ctk.CTkFont(family="Segoe UI", size=9), fg_color="#f8fafc", hover_color="#f1f5f9", border_width=1, border_color="#cbd5e1", text_color=THEME["text_body"], corner_radius=4, command=lambda: self.set_rotation(0)).pack(side="left", padx=2)
-        ctk.CTkButton(ctx_presets, text="🔄 Land (90°)", width=74, height=22, font=ctk.CTkFont(family="Segoe UI", size=9), fg_color="#f8fafc", hover_color="#f1f5f9", border_width=1, border_color="#cbd5e1", text_color=THEME["text_body"], corner_radius=4, command=lambda: self.set_rotation(1)).pack(side="left", padx=2)
-        ctk.CTkButton(ctx_presets, text="🔤 Font 1.3x", width=68, height=22, font=ctk.CTkFont(family="Segoe UI", size=9), fg_color="#f5f3ff", hover_color="#ede9fe", border_width=1, border_color="#ddd6fe", text_color=THEME["accent_purple"], corner_radius=4, command=lambda: (self.font_slider.set(1.30), self._update_font_lbl(1.30))).pack(side="left", padx=2)
+        ctk.CTkButton(ctx_presets, text="🔄 Portrait (0°)", width=78, height=22, font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), fg_color=THEME["btn_secondary_bg"], hover_color=THEME["btn_secondary_hover"], border_width=1, border_color=THEME["btn_secondary_border"], text_color=THEME["btn_secondary_text"], corner_radius=4, command=lambda: self.set_rotation(0)).pack(side="left", padx=2)
+        ctk.CTkButton(ctx_presets, text="🔄 Land (90°)", width=74, height=22, font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), fg_color=THEME["btn_secondary_bg"], hover_color=THEME["btn_secondary_hover"], border_width=1, border_color=THEME["btn_secondary_border"], text_color=THEME["btn_secondary_text"], corner_radius=4, command=lambda: self.set_rotation(1)).pack(side="left", padx=2)
+        ctk.CTkButton(ctx_presets, text="🔤 Font 1.3x", width=68, height=22, font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), fg_color=THEME["accent_purple_subtle"], hover_color="#581c87", border_width=1, border_color=THEME["accent_purple"], text_color=THEME["accent_purple"], corner_radius=4, command=lambda: (self.font_slider.set(1.30), self._update_font_lbl(1.30))).pack(side="left", padx=2)
 
         # =====================================================================
         # RIGHT COLUMN: LIVE PHONE + EVIDENCE & TELEMETRY INSPECTOR
@@ -2027,7 +2052,7 @@ class PerturbationStudioApp(ctk.CTk):
         phone_head = ctk.CTkFrame(right_phone_pane, fg_color="transparent")
         phone_head.pack(fill="x", padx=16, pady=(10, 4))
         ctk.CTkLabel(phone_head, text="📱 Live Target Device Display", font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"), text_color=THEME["text_heading"]).pack(side="left")
-        ctk.CTkButton(phone_head, text="📸 Capture Device", width=120, height=26, fg_color="#f1f5f9", hover_color="#e2e8f0", text_color=THEME["text_body"], border_width=1, border_color=THEME["border_focus"], font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"), corner_radius=6, command=self.capture_adb_screen).pack(side="right")
+        ctk.CTkButton(phone_head, text="📸 Capture Device", width=120, height=26, fg_color=THEME["btn_secondary_bg"], hover_color=THEME["btn_secondary_hover"], text_color=THEME["btn_secondary_text"], border_width=1, border_color=THEME["btn_secondary_border"], font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"), corner_radius=6, command=self.capture_adb_screen).pack(side="right")
 
         # Physical Phone Chassis Frame (Titanium border with rounded corners)
         self.phone_chassis = ctk.CTkFrame(right_phone_pane, fg_color=THEME["phone_chassis"], corner_radius=26, border_width=3, border_color="#334155")
@@ -2080,7 +2105,7 @@ class PerturbationStudioApp(ctk.CTk):
         # =====================================================================
         # LIVE EVIDENCE & TELEMETRY INSPECTOR
         # =====================================================================
-        evidence_card = ctk.CTkFrame(right_phone_pane, fg_color="#f8fafc", corner_radius=10, border_width=1, border_color=THEME["border_card"])
+        evidence_card = ctk.CTkFrame(right_phone_pane, fg_color=THEME["bg_subtle_box"], corner_radius=10, border_width=1, border_color=THEME["border_card"])
         evidence_card.pack(fill="x", padx=16, pady=(2, 10))
 
         ev_head = ctk.CTkFrame(evidence_card, fg_color="transparent")
@@ -2615,7 +2640,7 @@ class PerturbationStudioApp(ctk.CTk):
 
         ctk.CTkLabel(apk_card, text="📦 Target Application Package (APK)", font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"), text_color=THEME["accent_orange"]).pack(anchor="w", padx=14, pady=(12, 6))
 
-        drop_box = ctk.CTkFrame(apk_card, fg_color=THEME["accent_orange_subtle"], corner_radius=8, border_width=1, border_color="#fed7aa")
+        drop_box = ctk.CTkFrame(apk_card, fg_color=THEME["accent_orange_subtle"], corner_radius=8, border_width=1, border_color=THEME["accent_orange"])
         drop_box.pack(fill="x", padx=14, pady=6)
 
         drop_inner = ctk.CTkFrame(drop_box, fg_color="transparent")
@@ -2637,7 +2662,7 @@ class PerturbationStudioApp(ctk.CTk):
         ).pack()
 
         # Selected APK metadata summary box
-        self.apk_meta_box = ctk.CTkFrame(apk_card, fg_color="#f8fafc", corner_radius=8, border_width=1, border_color=THEME["border_card"])
+        self.apk_meta_box = ctk.CTkFrame(apk_card, fg_color=THEME["bg_subtle_box"], corner_radius=8, border_width=1, border_color=THEME["border_card"])
         self.apk_meta_box.pack(fill="x", padx=14, pady=(6, 10))
 
         self.apk_name_lbl = ctk.CTkLabel(self.apk_meta_box, text=f"Selected: {self.current_apk_data.get('apk_name')}", font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"), text_color=THEME["text_heading"])
@@ -2667,11 +2692,11 @@ class PerturbationStudioApp(ctk.CTk):
                 preset_box,
                 text=p_text,
                 height=28,
-                fg_color="#f1f5f9",
-                hover_color="#e2e8f0",
-                text_color=THEME["text_body"],
+                fg_color=THEME["btn_secondary_bg"],
+                hover_color=THEME["btn_secondary_hover"],
+                text_color=THEME["btn_secondary_text"],
                 border_width=1,
-                border_color=THEME["border_focus"],
+                border_color=THEME["btn_secondary_border"],
                 font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
                 command=lambda k=p_key: self._load_preset_apk(k)
             ).grid(row=r, column=c, padx=3, pady=3, sticky="ew")
@@ -2685,11 +2710,11 @@ class PerturbationStudioApp(ctk.CTk):
             action_row,
             text="📲 Install via ADB",
             height=32,
-            fg_color="#f8fafc",
-            hover_color="#e2e8f0",
-            text_color=THEME["text_body"],
+            fg_color=THEME["btn_secondary_bg"],
+            hover_color=THEME["btn_secondary_hover"],
+            text_color=THEME["btn_secondary_text"],
             border_width=1,
-            border_color=THEME["border_focus"],
+            border_color=THEME["btn_secondary_border"],
             font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
             command=self.install_target_apk
         ).grid(row=0, column=0, padx=(0, 3), sticky="ew")
@@ -2698,11 +2723,11 @@ class PerturbationStudioApp(ctk.CTk):
             action_row,
             text="🚀 Launch on Device",
             height=32,
-            fg_color="#f8fafc",
-            hover_color="#e2e8f0",
-            text_color=THEME["text_body"],
+            fg_color=THEME["btn_secondary_bg"],
+            hover_color=THEME["btn_secondary_hover"],
+            text_color=THEME["btn_secondary_text"],
             border_width=1,
-            border_color=THEME["border_focus"],
+            border_color=THEME["btn_secondary_border"],
             font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
             command=self.launch_target_app
         ).grid(row=0, column=1, padx=3, sticky="ew")
@@ -2782,9 +2807,9 @@ class PerturbationStudioApp(ctk.CTk):
             text="Clear",
             width=60,
             height=24,
-            fg_color="#f1f5f9",
-            hover_color="#e2e8f0",
-            text_color=THEME["text_body"],
+            fg_color=THEME["btn_secondary_bg"],
+            hover_color=THEME["btn_secondary_hover"],
+            text_color=THEME["btn_secondary_text"],
             font=ctk.CTkFont(size=10, weight="bold"),
             command=lambda: self.apk_term.delete("1.0", "end")
         ).pack(side="right")
@@ -2802,7 +2827,7 @@ class PerturbationStudioApp(ctk.CTk):
 
         ctk.CTkLabel(iss_head, text="⚠️ Detected Issues, Crashes & ANRs", font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"), text_color="#dc2626").pack(side="left")
 
-        self.issues_count_badge = ctk.CTkLabel(iss_head, text="0 Issues", font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"), text_color="#dc2626", fg_color="#fee2e2", corner_radius=6, padx=8, pady=2)
+        self.issues_count_badge = ctk.CTkLabel(iss_head, text="0 Issues", font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"), text_color=THEME["danger_text"], fg_color=THEME["danger_bg"], corner_radius=6, padx=8, pady=2)
         self.issues_count_badge.pack(side="left", padx=8)
 
         ctk.CTkButton(
@@ -2810,16 +2835,16 @@ class PerturbationStudioApp(ctk.CTk):
             text="📥 Export Issues (JSON)",
             height=26,
             width=140,
-            fg_color="#f8fafc",
-            hover_color="#e2e8f0",
-            text_color=THEME["text_body"],
+            fg_color=THEME["btn_secondary_bg"],
+            hover_color=THEME["btn_secondary_hover"],
+            text_color=THEME["btn_secondary_text"],
             border_width=1,
-            border_color=THEME["border_focus"],
+            border_color=THEME["btn_secondary_border"],
             font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
             command=self.export_apk_issues_report
         ).pack(side="right")
 
-        self.issues_list_scroll = ctk.CTkScrollableFrame(issues_card, fg_color="#f8fafc", corner_radius=8)
+        self.issues_list_scroll = ctk.CTkScrollableFrame(issues_card, fg_color=THEME["bg_subtle_box"], corner_radius=8)
         self.issues_list_scroll.pack(fill="both", expand=True, padx=12, pady=(0, 10))
 
         self.issues_empty_lbl = ctk.CTkLabel(
@@ -2990,7 +3015,7 @@ class PerturbationStudioApp(ctk.CTk):
         self.apk_issues_detected.clear()
         for w in self.issues_list_scroll.winfo_children():
             w.destroy()
-        self.issues_count_badge.configure(text="0 Issues", text_color="#dc2626", fg_color="#fee2e2")
+        self.issues_count_badge.configure(text="0 Issues", text_color=THEME["danger_text"], fg_color=THEME["danger_bg"])
 
         threading.Thread(target=self._run_apk_simulation_worker, daemon=True).start()
 
@@ -3197,16 +3222,16 @@ class PerturbationStudioApp(ctk.CTk):
             ]
 
     def _render_detected_issues_cards(self, issues):
-        self.issues_count_badge.configure(text=f"{len(issues)} Issues Detected", text_color="#dc2626", fg_color="#fee2e2")
+        self.issues_count_badge.configure(text=f"{len(issues)} Issues Detected", text_color=THEME["danger_text"], fg_color=THEME["danger_bg"])
         for iss in issues:
-            c = ctk.CTkFrame(self.issues_list_scroll, fg_color=THEME["bg_card"], corner_radius=8, border_width=1, border_color="#fecaca")
+            c = ctk.CTkFrame(self.issues_list_scroll, fg_color=THEME["bg_card"], corner_radius=8, border_width=1, border_color=THEME["border_card"])
             c.pack(fill="x", padx=4, pady=4)
 
             head = ctk.CTkFrame(c, fg_color="transparent")
             head.pack(fill="x", padx=10, pady=(8, 2))
 
             sev_c = "#dc2626" if iss["severity"] == "CRITICAL" else "#d97706"
-            sev_bg = "#fee2e2" if iss["severity"] == "CRITICAL" else "#fef3c7"
+            sev_bg = THEME["danger_bg"] if iss["severity"] == "CRITICAL" else THEME["warning_bg"]
             ctk.CTkLabel(head, text=f"🔴 {iss['type']}", font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"), text_color=sev_c).pack(side="left")
             ctk.CTkLabel(head, text=iss["severity"], font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color=sev_c, fg_color=sev_bg, corner_radius=4, padx=6).pack(side="left", padx=8)
 
@@ -3218,7 +3243,7 @@ class PerturbationStudioApp(ctk.CTk):
             trace_box = ctk.CTkLabel(c, text=iss["trace"], font=ctk.CTkFont(family="Consolas", size=9), text_color="#64748b", wraplength=480, justify="left")
             trace_box.pack(anchor="w", padx=10, pady=2)
 
-            mit_box = ctk.CTkFrame(c, fg_color="#ecfdf5", corner_radius=6)
+            mit_box = ctk.CTkFrame(c, fg_color=THEME["success_bg"], corner_radius=6)
             mit_box.pack(fill="x", padx=10, pady=(4, 8))
             ctk.CTkLabel(mit_box, text=f"💡 Mitigation: {iss['mitigation']}", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color="#047857", wraplength=460, justify="left").pack(anchor="w", padx=8, pady=4)
 
@@ -3261,10 +3286,10 @@ class PerturbationStudioApp(ctk.CTk):
         profile_dir = os.path.join(ENV_TESTING_DIR, "profiles")
         actual_files = sorted([f for f in os.listdir(profile_dir) if f.endswith(".yaml") or f.endswith(".yml")]) if os.path.exists(profile_dir) else []
         templates_list = actual_files if actual_files else ["3g_network_drop.yaml", "high_cpu_stress.yaml", "thermal_throttling_battery_drain.yaml", "aggressive_multitasking_backgrounding.yaml", "compound_multi_factor_chaos.yaml"]
-        self.yaml_menu = ctk.CTkOptionMenu(top_bar, values=templates_list, command=self._load_yaml_template, height=32, fg_color="#f8fafc", text_color=THEME["text_heading"], button_color="#cbd5e1")
+        self.yaml_menu = ctk.CTkOptionMenu(top_bar, values=templates_list, command=self._load_yaml_template, height=32, fg_color=THEME["optionmenu_bg"], text_color=THEME["text_heading"], button_color=THEME["optionmenu_btn"], button_hover_color=THEME["optionmenu_hover"], dropdown_fg_color=THEME["bg_card"], dropdown_text_color=THEME["text_heading"])
         self.yaml_menu.pack(side="left", padx=6, pady=10)
 
-        ctk.CTkButton(top_bar, text="✓ Validate Schema (AST)", height=32, fg_color=THEME["success_bg"], hover_color="#d1fae5", text_color=THEME["success_text"], border_width=1, border_color=THEME["success_border"], font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"), command=self.validate_yaml_schema).pack(side="left", padx=8, pady=10)
+        ctk.CTkButton(top_bar, text="✓ Validate Schema (AST)", height=32, fg_color=THEME["success_bg"], hover_color="#047857", text_color=THEME["success_text"], border_width=1, border_color=THEME["success_border"], font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"), command=self.validate_yaml_schema).pack(side="left", padx=8, pady=10)
         ctk.CTkButton(top_bar, text="▶ Execute Scenario on ADB", height=32, fg_color=THEME["primary"], hover_color=THEME["primary_hover"], text_color="#ffffff", font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"), command=self.execute_yaml_scenario).pack(side="right", padx=12, pady=10)
 
         self.yaml_editor = ctk.CTkTextbox(parent, font=ctk.CTkFont(family="Consolas", size=12), fg_color=THEME["code_bg"], text_color="#fed7aa", corner_radius=8)
@@ -3339,7 +3364,7 @@ class PerturbationStudioApp(ctk.CTk):
         left_scroll.grid(row=0, column=0, sticky="nsew", padx=(0, 4), pady=2)
 
         for bug in THEMIS_BUGS:
-            card = ctk.CTkFrame(left_scroll, fg_color="#f8fafc", corner_radius=8, border_width=1, border_color=THEME["border_card"])
+            card = ctk.CTkFrame(left_scroll, fg_color=THEME["bg_subtle_box"], corner_radius=8, border_width=1, border_color=THEME["border_card"])
             card.pack(fill="x", padx=4, pady=4)
 
             card_top = ctk.CTkFrame(card, fg_color="transparent")
@@ -3405,10 +3430,10 @@ class PerturbationStudioApp(ctk.CTk):
         stat_grid.columnconfigure((0, 1, 2, 3), weight=1, uniform="stat")
 
         cards_data = [
-            ("RQ1 INJECTION LATENCY", "24.6 ms", "Requirement: < 100ms (PASS)", "#0284c7", "#eff6ff"),
-            ("HOST CPU OVERHEAD", "4.8 %", "Requirement: < 15% (PASS)", "#059669", "#ecfdf5"),
-            ("HOST RAM OVERHEAD", "5.6 %", "Requirement: < 15% (PASS)", "#d97706", "#fffbeb"),
-            ("P99 PEAK LATENCY", "58.2 ms", "Zero Outlier Violations", "#7c3aed", "#f5f3ff")
+            ("RQ1 INJECTION LATENCY", "24.6 ms", "Requirement: < 100ms (PASS)", "#38bdf8", THEME["accent_sky_subtle"]),
+            ("HOST CPU OVERHEAD", "4.8 %", "Requirement: < 15% (PASS)", "#34d399", THEME["success_bg"]),
+            ("HOST RAM OVERHEAD", "5.6 %", "Requirement: < 15% (PASS)", "#fbbf24", THEME["warning_bg"]),
+            ("P99 PEAK LATENCY", "58.2 ms", "Zero Outlier Violations", "#c084fc", THEME["accent_purple_subtle"])
         ]
 
         for idx, (title, val, sub, accent_c, bg_c) in enumerate(cards_data):
@@ -3434,8 +3459,8 @@ class PerturbationStudioApp(ctk.CTk):
 
         style = ttk.Style()
         style.theme_use("clam")
-        style.configure("Treeview", background="#ffffff", foreground="#0f172a", fieldbackground="#ffffff", rowheight=30, font=('Segoe UI', 10))
-        style.configure("Treeview.Heading", background="#f1f5f9", foreground="#0f172a", font=('Segoe UI', 10, 'bold'))
+        style.configure("Treeview", background="#0f172a", foreground="#f8fafc", fieldbackground="#0f172a", rowheight=32, font=('Segoe UI', 10))
+        style.configure("Treeview.Heading", background="#1e293b", foreground="#38bdf8", font=('Segoe UI', 10, 'bold'))
 
         tree = ttk.Treeview(table_frame, columns=headers, show="headings", height=6)
         for h in headers:
@@ -3453,7 +3478,7 @@ class PerturbationStudioApp(ctk.CTk):
         top_bar.pack(fill="x", padx=0, pady=(0, 6))
 
         ctk.CTkLabel(top_bar, text="Live ADB Shell Mutation Stream:", font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"), text_color=THEME["text_heading"]).pack(side="left", padx=12, pady=8)
-        ctk.CTkButton(top_bar, text="Clear Stream", width=90, height=28, fg_color="#f8fafc", hover_color="#e2e8f0", text_color=THEME["text_body"], border_width=1, border_color=THEME["border_focus"], font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"), command=lambda: self.log_console.delete("1.0", "end")).pack(side="right", padx=10, pady=8)
+        ctk.CTkButton(top_bar, text="Clear Stream", width=90, height=28, fg_color=THEME["btn_secondary_bg"], hover_color=THEME["btn_secondary_hover"], text_color=THEME["btn_secondary_text"], border_width=1, border_color=THEME["btn_secondary_border"], font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"), command=lambda: self.log_console.delete("1.0", "end")).pack(side="right", padx=10, pady=8)
 
         self.log_console = ctk.CTkTextbox(parent, font=ctk.CTkFont(family="Consolas", size=11), fg_color=THEME["code_bg"], text_color=THEME["code_accent"], corner_radius=8)
         self.log_console.pack(fill="both", expand=True, padx=0, pady=2)
@@ -3959,30 +3984,30 @@ class PerturbationStudioApp(ctk.CTk):
     def _update_cpu_lbl(self, val):
         v = int(val)
         if v <= 35:
-            fg, bg = "#047857", "#ecfdf5"
+            fg, bg = "#34d399", THEME["success_bg"]
         elif v <= 75:
-            fg, bg = "#b45309", "#fffbeb"
+            fg, bg = "#fbbf24", THEME["warning_bg"]
         else:
-            fg, bg = "#b91c1c", "#fef2f2"
+            fg, bg = "#f87171", THEME["danger_bg"]
         self.cpu_val_lbl.configure(text=f"{v}%", text_color=fg, fg_color=bg)
         self._update_phone_app_feedback()
 
     def _update_ram_lbl(self, val):
         v = int(val)
         if v <= 40:
-            fg, bg = "#047857", "#ecfdf5"
+            fg, bg = "#34d399", THEME["success_bg"]
         elif v <= 75:
-            fg, bg = "#b45309", "#fffbeb"
+            fg, bg = "#fbbf24", THEME["warning_bg"]
         else:
-            fg, bg = "#b91c1c", "#fef2f2"
+            fg, bg = "#f87171", THEME["danger_bg"]
         self.ram_val_lbl.configure(text=f"{v}%", text_color=fg, fg_color=bg)
         self._update_phone_app_feedback()
 
     def _update_thermal_lbl(self, val):
         names = ["0 Normal", "1 Light", "2 Moderate", "3 Severe", "4 Critical"]
         v = int(val)
-        fg = "#047857" if v == 0 else ("#b45309" if v <= 2 else "#b91c1c")
-        bg = "#ecfdf5" if v == 0 else ("#fffbeb" if v <= 2 else "#fef2f2")
+        fg = "#34d399" if v == 0 else ("#fbbf24" if v <= 2 else "#f87171")
+        bg = THEME["success_bg"] if v == 0 else (THEME["warning_bg"] if v <= 2 else THEME["danger_bg"])
         self.therm_val_lbl.configure(text=names[v], text_color=fg, fg_color=bg)
         self._update_phone_status_bar()
         self._update_phone_app_feedback()
@@ -3990,11 +4015,11 @@ class PerturbationStudioApp(ctk.CTk):
     def _update_bat_lbl(self, val):
         v = int(val)
         if v >= 35:
-            fg, bg = "#047857", "#ecfdf5"
+            fg, bg = "#34d399", THEME["success_bg"]
         elif v >= 15:
-            fg, bg = "#b45309", "#fffbeb"
+            fg, bg = "#fbbf24", THEME["warning_bg"]
         else:
-            fg, bg = "#b91c1c", "#fef2f2"
+            fg, bg = "#f87171", THEME["danger_bg"]
         self.bat_val_lbl.configure(text=f"{v}%", text_color=fg, fg_color=bg)
         self._update_phone_status_bar()
         self._update_phone_app_feedback()
@@ -4003,19 +4028,19 @@ class PerturbationStudioApp(ctk.CTk):
     def _update_lat_lbl(self, val):
         v = int(val)
         if v <= 200:
-            fg, bg = "#0284c7", "#eff6ff"
+            fg, bg = "#38bdf8", THEME["accent_sky_subtle"]
         elif v <= 1000:
-            fg, bg = "#d97706", "#fffbeb"
+            fg, bg = "#fbbf24", THEME["warning_bg"]
         else:
-            fg, bg = "#dc2626", "#fef2f2"
+            fg, bg = "#f87171", THEME["danger_bg"]
         self.lat_val_lbl.configure(text=f"{v} ms", text_color=fg, fg_color=bg)
         self._update_phone_status_bar()
         self._update_phone_app_feedback()
 
     def _update_loss_lbl(self, val):
         v = int(val)
-        fg = "#0284c7" if v == 0 else ("#d97706" if v <= 5 else "#dc2626")
-        bg = "#eff6ff" if v == 0 else ("#fffbeb" if v <= 5 else "#fef2f2")
+        fg = "#38bdf8" if v == 0 else ("#fbbf24" if v <= 5 else "#f87171")
+        bg = THEME["accent_sky_subtle"] if v == 0 else (THEME["warning_bg"] if v <= 5 else THEME["danger_bg"])
         self.loss_val_lbl.configure(text=f"{v}%", text_color=fg, fg_color=bg)
 
     def _update_font_lbl(self, val):
@@ -4024,7 +4049,7 @@ class PerturbationStudioApp(ctk.CTk):
     def _on_night_switch(self):
         is_night = self.night_switch.get() == 1
         self.orchestrator.context.set_dark_mode(is_night)
-        self.phone_content_area.configure(fg_color="#090d16" if is_night else "#f8fafc")
+        self.phone_content_area.configure(fg_color="#090d16" if is_night else "#1e293b")
         self.app_title_lbl.configure(text_color="#ffffff" if is_night else "#0f172a")
         self._append_log(f"CONTEXT: Display Night Mode set to {'yes' if is_night else 'no'}")
 
