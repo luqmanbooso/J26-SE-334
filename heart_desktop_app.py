@@ -327,6 +327,53 @@ class PerturbationStudioApp(ctk.CTk):
         )
         self.stop_app_btn.pack(side="left", padx=3)
 
+        # Telephony & Push Interruption Triggers
+        self.hdr_call_btn = ctk.CTkButton(
+            tb_center,
+            text="📞 Call Interrupt",
+            height=28,
+            width=112,
+            corner_radius=6,
+            fg_color="#fef2f2",
+            hover_color="#fee2e2",
+            border_width=1,
+            border_color="#fecaca",
+            text_color="#dc2626",
+            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
+            command=self.toggle_incoming_call
+        )
+        self.hdr_call_btn.pack(side="left", padx=3)
+
+        self.hdr_sms_btn = ctk.CTkButton(
+            tb_center,
+            text="💬 SMS Interrupt",
+            height=28,
+            width=112,
+            corner_radius=6,
+            fg_color="#ecfdf5",
+            hover_color="#d1fae5",
+            border_width=1,
+            border_color="#a7f3d0",
+            text_color="#059669",
+            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
+            command=self.dispatch_sms_notification
+        )
+        self.hdr_sms_btn.pack(side="left", padx=3)
+
+        self.hdr_telephony_cfg_btn = ctk.CTkButton(
+            tb_center,
+            text="⚙️",
+            height=28,
+            width=32,
+            corner_radius=6,
+            fg_color="#f1f5f9",
+            hover_color="#e2e8f0",
+            text_color="#475569",
+            font=ctk.CTkFont(family="Segoe UI", size=11),
+            command=self._open_telephony_modal
+        )
+        self.hdr_telephony_cfg_btn.pack(side="left", padx=(1, 3))
+
         # Right Section: Export Audit & Test Verification
         tb_right = ctk.CTkFrame(self.studio_main_toolbar, fg_color="transparent")
         tb_right.pack(side="right", padx=12, pady=6)
@@ -2190,7 +2237,9 @@ class PerturbationStudioApp(ctk.CTk):
             ("●", "Home", self._phone_on_home_clicked, "#334155"),
             ("■", "Overview", self._phone_on_recents_clicked, "#334155"),
             ("📸", "Screenshot", self.capture_adb_screen, "#334155"),
-            ("⚙️", "Extended", lambda: messagebox.showinfo("Extended Controls", "Android Emulator Extended Controls:\n\n• Cellular Network: 5G/LTE\n• Battery: 100% (AC)\n• Fingerprint Sensor: Enrolled\n• Virtual Sensors: Accelerometer/Gyro Active"), "#4f46e5")
+            ("📞", "Incoming Call", self.toggle_incoming_call, "#dc2626"),
+            ("💬", "Incoming SMS", self.dispatch_sms_notification, "#059669"),
+            ("⚙️", "Telephony Config", self._open_telephony_modal, "#4f46e5")
         ]
 
         for icon, tip, cmd, col in emu_tool_btns:
@@ -4629,17 +4678,17 @@ class PerturbationStudioApp(ctk.CTk):
         messagebox.showinfo("LMK Trim Dispatched", f"Broadcasted Low Memory Killer intent:\n\n{level}\nTarget: com.android.settings")
 
     def dispatch_incoming_call(self):
-        num = self.phone_entry.get().strip() or "15550192831"
+        num = (getattr(self, "phone_entry", None) and self.phone_entry.get().strip()) or "15550192831"
         self.orchestrator.interruption.trigger_incoming_call(num)
-        self._append_log(f"ADB_EMU: gsm call {num} -> Ringing")
-        self.status_lbl.configure(text=f"Dispatched incoming GSM call from {num}")
+        self._append_log(f"ADB_CALL: Incoming call preemption from {num} -> Ringing")
+        self.status_lbl.configure(text=f"Dispatched incoming call interruption from {num}")
 
         # Show Live Call Overlay on Phone Display!
         self._show_phone_call_ui(num)
 
     def dismiss_incoming_call(self):
         self.orchestrator.interruption.dismiss_call()
-        self._append_log("ADB_EMU: gsm cancel -> Telephony call ended")
+        self._append_log("ADB_CALL: Telephony call dismissed / terminated")
         self.status_lbl.configure(text="Incoming call cancelled / terminated")
         self._dismiss_phone_call_ui()
 
@@ -4647,6 +4696,8 @@ class PerturbationStudioApp(ctk.CTk):
         self.current_call_active = True
         if hasattr(self, "call_action_btn"):
             self.call_action_btn.configure(text="📵 End Call", fg_color="#dc2626")
+        if hasattr(self, "hdr_call_btn"):
+            self.hdr_call_btn.configure(text="📵 End Call", fg_color="#dc2626", text_color="#ffffff")
         for widget in self.call_overlay.winfo_children():
             widget.destroy()
 
@@ -4664,6 +4715,8 @@ class PerturbationStudioApp(ctk.CTk):
         self.current_call_active = False
         if hasattr(self, "call_action_btn"):
             self.call_action_btn.configure(text="📞 Simulate Call", fg_color=THEME["accent_rose"])
+        if hasattr(self, "hdr_call_btn"):
+            self.hdr_call_btn.configure(text="📞 Call Interrupt", fg_color="#fef2f2", text_color="#dc2626")
         self.call_overlay.pack_forget()
 
     def accept_call_phone(self):
@@ -4675,9 +4728,9 @@ class PerturbationStudioApp(ctk.CTk):
         ctk.CTkButton(self.call_overlay, text="End Call", width=90, height=28, fg_color="#dc2626", command=self.dismiss_incoming_call).pack(pady=(4, 12))
 
     def dispatch_sms_notification(self):
-        msg = self.sms_entry.get().strip() or "Verification Code"
+        msg = (getattr(self, "sms_entry", None) and self.sms_entry.get().strip()) or "Verification Code: 849-204"
         self.orchestrator.interruption.trigger_sms_notification(msg)
-        self._append_log(f"ADB_EMU: sms send 15550192831 \"{msg}\"")
+        self._append_log(f'ADB_SMS: Injected heads-up SMS notification banner -> "{msg}"')
         self.status_lbl.configure(text="Dispatched heads-up SMS notification banner")
 
         # Show Floating Heads-Up Banner on phone display!
@@ -4691,6 +4744,179 @@ class PerturbationStudioApp(ctk.CTk):
         ctk.CTkLabel(self.sms_toast_banner, text=msg, font=ctk.CTkFont(family="Segoe UI", size=10), text_color="#f8fafc", wraplength=260, justify="left").pack(anchor="w", padx=8, pady=(0, 6))
 
         self.sms_toast_banner.pack(fill="x", padx=6, pady=(4, 6), before=self.app_nav)
+
+    def _open_telephony_modal(self):
+        """Dedicated modal to configure and trigger telephony and SMS interruptions."""
+        if hasattr(self, "_telephony_modal") and self._telephony_modal.winfo_exists():
+            self._telephony_modal.focus()
+            return
+
+        modal = ctk.CTkToplevel(self)
+        self._telephony_modal = modal
+        modal.title("Telephony & Push Notification Simulation")
+        modal.geometry("540x480")
+        modal.resizable(False, False)
+        modal.configure(fg_color="#ffffff")
+        modal.transient(self)
+
+        # Header
+        hdr = ctk.CTkFrame(modal, fg_color="#f8fafc", corner_radius=0, height=54, border_width=1, border_color="#e2e8f0")
+        hdr.pack(fill="x", side="top")
+        hdr.pack_propagate(False)
+        ctk.CTkLabel(
+            hdr,
+            text="🔔 Telephony & Push Interruption Simulator",
+            font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"),
+            text_color="#0f172a"
+        ).pack(side="left", padx=16)
+
+        body = ctk.CTkFrame(modal, fg_color="transparent")
+        body.pack(fill="both", expand=True, padx=20, pady=16)
+
+        # Section 1: Incoming Phone Call
+        call_card = ctk.CTkFrame(body, fg_color="#ffffff", corner_radius=8, border_width=1, border_color="#e2e8f0")
+        call_card.pack(fill="x", pady=(0, 12))
+
+        ctk.CTkLabel(
+            call_card,
+            text="📞 INCOMING CALL PREEMPTION",
+            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
+            text_color="#dc2626"
+        ).pack(anchor="w", padx=14, pady=(10, 4))
+
+        call_row = ctk.CTkFrame(call_card, fg_color="transparent")
+        call_row.pack(fill="x", padx=14, pady=(0, 10))
+
+        m_phone_entry = ctk.CTkEntry(
+            call_row,
+            placeholder_text="15550192831",
+            height=30,
+            fg_color="#ffffff",
+            border_color="#cbd5e1",
+            text_color="#0f172a",
+            font=ctk.CTkFont(family="Segoe UI", size=10),
+            corner_radius=6
+        )
+        cur_num = (getattr(self, "phone_entry", None) and self.phone_entry.get().strip()) or "15550192831"
+        m_phone_entry.insert(0, cur_num)
+        m_phone_entry.pack(side="left", fill="x", expand=True, padx=(0, 8))
+
+        def _modal_fire_call():
+            num = m_phone_entry.get().strip() or "15550192831"
+            if hasattr(self, "phone_entry"):
+                self.phone_entry.delete(0, "end")
+                self.phone_entry.insert(0, num)
+            self.dispatch_incoming_call()
+
+        def _modal_dismiss_call():
+            self.dismiss_incoming_call()
+
+        ctk.CTkButton(
+            call_row,
+            text="📞 Ring Call",
+            width=90,
+            height=30,
+            fg_color="#dc2626",
+            hover_color="#b91c1c",
+            text_color="#ffffff",
+            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
+            corner_radius=6,
+            command=_modal_fire_call
+        ).pack(side="left", padx=2)
+
+        ctk.CTkButton(
+            call_row,
+            text="📵 End",
+            width=70,
+            height=30,
+            fg_color="#f1f5f9",
+            hover_color="#fee2e2",
+            text_color="#dc2626",
+            border_width=1,
+            border_color="#fecaca",
+            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
+            corner_radius=6,
+            command=_modal_dismiss_call
+        ).pack(side="left", padx=2)
+
+        # Section 2: Incoming SMS Notification Banner
+        sms_card = ctk.CTkFrame(body, fg_color="#ffffff", corner_radius=8, border_width=1, border_color="#e2e8f0")
+        sms_card.pack(fill="x", pady=(0, 12))
+
+        ctk.CTkLabel(
+            sms_card,
+            text="💬 INCOMING SMS NOTIFICATION BANNER",
+            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
+            text_color="#059669"
+        ).pack(anchor="w", padx=14, pady=(10, 4))
+
+        m_sms_entry = ctk.CTkEntry(
+            sms_card,
+            placeholder_text="Your verification code is 849-204.",
+            height=30,
+            fg_color="#ffffff",
+            border_color="#cbd5e1",
+            text_color="#0f172a",
+            font=ctk.CTkFont(family="Segoe UI", size=10),
+            corner_radius=6
+        )
+        cur_sms = (getattr(self, "sms_entry", None) and self.sms_entry.get().strip()) or "Your verification code is 849-204."
+        m_sms_entry.insert(0, cur_sms)
+        m_sms_entry.pack(fill="x", padx=14, pady=(0, 8))
+
+        def _modal_fire_sms():
+            msg = m_sms_entry.get().strip() or "Verification Code: 948-201"
+            if hasattr(self, "sms_entry"):
+                self.sms_entry.delete(0, "end")
+                self.sms_entry.insert(0, msg)
+            self.dispatch_sms_notification()
+
+        sms_btn_row = ctk.CTkFrame(sms_card, fg_color="transparent")
+        sms_btn_row.pack(fill="x", padx=14, pady=(0, 10))
+
+        ctk.CTkButton(
+            sms_btn_row,
+            text="💬 Send SMS Notification",
+            height=30,
+            fg_color="#059669",
+            hover_color="#047857",
+            text_color="#ffffff",
+            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
+            corner_radius=6,
+            command=_modal_fire_sms
+        ).pack(side="left", padx=(0, 6))
+
+        # Section 3: Target Hardware vs Emulator routing
+        target_card = ctk.CTkFrame(body, fg_color="#f8fafc", corner_radius=8, border_width=1, border_color="#e2e8f0")
+        target_card.pack(fill="x", pady=(0, 6))
+
+        dev_lbl = "Physical Phone (Xiaomi 23129RAA4G)" if not self.orchestrator.adb.is_simulated else "Virtual Environment"
+        ctk.CTkLabel(
+            target_card,
+            text=f"🎯 Target Device: {dev_lbl}",
+            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
+            text_color="#334155"
+        ).pack(anchor="w", padx=12, pady=(8, 2))
+
+        ctk.CTkLabel(
+            target_card,
+            text="• Physical Phone: Uses Android Heads-up SMS Banner and Call Preemption.\n• Virtual Emulator: Injects full GSM cellular baseband calls and SMS into inbox.",
+            font=ctk.CTkFont(family="Segoe UI", size=9),
+            text_color="#64748b",
+            justify="left"
+        ).pack(anchor="w", padx=12, pady=(0, 8))
+
+        ctk.CTkButton(
+            body,
+            text="🚀 Boot Virtual Emulator (Pixel 9 Pro)",
+            height=32,
+            fg_color="#4f46e5",
+            hover_color="#4338ca",
+            text_color="#ffffff",
+            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
+            corner_radius=6,
+            command=self._launch_real_avd_async
+        ).pack(fill="x", pady=(4, 0))
 
     def toggle_doze_mode(self):
         self.is_doze_active = not self.is_doze_active
