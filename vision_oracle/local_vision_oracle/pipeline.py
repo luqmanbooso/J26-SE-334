@@ -219,6 +219,23 @@ class FindingParser:
             )
             return findings, errors
 
+        # R6: Cross-validate mixed schemas to prevent contradictory clean verdicts
+        if has_findings_key and has_defect_key:
+            findings_list = parsed.get("findings")
+            has_defect_val = parsed.get("has_defect")
+            if isinstance(has_defect_val, bool) and isinstance(findings_list, list):
+                if has_defect_val and len(findings_list) == 0:
+                    errors.append(
+                        f"Contradictory mixed schema in view '{view.view_id}': 'has_defect' is True but 'findings' list is empty. "
+                        f"Cannot determine valid defect state."
+                    )
+                    return findings, errors
+                if not has_defect_val and len(findings_list) > 0:
+                    errors.append(
+                        f"Contradictory mixed schema in view '{view.view_id}': 'has_defect' is False but 'findings' list contains {len(findings_list)} items."
+                    )
+                    return findings, errors
+
         valid_defect_types = {t.value for t in FindingType}
 
         # Check V2 schema
@@ -255,6 +272,8 @@ class FindingParser:
                 if raw_box is not None:
                     if not isinstance(raw_box, (list, tuple)) or len(raw_box) != 4:
                         errors.append(f"Invalid bounding box in view '{view.view_id}': must contain exactly 4 coordinates, got {raw_box}")
+                    elif any(isinstance(c, bool) for c in raw_box):
+                        errors.append(f"Invalid bounding box in view '{view.view_id}': coordinates cannot be boolean, got {raw_box}")
                     else:
                         try:
                             ymin, xmin, ymax, xmax = [float(c) for c in raw_box]
@@ -279,7 +298,7 @@ class FindingParser:
                 confidence = None
                 conf_method = "unavailable"
                 if conf_raw is not None:
-                    if not isinstance(conf_raw, (int, float)) or math.isnan(conf_raw) or math.isinf(conf_raw) or conf_raw < 0.0 or conf_raw > 1.0:
+                    if isinstance(conf_raw, bool) or not isinstance(conf_raw, (int, float)) or math.isnan(conf_raw) or math.isinf(conf_raw) or conf_raw < 0.0 or conf_raw > 1.0:
                         errors.append(f"Invalid non-finite or out-of-range confidence '{conf_raw}' in view '{view.view_id}'")
                     else:
                         confidence = float(conf_raw)
@@ -346,6 +365,8 @@ class FindingParser:
             if raw_box is not None:
                 if not isinstance(raw_box, (list, tuple)) or len(raw_box) != 4:
                     errors.append(f"Invalid legacy bounding box in view '{view.view_id}': must contain exactly 4 coordinates, got {raw_box}")
+                elif any(isinstance(c, bool) for c in raw_box):
+                    errors.append(f"Invalid legacy bounding box in view '{view.view_id}': coordinates cannot be boolean, got {raw_box}")
                 else:
                     try:
                         ymin, xmin, ymax, xmax = [float(c) for c in raw_box]
@@ -370,7 +391,7 @@ class FindingParser:
             confidence = None
             conf_method = "unavailable"
             if conf_raw is not None:
-                if not isinstance(conf_raw, (int, float)) or math.isnan(conf_raw) or math.isinf(conf_raw) or conf_raw < 0.0 or conf_raw > 1.0:
+                if isinstance(conf_raw, bool) or not isinstance(conf_raw, (int, float)) or math.isnan(conf_raw) or math.isinf(conf_raw) or conf_raw < 0.0 or conf_raw > 1.0:
                     errors.append(f"Invalid non-finite or out-of-range confidence '{conf_raw}' in view '{view.view_id}'")
                 else:
                     confidence = float(conf_raw)

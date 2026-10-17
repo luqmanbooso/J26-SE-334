@@ -1602,7 +1602,8 @@ class PerturbationStudioApp(ctk.CTk):
                 )
                 self.after(0, lambda: self._update_vision_ui_results(res, file_path))
             except Exception as exc:
-                self.after(0, lambda: self._handle_vision_error(str(exc)))
+                err_msg = str(exc)
+                self.after(0, lambda msg=err_msg: self._handle_vision_error(msg))
 
         threading.Thread(target=_worker, daemon=True).start()
 
@@ -1627,9 +1628,11 @@ class PerturbationStudioApp(ctk.CTk):
                 art_path = res.get("verdict_v2", {}).get("screenshot", {}).get("storage_path")
                 self.after(0, lambda: self._update_vision_ui_results(res, art_path))
             except NoDeviceError as nde:
-                self.after(0, lambda: self._handle_vision_error(f"ADB NoDeviceError: {nde}. Attach device or select Local Image Mode."))
+                nde_msg = f"ADB NoDeviceError: {nde}. Attach device or select Local Image Mode."
+                self.after(0, lambda msg=nde_msg: self._handle_vision_error(msg))
             except Exception as exc:
-                self.after(0, lambda: self._handle_vision_error(str(exc)))
+                err_msg = str(exc)
+                self.after(0, lambda msg=err_msg: self._handle_vision_error(msg))
 
         threading.Thread(target=_worker, daemon=True).start()
 
@@ -1720,9 +1723,11 @@ class PerturbationStudioApp(ctk.CTk):
 
         # 4. Stream Log Text
         timings = v2.get("timings_ms", {})
+        total_time = timings.get('total_pipeline_ms', timings.get('pipeline_total_ms', 0))
+        infer_time = timings.get('inference_ms', timings.get('inference_total_ms', 0))
         self.vision_log_box.insert("end", f"[Verdict ID] {v2.get('verdict_id')}\n")
         self.vision_log_box.insert("end", f"[Decision] {decision.upper()} | Status: {status.upper()} | Handover: {handover_outcome}\n")
-        self.vision_log_box.insert("end", f"[Timings] Total: {timings.get('pipeline_total_ms', 0):.1f}ms (Inference: {timings.get('inference_total_ms', 0):.1f}ms)\n")
+        self.vision_log_box.insert("end", f"[Timings] Total: {total_time:.1f}ms (Inference: {infer_time:.1f}ms)\n")
         if primary_finding:
             self.vision_log_box.insert("end", f"[Primary Finding] {primary_finding.get('type')} (Confidence: {conf_str})\n")
         self.vision_log_box.insert("end", f"[C4 Dispatch Status] Handover outcome: {handover_outcome}\n---\n")

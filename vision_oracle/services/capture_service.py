@@ -99,10 +99,24 @@ class CaptureService:
             if cap.action_id == action_id:
                 logger.info("Idempotent hit: action_id '%s' already captured in capture '%s'", action_id, cap.capture_id)
                 existing_job = self._repo.get_job_by_capture(cap.capture_id)
+                job_id = None
+                if existing_job and existing_job.get("state") not in (JobState.FAILED.value, None):
+                    job_id = existing_job.get("job_id")
+                else:
+                    # R8: Retry job admission if prior admission failed or never occurred
+                    try:
+                        from vision_oracle.services.oracle_service import get_oracle_service
+                        svc = get_oracle_service()
+                        sub_res = svc.submit_job(capture_id=cap.capture_id, session_id=session_id)
+                        job_id = sub_res.get("job_id")
+                    except Exception as retry_err:
+                        logger.warning("Failed to admit job on capture retry: %s", retry_err)
+                        job_id = None
+
                 return {
                     "status": "already_captured",
                     "capture_id": cap.capture_id,
-                    "job_id": existing_job["job_id"] if existing_job else None,
+                    "job_id": job_id,
                     "action_id": action_id,
                     "session_id": session_id,
                     "idempotent": True,

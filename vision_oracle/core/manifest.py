@@ -119,7 +119,7 @@ def get_model_manifest() -> Dict[str, Any]:
         },
         "generation": {
             "max_new_tokens": 160,
-            "temperature": 0.01,
+            "temperature": 0.0,
             "do_sample": False,
             "repetition_penalty": 1.05,
         },

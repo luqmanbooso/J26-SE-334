@@ -65,6 +65,7 @@ class ReviewStatus(str, Enum):
 class CoveragePolicy(str, Enum):
     """Scanning and view coverage policy."""
     GLOBAL_ONLY = "global_only"
+    GLOBAL_ONLY_V1 = "global_only"
     GLOBAL_PLUS_TILES_V1 = "global_plus_tiles_v1"
 
 
