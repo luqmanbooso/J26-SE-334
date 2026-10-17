@@ -21,6 +21,24 @@ concurrency:
 
 jobs:
   # =========================================================================
+  # STAGE 0: REPOSITORY GOVERNANCE & PR BRANCH MERGE POLICY
+  # =========================================================================
+  branch-policy:
+    name: 🛡️ Enforce develop -> main PR Policy
+    if: github.event_name == 'pull_request' && (github.base_ref == 'main' || github.base_ref == 'master')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate Source Branch
+        run: |
+          echo "PR Target Base Branch: ${{ github.base_ref }}"
+          echo "PR Source Head Branch: ${{ github.head_ref }}"
+          if [ "${{ github.head_ref }}" != "develop" ]; then
+            echo "::error::Direct PRs to '${{ github.base_ref }}' from '${{ github.head_ref }}' are forbidden. Merge feature branch into 'develop' first."
+            exit 1
+          fi
+          echo "✅ Source branch is 'develop'. Permitted to merge into '${{ github.base_ref }}'."
+
+  # =========================================================================
   # STAGE 1: SYNTAX & CODE QUALITY AUDIT
   # =========================================================================
   quality-check:
@@ -79,7 +97,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r "env testing/requirements.txt"
           pip install -r "biometry/requirements.txt"
-          pip install -r "self heal telemetry/requirements.txt"
+          pip install -r "vision_oracle/requirements.txt"
+          pip install -e component4
           pip install pytest pytest-cov httpx pillow pyyaml customtkinter psutil python-multipart pydantic
 
       - name: Run Pytest Test Suite (whole repository)
@@ -168,7 +187,6 @@ jobs:
             cat live_probe.log >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi
-
 
 
 
