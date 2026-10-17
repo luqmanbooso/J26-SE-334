@@ -63,9 +63,20 @@ class AppiumScriptGenerator:
             "    except Exception:",
             "        pass",
             "",
+            "def _snapshot(driver, index: int) -> None:",
+            '    if os.environ.get("C4_CAPTURE_BASELINE") != "1":',
+            "        return",
+            '    run_dir = Path(os.environ.get("C4_RUN_DIR", ".")) / "baseline"',
+            "    try:",
+            "        run_dir.mkdir(parents=True, exist_ok=True)",
+            '        (run_dir / f"step_{index}.xml").write_text(driver.page_source, encoding="utf-8")',
+            "    except Exception:",
+            "        pass",
+            "",
         ]
         for step in step_list:
             lines.append(f"def step_{step.index}(driver) -> None:")
+            lines.append(f"    _snapshot(driver, {step.index})")
             lines.extend(_render_step(step))
             lines.append("")
         lines.append(f"STEPS = ({', '.join(f'step_{step.index}' for step in step_list)}{',' if step_list else ''})")
