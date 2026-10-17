@@ -8,16 +8,14 @@ the device instead of a stub.
 """
 import argparse
 
-import numpy as np
-
 from bridge.adb_bridge import ADBBridge
 from bridge.device import AdbDispatcher
 from bridge.frame_probe import FrameProbe
 from bridge.hierarchy import parse_hierarchy, tappable_targets
 from engine.controller import AdaptiveFeedbackController
 from engine.visualise import plot_timeline
-from models.cognitive import CognitiveStateModel, StaticStress
-from simulation.simulator import BiometricSimulator
+from models.cognitive import StaticStress
+from models.profiles import PROFILES, build_engine
 
 
 def main():
@@ -32,6 +30,8 @@ def main():
                     help="device scale; read from the device when omitted")
     ap.add_argument("--package", default=None,
                     help="app under test; read from the foreground window when omitted")
+    ap.add_argument("--profile", default="default", choices=sorted(PROFILES),
+                    help="named behaviour profile (IF-Orchestrator-to-C2)")
     ap.add_argument("--out", default="results/live_run")
     args = ap.parse_args()
 
@@ -66,15 +66,18 @@ def main():
         raise SystemExit("no tappable elements on the current screen")
     print(f"[live] {len(targets)} tappable targets on screen")
 
-    source = (StaticStress(args.stress) if args.static
-              else CognitiveStateModel(rng=np.random.default_rng(args.seed)))
+    simulator, source = build_engine(args.profile, seed=args.seed, px_per_mm=px_per_mm)
+    if args.static:
+        source = StaticStress(args.stress)
+    print(f"[live] behaviour profile: {args.profile}")
 
     controller = AdaptiveFeedbackController(
-        simulator=BiometricSimulator(px_per_mm=px_per_mm, seed=args.seed),
+        simulator=simulator,
         cognitive=source,
         probe=FrameProbe(bridge.device, package),
         dispatch=AdbDispatcher(bridge),
         run_id=f"live-{'static' if args.static else 'adaptive'}",
+        persona_id=args.profile,
     )
 
     for i in range(args.actions):
