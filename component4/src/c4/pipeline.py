@@ -134,8 +134,9 @@ class Pipeline:
                 and execution.failure is not None
                 and execution.failure.kind is FailureKind.LOCATOR_NOT_FOUND
             ):
-                if isinstance(self.healer.baseline_store, BaselineStore):
-                    self.healer.baseline_store.save_from_run(safe_id, root / safe_id)
+                baseline_store = getattr(self.healer, "baseline_store", None)
+                if isinstance(baseline_store, BaselineStore):
+                    baseline_store.save_from_run(safe_id, root / safe_id)
                 healing = self.healer.heal_and_rerun(
                     result, execution, root / safe_id, safe_id
                 )
