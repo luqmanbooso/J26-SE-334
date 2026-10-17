@@ -58,6 +58,36 @@ def c1_events_during(events, start_ms, end_ms):
     return [e for e in events if start_ms <= e.get("epoch_ms", 0) <= end_ms]
 
 
+# Reset/clear actions end a held perturbation.
+_PROFILE_APPLY = "PROFILE_APPLIED"
+
+
+def governing_profile(events, arm_start_ms):
+    """The profile HELD while an arm ran, not events inside its window.
+
+    C1's --exec wrapper applies a profile *before* the arm, holds it *during*
+    (a continuous state that logs nothing), and resets *after*. So the arm runs
+    in the quiet gap between apply and reset, and 'events inside the window' is
+    empty by construction. The real correlation is: the last PROFILE_APPLIED
+    at or before the arm started, provided no full reset landed between that
+    apply and the arm start.
+    """
+    applied = [e for e in events
+               if e.get("action") == _PROFILE_APPLY
+               and e.get("epoch_ms", 0) <= arm_start_ms]
+    if not applied:
+        return None
+    last = max(applied, key=lambda e: e["epoch_ms"])
+    reset_between = any(e.get("action") in RESET_ACTIONS
+                        and last["epoch_ms"] < e.get("epoch_ms", 0) <= arm_start_ms
+                        for e in events)
+    if reset_between:
+        return None
+    return {"profile_name": last.get("parameters", {}).get("profile_name"),
+            "chaos_score": last.get("parameters", {}).get("chaos_score"),
+            "applied_t_offset_s": round((last["epoch_ms"] - arm_start_ms) / 1000, 1)}
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("session", help="session folder, e.g. results/exp-02/mon-3g")
@@ -92,6 +122,7 @@ def main():
         if start is not None and events:
             end = start + int(arm.get("elapsed_s", 0) * 1000) + 1000
             during = c1_events_during(events, start, end)
+            arms[name]["c1_governing_profile"] = governing_profile(events, start)
             arms[name]["c1_events_during_arm"] = [
                 {"t_offset_s": round((e["epoch_ms"] - start) / 1000, 1),
                  "action": e["action"], "category": e["category"]}
