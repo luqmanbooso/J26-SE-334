@@ -1,0 +1,328 @@
+{
+  "info": {
+    "_postman_id": "c3-vision-oracle-collection-2026",
+    "name": "HEART Component 3 - Vision Oracle API",
+    "description": "Postman test suite for Component 3 (Localized Multimodal Vision-Semantic Test Oracle, J26-SE-334). Covers health status, synchronous image evaluation, ADB live device inspection, non-blocking C2 async trigger queue, temporal freeze detection, and C4 verdict ledgers.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8003",
+      "type": "string"
+    },
+    {
+      "key": "latest_verdict_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. System Health & Device Telemetry",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Response is nominal and zero cloud egress', function () {",
+              "    var data = pm.response.json();",
+              "    pm.expect(data.status).to.eql('nominal');",
+              "    pm.expect(data.zero_cloud_egress).to.eql(true);",
+              "    pm.expect(data).to.have.property('engine_descriptor');",
+              "    pm.expect(data).to.have.property('compute_device');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/status",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "status"]
+        }
+      }
+    },
+    {
+      "name": "2. C2 Non-Blocking Trigger Queue (FR6)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 202 Accepted', function () {",
+              "    pm.response.to.have.status(202);",
+              "});",
+              "",
+              "pm.test('Returns enqueued confirmation in <50ms without blocking', function () {",
+              "    var data = pm.response.json();",
+              "    pm.expect(data.status).to.eql('enqueued');",
+              "    pm.expect(data.action_id).to.eql('c2_stress_swipe_42');",
+              "    pm.expect(data.non_blocking).to.eql(true);",
+              "    pm.expect(pm.response.responseTime).to.be.below(100);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"action_id\": \"c2_stress_swipe_42\",\n  \"session_id\": \"postman_live_session\",\n  \"target_element_id\": \"com.shop:id/checkout_btn\",\n  \"stress_level\": 0.85,\n  \"delay_ms\": 150.0\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/oracle/trigger",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "oracle", "trigger"]
+        }
+      }
+    },
+    {
+      "name": "3. Synchronous Multimodal Image & DOM Evaluation",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Contains C3OracleResult and C4 C3Verdict envelope', function () {",
+              "    var data = pm.response.json();",
+              "    pm.expect(data).to.have.property('oracle_result');",
+              "    pm.expect(data).to.have.property('c4_verdict');",
+              "    ",
+              "    var c4 = data.c4_verdict;",
+              "    pm.expect(c4.schema_version).to.eql('1.0.0');",
+              "    pm.expect(c4).to.have.property('verdict_id');",
+              "    pm.expect(c4).to.have.property('has_gui_defect');",
+              "    pm.expect(c4.confidence).to.be.within(0.0, 1.0);",
+              "    ",
+              "    // Store verdict_id in collection variable for subsequent query",
+              "    pm.collectionVariables.set('latest_verdict_id', c4.verdict_id);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"image_path\": \"vision_oracle/notebooks/opening_screen.png\",\n  \"hierarchy_xml\": \"<hierarchy><node class=\\\"android.widget.TextView\\\" text=\\\"Cart\\\" bounds=\\\"[100,200][500,300]\\\"/></hierarchy>\",\n  \"screen_id\": \"CartActivity\",\n  \"session_id\": \"postman_live_session\",\n  \"action_context\": \"User tapped cart button\",\n  \"enable_sahi\": true\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/oracle/evaluate",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "oracle", "evaluate"]
+        }
+      }
+    },
+    {
+      "name": "4. Temporal Freeze Sequence Evaluation (FR3)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Flags frozen state defect on consecutive identical frames', function () {",
+              "    var data = pm.response.json();",
+              "    var c4 = data.c4_verdict;",
+              "    pm.expect(c4.has_gui_defect).to.eql(true);",
+              "    pm.expect(c4.defect_type).to.eql('frozen_state');",
+              "    pm.expect(c4.confidence).to.be.at.least(0.9);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"image_paths\": [\n    \"vision_oracle/notebooks/opening_screen.png\",\n    \"vision_oracle/notebooks/opening_screen.png\"\n  ],\n  \"time_delta_s\": 3.0,\n  \"action_dispatched\": true,\n  \"action_context\": \"Tap Submit Button\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/oracle/sequence",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "oracle", "sequence"]
+        }
+      }
+    },
+    {
+      "name": "5. Live Android Device Evaluation (ADB)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200 or 503 if no device connected', function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 503]);",
+              "});",
+              "",
+              "if (pm.response.code === 200) {",
+              "    pm.test('Live phone screen evaluated', function () {",
+              "        var data = pm.response.json();",
+              "        pm.expect(data).to.have.property('oracle_result');",
+              "        pm.expect(data).to.have.property('c4_verdict');",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/oracle/evaluate_device?action_context=Live+Phone+Inspection",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "oracle", "evaluate_device"],
+          "query": [
+            {
+              "key": "action_context",
+              "value": "Live+Phone+Inspection"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "6. Retrieve Recent Verdicts Ledger (FR7)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Returns verdict records list', function () {",
+              "    var data = pm.response.json();",
+              "    pm.expect(data).to.be.an('array');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/oracle/verdicts?limit=20",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "oracle", "verdicts"],
+          "query": [
+            {
+              "key": "limit",
+              "value": "20"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "7. Get Specific Verdict by ID",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200 OK or 404 if no previous verdict', function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+              "});",
+              "",
+              "if (pm.response.code === 200) {",
+              "    pm.test('Verdict ID matches requested ID', function () {",
+              "        var data = pm.response.json();",
+              "        var targetId = pm.collectionVariables.get('latest_verdict_id');",
+              "        pm.expect(data.verdict_id).to.eql(targetId);",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/oracle/verdicts/{{latest_verdict_id}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "oracle", "verdicts", "{{latest_verdict_id}}"]
+        }
+      }
+    }
+  ]
+}

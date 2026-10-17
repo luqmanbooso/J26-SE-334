@@ -1,0 +1,10 @@
+{
+  "package": "com.example.app",
+  "activity": ".MainActivity",
+  "udid": null,
+  "appium_url": "http://127.0.0.1:4723",
+  "adb_path": "adb",
+  "no_reset": true,
+  "new_command_timeout": 120,
+  "setup_commands": []
+}
