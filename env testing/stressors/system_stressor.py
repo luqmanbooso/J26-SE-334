@@ -123,9 +123,18 @@ class SystemStressor(BaseStressor):
         self.current_state["battery_level"] = level
         self.current_state["battery_unplugged"] = unplugged
 
-        if unplugged:
-            self.adb.run_shell("dumpsys battery unplug")
-        self.adb.run_shell(f"dumpsys battery set level {level}")
+        if not self.adb.is_simulated:
+            # Physical Hardware Safety Guard:
+            # Setting level <= 3% triggers Android BatteryService emergency shutdown.
+            # Clamp to minimum 15% on physical devices to safely test low-battery without powering off phone.
+            safe_level = max(15, level)
+            if unplugged:
+                self.adb.run_shell("dumpsys battery unplug")
+            self.adb.run_shell(f"dumpsys battery set level {safe_level}")
+        else:
+            self.adb.simulated_state["battery_level"] = level
+            self.adb.simulated_state["battery_unplugged"] = unplugged
+
         self.logger.record("SYSTEM_POWER", "BATTERY_PRESSURE", {"level": level, "unplugged": unplugged})
 
     def set_thermal_state(self, state: Any = "Warn") -> None:
@@ -146,7 +155,14 @@ class SystemStressor(BaseStressor):
         raw_temp = int(temp_c * 10)
 
         self.current_state["thermal_state"] = state
-        self.adb.run_shell(f"dumpsys battery set temp {raw_temp}")
+        if not self.adb.is_simulated:
+            # Physical Hardware Safety Guard:
+            # Prevent Android thermal shutdown by capping hardware simulated temp at 55C.
+            safe_temp_c = min(55.0, temp_c)
+            self.adb.run_shell(f"dumpsys battery set temp {int(safe_temp_c * 10)}")
+        else:
+            self.adb.simulated_state["battery_temp"] = raw_temp
+
         self.logger.record("SYSTEM_THERMAL", "THERMAL_THROTTLE_PROFILE", {
             "state": state,
             "simulated_temp_c": temp_c
