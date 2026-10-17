@@ -285,9 +285,10 @@ class PerturbationStudioApp(ctk.CTk):
         tb_center = ctk.CTkFrame(self.studio_main_toolbar, fg_color="transparent")
         tb_center.pack(side="left", expand=True, pady=6)
 
+        target_name = self.device_info.get("target_model", "Google Pixel 9 Pro (API 34)")
         self.dev_target_btn = ctk.CTkButton(
             tb_center,
-            text="📱 Google Pixel 9 Pro (API 34) ▾",
+            text=f"📱 {target_name} ▾",
             height=28,
             corner_radius=6,
             fg_color="#f1f5f9",
@@ -2095,12 +2096,16 @@ class PerturbationStudioApp(ctk.CTk):
         phone_head.pack_propagate(False)
 
         # Active Device Tab Pill
+        is_hw = not self.device_info.get("is_simulated", True)
+        dev_label = f"📱 Device: {self.device_info.get('target_model', 'Target Device')} ✕" if is_hw else "📱 Running Devices: Pixel 9 Pro ✕"
+        dev_specs = f"Live Hardware • arm64 • adb:{self.device_info.get('device_id', '5037')}" if is_hw else "1344x2992: 480dpi • arm64 • tcp:5037"
+
         dev_tab = ctk.CTkFrame(phone_head, fg_color="#ffffff", corner_radius=4, border_width=1, border_color="#cbd5e1")
         dev_tab.pack(side="left", padx=4, pady=3)
-        ctk.CTkLabel(dev_tab, text="📱 Running Devices: Pixel 9 Pro ✕", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color="#0f172a").pack(padx=6, pady=1)
+        ctk.CTkLabel(dev_tab, text=dev_label, font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color="#0f172a").pack(padx=6, pady=1)
 
         # Status specs
-        ctk.CTkLabel(phone_head, text="1344x2992: 480dpi • arm64 • tcp:5037", font=ctk.CTkFont(family="Consolas", size=8), text_color="#64748b").pack(side="left", padx=4)
+        ctk.CTkLabel(phone_head, text=dev_specs, font=ctk.CTkFont(family="Consolas", size=8), text_color="#64748b").pack(side="left", padx=4)
 
         phone_head_right = ctk.CTkFrame(phone_head, fg_color="transparent")
         phone_head_right.pack(side="right", padx=4, pady=2)
@@ -2114,7 +2119,7 @@ class PerturbationStudioApp(ctk.CTk):
             selected_hover_color=THEME["primary_hover"],
             font=ctk.CTkFont(family="Segoe UI", size=8, weight="bold")
         )
-        self.emulator_mode_segment.set("📱 Virtual Emulator")
+        self.emulator_mode_segment.set("⚡ Real AVD Bridge" if is_hw else "📱 Virtual Emulator")
         self.emulator_mode_segment.pack(side="left", padx=(0, 4))
 
         ctk.CTkButton(
@@ -4366,7 +4371,15 @@ class PerturbationStudioApp(ctk.CTk):
         bar.pack(fill="x", side="bottom")
         bar.pack_propagate(False)
 
-        self.status_lbl = ctk.CTkLabel(bar, text="System Status: Ready • Environmental Perturbation Engine Active • Target: emulator-5554", font=ctk.CTkFont(family="Segoe UI", size=11), text_color=THEME["text_muted"])
+        dev_name = self.device_info.get("target_model", "Android Target")
+        dev_id = self.device_info.get("device_id", "emulator-5554")
+        mode_str = "Live Hardware ADB" if not self.device_info.get("is_simulated", True) else "Virtual ADB Simulator"
+        self.status_lbl = ctk.CTkLabel(
+            bar,
+            text=f"System Status: Ready • {mode_str} Active • Target: {dev_name} ({dev_id})",
+            font=ctk.CTkFont(family="Segoe UI", size=11),
+            text_color=THEME["text_muted"]
+        )
         self.status_lbl.pack(side="left", padx=16)
 
     # =========================================================================
