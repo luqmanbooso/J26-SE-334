@@ -66,6 +66,7 @@ class HealingService:
         """Heal locator failures and rerun each accepted replacement."""
         rounds: list[HealingRound] = []
         versions: list[int] = []
+        healed_path: Path | None = None
         current_script = synthesis_result.script
         if current_script is None or execution_result.failure is None:
             return self._write(
@@ -90,10 +91,32 @@ class HealingService:
                 or not failure.page_source_path
             ):
                 status = "passed_after_healing" if current_execution.status.value == "passed" else "not_applicable"
-                return self._write(run_dir, HealingOutcome(status, rounds, _script_path(run_dir, round_number - 1), versions))
+                if current_execution.status.value == "passed":
+                    status = "passed_after_healing"
+                elif rounds:
+                    status = "failed_after_healing"
+                else:
+                    status = "not_applicable"
+                return self._write(
+                    run_dir,
+                    HealingOutcome(
+                        final_status=status,
+                        rounds=rounds,
+                        final_script_path=str(healed_path) if healed_path else None,
+                        versions=versions,
+                    ),
+                )
             page_source = Path(failure.page_source_path)
             if not page_source.exists():
-                return self._write(run_dir, HealingOutcome("not_applicable", rounds, None, versions))
+                return self._write(
+                    run_dir,
+                    HealingOutcome(
+                        final_status="not_applicable" if not rounds else "failed_after_healing",
+                        rounds=rounds,
+                        final_script_path=str(healed_path) if healed_path else None,
+                        versions=versions,
+                    ),
+                )
             new_xml = page_source.read_text(encoding="utf-8")
             baseline_xml = (
                 self.baseline_store.load(test_id, failure.step_index)
@@ -110,9 +133,15 @@ class HealingService:
                 rounds.append(HealingRound(decision=decision))
                 return self._write(
                     run_dir,
-                    HealingOutcome("refused", rounds, None, versions),
+                    HealingOutcome(
+                        final_status="refused",
+                        rounds=rounds,
+                        final_script_path=str(healed_path) if healed_path else None,
+                        versions=versions,
+                    ),
                 )
             healed_path = run_dir / f"healed_test_v{round_number}.py"
+            run_dir.mkdir(parents=True, exist_ok=True)
             healed_path.write_text(decision.healed_script, encoding="utf-8")
             if self.repository:
                 parent = versions[-1] if versions else None
@@ -138,11 +167,21 @@ class HealingService:
             if current_execution.status.value == "passed":
                 return self._write(
                     run_dir,
-                    HealingOutcome("passed_after_healing", rounds, str(healed_path), versions),
+                    HealingOutcome(
+                        final_status="passed_after_healing",
+                        rounds=rounds,
+                        final_script_path=str(healed_path),
+                        versions=versions,
+                    ),
                 )
         return self._write(
             run_dir,
-            HealingOutcome("failed_after_healing", rounds, str(healed_path), versions),
+            HealingOutcome(
+                final_status="failed_after_healing",
+                rounds=rounds,
+                final_script_path=str(healed_path) if healed_path else None,
+                versions=versions,
+            ),
         )
 
     @staticmethod
@@ -153,10 +192,3 @@ class HealingService:
             encoding="utf-8",
         )
         return outcome
-
-
-def _script_path(run_dir: Path, round_number: int) -> str | None:
-    if round_number < 1:
-        return None
-    path = run_dir / f"healed_test_v{round_number}.py"
-    return str(path) if path.exists() else None
