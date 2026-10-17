@@ -75,12 +75,15 @@ class AdaptiveFeedbackController:
     generator, which is exactly the ablation.
     """
 
-    def __init__(self, simulator, cognitive, probe, dispatch,
+    def __init__(self, simulator, cognitive, probe, dispatch, notify=None,
                  clock=time.monotonic, run_id="run", persona_id="default"):
         self.simulator = simulator
         self.cognitive = cognitive
         self.probe = probe
         self.dispatch = dispatch
+        # IF-C2-to-C3: called once per completed action, after observation.
+        # Optional - the loop is whole without an oracle attached.
+        self.notify = notify
         self.clock = clock
         self.timeline = StressTimeline(run_id=run_id, persona_id=persona_id)
         self._started = None
@@ -129,6 +132,11 @@ class AdaptiveFeedbackController:
         )
         self.timeline.append(record)
         self._previous_point = (tap["actual"]["x"], tap["actual"]["y"])
+        if self.notify is not None:
+            # After injection completed (bursts included) and the window was
+            # read. The notifier owns the settle wait; a failed POST is its
+            # problem to count, never the loop's to crash on.
+            self.notify(record)
         return record
 
     def run(self, targets):
