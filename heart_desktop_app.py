@@ -2412,6 +2412,7 @@ class PerturbationStudioApp(ctk.CTk):
             pady=3
         )
         self.ev_rq1_badge.grid(row=0, column=0, padx=2, sticky="ew")
+        self.rq1_badge = self.ev_rq1_badge
 
         self.ev_overhead_badge = ctk.CTkLabel(
             ev_metrics,
@@ -2581,6 +2582,18 @@ class PerturbationStudioApp(ctk.CTk):
 
         self.app_pkg_lbl = ctk.CTkLabel(self.app_nav, text="● DALVIK ACTIVE", font=ctk.CTkFont(family="Segoe UI", size=7, weight="bold"), text_color="#34d399", fg_color="#064e3b", corner_radius=4, padx=5, pady=1)
         self.app_pkg_lbl.pack(side="right", padx=8)
+
+        # Warning and status banner on simulated phone screen
+        self.app_warning_banner = ctk.CTkLabel(
+            self.phone_app_body,
+            text="",
+            height=18,
+            corner_radius=4,
+            fg_color="transparent",
+            text_color="#fca5a5",
+            font=ctk.CTkFont(family="Segoe UI", size=8, weight="bold")
+        )
+        self.app_warning_banner.pack(fill="x", padx=4, pady=(0, 2))
 
         # In-App Live Telemetry HUD Bar
         self.phone_hud_frame = ctk.CTkFrame(self.phone_app_body, fg_color="#0f172a", corner_radius=6, border_width=1, border_color="#1e293b")
@@ -4982,10 +4995,21 @@ class PerturbationStudioApp(ctk.CTk):
 
     def _update_thermal_lbl(self, val):
         names = ["0 Normal", "1 Light", "2 Moderate", "3 Severe", "4 Critical"]
-        v = int(val)
+        v = min(max(int(val), 0), 4)
         fg = "#059669" if v == 0 else ("#b45309" if v <= 2 else "#dc2626")
         bg = THEME["success_bg"] if v == 0 else (THEME["warning_bg"] if v <= 2 else THEME["danger_bg"])
-        self.therm_val_lbl.configure(text=names[v], text_color=fg, fg_color=bg)
+        if hasattr(self, "therm_val_lbl") and self.therm_val_lbl:
+            try:
+                self.therm_val_lbl.configure(text=names[v], text_color=fg, fg_color=bg)
+            except Exception:
+                pass
+        if hasattr(self, "thermal_menu") and self.thermal_menu:
+            menu_vals = ["Nominal (Level 0)", "Light (Level 1)", "Moderate (Level 2)", "Severe (Level 3)", "Critical (Level 4)"]
+            if v < len(menu_vals):
+                try:
+                    self.thermal_menu.set(menu_vals[v])
+                except Exception:
+                    pass
         self._update_phone_status_bar()
         self._update_phone_app_feedback()
 
