@@ -22,64 +22,64 @@ from core.profile_parser import ProfileParser, ProfileValidationError  # type: i
 from core.apk_parser import parse_apk_metadata  # type: ignore
 
 # Configure modern dark appearance
-ctk.set_appearance_mode("dark")
+ctk.set_appearance_mode("light")
 ctk.set_default_color_theme("blue")
 
 # Modern Executive Obsidian Dark Theme Design Tokens
 THEME = {
-    "bg_app": "#080c14",               # Deep Obsidian canvas
-    "bg_card": "#0f172a",              # Elevated Slate-900 surface
-    "bg_card_hover": "#1e293b",        # Slate-800 interactive card hover
-    "bg_subtle_box": "#0b1120",        # Deep dark recessed container
-    "border_card": "#1e293b",          # Slate-800 subtle 1px border
-    "border_focus": "#334155",         # Slate-700 active border
-    "text_heading": "#f8fafc",         # Slate-50 crisp high-contrast title
-    "text_body": "#cbd5e1",            # Slate-300 clean readable body
-    "text_muted": "#94a3b8",           # Slate-400 secondary metadata
-    "primary": "#6366f1",              # Indigo 500 (Linear/Vercel modern accent)
-    "primary_hover": "#4f46e5",        # Indigo 600
-    "primary_subtle": "#1e1b4b",       # Deep Indigo tint
-    "accent_orange": "#f97316",        # Amber-Orange Hardware Stress
-    "accent_orange_hover": "#ea580c",
-    "accent_orange_subtle": "#2e1005", # Deep dark amber
-    "accent_sky": "#0284c7",           # Sky Blue Network Perturbations
+    "bg_app": "#f8fafc",               # Slate-50 Porcelain Canvas
+    "bg_card": "#ffffff",              # Pure White elevated surface
+    "bg_card_hover": "#f1f5f9",        # Slate-100 card hover
+    "bg_subtle_box": "#f8fafc",        # Slate-50 recessed box fill
+    "border_card": "#e2e8f0",          # Slate-200 subtle 1px border
+    "border_focus": "#cbd5e1",         # Slate-300 active/focus border
+    "text_heading": "#0f172a",         # Slate-900 crisp title
+    "text_body": "#334155",            # Slate-700 clean readable body
+    "text_muted": "#64748b",           # Slate-500 secondary metadata
+    "primary": "#4f46e5",              # Indigo 600 Executive Modern Accent
+    "primary_hover": "#4338ca",        # Indigo 700
+    "primary_subtle": "#eef2ff",       # Indigo 50 soft pastel tint
+    "accent_orange": "#ea580c",        # Amber-Orange 600
+    "accent_orange_hover": "#c2410c",
+    "accent_orange_subtle": "#fff7ed", # Amber 50 soft tint
+    "accent_sky": "#0284c7",           # Sky Blue 600
     "accent_sky_hover": "#0369a1",
-    "accent_sky_subtle": "#082f49",    # Deep sky blue tint
-    "accent_rose": "#f43f5e",          # Rose Red Interruptions
-    "accent_rose_hover": "#e11d48",
-    "accent_rose_subtle": "#4c0519",   # Deep crimson tint
-    "accent_purple": "#a855f7",        # Purple Context Changes
-    "accent_purple_hover": "#9333ea",
-    "accent_purple_subtle": "#3b0764", # Deep purple tint
-    "badge_teal_bg": "#042f2e",        # Deep Teal for Biometry
-    "badge_teal_text": "#2dd4bf",      # Bright Teal
-    "badge_teal_border": "#0d9488",
-    "success_bg": "#064e3b",           # Emerald Dark Background
-    "success_border": "#059669",       # Emerald Border
-    "success_text": "#34d399",         # Emerald-400 Vibrant
-    "danger_bg": "#450a0a",            # Deep Crimson Background
-    "danger_border": "#991b1b",        # Crimson Border
-    "danger_text": "#f87171",          # Coral Red Vibrant
-    "warning_bg": "#451a03",           # Deep Amber Background
-    "warning_border": "#b45309",       # Amber Border
-    "warning_text": "#fbbf24",         # Vibrant Amber
-    "info_bg": "#1e1b4b",              # Indigo Dark Background
-    "info_border": "#4338ca",          # Indigo Border
-    "info_text": "#818cf8",            # Indigo-400 Vibrant
-    "code_bg": "#030712",              # Pitch Black Monospace Terminal
+    "accent_sky_subtle": "#f0f9ff",    # Sky 50 soft tint
+    "accent_rose": "#e11d48",          # Rose Red 600
+    "accent_rose_hover": "#be123c",
+    "accent_rose_subtle": "#fff1f2",   # Rose 50 soft tint
+    "accent_purple": "#7c3aed",        # Purple 600
+    "accent_purple_hover": "#6d28d9",
+    "accent_purple_subtle": "#faf5ff", # Purple 50 soft tint
+    "badge_teal_bg": "#f0fdfa",        # Teal 50 soft tint
+    "badge_teal_text": "#0d9488",      # Teal 600 Vibrant
+    "badge_teal_border": "#99f6e4",    # Teal 200 Border
+    "success_bg": "#ecfdf5",           # Emerald 50 soft tint
+    "success_border": "#a7f3d0",       # Emerald 200 Border
+    "success_text": "#059669",         # Emerald 600 Vibrant
+    "danger_bg": "#fef2f2",            # Rose 50 soft tint
+    "danger_border": "#fecaca",        # Rose 200 Border
+    "danger_text": "#dc2626",          # Red 600 Vibrant
+    "warning_bg": "#fffbeb",           # Amber 50 soft tint
+    "warning_border": "#fde68a",       # Amber 200 Border
+    "warning_text": "#b45309",         # Amber 700
+    "info_bg": "#eef2ff",              # Indigo 50 soft tint
+    "info_border": "#c7d2fe",          # Indigo 200 Border
+    "info_text": "#4f46e5",            # Indigo 600
+    "code_bg": "#0f172a",              # Sleek Dark Slate Developer Console
     "code_text": "#38bdf8",            # Cyan 400 Monospace Output
-    "code_accent": "#818cf8",
-    "input_bg": "#0b1120",             # Clean recessed input fill
-    "input_border": "#334155",         # Input border
-    "optionmenu_bg": "#1e293b",        # Modern option menu base
-    "optionmenu_btn": "#334155",       # Dropdown button
-    "optionmenu_hover": "#475569",
-    "phone_chassis": "#1e293b",        # Titanium Slate Smartphone Bezel
+    "code_accent": "#818cf8",          # Indigo Monospace Accent
+    "input_bg": "#ffffff",             # Crisp White input field
+    "input_border": "#cbd5e1",         # Slate 300 input border
+    "optionmenu_bg": "#ffffff",        # Clean White option menu
+    "optionmenu_btn": "#e2e8f0",       # Slate 200 button
+    "optionmenu_hover": "#cbd5e1",     # Slate 300 hover
+    "phone_chassis": "#0f172a",        # Titanium Slate Smartphone Bezel
     "phone_screen_bg": "#000000",      # AMOLED Pure Black Display
-    "btn_secondary_bg": "#1e293b",     # Slate-800 secondary button
-    "btn_secondary_hover": "#334155",  # Slate-700
-    "btn_secondary_border": "#334155",
-    "btn_secondary_text": "#f8fafc",
+    "btn_secondary_bg": "#ffffff",     # White clean secondary button
+    "btn_secondary_hover": "#f1f5f9",  # Slate 100 hover
+    "btn_secondary_border": "#cbd5e1", # Slate 300 subtle border
+    "btn_secondary_text": "#334155",   # Slate 700 text
 }
 
 THEMIS_BUGS = [
@@ -382,7 +382,7 @@ class PerturbationStudioApp(ctk.CTk):
         # Left: Segmented Capsule Track for Tab Buttons
         nav_track = ctk.CTkFrame(
             nav_container,
-            fg_color=THEME["bg_card"],
+            fg_color="#f1f5f9",
             height=44,
             corner_radius=10,
             border_width=1,
@@ -414,7 +414,7 @@ class PerturbationStudioApp(ctk.CTk):
                 border_width=0,
                 fg_color=THEME["primary"] if is_active else "transparent",
                 hover_color=THEME["primary_hover"] if is_active else THEME["bg_card_hover"],
-                text_color="#ffffff" if is_active else THEME["text_muted"],
+                text_color="#ffffff" if is_active else THEME["text_body"],
                 font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
                 command=lambda k=key: self._switch_view(k)
             )
@@ -470,8 +470,8 @@ class PerturbationStudioApp(ctk.CTk):
             else:
                 btn.configure(
                     fg_color="transparent",
-                    text_color=THEME["text_muted"],
-                    hover_color=THEME["bg_card_hover"],
+                    text_color=THEME["text_body"],
+                    hover_color="#e2e8f0",
                     font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold")
                 )
 
@@ -3464,8 +3464,8 @@ class PerturbationStudioApp(ctk.CTk):
 
         style = ttk.Style()
         style.theme_use("clam")
-        style.configure("Treeview", background="#0f172a", foreground="#f8fafc", fieldbackground="#0f172a", rowheight=30, font=('Segoe UI', 10))
-        style.configure("Treeview.Heading", background="#1e293b", foreground="#38bdf8", font=('Segoe UI', 10, 'bold'))
+        style.configure("Treeview", background="#ffffff", foreground="#0f172a", fieldbackground="#ffffff", rowheight=30, font=('Segoe UI', 10))
+        style.configure("Treeview.Heading", background="#f1f5f9", foreground="#0f172a", font=('Segoe UI', 10, 'bold'))
 
         tree = ttk.Treeview(table_frame, columns=headers, show="headings", height=10)
         tree.heading("Research Pillar", text="Research Pillar")
@@ -3999,29 +3999,29 @@ class PerturbationStudioApp(ctk.CTk):
     def _update_cpu_lbl(self, val):
         v = int(val)
         if v <= 35:
-            fg, bg = "#34d399", THEME["success_bg"]
+            fg, bg = "#059669", THEME["success_bg"]
         elif v <= 75:
-            fg, bg = "#fbbf24", THEME["warning_bg"]
+            fg, bg = "#b45309", THEME["warning_bg"]
         else:
-            fg, bg = "#f87171", THEME["danger_bg"]
+            fg, bg = "#dc2626", THEME["danger_bg"]
         self.cpu_val_lbl.configure(text=f"{v}%", text_color=fg, fg_color=bg)
         self._update_phone_app_feedback()
 
     def _update_ram_lbl(self, val):
         v = int(val)
         if v <= 40:
-            fg, bg = "#34d399", THEME["success_bg"]
+            fg, bg = "#059669", THEME["success_bg"]
         elif v <= 75:
-            fg, bg = "#fbbf24", THEME["warning_bg"]
+            fg, bg = "#b45309", THEME["warning_bg"]
         else:
-            fg, bg = "#f87171", THEME["danger_bg"]
+            fg, bg = "#dc2626", THEME["danger_bg"]
         self.ram_val_lbl.configure(text=f"{v}%", text_color=fg, fg_color=bg)
         self._update_phone_app_feedback()
 
     def _update_thermal_lbl(self, val):
         names = ["0 Normal", "1 Light", "2 Moderate", "3 Severe", "4 Critical"]
         v = int(val)
-        fg = "#34d399" if v == 0 else ("#fbbf24" if v <= 2 else "#f87171")
+        fg = "#059669" if v == 0 else ("#b45309" if v <= 2 else "#dc2626")
         bg = THEME["success_bg"] if v == 0 else (THEME["warning_bg"] if v <= 2 else THEME["danger_bg"])
         self.therm_val_lbl.configure(text=names[v], text_color=fg, fg_color=bg)
         self._update_phone_status_bar()
@@ -4030,11 +4030,11 @@ class PerturbationStudioApp(ctk.CTk):
     def _update_bat_lbl(self, val):
         v = int(val)
         if v >= 35:
-            fg, bg = "#34d399", THEME["success_bg"]
+            fg, bg = "#059669", THEME["success_bg"]
         elif v >= 15:
-            fg, bg = "#fbbf24", THEME["warning_bg"]
+            fg, bg = "#b45309", THEME["warning_bg"]
         else:
-            fg, bg = "#f87171", THEME["danger_bg"]
+            fg, bg = "#dc2626", THEME["danger_bg"]
         self.bat_val_lbl.configure(text=f"{v}%", text_color=fg, fg_color=bg)
         self._update_phone_status_bar()
         self._update_phone_app_feedback()
@@ -4043,18 +4043,18 @@ class PerturbationStudioApp(ctk.CTk):
     def _update_lat_lbl(self, val):
         v = int(val)
         if v <= 200:
-            fg, bg = "#38bdf8", THEME["accent_sky_subtle"]
+            fg, bg = "#0284c7", THEME["accent_sky_subtle"]
         elif v <= 1000:
-            fg, bg = "#fbbf24", THEME["warning_bg"]
+            fg, bg = "#b45309", THEME["warning_bg"]
         else:
-            fg, bg = "#f87171", THEME["danger_bg"]
+            fg, bg = "#dc2626", THEME["danger_bg"]
         self.lat_val_lbl.configure(text=f"{v} ms", text_color=fg, fg_color=bg)
         self._update_phone_status_bar()
         self._update_phone_app_feedback()
 
     def _update_loss_lbl(self, val):
         v = int(val)
-        fg = "#38bdf8" if v == 0 else ("#fbbf24" if v <= 5 else "#f87171")
+        fg = "#0284c7" if v == 0 else ("#b45309" if v <= 5 else "#dc2626")
         bg = THEME["accent_sky_subtle"] if v == 0 else (THEME["warning_bg"] if v <= 5 else THEME["danger_bg"])
         self.loss_val_lbl.configure(text=f"{v}%", text_color=fg, fg_color=bg)
 
