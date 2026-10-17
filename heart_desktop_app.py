@@ -221,7 +221,6 @@ class PerturbationStudioApp(ctk.CTk):
         self.apk_sim_running = False
 
         # Build Professional IDE Layout
-        self._build_studio_menu_bar()
         self._build_header()
         self._build_studio_workspace()
         self._build_status_bar()
@@ -231,81 +230,13 @@ class PerturbationStudioApp(ctk.CTk):
         self._start_phone_clock_loop()
 
     # =========================================================================
-    # APPLICATION MENU BAR
-    # =========================================================================
-    def _build_studio_menu_bar(self):
-        self.studio_menu_bar = ctk.CTkFrame(
-            self,
-            fg_color="#f8fafc",
-            height=26,
-            corner_radius=0,
-            border_width=1,
-            border_color="#e2e8f0"
-        )
-        self.studio_menu_bar.pack(fill="x", side="top")
-        self.studio_menu_bar.pack_propagate(False)
-
-        menus = [
-            ("File", "Ctrl+Alt+S"),
-            ("Edit", "Ctrl+Z"),
-            ("View", "Ctrl+E"),
-            ("Navigate", "Ctrl+N"),
-            ("Code", "Ctrl+Alt+L"),
-            ("Analyze", "Inspect Code"),
-            ("Build", "Ctrl+F9"),
-            ("Run", "Shift+F10"),
-            ("Tools", "Device Manager"),
-            ("VCS", "Git Sync"),
-            ("Window", "Restore Layout"),
-            ("Help", "HEART Docs")
-        ]
-
-        for m_name, m_shortcut in menus:
-            btn = ctk.CTkButton(
-                self.studio_menu_bar,
-                text=m_name,
-                width=34,
-                height=20,
-                corner_radius=3,
-                fg_color="transparent",
-                hover_color="#e2e8f0",
-                text_color="#334155",
-                font=ctk.CTkFont(family="Segoe UI", size=9),
-                command=lambda n=m_name, s=m_shortcut: self._on_menu_item_click(n, s)
-            )
-            btn.pack(side="left", padx=1, pady=2)
-
-        # Right: Platform Version & Build Status
-        ver_lbl = ctk.CTkLabel(
-            self.studio_menu_bar,
-            text="HEART Platform v4.2.0 • Research Workbench SE-334",
-            font=ctk.CTkFont(family="Segoe UI", size=8),
-            text_color="#94a3b8"
-        )
-        ver_lbl.pack(side="right", padx=12)
-
-    def _on_menu_item_click(self, name, shortcut):
-        self.log_adb_ticker(f"IDE: Menu '{name}' triggered ({shortcut})")
-        if name == "Run":
-            self.test_app_resilience()
-        elif name == "Build":
-            self.log_adb_ticker("Gradle: Executing ':app:assembleDebug' -> BUILD SUCCESSFUL in 1.4s")
-            messagebox.showinfo("Gradle Build", "✓ BUILD SUCCESSFUL in 1.4s\n\n16 actionable tasks: 16 executed.\nclasses.dex compiled cleanly.")
-        elif name == "Tools":
-            self._switch_view("console")
-        elif name == "VCS":
-            self.log_adb_ticker("Git: Synchronized branch feat/c1-environmental-perturbation-engine (clean)")
-        elif name == "Help":
-            messagebox.showinfo("HEART Studio Help", "HEART Platform v4.0 PRO\n\nIntegrated 4-Pillar Mobile Robustness Evaluation Suite\n• Pillar 1: Environment Perturbation Engine\n• Pillar 2: Biomechanical Interaction Studio\n• Pillar 3: Multimodal Vision Oracle\n• Pillar 4: Telemetry Self-Healing Engine")
-
-    # =========================================================================
-    # MAIN ACTION TOOLBAR
+    # PLATFORM MAIN ACTION HEADER (Clean, Purposeful, Professional)
     # =========================================================================
     def _build_header(self):
         self.studio_main_toolbar = ctk.CTkFrame(
             self,
             fg_color="#ffffff",
-            height=46,
+            height=48,
             corner_radius=0,
             border_width=1,
             border_color="#e2e8f0"
@@ -313,14 +244,21 @@ class PerturbationStudioApp(ctk.CTk):
         self.studio_main_toolbar.pack(fill="x", side="top")
         self.studio_main_toolbar.pack_propagate(False)
 
-        # Left Section: Project / Module Selector & VCS Branch
+        # Left Section: Brand & Package Module
         tb_left = ctk.CTkFrame(self.studio_main_toolbar, fg_color="transparent")
-        tb_left.pack(side="left", padx=8, pady=4)
+        tb_left.pack(side="left", padx=12, pady=6)
 
-        # Project Selector Button
+        brand_lbl = ctk.CTkLabel(
+            tb_left,
+            text="🛡️ HEART Platform",
+            font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"),
+            text_color="#0f172a"
+        )
+        brand_lbl.pack(side="left", padx=(0, 10))
+
         self.proj_selector = ctk.CTkButton(
             tb_left,
-            text="📁 app [HEART-Platform] ▾",
+            text="📦 app [Target APK] ▾",
             height=28,
             corner_radius=6,
             fg_color="#f1f5f9",
@@ -331,10 +269,9 @@ class PerturbationStudioApp(ctk.CTk):
         )
         self.proj_selector.pack(side="left", padx=2)
 
-        # VCS Branch Indicator Pill
         self.vcs_pill = ctk.CTkLabel(
             tb_left,
-            text="⎇ feat/c1-environmental-perturbation-engine (1d17d3a)",
+            text="⎇ feat/c1-environmental-perturbation-engine",
             font=ctk.CTkFont(family="Segoe UI", size=9),
             text_color="#475569",
             fg_color="#f8fafc",
@@ -342,13 +279,12 @@ class PerturbationStudioApp(ctk.CTk):
             padx=8,
             pady=3
         )
-        self.vcs_pill.pack(side="left", padx=4)
+        self.vcs_pill.pack(side="left", padx=6)
 
-        # Center Section: Run / Debug Control Strip
+        # Center Section: Essential Primary Actions (100% Functional)
         tb_center = ctk.CTkFrame(self.studio_main_toolbar, fg_color="transparent")
-        tb_center.pack(side="left", expand=True, pady=4)
+        tb_center.pack(side="left", expand=True, pady=6)
 
-        # Target Device Selector Dropdown
         self.dev_target_btn = ctk.CTkButton(
             tb_center,
             text="📱 Google Pixel 9 Pro (API 34) ▾",
@@ -360,14 +296,13 @@ class PerturbationStudioApp(ctk.CTk):
             font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
             command=lambda: self._switch_view("console")
         )
-        self.dev_target_btn.pack(side="left", padx=3)
+        self.dev_target_btn.pack(side="left", padx=4)
 
-        # Run Button (Vibrant Emerald Green)
         self.run_app_btn = ctk.CTkButton(
             tb_center,
-            text="▶ Run 'app'",
+            text="▶ Run Resilience Test",
             height=28,
-            width=88,
+            width=140,
             corner_radius=6,
             fg_color="#10b981",
             hover_color="#059669",
@@ -375,78 +310,31 @@ class PerturbationStudioApp(ctk.CTk):
             font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
             command=self.test_app_resilience
         )
-        self.run_app_btn.pack(side="left", padx=2)
+        self.run_app_btn.pack(side="left", padx=3)
 
-        # Debug Button
-        self.debug_app_btn = ctk.CTkButton(
-            tb_center,
-            text="🐛 Debug",
-            height=28,
-            width=70,
-            corner_radius=6,
-            fg_color="#f1f5f9",
-            hover_color="#e2e8f0",
-            text_color="#334155",
-            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
-            command=lambda: self.log_adb_ticker("jdwp: Connected to target VM on port 8700 • Debug session active")
-        )
-        self.debug_app_btn.pack(side="left", padx=2)
-
-        # Apply Code Changes (Hot Reload)
-        self.apply_changes_btn = ctk.CTkButton(
-            tb_center,
-            text="⚡ Apply Changes",
-            height=28,
-            width=105,
-            corner_radius=6,
-            fg_color="#f1f5f9",
-            hover_color="#e2e8f0",
-            text_color="#4f46e5",
-            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
-            command=lambda: self.log_adb_ticker("FastDeploy: Hot-swapped modified classes.dex in 42.1ms")
-        )
-        self.apply_changes_btn.pack(side="left", padx=2)
-
-        # Stop Process Button
         self.stop_app_btn = ctk.CTkButton(
             tb_center,
-            text="⏹ Stop",
+            text="⏹ Stop Target",
             height=28,
-            width=58,
+            width=90,
             corner_radius=6,
             fg_color="#f1f5f9",
             hover_color="#fee2e2",
             text_color="#dc2626",
             font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
-            command=lambda: self.log_adb_ticker("am force-stop: Target package halted")
+            command=self.stop_target_package
         )
-        self.stop_app_btn.pack(side="left", padx=2)
+        self.stop_app_btn.pack(side="left", padx=3)
 
-        # Profile App Button
-        self.profile_app_btn = ctk.CTkButton(
-            tb_center,
-            text="📊 Profile",
-            height=28,
-            width=70,
-            corner_radius=6,
-            fg_color="#f1f5f9",
-            hover_color="#e2e8f0",
-            text_color="#0284c7",
-            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
-            command=lambda: self._switch_view("metrics")
-        )
-        self.profile_app_btn.pack(side="left", padx=2)
-
-        # Right Section: Device Manager, Export Audit, Settings & Notifications
+        # Right Section: Export Audit & Test Verification
         tb_right = ctk.CTkFrame(self.studio_main_toolbar, fg_color="transparent")
-        tb_right.pack(side="right", padx=8, pady=4)
+        tb_right.pack(side="right", padx=12, pady=6)
 
-        # Export Audit Button
         export_btn = ctk.CTkButton(
             tb_right,
-            text="📥 Export Audit",
+            text="📥 Export Audit Report",
             height=28,
-            width=110,
+            width=135,
             corner_radius=6,
             fg_color="#f1f5f9",
             hover_color="#e2e8f0",
@@ -456,24 +344,8 @@ class PerturbationStudioApp(ctk.CTk):
             font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
             command=self.export_academic_audit
         )
-        export_btn.pack(side="left", padx=2)
+        export_btn.pack(side="left", padx=3)
 
-        # Search Everywhere Button
-        search_btn = ctk.CTkButton(
-            tb_right,
-            text="🔍 Double Shift",
-            height=28,
-            width=95,
-            corner_radius=6,
-            fg_color="#f1f5f9",
-            hover_color="#e2e8f0",
-            text_color="#64748b",
-            font=ctk.CTkFont(family="Segoe UI", size=9),
-            command=lambda: self.log_adb_ticker("IDE: Search Everywhere overlay opened")
-        )
-        search_btn.pack(side="left", padx=2)
-
-        # Notification Badge (57 Tests Passed)
         self.test_badge = ctk.CTkLabel(
             tb_right,
             text="✓ 57 Tests PASS",
@@ -564,13 +436,10 @@ class PerturbationStudioApp(ctk.CTk):
             ("console", "📱 Running Devices ✕"),
             ("apk", "📦 Package & Faults ✕"),
             ("home", "🔬 4-Pillars Overview ✕"),
-            ("biometry", "👆 Biometry ✕"),
-            ("vision", "👁️ Vision Oracle ✕"),
-            ("healing", "🔄 Self-Healing ✕"),
-            ("faults", "⚡ Fault Suite ✕"),
-            ("yaml", "📄 Scenarios ✕"),
+            ("faults", "⚡ Fault Reproduction ✕"),
             ("metrics", "📊 Empirical Matrix ✕"),
-            ("logs", "📋 Logcat Stream ✕")
+            ("logs", "📋 Logcat Stream ✕"),
+            ("yaml", "📄 Scenarios.yaml ✕")
         ]
         self.nav_buttons = {}
 
@@ -912,7 +781,7 @@ class PerturbationStudioApp(ctk.CTk):
             primary_btn_text="Open Self-Healing Studio ➔",
             primary_cmd=lambda: self._switch_view("healing"),
             sec_btn_text="Repair Locators",
-            sec_cmd=self._run_self_healing_demo
+            sec_cmd=self._run_self_healing_pipeline
         )
 
         # 4. End-to-End Pipeline Workflow Card
@@ -937,7 +806,7 @@ class PerturbationStudioApp(ctk.CTk):
 
         ctk.CTkLabel(
             p_inner,
-            text="Demonstrates how all four components execute concurrently during automated testing sessions:",
+            text="Synchronous multi-pillar execution pipeline across automated testing sessions:",
             font=ctk.CTkFont(family="Segoe UI", size=11),
             text_color=THEME["text_muted"]
         ).pack(anchor="w", pady=(2, 10))
@@ -1664,7 +1533,7 @@ class PerturbationStudioApp(ctk.CTk):
             font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
             height=34,
             corner_radius=6,
-            command=self._run_self_healing_demo
+            command=self._run_self_healing_pipeline
         ).pack(fill="x", pady=(0, 8))
 
         ctk.CTkLabel(l_inner, text="Production Telemetry Actions:", font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold")).pack(anchor="w", pady=(6, 2))
@@ -1727,7 +1596,7 @@ class PerturbationStudioApp(ctk.CTk):
         self.heal_log_box.pack(fill="both", expand=True, pady=(2, 0))
         self.heal_log_box.insert("end", "[Self-Healing Engine] Sentence-BERT matcher ready.\n[Self-Healing Engine] Sample telemetry loaded: self heal telemetry/data/sample_telemetry.json\n")
 
-    def _run_self_healing_demo(self):
+    def _run_self_healing_pipeline(self):
         self._switch_view("healing")
         self.heal_log_box.insert("end", "\n[S-BERT Matching] Computing semantic embeddings for broken selector...\n")
         self.heal_log_box.insert("end", "[S-BERT Matching] Candidate 1 (btn_pay_now_v2): Cosine Similarity = 0.941\n")
@@ -3476,6 +3345,13 @@ class PerturbationStudioApp(ctk.CTk):
 
         threading.Thread(target=_stress_thread, daemon=True).start()
 
+    def stop_target_package(self):
+        pkg = self.current_apk_data.get("package_name", "de.k3b.android.androFotoFinder")
+        self.orchestrator.adb.run_shell(f"am force-stop {pkg}")
+        self.log_adb_ticker(f"am force-stop {pkg}: Target process halted on device.")
+        self.status_lbl.configure(text=f"Target package '{pkg}' stopped on device.")
+        messagebox.showinfo("Target Halted", f"✓ Force-stopped package '{pkg}' on target device.")
+
     def test_app_resilience(self):
         if hasattr(self, "app_action_btn"):
             self.app_action_btn.configure(state="normal", text="🖼️ Decode 48MB Bitmap Array")
@@ -4507,17 +4383,17 @@ class PerturbationStudioApp(ctk.CTk):
 
     def _on_scenario_selected(self, choice):
         if "SQLite Lockup" in choice or "#01" in choice:
-            self.demo_novelty_sqlite_lock()
+            self.trigger_sqlite_lock_fault()
         elif "2G Socket Flap" in choice or "#02" in choice:
-            self.demo_novelty_2g_flap()
+            self.trigger_network_flap_fault()
         elif "Audio Preemption" in choice or "#03" in choice:
-            self.demo_novelty_audio_preemption()
+            self.trigger_audio_preemption_fault()
         elif "Compound" in choice:
-            self.demo_novelty_compound_chaos()
+            self.trigger_compound_fault()
         else:
             self.reset_all_nominal()
 
-    def demo_novelty_sqlite_lock(self):
+    def trigger_sqlite_lock_fault(self):
         """NOVELTY 1: Battery 4% drop + LMK Critical Trim causing SQLite transaction lockup."""
         self.bat_slider.set(4)
         self._update_bat_lbl(4)
@@ -4540,10 +4416,10 @@ class PerturbationStudioApp(ctk.CTk):
         self.app_warning_banner.configure(text="⚠️ OS Battery Saver Enforced • SQLite Transaction Deadlock", fg_color="#7f1d1d")
         self.phone_hud_lbl.configure(text="⚡ 142ms RTT | Host CPU: 85% | 24 FPS (DEGRADED)")
         self.chaos_score_badge.configure(text="🔥 Chaos Score: 72/100")
-        self.active_status_lbl.configure(text="● Active: Demo 1 (Hardware Starvation: SQLite Lock)")
-        self.status_lbl.configure(text="Reproduced Novelty 1: SQLite Transaction Lock under Battery 4% + LMK Trim")
+        self.active_status_lbl.configure(text="● Active: Fault Scenario #1 (Hardware Starvation: SQLite Lock)")
+        self.status_lbl.configure(text="Reproduced Fault Scenario 1: SQLite Transaction Lock under Battery 4% + LMK Trim")
 
-    def demo_novelty_2g_flap(self):
+    def trigger_network_flap_fault(self):
         """NOVELTY 2: 2G/EDGE 1850ms latency + 8% packet loss causing socket timeout."""
         self.lat_slider.set(1850)
         self._update_lat_lbl(1850)
@@ -4565,10 +4441,10 @@ class PerturbationStudioApp(ctk.CTk):
         self.phone_net_icon.configure(text="2G")
         self.phone_hud_lbl.configure(text="⚡ 1850ms RTT | Host CPU: 12% | 60 FPS (LATENCY SPIKE)")
         self.chaos_score_badge.configure(text="🔥 Chaos Score: 68/100")
-        self.active_status_lbl.configure(text="● Active: Demo 2 (Network Chaos: 2G Socket Flap)")
-        self.status_lbl.configure(text="Reproduced Novelty 2: 2G Transport Socket Timeout (1850ms RTT)")
+        self.active_status_lbl.configure(text="● Active: Fault Scenario #2 (Network Chaos: 2G Socket Flap)")
+        self.status_lbl.configure(text="Reproduced Fault Scenario 2: 2G Transport Socket Timeout (1850ms RTT)")
 
-    def demo_novelty_audio_preemption(self):
+    def trigger_audio_preemption_fault(self):
         """NOVELTY 3: Incoming GSM Telephony Call stealing audio focus causing deadlock."""
         self.dispatch_incoming_call()
         self.log_adb_ticker("adb emu gsm call 15550192831 -> AUDIOFOCUS_LOSS_TRANSIENT")
@@ -4581,10 +4457,10 @@ class PerturbationStudioApp(ctk.CTk):
         self.app_pay_status.configure(text="⚠️ AudioFocusDeadlock: Audio sink pre-empted by Call", fg_color="#78350f", text_color="#fde68a")
         self.phone_hud_lbl.configure(text="⚡ 24.6ms RTT | Host CPU: 38% | 58 FPS (AUDIO PREEMPT)")
         self.chaos_score_badge.configure(text="🔥 Chaos Score: 60/100")
-        self.active_status_lbl.configure(text="● Active: Demo 3 (Telephony Interruption: Audio Preemption)")
-        self.status_lbl.configure(text="Reproduced Novelty 3: Audio Focus Preemption by Telephony Call")
+        self.active_status_lbl.configure(text="● Active: Fault Scenario #3 (Telephony Interruption: Audio Preemption)")
+        self.status_lbl.configure(text="Reproduced Fault Scenario 3: Audio Focus Preemption by Telephony Call")
 
-    def demo_novelty_compound_chaos(self):
+    def trigger_compound_fault(self):
         """NOVELTY 4: Compound Stress across all 4 pillars simultaneously."""
         self.cpu_slider.set(90); self._update_cpu_lbl(90)
         self.lat_slider.set(1850); self._update_lat_lbl(1850)
@@ -4609,8 +4485,8 @@ class PerturbationStudioApp(ctk.CTk):
         self.app_warning_banner.configure(text="🔥 CRITICAL: Compound Multi-Pillar System Overload", fg_color="#7f1d1d")
         self.phone_hud_lbl.configure(text="⚡ 1850ms RTT | Host CPU: 90% | 18 FPS (CRITICAL JITTER)")
         self.chaos_score_badge.configure(text="🔥 Chaos Score: 94/100")
-        self.active_status_lbl.configure(text="● Active: Demo 4 (Holistic Compound Chaos: All 4 Pillars)")
-        self.status_lbl.configure(text="Reproduced Novelty 4: Compound Cascading Collapse across All 4 Pillars")
+        self.active_status_lbl.configure(text="● Active: Fault Scenario #4 (Compound Multi-Pillar Stress)")
+        self.status_lbl.configure(text="Reproduced Fault Scenario 4: Compound Cascading Collapse across All 4 Pillars")
 
     def test_payment_resilience(self):
         """Interactive button on simulated phone: verifies resilience of currently active app under active stressors."""
