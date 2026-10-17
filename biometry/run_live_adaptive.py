@@ -53,9 +53,15 @@ def main():
     package = args.package
     if package is None:
         focus = bridge.device.shell("dumpsys", "window")
-        for line in focus.splitlines():
-            if "mCurrentFocus" in line and "/" in line:
-                package = line.split()[-1].split("/")[0]
+        # mFocusedApp is the fallback: a system window (notification shade,
+        # keyguard) can hold mCurrentFocus without owning an app.
+        for key in ("mCurrentFocus", "mFocusedApp"):
+            for line in focus.splitlines():
+                if key in line and "/" in line:
+                    package = next(t for t in reversed(line.split())
+                                   if "/" in t).split("/")[0]
+                    break
+            if package:
                 break
     if not package:
         raise SystemExit("could not determine the foreground package; pass --package")
