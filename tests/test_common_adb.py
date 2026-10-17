@@ -144,3 +144,62 @@ def test_commands_are_argument_lists_never_shell_strings():
     argv = d._argv(["shell", "input text", "a;rm -rf /"])
     assert argv[-1] == "a;rm -rf /"          # stays one argument, never interpreted
     assert all(isinstance(a, str) for a in argv)
+
+
+# --- screencap and display metrics tests ------------------------------------
+
+def test_screencap_raw_bytes_and_pil_image(monkeypatch):
+    import io
+    from PIL import Image
+
+    # Create dummy 10x10 PNG bytes
+    buf = io.BytesIO()
+    Image.new("RGB", (10, 10), color="blue").save(buf, format="PNG")
+    valid_png_bytes = buf.getvalue()
+
+    d = AdbDevice(serial="x", verify=False)
+    monkeypatch.setattr(d, "run_bytes", lambda *args, **kw: valid_png_bytes)
+
+    raw = d.screencap(as_pil=False)
+    assert raw.startswith(b"\x89PNG\r\n\x1a\n")
+
+    pil_img = d.screencap(as_pil=True)
+    assert pil_img.size == (10, 10)
+
+
+def test_screencap_handles_windows_crlf_munging(monkeypatch):
+    import io
+    from PIL import Image
+
+    buf = io.BytesIO()
+    Image.new("RGB", (10, 10), color="red").save(buf, format="PNG")
+    valid_png_bytes = buf.getvalue()
+
+    # On Windows without binary pipe, \r\n in PNG header (0D 0A) is turned into \r\r\n (0D 0D 0A)
+    # munged header: b"\x89PNG\r\r\n\x1a\r\r\n"
+    munged_bytes = valid_png_bytes.replace(b"\r\n", b"\r\r\n")
+
+    d = AdbDevice(serial="x", verify=False)
+    monkeypatch.setattr(d, "run_bytes", lambda *args, **kw: munged_bytes)
+
+    raw = d.screencap(as_pil=False)
+    assert raw.startswith(b"\x89PNG\r\n\x1a\n")
+
+
+def test_get_display_metrics_parses_wm_output(monkeypatch):
+    d = AdbDevice(serial="x", verify=False)
+
+    def fake_shell(*args, **kw):
+        if args == ("wm", "size"):
+            return "Physical size: 1080x2400\n"
+        elif args == ("wm", "density"):
+            return "Physical density: 420\n"
+        return ""
+
+    monkeypatch.setattr(d, "shell", fake_shell)
+    metrics = d.get_display_metrics()
+    assert metrics["width"] == 1080
+    assert metrics["height"] == 2400
+    assert metrics["density"] == 420
+    assert metrics["is_tall"] is True
+    assert metrics["aspect_ratio"] == 2.222
