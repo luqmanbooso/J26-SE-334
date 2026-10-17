@@ -72,6 +72,7 @@ class ExecutionService:
         *,
         runs_dir: str | Path = "runs",
         run_id: str | None = None,
+        capture_baseline: bool = False,
     ) -> ExecutionResult:
         """Execute a generated synthesis result and persist run artifacts."""
         started_at = datetime.now(timezone.utc)
@@ -107,6 +108,7 @@ class ExecutionService:
                     run_dir=run_dir,
                     stdout_path=run_dir / f"attempt-{attempt_number}.stdout.log",
                     stderr_path=run_dir / f"attempt-{attempt_number}.stderr.log",
+                    extra_env={"C4_CAPTURE_BASELINE": "1"} if capture_baseline else None,
                 )
             attempts.append(attempt)
             if attempt.status is ExecutionStatus.PASSED:
