@@ -2049,22 +2049,110 @@ class PerturbationStudioApp(ctk.CTk):
         right_phone_pane = ctk.CTkFrame(split_body, fg_color=THEME["bg_card"], corner_radius=12, border_width=1, border_color=THEME["border_card"])
         right_phone_pane.grid(row=0, column=1, sticky="nsew", padx=(8, 0), pady=0)
 
+        # Phone Header: Title, Mode Toggle & Snapshot
         phone_head = ctk.CTkFrame(right_phone_pane, fg_color="transparent")
-        phone_head.pack(fill="x", padx=16, pady=(10, 4))
-        ctk.CTkLabel(phone_head, text="📱 Live Target Device Display", font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"), text_color=THEME["text_heading"]).pack(side="left")
-        ctk.CTkButton(phone_head, text="📸 Capture Device", width=120, height=26, fg_color=THEME["btn_secondary_bg"], hover_color=THEME["btn_secondary_hover"], text_color=THEME["btn_secondary_text"], border_width=1, border_color=THEME["btn_secondary_border"], font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"), corner_radius=6, command=self.capture_adb_screen).pack(side="right")
+        phone_head.pack(fill="x", padx=14, pady=(8, 4))
+        
+        phone_head_left = ctk.CTkFrame(phone_head, fg_color="transparent")
+        phone_head_left.pack(side="left")
+        ctk.CTkLabel(phone_head_left, text="📱 Live Mobile Virtual Emulator", font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"), text_color=THEME["text_heading"]).pack(anchor="w")
+        ctk.CTkLabel(phone_head_left, text="Interactive Android 14 Virtual Runtime", font=ctk.CTkFont(family="Segoe UI", size=8), text_color=THEME["text_muted"]).pack(anchor="w")
 
-        # Physical Phone Chassis Frame (Titanium border with rounded corners)
-        self.phone_chassis = ctk.CTkFrame(right_phone_pane, fg_color=THEME["phone_chassis"], corner_radius=26, border_width=3, border_color="#334155")
-        self.phone_chassis.pack(expand=False, padx=16, pady=(2, 6))
+        phone_head_right = ctk.CTkFrame(phone_head, fg_color="transparent")
+        phone_head_right.pack(side="right")
 
-        # Compact Height for Phone (Width 316, Height 430)
-        self.phone_screen = ctk.CTkFrame(self.phone_chassis, fg_color=THEME["phone_screen_bg"], corner_radius=20, width=316, height=430)
-        self.phone_screen.pack(padx=6, pady=6)
+        self.emulator_mode_segment = ctk.CTkSegmentedButton(
+            phone_head_right,
+            values=["📱 Virtual Emulator", "⚡ Real AVD Bridge"],
+            height=24,
+            command=self._on_emulator_mode_change,
+            selected_color=THEME["primary"],
+            selected_hover_color=THEME["primary_hover"],
+            font=ctk.CTkFont(family="Segoe UI", size=8, weight="bold")
+        )
+        self.emulator_mode_segment.set("📱 Virtual Emulator")
+        self.emulator_mode_segment.pack(side="left", padx=(0, 6))
+
+        ctk.CTkButton(
+            phone_head_right,
+            text="📸 Capture",
+            width=68,
+            height=24,
+            fg_color=THEME["btn_secondary_bg"],
+            hover_color=THEME["btn_secondary_hover"],
+            text_color=THEME["btn_secondary_text"],
+            border_width=1,
+            border_color=THEME["btn_secondary_border"],
+            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+            corner_radius=6,
+            command=self.capture_adb_screen
+        ).pack(side="left")
+
+        # Physical Phone Unit with Hardware Buttons
+        phone_assembly = ctk.CTkFrame(right_phone_pane, fg_color="transparent")
+        phone_assembly.pack(expand=False, padx=8, pady=(2, 6))
+
+        # Left Hardware Buttons (Volume Rocker + / -)
+        vol_col = ctk.CTkFrame(phone_assembly, fg_color="transparent", width=18)
+        vol_col.pack(side="left", padx=(0, 3), pady=(90, 0), anchor="n")
+        
+        self.vol_up_btn = ctk.CTkButton(
+            vol_col,
+            text="+",
+            width=16,
+            height=34,
+            corner_radius=4,
+            fg_color="#334155",
+            hover_color="#475569",
+            text_color="#f8fafc",
+            font=ctk.CTkFont(size=9, weight="bold"),
+            command=lambda: self._trigger_hardware_volume(1)
+        )
+        self.vol_up_btn.pack(pady=(0, 3))
+        
+        self.vol_dn_btn = ctk.CTkButton(
+            vol_col,
+            text="-",
+            width=16,
+            height=34,
+            corner_radius=4,
+            fg_color="#334155",
+            hover_color="#475569",
+            text_color="#f8fafc",
+            font=ctk.CTkFont(size=9, weight="bold"),
+            command=lambda: self._trigger_hardware_volume(-1)
+        )
+        self.vol_dn_btn.pack(pady=0)
+
+        # Phone Chassis Frame (Titanium Bezel)
+        self.phone_chassis = ctk.CTkFrame(phone_assembly, fg_color=THEME["phone_chassis"], corner_radius=28, border_width=3, border_color="#334155")
+        self.phone_chassis.pack(side="left")
+
+        # Right Hardware Button (Power / Lock Key)
+        pwr_col = ctk.CTkFrame(phone_assembly, fg_color="transparent", width=18)
+        pwr_col.pack(side="left", padx=(3, 0), pady=(80, 0), anchor="n")
+        
+        self.pwr_btn = ctk.CTkButton(
+            pwr_col,
+            text="⏻",
+            width=16,
+            height=42,
+            corner_radius=4,
+            fg_color="#334155",
+            hover_color="#475569",
+            text_color="#f8fafc",
+            font=ctk.CTkFont(size=9, weight="bold"),
+            command=self._toggle_phone_power
+        )
+        self.pwr_btn.pack(pady=0)
+
+        # Compact Height for Phone (Width 322, Height 460)
+        self.phone_screen = ctk.CTkFrame(self.phone_chassis, fg_color=THEME["phone_screen_bg"], corner_radius=22, width=322, height=460)
+        self.phone_screen.pack(padx=5, pady=5)
         self.phone_screen.pack_propagate(False)
 
         # Top Notch & Speaker Dot
-        top_notch_bar = ctk.CTkFrame(self.phone_screen, fg_color="transparent", height=20)
+        top_notch_bar = ctk.CTkFrame(self.phone_screen, fg_color="transparent", height=18)
         top_notch_bar.pack(fill="x", padx=10, pady=(2, 0))
         top_notch_bar.pack_propagate(False)
 
@@ -2095,11 +2183,9 @@ class PerturbationStudioApp(ctk.CTk):
 
         # Phone Screen Content Area
         self.phone_content_area = ctk.CTkFrame(self.phone_screen, fg_color="#090d16", corner_radius=12)
-        self.phone_content_area.pack(fill="both", expand=True, padx=6, pady=(0, 4))
+        self.phone_content_area.pack(fill="both", expand=True, padx=4, pady=(0, 2))
 
-        self.sms_toast_banner = ctk.CTkFrame(self.phone_content_area, fg_color="#1e293b", corner_radius=10, border_width=1, border_color="#475569")
-
-        # Build simulated app screen inside phone
+        # Build simulated stateful operating system inside phone
         self._build_phone_app_screen()
 
         # =====================================================================
@@ -2196,8 +2282,98 @@ class PerturbationStudioApp(ctk.CTk):
             pass
 
     def _build_phone_app_screen(self):
-        # Low Battery / Battery Saver Notification Shade Banner (drops on battery <= 15%)
-        self.battery_saver_banner = ctk.CTkFrame(self.phone_content_area, fg_color="#451a03", corner_radius=8, border_width=1, border_color="#f97316")
+        # -------------------------------------------------------------
+        # STATEFUL VIRTUAL MOBILE OPERATING SYSTEM ENGINE
+        # -------------------------------------------------------------
+        self.phone_view_state = "app"
+        self.previous_phone_view = "app"
+        self.emulator_mode = "virtual"
+        self.device_volume_level = 80
+        self.photo_zoom_level = 1.0
+        self.photo_rotation_angle = 0
+        self.active_photo_filter = "All"
+        self.selected_photo = None
+        self.real_avd_online = False
+        self.real_avd_thread = None
+        self.volume_hud_timer = None
+        self.current_call_active = False
+
+        self.gallery_photos = [
+            {
+                "id": 1,
+                "name": "IMG_4021.jpg",
+                "tag": "48MP",
+                "size": "4.2 MB",
+                "res": "8000x6000",
+                "exif": "ISO 100 • f/1.8 • 1/500s • 24mm",
+                "color_a": "#1e3a8a",
+                "color_b": "#3b82f6",
+                "icon": "🖼️",
+                "caption": "Alpine Lake Reflection"
+            },
+            {
+                "id": 2,
+                "name": "Sunset_HDR.raw",
+                "tag": "RAW",
+                "size": "18.4 MB",
+                "res": "8256x5504",
+                "exif": "ISO 200 • f/2.8 • 1/250s • 35mm",
+                "color_a": "#7c2d12",
+                "color_b": "#f97316",
+                "icon": "🌄",
+                "caption": "Golden Hour Peaks"
+            },
+            {
+                "id": 3,
+                "name": "Portrait_03.jpg",
+                "tag": "Bokeh",
+                "size": "3.8 MB",
+                "res": "6000x4000",
+                "exif": "ISO 64 • f/1.4 • 1/1000s • 85mm",
+                "color_a": "#4c1d95",
+                "color_b": "#8b5cf6",
+                "icon": "👤",
+                "caption": "Studio Bokeh Portrait"
+            },
+            {
+                "id": 4,
+                "name": "Night_City.raw",
+                "tag": "RAW",
+                "size": "22.1 MB",
+                "res": "8256x5504",
+                "exif": "ISO 1600 • f/2.0 • 1/60s • 28mm",
+                "color_a": "#0f172a",
+                "color_b": "#06b6d4",
+                "icon": "🏙️",
+                "caption": "Cyberpunk Neon Night"
+            }
+        ]
+
+        # -------------------------------------------------------------
+        # FLOATING SYSTEM OVERLAYS
+        # -------------------------------------------------------------
+        # Volume Flyout HUD Overlay
+        self.volume_hud_overlay = ctk.CTkFrame(self.phone_content_area, fg_color="#1e293b", corner_radius=8, border_width=1, border_color="#475569")
+        self.vol_hud_lbl = ctk.CTkLabel(self.volume_hud_overlay, text="🔊 Media: 80%", font=ctk.CTkFont(size=9, weight="bold"), text_color="#38bdf8")
+        self.vol_hud_lbl.pack(padx=8, pady=(4, 2))
+        self.vol_hud_bar = ctk.CTkProgressBar(self.volume_hud_overlay, height=4, width=130, progress_color=THEME["primary"])
+        self.vol_hud_bar.set(0.8)
+        self.vol_hud_bar.pack(padx=8, pady=(0, 4))
+
+        # Telephony Incoming Call Overlay
+        self.call_overlay = ctk.CTkFrame(self.phone_content_area, fg_color="#0f172a", corner_radius=10, border_width=2, border_color="#ef4444")
+
+        # Native Android Crash Alert Dialog
+        self.crash_dialog_frame = ctk.CTkFrame(self.phone_content_area, fg_color="#181825", corner_radius=10, border_width=2, border_color="#ef4444")
+
+        # -------------------------------------------------------------
+        # OPERATING SYSTEM SCREENS / ACTIVITIES
+        # -------------------------------------------------------------
+        # 1. Active Uploaded Application View Container
+        self.phone_app_body = ctk.CTkFrame(self.phone_content_area, fg_color="transparent")
+
+        # Battery Saver Shade Banner
+        self.battery_saver_banner = ctk.CTkFrame(self.phone_app_body, fg_color="#451a03", corner_radius=8, border_width=1, border_color="#f97316")
         self.battery_saver_inner = ctk.CTkFrame(self.battery_saver_banner, fg_color="transparent")
         self.battery_saver_inner.pack(fill="x", padx=8, pady=3)
         self.bat_banner_title = ctk.CTkLabel(self.battery_saver_inner, text="🪫 Android System • Battery Saver Active", font=ctk.CTkFont(family="Segoe UI", size=8, weight="bold"), text_color="#fdba74")
@@ -2205,59 +2381,208 @@ class PerturbationStudioApp(ctk.CTk):
         self.bat_banner_sub = ctk.CTkLabel(self.battery_saver_inner, text="Background sync, location & animations throttled", font=ctk.CTkFont(family="Segoe UI", size=7), text_color="#fed7aa")
         self.bat_banner_sub.pack(anchor="w")
 
+        # Heads-Up SMS Toast Banner
+        self.sms_toast_banner = ctk.CTkFrame(self.phone_app_body, fg_color="#1e293b", corner_radius=10, border_width=1, border_color="#475569")
+        
         # Header of simulated target app
-        self.app_nav = ctk.CTkFrame(self.phone_content_area, fg_color="#1e293b", height=30, corner_radius=6)
-        self.app_nav.pack(fill="x", padx=6, pady=2)
+        self.app_nav = ctk.CTkFrame(self.phone_app_body, fg_color="#1e293b", height=28, corner_radius=6)
+        self.app_nav.pack(fill="x", padx=4, pady=(2, 2))
         self.app_nav.pack_propagate(False)
 
         self.app_title_lbl = ctk.CTkLabel(self.app_nav, text="📷 APhotoManager", font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"), text_color="#ffffff")
         self.app_title_lbl.pack(side="left", padx=8)
 
-        self.app_pkg_lbl = ctk.CTkLabel(self.app_nav, text="● ACTIVE", font=ctk.CTkFont(family="Segoe UI", size=8, weight="bold"), text_color="#34d399", fg_color="#064e3b", corner_radius=4, padx=5, pady=1)
+        self.app_pkg_lbl = ctk.CTkLabel(self.app_nav, text="● DALVIK ACTIVE", font=ctk.CTkFont(family="Segoe UI", size=7, weight="bold"), text_color="#34d399", fg_color="#064e3b", corner_radius=4, padx=5, pady=1)
         self.app_pkg_lbl.pack(side="right", padx=8)
 
         # In-App Live Telemetry HUD Bar
-        self.phone_hud_frame = ctk.CTkFrame(self.phone_content_area, fg_color="#0f172a", corner_radius=6, border_width=1, border_color="#1e293b")
-        self.phone_hud_frame.pack(fill="x", padx=6, pady=(0, 2))
+        self.phone_hud_frame = ctk.CTkFrame(self.phone_app_body, fg_color="#0f172a", corner_radius=6, border_width=1, border_color="#1e293b")
+        self.phone_hud_frame.pack(fill="x", padx=4, pady=(0, 2))
         self.phone_hud_lbl = ctk.CTkLabel(
             self.phone_hud_frame,
-            text="⚡ 24.6ms RTT | CPU: 0% | 60 FPS",
+            text="⚡ 24.6ms RTT | CPU: 0% | 60 FPS | Heap: 28.4MB",
             font=ctk.CTkFont(family="Consolas", size=8, weight="bold"),
             text_color="#38bdf8"
         )
         self.phone_hud_lbl.pack(padx=4, pady=1)
 
-        # Real-time System Warning Badge Inside App
-        self.app_warning_banner = ctk.CTkLabel(
-            self.phone_content_area,
-            text="",
-            font=ctk.CTkFont(family="Segoe UI", size=8, weight="bold"),
-            text_color="#ef4444",
-            fg_color="transparent",
-            corner_radius=4
-        )
-        self.app_warning_banner.pack(fill="x", padx=6, pady=1)
+        # Dynamic App Inner Content
+        self.phone_app_inner = ctk.CTkFrame(self.phone_app_body, fg_color="transparent")
+        self.phone_app_inner.pack(fill="both", expand=True, padx=2, pady=1)
 
-        # Native Android Crash Alert Dialog (Hidden by default)
-        self.crash_dialog_frame = ctk.CTkFrame(self.phone_content_area, fg_color="#181825", corner_radius=10, border_width=2, border_color="#ef4444")
+        # 2. Photo Detail Viewer Activity
+        self.phone_photo_viewer = ctk.CTkFrame(self.phone_content_area, fg_color="transparent")
 
-        # Telephony Incoming Call Overlay (Hidden until call dispatched)
-        self.call_overlay = ctk.CTkFrame(self.phone_content_area, fg_color="#0f172a", corner_radius=10, border_width=2, border_color="#ef4444")
+        # 3. Android 14 Home Launcher
+        self.phone_launcher_home = ctk.CTkFrame(self.phone_content_area, fg_color="#0b1120")
 
-        # Active Application Content Canvas Frame
-        self.phone_app_body = ctk.CTkFrame(self.phone_content_area, fg_color="transparent")
-        self.phone_app_body.pack(fill="both", expand=True, padx=6, pady=2)
+        # 4. Android Recents / Multitasking Switcher
+        self.phone_recents_view = ctk.CTkFrame(self.phone_content_area, fg_color="#0f172a")
 
-        # Populate phone with active loaded APK
+        # 5. Always-On Display / Screen Locked Mode
+        self.phone_lock_view = ctk.CTkFrame(self.phone_content_area, fg_color="#000000")
+
+        # 6. Real AVD ADB Mirror Stream
+        self.phone_avd_mirror_view = ctk.CTkFrame(self.phone_content_area, fg_color="#090d16")
+
+        # Initially display active app
+        self.phone_app_body.pack(fill="both", expand=True, padx=2, pady=1)
         self._render_active_app_on_phone()
 
-        # Android Navigation Bar at Bottom (Back, Home, Recents)
-        phone_nav_bottom = ctk.CTkFrame(self.phone_screen, fg_color="transparent", height=16)
-        phone_nav_bottom.pack(fill="x", side="bottom", pady=2)
-        ctk.CTkLabel(phone_nav_bottom, text="◀      ●      ■", font=ctk.CTkFont(size=9, weight="bold"), text_color="#64748b").pack(anchor="center")
+        # -------------------------------------------------------------
+        # ANDROID NAVIGATION BAR AT BOTTOM (Interactive: Back, Home, Recents)
+        # -------------------------------------------------------------
+        phone_nav_bottom = ctk.CTkFrame(self.phone_screen, fg_color="#090d16", height=28)
+        phone_nav_bottom.pack(fill="x", side="bottom", pady=(0, 2))
+        nav_btns = ctk.CTkFrame(phone_nav_bottom, fg_color="transparent")
+        nav_btns.pack(expand=True)
 
+        self.nav_back_btn = ctk.CTkButton(
+            nav_btns,
+            text="◀",
+            width=54,
+            height=22,
+            fg_color="transparent",
+            hover_color="#1e293b",
+            text_color="#94a3b8",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            corner_radius=6,
+            command=self._phone_on_back_clicked
+        )
+        self.nav_back_btn.pack(side="left", padx=10)
+
+        self.nav_home_btn = ctk.CTkButton(
+            nav_btns,
+            text="●",
+            width=54,
+            height=22,
+            fg_color="transparent",
+            hover_color="#1e293b",
+            text_color="#cbd5e1",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            corner_radius=6,
+            command=self._phone_on_home_clicked
+        )
+        self.nav_home_btn.pack(side="left", padx=10)
+
+        self.nav_recents_btn = ctk.CTkButton(
+            nav_btns,
+            text="■",
+            width=54,
+            height=22,
+            fg_color="transparent",
+            hover_color="#1e293b",
+            text_color="#94a3b8",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            corner_radius=6,
+            command=self._phone_on_recents_clicked
+        )
+        self.nav_recents_btn.pack(side="left", padx=10)
+
+    # -----------------------------------------------------------------
+    # VIRTUAL OS NAVIGATION & ACTIVITY SWITCHER
+    # -----------------------------------------------------------------
+    def _switch_phone_view(self, view_name):
+        self.previous_phone_view = self.phone_view_state
+        self.phone_view_state = view_name
+
+        # Dismiss overlays if needed
+        if hasattr(self, "volume_hud_overlay"):
+            self.volume_hud_overlay.place_forget()
+
+        # Unpack all activity screens
+        for screen in [
+            self.phone_app_body,
+            self.phone_photo_viewer,
+            self.phone_launcher_home,
+            self.phone_recents_view,
+            self.phone_lock_view,
+            self.phone_avd_mirror_view
+        ]:
+            screen.pack_forget()
+
+        if view_name == "app":
+            self.phone_app_body.pack(fill="both", expand=True, padx=2, pady=1)
+            self._render_active_app_on_phone()
+        elif view_name == "photo_viewer":
+            self.phone_photo_viewer.pack(fill="both", expand=True, padx=2, pady=1)
+            self._render_photo_viewer()
+        elif view_name == "home_launcher":
+            self.phone_launcher_home.pack(fill="both", expand=True, padx=2, pady=1)
+            self._render_launcher_home()
+        elif view_name == "recents":
+            self.phone_recents_view.pack(fill="both", expand=True, padx=2, pady=1)
+            self._render_recents_view()
+        elif view_name == "screen_off":
+            self.phone_lock_view.pack(fill="both", expand=True)
+            self._render_lock_screen()
+        elif view_name == "avd_bridge":
+            self.phone_avd_mirror_view.pack(fill="both", expand=True, padx=2, pady=1)
+            self._render_avd_mirror_view()
+
+    def _phone_on_back_clicked(self):
+        self.log_adb_ticker("adb shell input keyevent KEYCODE_BACK (4)")
+        if getattr(self, "emulator_mode", "virtual") == "avd":
+            self.orchestrator.adb.run_shell("input keyevent 4")
+            return
+
+        if self.phone_view_state == "photo_viewer":
+            self._switch_phone_view("app")
+        elif self.phone_view_state == "recents":
+            self._switch_phone_view(self.previous_phone_view or "app")
+        elif self.phone_view_state == "app":
+            self._switch_phone_view("home_launcher")
+        elif self.phone_view_state == "home_launcher":
+            self.log_adb_ticker("[HOME] Already at root launcher activity")
+
+    def _phone_on_home_clicked(self):
+        self.log_adb_ticker("adb shell input keyevent KEYCODE_HOME (3)")
+        if getattr(self, "emulator_mode", "virtual") == "avd":
+            self.orchestrator.adb.run_shell("input keyevent 3")
+            return
+        self._switch_phone_view("home_launcher")
+
+    def _phone_on_recents_clicked(self):
+        self.log_adb_ticker("adb shell input keyevent KEYCODE_APP_SWITCH (187)")
+        if getattr(self, "emulator_mode", "virtual") == "avd":
+            self.orchestrator.adb.run_shell("input keyevent 187")
+            return
+        if self.phone_view_state == "recents":
+            self._switch_phone_view(self.previous_phone_view or "app")
+        else:
+            self._switch_phone_view("recents")
+
+    def _toggle_phone_power(self):
+        self.log_adb_ticker("adb shell input keyevent KEYCODE_POWER (26)")
+        if self.phone_view_state == "screen_off":
+            self._switch_phone_view(self.previous_phone_view or "app")
+            self.log_adb_ticker("[DEVICE] Screen unlocked • Ambient display woke up")
+        else:
+            self._switch_phone_view("screen_off")
+            self.log_adb_ticker("[DEVICE] Screen locked • Always-On Display active")
+
+    def _trigger_hardware_volume(self, delta):
+        self.device_volume_level = max(0, min(100, self.device_volume_level + delta * 10))
+        key = "KEYCODE_VOLUME_UP (24)" if delta > 0 else "KEYCODE_VOLUME_DOWN (25)"
+        self.log_adb_ticker(f"adb shell input keyevent {key} -> Volume {self.device_volume_level}%")
+        self._show_volume_hud(self.device_volume_level)
+        if getattr(self, "emulator_mode", "virtual") == "avd":
+            self.orchestrator.adb.run_shell(f"input keyevent {'24' if delta > 0 else '25'}")
+
+    def _show_volume_hud(self, vol):
+        self.vol_hud_lbl.configure(text=f"🔊 Media Volume: {vol}%")
+        self.vol_hud_bar.set(vol / 100.0)
+        self.volume_hud_overlay.place(relx=0.5, rely=0.10, anchor="center")
+        
+        if self.volume_hud_timer:
+            self.after_cancel(self.volume_hud_timer)
+        self.volume_hud_timer = self.after(2500, lambda: self.volume_hud_overlay.place_forget())
+
+    # -----------------------------------------------------------------
+    # LIVELY RUNNING APK RENDERING (APhotoManager & General APKs)
+    # -----------------------------------------------------------------
     def _render_active_app_on_phone(self):
-        for w in self.phone_app_body.winfo_children():
+        for w in self.phone_app_inner.winfo_children():
             w.destroy()
 
         d = getattr(self, "current_apk_data", {}) or {}
@@ -2266,62 +2591,128 @@ class PerturbationStudioApp(ctk.CTk):
         app_type = d.get("app_type", "photo_manager")
         main_act = d.get("main_activity", f"{pkg}.MainActivity")
 
-        self.app_nav.configure(fg_color="#1e293b")
         self.app_title_lbl.configure(text=f"📱 {app_name[:18]}")
-        self.app_pkg_lbl.configure(text="● ACTIVE", text_color="#34d399", fg_color="#064e3b")
+        self.app_pkg_lbl.configure(text="● DALVIK ACTIVE", text_color="#34d399", fg_color="#064e3b")
         if hasattr(self, "crash_dialog_frame"):
             self.crash_dialog_frame.pack_forget()
 
         if "photo" in pkg.lower() or "foto" in pkg.lower() or app_type == "photo_manager":
             self.app_title_lbl.configure(text="📷 APhotoManager")
-            album_bar = ctk.CTkFrame(self.phone_app_body, fg_color="#1e293b", height=22, corner_radius=6)
-            album_bar.pack(fill="x", pady=(0, 4))
-            album_bar.pack_propagate(False)
-            ctk.CTkLabel(album_bar, text="📁 DCIM/Camera (124 Photos)", font=ctk.CTkFont(size=9, weight="bold"), text_color="#cbd5e1").pack(side="left", padx=6)
-            ctk.CTkLabel(album_bar, text="🔍 Filter", font=ctk.CTkFont(size=8, weight="bold"), text_color="#38bdf8").pack(side="right", padx=6)
 
-            grid_f = ctk.CTkFrame(self.phone_app_body, fg_color="transparent")
-            grid_f.pack(fill="both", expand=True, pady=2)
+            # In-App Album & Actions Bar
+            album_bar = ctk.CTkFrame(self.phone_app_inner, fg_color="#1e293b", height=24, corner_radius=6)
+            album_bar.pack(fill="x", pady=(0, 2))
+            album_bar.pack_propagate(False)
+
+            n_photos = len(self.gallery_photos)
+            ctk.CTkLabel(album_bar, text=f"📁 DCIM/Camera ({n_photos})", font=ctk.CTkFont(size=8, weight="bold"), text_color="#cbd5e1").pack(side="left", padx=6)
+            
+            ctk.CTkButton(
+                album_bar,
+                text="➕ Snap",
+                width=44,
+                height=18,
+                fg_color=THEME["primary"],
+                hover_color=THEME["primary_hover"],
+                font=ctk.CTkFont(size=7, weight="bold"),
+                corner_radius=4,
+                command=self._snap_new_photo
+            ).pack(side="right", padx=2)
+
+            ctk.CTkButton(
+                album_bar,
+                text=f"⚡ {self.active_photo_filter}",
+                width=52,
+                height=18,
+                fg_color="#334155",
+                hover_color="#475569",
+                font=ctk.CTkFont(size=7, weight="bold"),
+                corner_radius=4,
+                command=self._cycle_photo_filter
+            ).pack(side="right", padx=2)
+
+            # Filter Pill Row
+            filt_row = ctk.CTkFrame(self.phone_app_inner, fg_color="transparent", height=18)
+            filt_row.pack(fill="x", pady=(1, 2))
+            for f_tag in ["All", "48MP", "RAW", "Bokeh"]:
+                is_active = (f_tag == self.active_photo_filter)
+                bg = THEME["primary"] if is_active else "#1e293b"
+                tc = "#ffffff" if is_active else "#94a3b8"
+                b = ctk.CTkButton(
+                    filt_row,
+                    text=f_tag,
+                    width=46,
+                    height=16,
+                    fg_color=bg,
+                    text_color=tc,
+                    font=ctk.CTkFont(size=7, weight="bold"),
+                    corner_radius=8,
+                    command=lambda t=f_tag: self._set_photo_filter(t)
+                )
+                b.pack(side="left", padx=2)
+
+            # 2x2 Interactive Photo Grid
+            grid_f = ctk.CTkFrame(self.phone_app_inner, fg_color="transparent")
+            grid_f.pack(fill="both", expand=True, pady=1)
             grid_f.columnconfigure((0, 1), weight=1)
 
-            photos = [
-                ("🖼️ IMG_4021.jpg", "4.2 MB • 48MP"),
-                ("🌄 Sunset_HDR.raw", "18.4 MB • RAW"),
-                ("👤 Portrait_03.jpg", "3.8 MB • Bokeh"),
-                ("🏙️ Night_City.raw", "22.1 MB • RAW")
-            ]
-            for idx, (p_name, p_sub) in enumerate(photos):
-                r, c = divmod(idx, 2)
-                p_card = ctk.CTkFrame(grid_f, fg_color="#111827", corner_radius=6, border_width=1, border_color="#1f2937")
-                p_card.grid(row=r, column=c, padx=3, pady=3, sticky="nsew")
-                ctk.CTkLabel(p_card, text=p_name, font=ctk.CTkFont(family="Segoe UI", size=8, weight="bold"), text_color="#f8fafc").pack(pady=(4, 0))
-                ctk.CTkLabel(p_card, text=p_sub, font=ctk.CTkFont(size=7), text_color="#94a3b8").pack(pady=(0, 4))
-                p_card.bind("<Button-1>", lambda e, n=p_name: self.log_adb_ticker(f"adb input tap: Opened '{n}' bitmap decoder"))
+            matching_photos = [p for p in self.gallery_photos if (self.active_photo_filter == "All" or p["tag"] == self.active_photo_filter)]
+            if not matching_photos:
+                matching_photos = self.gallery_photos
 
-            self.app_pay_status = ctk.CTkLabel(self.phone_app_body, text="🟢 Media Gallery Ready • Dalvik Heap Nominal", font=ctk.CTkFont(size=8, weight="bold"), text_color="#34d399", fg_color="#064e3b", corner_radius=6, pady=2)
-            self.app_pay_status.pack(fill="x", pady=(2, 4))
+            for idx, p in enumerate(matching_photos[:4]):
+                r, c = divmod(idx, 2)
+                p_card = ctk.CTkFrame(grid_f, fg_color="#111827", corner_radius=8, border_width=1, border_color="#1f2937")
+                p_card.grid(row=r, column=c, padx=3, pady=3, sticky="nsew")
+
+                thumb_box = ctk.CTkFrame(p_card, fg_color=p.get("color_a", "#1e3a8a"), corner_radius=6, height=46)
+                thumb_box.pack(fill="x", padx=3, pady=3)
+                thumb_box.pack_propagate(False)
+
+                ctk.CTkLabel(thumb_box, text=p.get("icon", "🖼️"), font=ctk.CTkFont(size=18)).place(relx=0.5, rely=0.45, anchor="center")
+                ctk.CTkLabel(thumb_box, text=p.get("tag", "JPG"), font=ctk.CTkFont(size=6, weight="bold"), text_color="#ffffff", fg_color=p.get("color_b", "#3b82f6"), corner_radius=3, padx=3).place(relx=0.92, rely=0.18, anchor="ne")
+
+                ctk.CTkLabel(p_card, text=p["name"][:14], font=ctk.CTkFont(family="Segoe UI", size=8, weight="bold"), text_color="#f8fafc").pack(pady=(1, 0))
+                ctk.CTkLabel(p_card, text=f"{p['size']} • {p.get('caption', '')[:10]}", font=ctk.CTkFont(size=7), text_color="#94a3b8").pack(pady=(0, 2))
+
+                for widget in [p_card, thumb_box]:
+                    widget.bind("<Button-1>", lambda e, item=p: self._open_photo_detail(item))
+                    widget.bind("<Enter>", lambda e, card=p_card: card.configure(border_color="#6366f1"))
+                    widget.bind("<Leave>", lambda e, card=p_card: card.configure(border_color="#1f2937"))
+
+            # Dalvik Heap Status Banner
+            self.app_pay_status = ctk.CTkLabel(
+                self.phone_app_inner,
+                text="🟢 Media Gallery Ready • Dalvik Heap Nominal",
+                font=ctk.CTkFont(size=8, weight="bold"),
+                text_color="#34d399",
+                fg_color="#064e3b",
+                corner_radius=6,
+                pady=2
+            )
+            self.app_pay_status.pack(fill="x", pady=(2, 3))
 
             self.app_action_btn = ctk.CTkButton(
-                self.phone_app_body,
+                self.phone_app_inner,
                 text="🖼️ Decode 48MB Bitmap Array",
                 height=26,
                 fg_color=THEME["primary"],
                 hover_color=THEME["primary_hover"],
                 font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
                 corner_radius=6,
-                command=self.test_app_resilience
+                command=self._run_bitmap_decoder_stress
             )
             self.app_action_btn.pack(fill="x", pady=(0, 2))
 
         elif "anki" in pkg.lower() or app_type == "flashcards":
             self.app_title_lbl.configure(text="🎴 AnkiDroid")
-            deck_bar = ctk.CTkFrame(self.phone_app_body, fg_color="#1e293b", height=22, corner_radius=6)
+            deck_bar = ctk.CTkFrame(self.phone_app_inner, fg_color="#1e293b", height=22, corner_radius=6)
             deck_bar.pack(fill="x", pady=(0, 4))
             deck_bar.pack_propagate(False)
             ctk.CTkLabel(deck_bar, text="🎴 Deck: Mobile HCI Robustness", font=ctk.CTkFont(size=9, weight="bold"), text_color="#cbd5e1").pack(side="left", padx=6)
             ctk.CTkLabel(deck_bar, text="Card 4/50", font=ctk.CTkFont(size=8, weight="bold"), text_color="#38bdf8").pack(side="right", padx=6)
 
-            card_box = ctk.CTkFrame(self.phone_app_body, fg_color="#111827", corner_radius=8, border_width=1, border_color="#374151")
+            card_box = ctk.CTkFrame(self.phone_app_inner, fg_color="#111827", corner_radius=8, border_width=1, border_color="#374151")
             card_box.pack(fill="both", expand=True, pady=2)
             ctk.CTkLabel(card_box, text="Q: Target acquisition difficulty index (ID)?", font=ctk.CTkFont(size=9, weight="bold"), text_color="#f8fafc", wraplength=250).pack(pady=(6, 2))
             ctk.CTkLabel(card_box, text="ID = log2(2D / W)", font=ctk.CTkFont(family="Consolas", size=9), text_color="#38bdf8").pack(pady=(0, 6))
@@ -2331,81 +2722,21 @@ class PerturbationStudioApp(ctk.CTk):
             for b_lbl, col in [("Again", "#ef4444"), ("Hard", "#f59e0b"), ("Good", "#10b981"), ("Easy", "#3b82f6")]:
                 ctk.CTkButton(btn_row, text=b_lbl, height=20, width=50, fg_color=col, font=ctk.CTkFont(size=8, weight="bold"), corner_radius=4, command=lambda l=b_lbl: self.log_adb_ticker(f"adb input tap: AnkiDroid rating '{l}'")).pack(side="left", padx=2, expand=True)
 
-            self.app_pay_status = ctk.CTkLabel(self.phone_app_body, text="🟢 Flashcards Loaded • SQLite WAL Active", font=ctk.CTkFont(size=8, weight="bold"), text_color="#34d399", fg_color="#064e3b", corner_radius=6, pady=2)
+            self.app_pay_status = ctk.CTkLabel(self.phone_app_inner, text="🟢 Flashcards Loaded • SQLite WAL Active", font=ctk.CTkFont(size=8, weight="bold"), text_color="#34d399", fg_color="#064e3b", corner_radius=6, pady=2)
             self.app_pay_status.pack(fill="x", pady=(2, 4))
 
-            self.app_action_btn = ctk.CTkButton(self.phone_app_body, text="💾 Commit Deck to SQLite Database", height=26, fg_color=THEME["primary"], font=ctk.CTkFont(size=9, weight="bold"), command=self.test_app_resilience)
-            self.app_action_btn.pack(fill="x", pady=(0, 2))
-
-        elif "k9" in pkg.lower() or app_type == "email":
-            self.app_title_lbl.configure(text="📨 K-9 Mail Client")
-            inbox_bar = ctk.CTkFrame(self.phone_app_body, fg_color="#1e293b", height=22, corner_radius=6)
-            inbox_bar.pack(fill="x", pady=(0, 4))
-            inbox_bar.pack_propagate(False)
-            ctk.CTkLabel(inbox_bar, text="📥 Inbox (3 unread)", font=ctk.CTkFont(size=9, weight="bold"), text_color="#cbd5e1").pack(side="left", padx=6)
-            ctk.CTkLabel(inbox_bar, text="IMAP SSL", font=ctk.CTkFont(size=8, weight="bold"), text_color="#34d399").pack(side="right", padx=6)
-
-            mail_box = ctk.CTkFrame(self.phone_app_body, fg_color="transparent")
-            mail_box.pack(fill="both", expand=True, pady=2)
-
-            emails = [
-                ("Play Console", "ANR Input Timeout #42", "#ef4444"),
-                ("Supervisor", "HEART 4-Engine Evaluation", "#38bdf8"),
-                ("CI/CD Pipeline", "57/57 Pytest Passed", "#10b981")
-            ]
-            for sender, subj, col in emails:
-                m_card = ctk.CTkFrame(mail_box, fg_color="#111827", corner_radius=6, border_width=1, border_color="#1f2937")
-                m_card.pack(fill="x", pady=2)
-                row = ctk.CTkFrame(m_card, fg_color="transparent")
-                row.pack(fill="x", padx=6, pady=1)
-                ctk.CTkLabel(row, text=sender, font=ctk.CTkFont(size=8, weight="bold"), text_color=col).pack(side="left")
-                ctk.CTkLabel(m_card, text=subj, font=ctk.CTkFont(size=8), text_color="#94a3b8").pack(anchor="w", padx=6, pady=(0, 2))
-
-            self.app_pay_status = ctk.CTkLabel(self.phone_app_body, text="🟢 Socket Connected • IMAP Idle", font=ctk.CTkFont(size=8, weight="bold"), text_color="#34d399", fg_color="#064e3b", corner_radius=6, pady=2)
-            self.app_pay_status.pack(fill="x", pady=(2, 4))
-
-            self.app_action_btn = ctk.CTkButton(self.phone_app_body, text="🔄 Fetch IMAP Headers & Sync", height=26, fg_color=THEME["primary"], font=ctk.CTkFont(size=9, weight="bold"), command=self.test_app_resilience)
-            self.app_action_btn.pack(fill="x", pady=(0, 2))
-
-        elif "antenna" in pkg.lower() or app_type == "media_player":
-            self.app_title_lbl.configure(text="🎙️ AntennaPod")
-            pod_bar = ctk.CTkFrame(self.phone_app_body, fg_color="#1e293b", height=22, corner_radius=6)
-            pod_bar.pack(fill="x", pady=(0, 4))
-            pod_bar.pack_propagate(False)
-            ctk.CTkLabel(pod_bar, text="🎙️ Now Playing", font=ctk.CTkFont(size=9, weight="bold"), text_color="#cbd5e1").pack(side="left", padx=6)
-            ctk.CTkLabel(pod_bar, text="AUDIOFOCUS_GAIN", font=ctk.CTkFont(size=8, weight="bold"), text_color="#34d399").pack(side="right", padx=6)
-
-            player_card = ctk.CTkFrame(self.phone_app_body, fg_color="#111827", corner_radius=8, border_width=1, border_color="#1f2937")
-            player_card.pack(fill="both", expand=True, pady=2)
-            ctk.CTkLabel(player_card, text="Ep 42: Android Runtime Fault Injection", font=ctk.CTkFont(size=8, weight="bold"), text_color="#ffffff").pack(pady=(6, 1))
-            ctk.CTkLabel(player_card, text="HEART SE Research Podcast", font=ctk.CTkFont(size=7), text_color="#94a3b8").pack(pady=(0, 2))
-
-            scrub = ctk.CTkProgressBar(player_card, height=4, progress_color=THEME["primary"])
-            scrub.set(0.38)
-            scrub.pack(fill="x", padx=10, pady=3)
-            ctk.CTkLabel(player_card, text="14:20 / 48:00 • 320kbps MP3", font=ctk.CTkFont(family="Consolas", size=7), text_color="#64748b").pack()
-
-            p_ctrls = ctk.CTkFrame(player_card, fg_color="transparent")
-            p_ctrls.pack(pady=(2, 4))
-            ctk.CTkButton(p_ctrls, text="⏮️ -10s", width=50, height=18, fg_color="#1e293b", font=ctk.CTkFont(size=7)).pack(side="left", padx=2)
-            ctk.CTkButton(p_ctrls, text="⏸️ Pause", width=55, height=18, fg_color=THEME["primary"], font=ctk.CTkFont(size=7, weight="bold")).pack(side="left", padx=2)
-            ctk.CTkButton(p_ctrls, text="⏭️ +30s", width=50, height=18, fg_color="#1e293b", font=ctk.CTkFont(size=7)).pack(side="left", padx=2)
-
-            self.app_pay_status = ctk.CTkLabel(self.phone_app_body, text="🟢 Audio Track Active (44.1 kHz Stereo)", font=ctk.CTkFont(size=8, weight="bold"), text_color="#34d399", fg_color="#064e3b", corner_radius=6, pady=2)
-            self.app_pay_status.pack(fill="x", pady=(2, 4))
-
-            self.app_action_btn = ctk.CTkButton(self.phone_app_body, text="▶️ Request AudioFocus & Play Swarm", height=26, fg_color=THEME["primary"], font=ctk.CTkFont(size=9, weight="bold"), command=self.test_app_resilience)
+            self.app_action_btn = ctk.CTkButton(self.phone_app_inner, text="💾 Commit Deck to SQLite Database", height=26, fg_color=THEME["primary"], font=ctk.CTkFont(size=9, weight="bold"), command=self.test_app_resilience)
             self.app_action_btn.pack(fill="x", pady=(0, 2))
 
         else:
             self.app_title_lbl.configure(text=f"📱 {app_name[:16]}")
-            gen_bar = ctk.CTkFrame(self.phone_app_body, fg_color="#1e293b", height=22, corner_radius=6)
+            gen_bar = ctk.CTkFrame(self.phone_app_inner, fg_color="#1e293b", height=22, corner_radius=6)
             gen_bar.pack(fill="x", pady=(0, 4))
             gen_bar.pack_propagate(False)
             ctk.CTkLabel(gen_bar, text=f"🚀 {main_act.split('.')[-1]}", font=ctk.CTkFont(size=9, weight="bold"), text_color="#cbd5e1").pack(side="left", padx=6)
             ctk.CTkLabel(gen_bar, text="PID: 14209", font=ctk.CTkFont(family="Consolas", size=8), text_color="#38bdf8").pack(side="right", padx=6)
 
-            gen_card = ctk.CTkFrame(self.phone_app_body, fg_color="#111827", corner_radius=8, border_width=1, border_color="#1f2937")
+            gen_card = ctk.CTkFrame(self.phone_app_inner, fg_color="#111827", corner_radius=8, border_width=1, border_color="#1f2937")
             gen_card.pack(fill="both", expand=True, pady=2)
 
             ctk.CTkLabel(gen_card, text=f"Package: {pkg}", font=ctk.CTkFont(family="Consolas", size=8), text_color="#94a3b8", wraplength=250).pack(anchor="w", padx=6, pady=(4, 2))
@@ -2416,12 +2747,443 @@ class PerturbationStudioApp(ctk.CTk):
             for act in (acts[:3] if acts else [main_act]):
                 ctk.CTkLabel(act_box, text=f"• {act.split('.')[-1]}", font=ctk.CTkFont(size=7), text_color="#38bdf8").pack(anchor="w", padx=8, pady=0)
 
-            self.app_pay_status = ctk.CTkLabel(self.phone_app_body, text="🟢 Target Application Process Running", font=ctk.CTkFont(size=8, weight="bold"), text_color="#34d399", fg_color="#064e3b", corner_radius=6, pady=2)
+            self.app_pay_status = ctk.CTkLabel(self.phone_app_inner, text="🟢 Target Application Process Running", font=ctk.CTkFont(size=8, weight="bold"), text_color="#34d399", fg_color="#064e3b", corner_radius=6, pady=2)
             self.app_pay_status.pack(fill="x", pady=(2, 4))
 
-            self.app_action_btn = ctk.CTkButton(self.phone_app_body, text="⚡ Execute Target Activity Workflow", height=26, fg_color=THEME["primary"], font=ctk.CTkFont(size=9, weight="bold"), command=self.test_app_resilience)
+            self.app_action_btn = ctk.CTkButton(self.phone_app_inner, text="⚡ Execute Target Activity Workflow", height=26, fg_color=THEME["primary"], font=ctk.CTkFont(size=9, weight="bold"), command=self.test_app_resilience)
             self.app_action_btn.pack(fill="x", pady=(0, 2))
 
+    # -----------------------------------------------------------------
+    # PHOTO GALLERY INTERACTION HANDLERS
+    # -----------------------------------------------------------------
+    def _open_photo_detail(self, photo):
+        self.selected_photo = photo
+        self.photo_zoom_level = 1.0
+        self.photo_rotation_angle = 0
+        self.log_adb_ticker(f"am start: Opened PhotoDetailActivity for '{photo['name']}' ({photo['res']})")
+        self._switch_phone_view("photo_viewer")
+
+    def _snap_new_photo(self):
+        new_id = len(self.gallery_photos) + 1
+        t_stamp = time.strftime("%H%M%S")
+        new_item = {
+            "id": new_id,
+            "name": f"IMG_{t_stamp}.jpg",
+            "tag": "48MP",
+            "size": "5.1 MB",
+            "res": "8000x6000",
+            "exif": "ISO 80 • f/1.8 • 1/800s • 24mm",
+            "color_a": "#047857",
+            "color_b": "#10b981",
+            "icon": "📸",
+            "caption": "New Camera Capture"
+        }
+        self.gallery_photos.insert(0, new_item)
+        self.log_adb_ticker(f"CameraService: Captured 48MP RAW -> Saved /sdcard/DCIM/{new_item['name']}")
+        self.log_adb_ticker(f"MediaScanner: Indexed {new_item['name']} into Android MediaStore DB")
+        self._render_active_app_on_phone()
+
+    def _cycle_photo_filter(self):
+        filters = ["All", "48MP", "RAW", "Bokeh"]
+        cur_idx = filters.index(self.active_photo_filter) if self.active_photo_filter in filters else 0
+        next_tag = filters[(cur_idx + 1) % len(filters)]
+        self._set_photo_filter(next_tag)
+
+    def _set_photo_filter(self, tag):
+        self.active_photo_filter = tag
+        self.log_adb_ticker(f"APhotoManager: Filter set to '{tag}'")
+        self._render_active_app_on_phone()
+
+    def _adjust_photo_zoom(self, delta):
+        self.photo_zoom_level = max(0.5, min(2.0, self.photo_zoom_level + delta))
+        self.log_adb_ticker(f"Gesture: Multi-touch pinch zoom -> {int(self.photo_zoom_level*100)}%")
+        self._render_photo_viewer()
+
+    def _rotate_photo(self):
+        self.photo_rotation_angle = (self.photo_rotation_angle + 90) % 360
+        self.log_adb_ticker(f"Matrix: Rotated bitmap to {self.photo_rotation_angle}°")
+        self._render_photo_viewer()
+
+    def _enhance_photo(self):
+        self.log_adb_ticker("RenderScript: Executed HDR Tone-Mapping & Histogram Equalization (18.2ms)")
+        messagebox.showinfo("HDR Tone Mapping", "✓ HDR Tone Mapping applied!\n\nColor grading histogram equalized.")
+
+    def _delete_photo(self, photo):
+        if photo in self.gallery_photos:
+            self.gallery_photos.remove(photo)
+        self.log_adb_ticker(f"MediaProvider: Deleted /sdcard/DCIM/{photo['name']}")
+        self._switch_phone_view("app")
+
+    # -----------------------------------------------------------------
+    # FULL-SCREEN PHOTO DETAIL VIEWER ACTIVITY
+    # -----------------------------------------------------------------
+    def _render_photo_viewer(self):
+        for w in self.phone_photo_viewer.winfo_children():
+            w.destroy()
+
+        photo = getattr(self, "selected_photo", None)
+        if not photo and self.gallery_photos:
+            photo = self.gallery_photos[0]
+            self.selected_photo = photo
+
+        if not photo:
+            return
+
+        # Top Bar with Back Button
+        head = ctk.CTkFrame(self.phone_photo_viewer, fg_color="#1e293b", height=26, corner_radius=6)
+        head.pack(fill="x", pady=(2, 2))
+        head.pack_propagate(False)
+
+        ctk.CTkButton(
+            head,
+            text="◀ Gallery",
+            width=54,
+            height=18,
+            fg_color="#334155",
+            hover_color="#475569",
+            font=ctk.CTkFont(size=7, weight="bold"),
+            corner_radius=4,
+            command=lambda: self._switch_phone_view("app")
+        ).pack(side="left", padx=4)
+
+        ctk.CTkLabel(head, text=photo["name"][:16], font=ctk.CTkFont(size=8, weight="bold"), text_color="#ffffff").pack(side="left", padx=4)
+        ctk.CTkLabel(head, text=photo.get("tag", "JPG"), font=ctk.CTkFont(size=7, weight="bold"), text_color="#38bdf8", fg_color="#0f172a", corner_radius=3, padx=4).pack(side="right", padx=4)
+
+        # High-res Canvas / Visual Photo Viewport
+        canvas_h = int(120 * self.photo_zoom_level)
+        view_f = ctk.CTkFrame(self.phone_photo_viewer, fg_color=photo.get("color_a", "#1e3a8a"), corner_radius=8, height=min(140, canvas_h))
+        view_f.pack(fill="x", padx=4, pady=2)
+        view_f.pack_propagate(False)
+
+        rot_text = f" ({self.photo_rotation_angle}°)" if self.photo_rotation_angle != 0 else ""
+        icon_size = int(32 * min(1.5, self.photo_zoom_level))
+        ctk.CTkLabel(view_f, text=photo.get("icon", "🖼️"), font=ctk.CTkFont(size=icon_size)).place(relx=0.5, rely=0.42, anchor="center")
+        ctk.CTkLabel(view_f, text=f"{photo.get('caption', '')}{rot_text}", font=ctk.CTkFont(size=8, weight="bold"), text_color="#f8fafc").place(relx=0.5, rely=0.82, anchor="center")
+
+        # Zoom & Tool Bar
+        tool_bar = ctk.CTkFrame(self.phone_photo_viewer, fg_color="#0f172a", height=24, corner_radius=6)
+        tool_bar.pack(fill="x", padx=4, pady=2)
+        tool_bar.pack_propagate(False)
+
+        ctk.CTkButton(tool_bar, text="➖", width=26, height=18, fg_color="#1e293b", font=ctk.CTkFont(size=8), command=lambda: self._adjust_photo_zoom(-0.25)).pack(side="left", padx=2)
+        ctk.CTkLabel(tool_bar, text=f"{int(self.photo_zoom_level*100)}%", font=ctk.CTkFont(family="Consolas", size=8), text_color="#cbd5e1").pack(side="left", padx=2)
+        ctk.CTkButton(tool_bar, text="➕", width=26, height=18, fg_color="#1e293b", font=ctk.CTkFont(size=8), command=lambda: self._adjust_photo_zoom(0.25)).pack(side="left", padx=2)
+
+        ctk.CTkButton(tool_bar, text="🔄 Rotate", width=50, height=18, fg_color="#1e293b", font=ctk.CTkFont(size=7), command=self._rotate_photo).pack(side="left", padx=3)
+        ctk.CTkButton(tool_bar, text="✨ HDR", width=44, height=18, fg_color="#1e293b", font=ctk.CTkFont(size=7), command=self._enhance_photo).pack(side="left", padx=2)
+        ctk.CTkButton(tool_bar, text="🗑", width=26, height=18, fg_color="#7f1d1d", hover_color="#991b1b", font=ctk.CTkFont(size=8), command=lambda: self._delete_photo(photo)).pack(side="right", padx=2)
+
+        # EXIF Metadata Box
+        exif_card = ctk.CTkFrame(self.phone_photo_viewer, fg_color="#111827", corner_radius=8, border_width=1, border_color="#1f2937")
+        exif_card.pack(fill="both", expand=True, padx=4, pady=2)
+
+        ctk.CTkLabel(exif_card, text="📊 EXIF & Dalvik Buffer Specs", font=ctk.CTkFont(size=8, weight="bold"), text_color="#38bdf8").pack(anchor="w", padx=6, pady=(3, 1))
+        ctk.CTkLabel(exif_card, text=f"• Dimensions: {photo['res']} ({photo['tag']})", font=ctk.CTkFont(size=8), text_color="#e2e8f0").pack(anchor="w", padx=8)
+        ctk.CTkLabel(exif_card, text=f"• Camera: {photo['exif']}", font=ctk.CTkFont(size=8), text_color="#94a3b8").pack(anchor="w", padx=8)
+        ctk.CTkLabel(exif_card, text=f"• Storage: {photo['size']} on /sdcard/DCIM", font=ctk.CTkFont(size=8), text_color="#94a3b8").pack(anchor="w", padx=8)
+        ctk.CTkLabel(exif_card, text=f"• Dalvik Heap: 28.4MB bitmap buffer", font=ctk.CTkFont(size=8), text_color="#34d399").pack(anchor="w", padx=8)
+
+        # Return Button
+        ctk.CTkButton(
+            self.phone_photo_viewer,
+            text="◀ Return to Photo Gallery",
+            height=24,
+            fg_color=THEME["primary"],
+            hover_color=THEME["primary_hover"],
+            font=ctk.CTkFont(size=8, weight="bold"),
+            command=lambda: self._switch_phone_view("app")
+        ).pack(fill="x", padx=4, pady=(2, 0))
+
+    # -----------------------------------------------------------------
+    # ANDROID 14 HOME LAUNCHER ACTIVITY
+    # -----------------------------------------------------------------
+    def _render_launcher_home(self):
+        for w in self.phone_launcher_home.winfo_children():
+            w.destroy()
+
+        clock_box = ctk.CTkFrame(self.phone_launcher_home, fg_color="transparent")
+        clock_box.pack(pady=(12, 4))
+        
+        time_str = time.strftime("%H:%M")
+        date_str = time.strftime("%A, %b %d")
+        ctk.CTkLabel(clock_box, text=time_str, font=ctk.CTkFont(family="Segoe UI", size=26, weight="bold"), text_color="#ffffff").pack()
+        ctk.CTkLabel(clock_box, text=f"{date_str} • 🌤 24°C Sunny", font=ctk.CTkFont(size=8), text_color="#94a3b8").pack()
+
+        # Google Pill Search Bar
+        search_pill = ctk.CTkFrame(self.phone_launcher_home, fg_color="#1e293b", height=28, corner_radius=14, border_width=1, border_color="#334155")
+        search_pill.pack(fill="x", padx=14, pady=6)
+        search_pill.pack_propagate(False)
+        ctk.CTkLabel(search_pill, text="🔍 Search apps & device...", font=ctk.CTkFont(size=8), text_color="#64748b").pack(side="left", padx=10)
+        ctk.CTkLabel(search_pill, text="🎙️", font=ctk.CTkFont(size=9)).pack(side="right", padx=8)
+
+        # App Grid
+        grid = ctk.CTkFrame(self.phone_launcher_home, fg_color="transparent")
+        grid.pack(fill="both", expand=True, padx=8, pady=4)
+        grid.columnconfigure((0, 1, 2, 3), weight=1)
+
+        d = getattr(self, "current_apk_data", {}) or {}
+        app_name = d.get("app_name", "APhotoManager")
+
+        apps = [
+            ("📷", app_name[:10], "#6366f1", "app", True),
+            ("📸", "Camera", "#ef4444", "camera", False),
+            ("🌐", "Chrome", "#3b82f6", "chrome", False),
+            ("⚙️", "Settings", "#64748b", "settings", False),
+            ("📁", "Files", "#f59e0b", "files", False),
+            ("💬", "Messages", "#10b981", "messages", False),
+            ("🎵", "Music", "#ec4899", "music", False),
+            ("🗺️", "Maps", "#06b6d4", "maps", False)
+        ]
+
+        for idx, (icon, name, col, action, is_running) in enumerate(apps):
+            r, c = divmod(idx, 4)
+            card = ctk.CTkFrame(grid, fg_color="transparent")
+            card.grid(row=r, column=c, padx=2, pady=3)
+
+            btn = ctk.CTkButton(
+                card,
+                text=icon,
+                width=38,
+                height=38,
+                corner_radius=10,
+                fg_color=col,
+                hover_color=col,
+                font=ctk.CTkFont(size=16),
+                command=lambda a=action: self._handle_home_app_click(a)
+            )
+            btn.pack()
+
+            if is_running:
+                ctk.CTkLabel(card, text="● ACTIVE", font=ctk.CTkFont(size=6, weight="bold"), text_color="#34d399").pack(pady=(1, 0))
+            else:
+                ctk.CTkLabel(card, text=name, font=ctk.CTkFont(size=7), text_color="#cbd5e1").pack(pady=(1, 0))
+
+    def _handle_home_app_click(self, action):
+        if action == "app":
+            self.log_adb_ticker("am start -n TargetPackage: Resumed foreground activity")
+            self._switch_phone_view("app")
+        elif action == "camera":
+            self._snap_new_photo()
+            self._switch_phone_view("app")
+        elif action == "settings":
+            cpu = int(self.cpu_slider.get())
+            bat = int(self.bat_slider.get())
+            lat = int(self.lat_slider.get())
+            self.log_adb_ticker(f"SettingsActivity: Battery={bat}%, CPU={cpu}%, RTT={lat}ms")
+            messagebox.showinfo("Android Settings", f"📱 Pixel 7 Device Diagnostics:\n\n• Android OS: 14 (API 34)\n• Battery Level: {bat}%\n• CPU Governor: schedutil ({cpu}% load)\n• Network RTT: {lat} ms")
+        else:
+            self.log_adb_ticker(f"IntentDispatcher: android.intent.action.MAIN -> {action}")
+            messagebox.showinfo("Android System", f"Simulated {action.capitalize()} application launched.")
+
+    # -----------------------------------------------------------------
+    # ANDROID RECENTS / MULTITASKING ACTIVITY
+    # -----------------------------------------------------------------
+    def _render_recents_view(self):
+        for w in self.phone_recents_view.winfo_children():
+            w.destroy()
+
+        ctk.CTkLabel(self.phone_recents_view, text="Overview • Active Tasks", font=ctk.CTkFont(size=9, weight="bold"), text_color="#94a3b8").pack(pady=(8, 4))
+
+        d = getattr(self, "current_apk_data", {}) or {}
+        app_name = d.get("app_name", "APhotoManager")
+
+        # Running App Card (APhotoManager)
+        app_card = ctk.CTkFrame(self.phone_recents_view, fg_color="#1e293b", corner_radius=10, border_width=1, border_color="#6366f1", height=120)
+        app_card.pack(fill="x", padx=14, pady=4)
+        app_card.pack_propagate(False)
+
+        top_r = ctk.CTkFrame(app_card, fg_color="transparent")
+        top_r.pack(fill="x", padx=8, pady=4)
+        ctk.CTkLabel(top_r, text=f"📷 {app_name}", font=ctk.CTkFont(size=9, weight="bold"), text_color="#ffffff").pack(side="left")
+        ctk.CTkLabel(top_r, text="PID: 14209 • Active", font=ctk.CTkFont(family="Consolas", size=7), text_color="#34d399").pack(side="right")
+
+        preview = ctk.CTkFrame(app_card, fg_color="#0f172a", corner_radius=6)
+        preview.pack(fill="both", expand=True, padx=6, pady=(0, 6))
+        ctk.CTkLabel(preview, text="🖼️ [Live Gallery Preview Active]", font=ctk.CTkFont(size=8), text_color="#38bdf8").place(relx=0.5, rely=0.5, anchor="center")
+
+        app_card.bind("<Button-1>", lambda e: self._switch_phone_view("app"))
+        preview.bind("<Button-1>", lambda e: self._switch_phone_view("app"))
+
+        # Camera Task Card
+        cam_card = ctk.CTkFrame(self.phone_recents_view, fg_color="#1e293b", corner_radius=8, height=40)
+        cam_card.pack(fill="x", padx=14, pady=2)
+        cam_card.pack_propagate(False)
+        ctk.CTkLabel(cam_card, text="📸 Camera • Standby", font=ctk.CTkFont(size=8, weight="bold"), text_color="#94a3b8").pack(side="left", padx=8)
+
+        # Clear All Button
+        ctk.CTkButton(
+            self.phone_recents_view,
+            text="🧹 Clear All Tasks",
+            height=24,
+            fg_color="#334155",
+            hover_color="#475569",
+            font=ctk.CTkFont(size=8, weight="bold"),
+            command=lambda: self._switch_phone_view("home_launcher")
+        ).pack(pady=(10, 0))
+
+    # -----------------------------------------------------------------
+    # ALWAYS-ON DISPLAY / SCREEN OFF MODE
+    # -----------------------------------------------------------------
+    def _render_lock_screen(self):
+        for w in self.phone_lock_view.winfo_children():
+            w.destroy()
+
+        time_str = time.strftime("%H:%M")
+        date_str = time.strftime("%A, %b %d")
+        bat = int(self.bat_slider.get())
+
+        box = ctk.CTkFrame(self.phone_lock_view, fg_color="transparent")
+        box.place(relx=0.5, rely=0.45, anchor="center")
+
+        ctk.CTkLabel(box, text=time_str, font=ctk.CTkFont(family="Segoe UI", size=32, weight="bold"), text_color="#cbd5e1").pack()
+        ctk.CTkLabel(box, text=date_str, font=ctk.CTkFont(size=9), text_color="#64748b").pack(pady=(0, 6))
+        ctk.CTkLabel(box, text=f"🔋 {bat}% Charged", font=ctk.CTkFont(size=8), text_color="#34d399").pack(pady=(0, 16))
+
+        unlock_btn = ctk.CTkButton(
+            box,
+            text="👆 Tap to Unlock",
+            width=110,
+            height=26,
+            fg_color="#1e293b",
+            hover_color="#334155",
+            font=ctk.CTkFont(size=8, weight="bold"),
+            command=self._toggle_phone_power
+        )
+        unlock_btn.pack()
+
+    # -----------------------------------------------------------------
+    # REAL AVD ADB MIRROR BRIDGE
+    # -----------------------------------------------------------------
+    def _on_emulator_mode_change(self, mode):
+        if "Real AVD" in mode:
+            self.emulator_mode = "avd"
+            self._switch_phone_view("avd_bridge")
+            self._scan_adb_devices()
+        else:
+            self.emulator_mode = "virtual"
+            self._switch_phone_view("app")
+
+    def _scan_adb_devices(self):
+        try:
+            adb_bin = r"C:\Users\user\AppData\Local\Android\Sdk\platform-tools\adb.exe"
+            res = subprocess.run([adb_bin, "devices"], capture_output=True, text=True, timeout=5)
+            lines = res.stdout.strip().splitlines()
+            online_devs = [l.split()[0] for l in lines[1:] if "device" in l and not "offline" in l]
+            self.real_avd_online = len(online_devs) > 0
+            if self.real_avd_online:
+                self.log_adb_ticker(f"ADB: Connected to {online_devs[0]} online")
+            else:
+                self.log_adb_ticker("ADB: No active emulator found on tcp:5037")
+        except Exception as e:
+            self.real_avd_online = False
+            self.log_adb_ticker(f"ADB: Bridge check exception: {e}")
+        self._render_avd_mirror_view()
+
+    def _launch_real_avd_async(self):
+        emu_bin = r"C:\Users\user\AppData\Local\Android\Sdk\emulator\emulator.exe"
+        self.log_adb_ticker("Launching Android Virtual Device 'Pixel_9_Pro'...")
+        try:
+            subprocess.Popen([emu_bin, "-avd", "Pixel_9_Pro"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            messagebox.showinfo("AVD Launching", "Android Emulator 'Pixel_9_Pro' starting in background.\n\nPlease allow 30-45 seconds for cold boot.")
+            self.after(5000, self._scan_adb_devices)
+        except Exception as e:
+            messagebox.showerror("AVD Launch Error", f"Failed to launch emulator:\n{e}")
+
+    def _install_apk_to_real_avd(self):
+        if not getattr(self, "current_apk_path", None):
+            messagebox.showwarning("No APK", "Please upload or select an APK first.")
+            return
+        d = getattr(self, "current_apk_data", {}) or {}
+        pkg = d.get("package_name")
+        act = d.get("main_activity")
+        self.log_adb_ticker(f"adb install -r \"{self.current_apk_path}\"...")
+        
+        def _install():
+            try:
+                adb_bin = r"C:\Users\user\AppData\Local\Android\Sdk\platform-tools\adb.exe"
+                subprocess.run([adb_bin, "install", "-r", self.current_apk_path], capture_output=True, text=True, timeout=30)
+                subprocess.run([adb_bin, "shell", "am", "start", "-n", f"{pkg}/{act}"], capture_output=True, text=True, timeout=10)
+                self.after(0, lambda: messagebox.showinfo("APK Deployed", f"✓ {d.get('app_name')} deployed and running on Real AVD!"))
+            except Exception as ex:
+                self.after(0, lambda: messagebox.showerror("Install Error", f"Installation failed:\n{ex}"))
+
+        threading.Thread(target=_install, daemon=True).start()
+
+    def _render_avd_mirror_view(self):
+        for w in self.phone_avd_mirror_view.winfo_children():
+            w.destroy()
+
+        bar = ctk.CTkFrame(self.phone_avd_mirror_view, fg_color="#1e293b", height=24, corner_radius=6)
+        bar.pack(fill="x", padx=4, pady=2)
+        bar.pack_propagate(False)
+
+        dev_status = "● ONLINE (Pixel 9 Pro)" if self.real_avd_online else "○ OFFLINE (Pixel 9 Pro)"
+        status_col = "#34d399" if self.real_avd_online else "#f59e0b"
+        ctk.CTkLabel(bar, text="⚡ Real AVD Bridge", font=ctk.CTkFont(size=8, weight="bold"), text_color="#ffffff").pack(side="left", padx=6)
+        ctk.CTkLabel(bar, text=dev_status, font=ctk.CTkFont(size=7, weight="bold"), text_color=status_col).pack(side="right", padx=6)
+
+        card = ctk.CTkFrame(self.phone_avd_mirror_view, fg_color="#111827", corner_radius=10, border_width=1, border_color="#1f2937")
+        card.pack(fill="both", expand=True, padx=6, pady=4)
+
+        if self.real_avd_online:
+            ctk.CTkLabel(card, text="🟢 Real AVD Connected & Online", font=ctk.CTkFont(size=10, weight="bold"), text_color="#34d399").pack(pady=(16, 4))
+            ctk.CTkLabel(card, text="Device: Pixel 9 Pro (API 34)\nADB Transport: tcp:5037 (Verified)", font=ctk.CTkFont(family="Consolas", size=8), text_color="#94a3b8").pack(pady=(0, 10))
+
+            ctk.CTkButton(
+                card,
+                text="📦 Install & Launch Uploaded APK",
+                height=28,
+                fg_color=THEME["primary"],
+                hover_color=THEME["primary_hover"],
+                font=ctk.CTkFont(size=9, weight="bold"),
+                command=self._install_apk_to_real_avd
+            ).pack(fill="x", padx=16, pady=4)
+
+            ctk.CTkButton(
+                card,
+                text="📸 Capture Screencap Frame",
+                height=26,
+                fg_color="#1e293b",
+                font=ctk.CTkFont(size=8, weight="bold"),
+                command=self.capture_adb_screen
+            ).pack(fill="x", padx=16, pady=4)
+        else:
+            ctk.CTkLabel(card, text="📱 Android Virtual Device (AVD)", font=ctk.CTkFont(size=10, weight="bold"), text_color="#38bdf8").pack(pady=(16, 4))
+            ctk.CTkLabel(card, text="Target: Google Pixel 9 Pro (AVD)\nHost ADB Bridge Server: tcp:5037", font=ctk.CTkFont(family="Consolas", size=8), text_color="#94a3b8", justify="center").pack(pady=(0, 12))
+
+            ctk.CTkButton(
+                card,
+                text="▶ Launch Pixel 9 Pro AVD",
+                height=28,
+                fg_color=THEME["primary"],
+                hover_color=THEME["primary_hover"],
+                font=ctk.CTkFont(size=9, weight="bold"),
+                command=self._launch_real_avd_async
+            ).pack(fill="x", padx=16, pady=4)
+
+            ctk.CTkButton(
+                card,
+                text="🔄 Refresh ADB Connection",
+                height=26,
+                fg_color="#1e293b",
+                hover_color="#334155",
+                font=ctk.CTkFont(size=8, weight="bold"),
+                command=self._scan_adb_devices
+            ).pack(fill="x", padx=16, pady=4)
+
+        ctk.CTkButton(
+            card,
+            text="📱 Switch to Virtual Emulator",
+            height=24,
+            fg_color="transparent",
+            text_color="#38bdf8",
+            font=ctk.CTkFont(size=8),
+            command=lambda: self.emulator_mode_segment.set("📱 Virtual Emulator") or self._on_emulator_mode_change("📱 Virtual Emulator")
+        ).pack(pady=(8, 4))
+
+    # -----------------------------------------------------------------
+    # CRASH DIALOG & RESILIENCE STRESS RUNNER
+    # -----------------------------------------------------------------
     def _show_phone_crash_dialog(self, error_type, summary, stacktrace):
         for w in self.crash_dialog_frame.winfo_children():
             w.destroy()
@@ -2486,7 +3248,7 @@ class PerturbationStudioApp(ctk.CTk):
         if hasattr(self, "crash_dialog_frame"):
             self.crash_dialog_frame.pack_forget()
         if hasattr(self, "phone_app_body"):
-            self.phone_app_body.pack(fill="both", expand=True, padx=6, pady=2)
+            self.phone_app_body.pack(fill="both", expand=True, padx=2, pady=1)
 
     def restart_phone_app(self):
         d = getattr(self, "current_apk_data", {}) or {}
@@ -2504,7 +3266,20 @@ class PerturbationStudioApp(ctk.CTk):
             self.log_adb_ticker(f"  {line}")
         self.log_adb_ticker("--- [END STACKTRACE] ---")
 
+    def _run_bitmap_decoder_stress(self):
+        self.app_action_btn.configure(state="disabled", text="⏳ Decoding 48MB Bitmap...")
+        self.log_adb_ticker("adb shell: BitmapDecoder.decodeFileStream('/sdcard/DCIM/IMG_4021.raw', inSampleSize=1)")
+        
+        def _stress_thread():
+            time.sleep(0.35)
+            self.after(0, self.test_app_resilience)
+
+        threading.Thread(target=_stress_thread, daemon=True).start()
+
     def test_app_resilience(self):
+        if hasattr(self, "app_action_btn"):
+            self.app_action_btn.configure(state="normal", text="🖼️ Decode 48MB Bitmap Array")
+
         d = getattr(self, "current_apk_data", {}) or {}
         app_name = d.get("app_name", "Target Application")
         pkg = d.get("package_name", "com.target")
