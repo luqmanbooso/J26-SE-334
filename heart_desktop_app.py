@@ -326,7 +326,7 @@ class PerturbationStudioApp(ctk.CTk):
         # VCS Branch Indicator Pill
         self.vcs_pill = ctk.CTkLabel(
             tb_left,
-            text="⎇ feat/c1-environmental-perturbation-engine (080b705)",
+            text="⎇ feat/c1-environmental-perturbation-engine (1d17d3a)",
             font=ctk.CTkFont(family="Segoe UI", size=9),
             text_color="#475569",
             fg_color="#f8fafc",
