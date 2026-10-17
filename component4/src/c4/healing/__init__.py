@@ -16,6 +16,8 @@ from c4.healing.models import (
     HealingStatus,
 )
 from c4.healing.semantic import LexicalEmbedder, SentenceBertEmbedder
+from c4.healing.baseline import BaselineStore
+from c4.healing.service import HealingOutcome, HealingRound, HealingService
 
 __all__ = [
     "CandidateScore",
@@ -31,4 +33,8 @@ __all__ = [
     "UiNode",
     "node_to_descriptor",
     "parse_hierarchy",
+    "BaselineStore",
+    "HealingOutcome",
+    "HealingRound",
+    "HealingService",
 ]

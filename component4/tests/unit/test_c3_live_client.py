@@ -5,6 +5,10 @@ Verifies in-process evaluation, HTTP fallback, and contract compliance.
 
 from __future__ import annotations
 
+import pytest
+pytest.importorskip("PIL")
+pytest.importorskip("local_vision_oracle")
+
 import io
 import json
 from datetime import datetime, timezone
