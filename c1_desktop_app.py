@@ -22,6 +22,20 @@ from orchestrator import PerturbationOrchestrator  # type: ignore
 from core.profile_parser import ProfileParser, ProfileValidationError  # type: ignore
 from core.apk_parser import parse_apk_metadata  # type: ignore
 
+# C2's real engine (Option A, agreed 2026-10-17): the biometry view samples
+# from BiometricSimulator itself, so the studio shows the one model the
+# repository actually tests — never a re-derived copy. biometry/ uses
+# package-relative imports, so its directory joins sys.path like env testing's.
+BIOMETRY_DIR = os.path.join(ROOT_DIR, "biometry")
+if BIOMETRY_DIR not in sys.path:
+    sys.path.insert(0, BIOMETRY_DIR)
+try:
+    from simulation.simulator import BiometricSimulator  # type: ignore
+    BIOMETRY_IMPORT_ERROR = None
+except Exception as _exc:  # loud, never silently simulated
+    BiometricSimulator = None
+    BIOMETRY_IMPORT_ERROR = str(_exc)
+
 # Configure modern light appearance
 ctk.set_appearance_mode("light")
 ctk.set_default_color_theme("blue")
@@ -1173,10 +1187,10 @@ class PerturbationStudioApp(ctk.CTk):
         self.bio_angle_slider.pack(fill="x", pady=(2, 10))
 
         ctk.CTkLabel(l_inner, text="Tremor Amplitude (Sigma):", font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold")).pack(anchor="w")
-        self.bio_sigma_lbl = ctk.CTkLabel(l_inner, text="12.0 px", font=ctk.CTkFont(family="Segoe UI", size=10), text_color=THEME["text_muted"])
+        self.bio_sigma_lbl = ctk.CTkLabel(l_inner, text="24.0 px (= 1.50 mm floor @16 px/mm)", font=ctk.CTkFont(family="Segoe UI", size=10), text_color=THEME["text_muted"])
         self.bio_sigma_lbl.pack(anchor="w")
         self.bio_sigma_slider = ctk.CTkSlider(l_inner, from_=2.0, to=30.0, number_of_steps=56, command=self._on_bio_param_changed)
-        self.bio_sigma_slider.set(12.0)
+        self.bio_sigma_slider.set(24.0)
         self.bio_sigma_slider.pack(fill="x", pady=(2, 14))
 
         # Action Buttons
@@ -1236,7 +1250,7 @@ class PerturbationStudioApp(ctk.CTk):
         # Canvas Stats Bar
         self.bio_stats_lbl = ctk.CTkLabel(
             r_inner,
-            text="Total Taps: 500 • Hits: 461 • Misses: 39 • Accuracy: 92.2% • Mean MT (FFitts): 242.4ms",
+            text="Awaiting first draw…",
             font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
             text_color=THEME["info_text"],
             fg_color=THEME["info_bg"],
@@ -1250,7 +1264,7 @@ class PerturbationStudioApp(ctk.CTk):
         ctk.CTkLabel(r_inner, text="Biomechanical Touch Engine Log:", font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold")).pack(anchor="w")
         self.bio_log_box = ctk.CTkTextbox(r_inner, height=130, font=ctk.CTkFont(family="Consolas", size=10), fg_color="#0f172a", text_color="#f8fafc")
         self.bio_log_box.pack(fill="both", expand=True, pady=(4, 0))
-        self.bio_log_box.insert("end", "[Biometry Engine] Simulator initialized with base sigma=10.0, base_time=0.25s\n[Biometry Engine] Ready for touch distribution synthesis.\n")
+        self.bio_log_box.insert("end", "[Biometry Engine] Sampling from biometry.BiometricSimulator (the tested engine) — seed 2026, px_per_mm 16.0\n[Biometry Engine] Ready for touch distribution synthesis.\n")
 
         # Initial canvas draw
         self._redraw_biometry_canvas()
@@ -1275,7 +1289,7 @@ class PerturbationStudioApp(ctk.CTk):
 
         self.bio_stress_lbl.configure(text=state_text)
         self.bio_angle_lbl.configure(text=f"{angle}° (Contact Orientation)")
-        self.bio_sigma_lbl.configure(text=f"{sigma:.1f} px")
+        self.bio_sigma_lbl.configure(text=f"{sigma:.1f} px (= {sigma / 16.0:.2f} mm floor @16 px/mm)")
         self._redraw_biometry_canvas()
 
     def _redraw_biometry_canvas(self):
@@ -1294,41 +1308,43 @@ class PerturbationStudioApp(ctk.CTk):
         self.bio_canvas.create_rectangle(x1, y1, x2, y2, fill="#1e293b", outline="#38bdf8", width=2)
         self.bio_canvas.create_text(cx, cy, text="Target Button (180x80 px)", fill="#f8fafc", font=("Segoe UI", 10, "bold"))
 
+        if BiometricSimulator is None:
+            # No inline stand-in model — the studio shows the real engine or
+            # says plainly that it cannot (same rule as the ADB layer).
+            self.bio_canvas.create_text(
+                cx, cy + th, fill="#ef4444", font=("Segoe UI", 10, "bold"),
+                text=f"biometry engine not importable: {BIOMETRY_IMPORT_ERROR}")
+            self.bio_stats_lbl.configure(text="Engine unavailable — nothing sampled")
+            return
+
         stress = self.bio_stress_slider.get()
-        angle_deg = self.bio_angle_slider.get()
-        base_sigma = self.bio_sigma_slider.get()
+        rad = math.radians(self.bio_angle_slider.get())
+        # The slider sets the absolute finger-imprecision floor, in canvas px;
+        # the engine is calibrated in mm at 16 px/mm (default phone scale).
+        sigma_absolute_mm = self.bio_sigma_slider.get() / 16.0
 
-        rad = math.radians(angle_deg)
-        cos_a = math.cos(rad)
-        sin_a = math.sin(rad)
+        # Fixed seed: the same parameters always draw the same cloud, so a
+        # marker watching the demo sees sliders move the physics, not the RNG.
+        sim = BiometricSimulator(sigma_absolute_mm=sigma_absolute_mm, seed=2026)
 
-        sigma_major = base_sigma * (1.0 + stress * 2.2)
-        sigma_minor = base_sigma * (1.0 + stress * 0.6)
-
-        total = 500
-        hits = 0
-
+        total, hits, errors, delays = 500, 0, [], []
         for _ in range(total):
-            u = random.gauss(0, sigma_major)
-            v = random.gauss(0, sigma_minor)
-            px = cx + (u * cos_a - v * sin_a)
-            py = cy + (u * sin_a + v * cos_a)
-
-            is_hit = (x1 <= px <= x2) and (y1 <= py <= y2)
-            if is_hit:
+            tap = sim.simulate_tap(cx, cy, tw, th, stress, angle=rad)
+            px, py = tap["actual"]["x"], tap["actual"]["y"]
+            errors.append(tap["error_distance"])
+            delays.append(tap["delay"])
+            if tap["is_hit"]:
                 hits += 1
                 color = "#22c55e"
             else:
                 color = "#ef4444"
-
             self.bio_canvas.create_oval(px - 1.5, py - 1.5, px + 1.5, py + 1.5, fill=color, outline="")
 
-        misses = total - hits
         acc = (hits / total) * 100.0
-        ffitts_mt = 140.0 + 110.0 * math.log2(2.0 * 380.0 / tw) * (1.0 + stress * 0.75)
-
         self.bio_stats_lbl.configure(
-            text=f"Total Taps: {total} • Hits: {hits} • Misses: {misses} • Accuracy: {acc:.1f}% • Mean MT (FFitts): {ffitts_mt:.1f}ms"
+            text=f"Total Taps: {total} • Hits: {hits} • Misses: {total - hits} • "
+                 f"Accuracy: {acc:.1f}% • Mean Error: {sum(errors) / total:.1f}px • "
+                 f"Mean Delay: {sum(delays) / total * 1000:.0f}ms"
         )
 
     # =========================================================================
