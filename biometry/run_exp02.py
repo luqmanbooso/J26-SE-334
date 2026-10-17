@@ -83,6 +83,7 @@ def run_arm(name, level, args, bridge, package, px_per_mm, out_dir):
     )
 
     started = time.time()
+    started_epoch_ms = int(started * 1000)
     for i in range(args.actions):
         target = targets[i % len(targets)]
         record = controller.act(target.as_target())
@@ -102,6 +103,7 @@ def run_arm(name, level, args, bridge, package, px_per_mm, out_dir):
         print(f"[{name}] figure skipped: {exc}")
     return {"arm": name, "fixed_stress": level, "actions": args.actions,
             "targets_on_screen": len(targets), "elapsed_s": round(elapsed, 1),
+            "started_epoch_ms": started_epoch_ms,
             "timeline": f"{stem}.json"}
 
 
