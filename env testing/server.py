@@ -35,10 +35,12 @@ os.makedirs(DESKTOP_UI_DIR, exist_ok=True)
 os.makedirs(RESULTS_DIR, exist_ok=True)
 app.mount("/results", StaticFiles(directory=RESULTS_DIR), name="results")
 
+@app.get("/heart_studio", response_class=HTMLResponse)
 @app.get("/c1_studio", response_class=HTMLResponse)
+@app.get("/studio", response_class=HTMLResponse)
 @app.get("/desktop", response_class=HTMLResponse)
 def get_desktop_studio():
-    """Serves the native Windows Desktop Studio interface for Environmental Perturbation Engine."""
+    """Serves the native Windows Desktop Studio interface for HEART Platform."""
     index_file = os.path.join(DESKTOP_UI_DIR, "index.html")
     if os.path.exists(index_file):
         with open(index_file, "r", encoding="utf-8") as f:
@@ -51,10 +53,10 @@ def root(request: Request):
     if "text/html" in accept:
         return get_desktop_studio()
     return {
-        "system": "Context-Aware Environmental Perturbation Engine",
+        "system": "HEART Unified Mobile Robustness Platform",
         "project": "J26-SE-334",
         "status": "ONLINE",
-        "desktop_studio": "/c1_studio",
+        "desktop_studio": "/heart_studio",
         "docs": "/docs"
     }
 
