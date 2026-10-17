@@ -163,7 +163,7 @@ class PerturbationStudioApp(ctk.CTk):
         super().__init__()
 
         # Window properties
-        self.title("HEART Studio - app [D:\\J26-SE-334] - .../FotoGalleryActivity.kt [app] - Android Studio v2024.2.1")
+        self.title("HEART Platform - Mobile Robustness & Fault Evaluation Workbench [D:\\J26-SE-334]")
         self.geometry("1480x920")
         self.minsize(1180, 720)
         self.configure(fg_color=THEME["bg_app"])
@@ -220,7 +220,7 @@ class PerturbationStudioApp(ctk.CTk):
         self.apk_issues_detected = []
         self.apk_sim_running = False
 
-        # Build Android Studio IDE Layout
+        # Build Professional IDE Layout
         self._build_studio_menu_bar()
         self._build_header()
         self._build_studio_workspace()
@@ -231,7 +231,7 @@ class PerturbationStudioApp(ctk.CTk):
         self._start_phone_clock_loop()
 
     # =========================================================================
-    # ANDROID STUDIO TOP APPLICATION MENU BAR
+    # APPLICATION MENU BAR
     # =========================================================================
     def _build_studio_menu_bar(self):
         self.studio_menu_bar = ctk.CTkFrame(
@@ -275,10 +275,10 @@ class PerturbationStudioApp(ctk.CTk):
             )
             btn.pack(side="left", padx=1, pady=2)
 
-        # Right: Android Studio Version & Build Status
+        # Right: Platform Version & Build Status
         ver_lbl = ctk.CTkLabel(
             self.studio_menu_bar,
-            text="Android Studio Iguana | 2024.2.1 • HEART SE-334",
+            text="HEART Platform v4.2.0 • Research Workbench SE-334",
             font=ctk.CTkFont(family="Segoe UI", size=8),
             text_color="#94a3b8"
         )
@@ -299,7 +299,7 @@ class PerturbationStudioApp(ctk.CTk):
             messagebox.showinfo("HEART Studio Help", "HEART Platform v4.0 PRO\n\nIntegrated 4-Pillar Mobile Robustness Evaluation Suite\n• Pillar 1: Environment Perturbation Engine\n• Pillar 2: Biomechanical Interaction Studio\n• Pillar 3: Multimodal Vision Oracle\n• Pillar 4: Telemetry Self-Healing Engine")
 
     # =========================================================================
-    # ANDROID STUDIO MAIN ACTION TOOLBAR
+    # MAIN ACTION TOOLBAR
     # =========================================================================
     def _build_header(self):
         self.studio_main_toolbar = ctk.CTkFrame(
@@ -344,7 +344,7 @@ class PerturbationStudioApp(ctk.CTk):
         )
         self.vcs_pill.pack(side="left", padx=4)
 
-        # Center Section: Iconic Android Studio Run / Debug Control Strip
+        # Center Section: Run / Debug Control Strip
         tb_center = ctk.CTkFrame(self.studio_main_toolbar, fg_color="transparent")
         tb_center.pack(side="left", expand=True, pady=4)
 
@@ -487,7 +487,7 @@ class PerturbationStudioApp(ctk.CTk):
         self.test_badge.pack(side="left", padx=4)
 
     # =========================================================================
-    # ANDROID STUDIO WORKSPACE LAYOUT (Toolstrip + Editor Tabs + Main Area)
+    # WORKSPACE LAYOUT (Toolstrip + Editor Tabs + Main Area)
     # =========================================================================
     def _build_studio_workspace(self):
         # Outer Horizontal Split: Left Toolstrip + Right Editor Area
@@ -546,7 +546,7 @@ class PerturbationStudioApp(ctk.CTk):
             b.pack(pady=4)
 
     # =========================================================================
-    # ANDROID STUDIO EDITOR TABS & BREADCRUMBS BAR
+    # EDITOR TABS & BREADCRUMBS BAR
     # =========================================================================
     def _build_modern_nav_bar(self, parent):
         tabs_container = ctk.CTkFrame(
@@ -2220,12 +2220,12 @@ class PerturbationStudioApp(ctk.CTk):
         right_phone_pane = ctk.CTkFrame(split_body, fg_color=THEME["bg_card"], corner_radius=12, border_width=1, border_color=THEME["border_card"])
         right_phone_pane.grid(row=0, column=1, sticky="nsew", padx=(8, 0), pady=0)
 
-        # Android Studio "Running Devices" Tool Window Header
+        # Running Devices Tool Window Header
         phone_head = ctk.CTkFrame(right_phone_pane, fg_color="#f1f5f9", height=32, corner_radius=6, border_width=1, border_color="#e2e8f0")
         phone_head.pack(fill="x", padx=8, pady=(6, 4))
         phone_head.pack_propagate(False)
 
-        # Active Device Tab Pill (Android Studio style)
+        # Active Device Tab Pill
         dev_tab = ctk.CTkFrame(phone_head, fg_color="#ffffff", corner_radius=4, border_width=1, border_color="#cbd5e1")
         dev_tab.pack(side="left", padx=4, pady=3)
         ctk.CTkLabel(dev_tab, text="📱 Running Devices: Pixel 9 Pro ✕", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color="#0f172a").pack(padx=6, pady=1)
@@ -2263,7 +2263,7 @@ class PerturbationStudioApp(ctk.CTk):
             command=self.capture_adb_screen
         ).pack(side="left")
 
-        # Physical Phone Assembly (With Android Studio Vertical Side Toolbar)
+        # Physical Phone Assembly (With Vertical Side Toolbar)
         phone_assembly = ctk.CTkFrame(right_phone_pane, fg_color="transparent")
         phone_assembly.pack(expand=False, padx=4, pady=(2, 6))
 
@@ -2303,7 +2303,7 @@ class PerturbationStudioApp(ctk.CTk):
         self.phone_chassis = ctk.CTkFrame(phone_assembly, fg_color=THEME["phone_chassis"], corner_radius=28, border_width=3, border_color="#334155")
         self.phone_chassis.pack(side="left")
 
-        # Android Studio Iconic Vertical Emulator Toolbar (Right of phone)
+        # Vertical Hardware Emulator Toolbar (Right of phone)
         emu_side_tools = ctk.CTkFrame(phone_assembly, fg_color="#f8fafc", corner_radius=8, border_width=1, border_color="#e2e8f0", width=34)
         emu_side_tools.pack(side="left", padx=(6, 0), pady=(12, 0), anchor="n")
 
