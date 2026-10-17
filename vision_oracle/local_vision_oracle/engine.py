@@ -490,15 +490,65 @@ class OracleEngine:
         result.metadata["viewport_density"] = metrics["density"]
         return result
 
+    def evaluate_sequence(
+        self,
+        screens: List[Union[str, Path, bytes, Image.Image]],
+        hierarchies: Optional[List[Optional[Union[str, Path, Dict[str, Any], List[Any]]]]] = None,
+        screen_ids: Optional[List[str]] = None,
+        time_delta_s: float = 2.5,
+        action_dispatched: bool = True,
+        action_context: Optional[str] = None,
+        enable_sahi: bool = True,
+    ) -> C3OracleResult:
+        """
+        Evaluates a sequence of 2 or more consecutive screen frames to detect temporal
+        freezes (FR3) or evaluate the final post-action state.
+        """
+        if not screens or len(screens) < 2:
+            raise ValueError("evaluate_sequence requires at least 2 screen frames for temporal analysis.")
+
+        prev_img = screens[-2]
+        curr_img = screens[-1]
+        prev_hier = hierarchies[-2] if (hierarchies and len(hierarchies) >= 2) else None
+        curr_hier = hierarchies[-1] if (hierarchies and len(hierarchies) >= 1) else None
+        curr_id = screen_ids[-1] if (screen_ids and len(screen_ids) >= 1) else None
+
+        return self.evaluate(
+            image_input=curr_img,
+            raw_hierarchy=curr_hier,
+            screen_id=curr_id,
+            action_context=action_context,
+            enable_sahi=enable_sahi,
+            previous_image=prev_img,
+            previous_hierarchy=prev_hier,
+            time_delta_s=time_delta_s,
+            action_dispatched=action_dispatched,
+        )
+
     @staticmethod
+
     def to_c4_verdict(result: C3OracleResult, screenshot_path: Optional[str] = None, session_id: Optional[str] = None) -> Any:
         """
         Directly maps C3 Oracle evaluation result to Component 4's C3Verdict contract.
         Fulfills component4/src/c4/c3_interface/contract.py schema.
         """
-        from c4.c3_interface.contract import C3Verdict, ScreenshotEvidence, DefectRegion
+        try:
+            from c4.c3_interface.contract import C3Verdict, ScreenshotEvidence, DefectRegion
+
+        except ImportError:
+            import sys
+            from pathlib import Path
+            search_paths = [
+                Path(r"D:/university/Resesarch/J26-SE-334/component4/src"),
+                Path(__file__).resolve().parent.parent.parent / "component4" / "src",
+            ]
+            for p in search_paths:
+                if p.exists() and str(p) not in sys.path:
+                    sys.path.insert(0, str(p))
+            from c4.c3_interface.contract import C3Verdict, ScreenshotEvidence, DefectRegion
 
         verdict = result.verdict
+
         resolution = result.metadata.get("viewport_resolution", [720, 1600])
         width = int(resolution[0]) if len(resolution) > 0 else 720
         height = int(resolution[1]) if len(resolution) > 1 else 1600
