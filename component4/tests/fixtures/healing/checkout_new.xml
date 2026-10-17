@@ -1,0 +1,5 @@
+<hierarchy>
+  <node class="android.widget.LinearLayout" package="com.example" bounds="[0,0][1080,1920]" enabled="true">
+    <node class="android.widget.Button" package="com.example" resource-id="com.example:id/btn_pay_now_v2" text="Pay now" clickable="true" enabled="true" bounds="[40,400][500,520]" />
+  </node>
+</hierarchy>
