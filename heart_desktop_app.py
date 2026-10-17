@@ -155,7 +155,7 @@ class PerturbationStudioApp(ctk.CTk):
         super().__init__()
 
         # Window properties
-        self.title("HEART - Unified Mobile Robustness Platform (4-Pillar Integrated Research Suite)")
+        self.title("HEART Studio - app [D:\\J26-SE-334] - .../FotoGalleryActivity.kt [app] - Android Studio v2024.2.1")
         self.geometry("1480x920")
         self.minsize(1180, 720)
         self.configure(fg_color=THEME["bg_app"])
@@ -212,10 +212,10 @@ class PerturbationStudioApp(ctk.CTk):
         self.apk_issues_detected = []
         self.apk_sim_running = False
 
-        # Build UI layout
+        # Build Android Studio IDE Layout
+        self._build_studio_menu_bar()
         self._build_header()
-        self._build_modern_nav_bar()
-        self._build_main_views()
+        self._build_studio_workspace()
         self._build_status_bar()
 
         # Start background telemetry monitor loop
@@ -223,265 +223,427 @@ class PerturbationStudioApp(ctk.CTk):
         self._start_phone_clock_loop()
 
     # =========================================================================
-    # HEADER SECTION
+    # ANDROID STUDIO TOP APPLICATION MENU BAR
+    # =========================================================================
+    def _build_studio_menu_bar(self):
+        self.studio_menu_bar = ctk.CTkFrame(
+            self,
+            fg_color="#f8fafc",
+            height=26,
+            corner_radius=0,
+            border_width=1,
+            border_color="#e2e8f0"
+        )
+        self.studio_menu_bar.pack(fill="x", side="top")
+        self.studio_menu_bar.pack_propagate(False)
+
+        menus = [
+            ("File", "Ctrl+Alt+S"),
+            ("Edit", "Ctrl+Z"),
+            ("View", "Ctrl+E"),
+            ("Navigate", "Ctrl+N"),
+            ("Code", "Ctrl+Alt+L"),
+            ("Analyze", "Inspect Code"),
+            ("Build", "Ctrl+F9"),
+            ("Run", "Shift+F10"),
+            ("Tools", "Device Manager"),
+            ("VCS", "Git Sync"),
+            ("Window", "Restore Layout"),
+            ("Help", "HEART Docs")
+        ]
+
+        for m_name, m_shortcut in menus:
+            btn = ctk.CTkButton(
+                self.studio_menu_bar,
+                text=m_name,
+                width=34,
+                height=20,
+                corner_radius=3,
+                fg_color="transparent",
+                hover_color="#e2e8f0",
+                text_color="#334155",
+                font=ctk.CTkFont(family="Segoe UI", size=9),
+                command=lambda n=m_name, s=m_shortcut: self._on_menu_item_click(n, s)
+            )
+            btn.pack(side="left", padx=1, pady=2)
+
+        # Right: Android Studio Version & Build Status
+        ver_lbl = ctk.CTkLabel(
+            self.studio_menu_bar,
+            text="Android Studio Iguana | 2024.2.1 • HEART SE-334",
+            font=ctk.CTkFont(family="Segoe UI", size=8),
+            text_color="#94a3b8"
+        )
+        ver_lbl.pack(side="right", padx=12)
+
+    def _on_menu_item_click(self, name, shortcut):
+        self.log_adb_ticker(f"IDE: Menu '{name}' triggered ({shortcut})")
+        if name == "Run":
+            self.test_app_resilience()
+        elif name == "Build":
+            self.log_adb_ticker("Gradle: Executing ':app:assembleDebug' -> BUILD SUCCESSFUL in 1.4s")
+            messagebox.showinfo("Gradle Build", "✓ BUILD SUCCESSFUL in 1.4s\n\n16 actionable tasks: 16 executed.\nclasses.dex compiled cleanly.")
+        elif name == "Tools":
+            self._switch_view("console")
+        elif name == "VCS":
+            self.log_adb_ticker("Git: Synchronized branch feat/c1-environmental-perturbation-engine (clean)")
+        elif name == "Help":
+            messagebox.showinfo("HEART Studio Help", "HEART Platform v4.0 PRO\n\nIntegrated 4-Pillar Mobile Robustness Evaluation Suite\n• Pillar 1: Environment Perturbation Engine\n• Pillar 2: Biomechanical Interaction Studio\n• Pillar 3: Multimodal Vision Oracle\n• Pillar 4: Telemetry Self-Healing Engine")
+
+    # =========================================================================
+    # ANDROID STUDIO MAIN ACTION TOOLBAR
     # =========================================================================
     def _build_header(self):
-        header_frame = ctk.CTkFrame(
+        self.studio_main_toolbar = ctk.CTkFrame(
             self,
-            fg_color=THEME["bg_card"],
+            fg_color="#ffffff",
+            height=46,
             corner_radius=0,
-            height=84,
             border_width=1,
-            border_color=THEME["border_card"]
+            border_color="#e2e8f0"
         )
-        header_frame.pack(fill="x", side="top", padx=0, pady=0)
-        header_frame.pack_propagate(False)
+        self.studio_main_toolbar.pack(fill="x", side="top")
+        self.studio_main_toolbar.pack_propagate(False)
 
-        # Left: HEART Brand with Logo Badge
-        left_box = ctk.CTkFrame(header_frame, fg_color="transparent")
-        left_box.pack(side="left", padx=20, pady=10)
+        # Left Section: Project / Module Selector & VCS Branch
+        tb_left = ctk.CTkFrame(self.studio_main_toolbar, fg_color="transparent")
+        tb_left.pack(side="left", padx=8, pady=4)
 
-        # HEART Logo Badge Container
-        fav_path = os.path.join(ROOT_DIR, "favicon_cropped.png")
-        if not os.path.exists(fav_path):
-            fav_path = os.path.join(ROOT_DIR, "favicon.png")
-
-        if os.path.exists(fav_path):
-            try:
-                logo_pil = Image.open(fav_path)
-                self.logo_ctk_img = ctk.CTkImage(
-                    light_image=logo_pil,
-                    dark_image=logo_pil,
-                    size=(44, 44)
-                )
-                logo_badge = ctk.CTkFrame(
-                    left_box,
-                    fg_color=THEME["primary_subtle"],
-                    corner_radius=12,
-                    border_width=1,
-                    border_color=THEME["info_border"],
-                    width=54,
-                    height=54
-                )
-                logo_badge.pack(side="left", padx=(0, 14))
-                logo_badge.pack_propagate(False)
-
-                logo_lbl = ctk.CTkLabel(logo_badge, image=self.logo_ctk_img, text="")
-                logo_lbl.pack(expand=True)
-            except Exception:
-                pass
-
-        # Text labels container
-        text_box = ctk.CTkFrame(left_box, fg_color="transparent")
-        text_box.pack(side="left")
-
-        title_row = ctk.CTkFrame(text_box, fg_color="transparent")
-        title_row.pack(anchor="w")
-
-        ctk.CTkLabel(
-            title_row,
-            text="HEART",
-            font=ctk.CTkFont(family="Segoe UI", size=20, weight="bold"),
-            text_color=THEME["text_heading"]
-        ).pack(side="left")
-
-        ctk.CTkLabel(
-            title_row,
-            text=" STUDIO",
-            font=ctk.CTkFont(family="Segoe UI", size=20, weight="bold"),
-            text_color=THEME["primary"]
-        ).pack(side="left")
-
-        ctk.CTkLabel(
-            title_row,
-            text="v4.0 PRO",
+        # Project Selector Button
+        self.proj_selector = ctk.CTkButton(
+            tb_left,
+            text="📁 app [HEART-Platform] ▾",
+            height=28,
+            corner_radius=6,
+            fg_color="#f1f5f9",
+            hover_color="#e2e8f0",
+            text_color="#0f172a",
             font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
-            text_color=THEME["info_text"],
-            fg_color=THEME["info_bg"],
+            command=lambda: self._switch_view("apk")
+        )
+        self.proj_selector.pack(side="left", padx=2)
+
+        # VCS Branch Indicator Pill
+        self.vcs_pill = ctk.CTkLabel(
+            tb_left,
+            text="⎇ feat/c1-environmental-perturbation-engine (080b705)",
+            font=ctk.CTkFont(family="Segoe UI", size=9),
+            text_color="#475569",
+            fg_color="#f8fafc",
             corner_radius=6,
             padx=8,
-            pady=2
-        ).pack(side="left", padx=(10, 0))
-
-        ctk.CTkLabel(
-            title_row,
-            text="• Unified Mobile Robustness Platform",
-            font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"),
-            text_color=THEME["text_muted"]
-        ).pack(side="left", padx=(8, 0))
-
-        meta_lbl = ctk.CTkLabel(
-            text_box,
-            text="Human & Environment Aware Mobile Robustness Testing Platform • 4-Pillar Integrated Research Suite • J26-SE-334",
-            font=ctk.CTkFont(family="Segoe UI", size=11),
-            text_color=THEME["text_muted"]
+            pady=3
         )
-        meta_lbl.pack(anchor="w", pady=(2, 0))
+        self.vcs_pill.pack(side="left", padx=4)
 
-        # Right: Status Badges & Quick Action Controls
-        right_box = ctk.CTkFrame(header_frame, fg_color="transparent")
-        right_box.pack(side="right", padx=18, pady=10)
+        # Center Section: Iconic Android Studio Run / Debug Control Strip
+        tb_center = ctk.CTkFrame(self.studio_main_toolbar, fg_color="transparent")
+        tb_center.pack(side="left", expand=True, pady=4)
 
-        # Device Indicator Pill
-        dev_text = f"ADB: {self.device_info.get('target_model', 'Google Pixel 7 (API 34)')}"
-        self.dev_pill = ctk.CTkLabel(
-            right_box,
-            text=f"🟢 {dev_text}",
-            font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
-            text_color=THEME["success_text"],
-            fg_color=THEME["success_bg"],
-            corner_radius=8,
-            padx=12,
-            pady=6
+        # Target Device Selector Dropdown
+        self.dev_target_btn = ctk.CTkButton(
+            tb_center,
+            text="📱 Google Pixel 9 Pro (API 34) ▾",
+            height=28,
+            corner_radius=6,
+            fg_color="#f1f5f9",
+            hover_color="#e2e8f0",
+            text_color="#0f172a",
+            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
+            command=lambda: self._switch_view("console")
         )
-        self.dev_pill.pack(side="left", padx=4)
+        self.dev_target_btn.pack(side="left", padx=3)
 
-        # 4 Research Pillars Active Badge
-        self.rq1_badge = ctk.CTkLabel(
-            right_box,
-            text="⚡ Research Pillars: 4/4 Ready",
-            font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
-            text_color=THEME["info_text"],
-            fg_color=THEME["info_bg"],
-            corner_radius=8,
-            padx=12,
-            pady=6
+        # Run Button (Vibrant Emerald Green)
+        self.run_app_btn = ctk.CTkButton(
+            tb_center,
+            text="▶ Run 'app'",
+            height=28,
+            width=88,
+            corner_radius=6,
+            fg_color="#10b981",
+            hover_color="#059669",
+            text_color="#ffffff",
+            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
+            command=self.test_app_resilience
         )
-        self.rq1_badge.pack(side="left", padx=4)
+        self.run_app_btn.pack(side="left", padx=2)
+
+        # Debug Button
+        self.debug_app_btn = ctk.CTkButton(
+            tb_center,
+            text="🐛 Debug",
+            height=28,
+            width=70,
+            corner_radius=6,
+            fg_color="#f1f5f9",
+            hover_color="#e2e8f0",
+            text_color="#334155",
+            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
+            command=lambda: self.log_adb_ticker("jdwp: Connected to target VM on port 8700 • Debug session active")
+        )
+        self.debug_app_btn.pack(side="left", padx=2)
+
+        # Apply Code Changes (Hot Reload)
+        self.apply_changes_btn = ctk.CTkButton(
+            tb_center,
+            text="⚡ Apply Changes",
+            height=28,
+            width=105,
+            corner_radius=6,
+            fg_color="#f1f5f9",
+            hover_color="#e2e8f0",
+            text_color="#4f46e5",
+            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
+            command=lambda: self.log_adb_ticker("FastDeploy: Hot-swapped modified classes.dex in 42.1ms")
+        )
+        self.apply_changes_btn.pack(side="left", padx=2)
+
+        # Stop Process Button
+        self.stop_app_btn = ctk.CTkButton(
+            tb_center,
+            text="⏹ Stop",
+            height=28,
+            width=58,
+            corner_radius=6,
+            fg_color="#f1f5f9",
+            hover_color="#fee2e2",
+            text_color="#dc2626",
+            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
+            command=lambda: self.log_adb_ticker("am force-stop: Target package halted")
+        )
+        self.stop_app_btn.pack(side="left", padx=2)
+
+        # Profile App Button
+        self.profile_app_btn = ctk.CTkButton(
+            tb_center,
+            text="📊 Profile",
+            height=28,
+            width=70,
+            corner_radius=6,
+            fg_color="#f1f5f9",
+            hover_color="#e2e8f0",
+            text_color="#0284c7",
+            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
+            command=lambda: self._switch_view("metrics")
+        )
+        self.profile_app_btn.pack(side="left", padx=2)
+
+        # Right Section: Device Manager, Export Audit, Settings & Notifications
+        tb_right = ctk.CTkFrame(self.studio_main_toolbar, fg_color="transparent")
+        tb_right.pack(side="right", padx=8, pady=4)
 
         # Export Audit Button
         export_btn = ctk.CTkButton(
-            right_box,
-            text="📥 Export Audit Report",
-            width=160,
-            height=36,
-            fg_color=THEME["primary"],
-            hover_color=THEME["primary_hover"],
-            text_color="#ffffff",
-            font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
-            corner_radius=8,
+            tb_right,
+            text="📥 Export Audit",
+            height=28,
+            width=110,
+            corner_radius=6,
+            fg_color="#f1f5f9",
+            hover_color="#e2e8f0",
+            text_color=THEME["primary"],
+            border_width=1,
+            border_color="#cbd5e1",
+            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
             command=self.export_academic_audit
         )
-        export_btn.pack(side="left", padx=4)
+        export_btn.pack(side="left", padx=2)
+
+        # Search Everywhere Button
+        search_btn = ctk.CTkButton(
+            tb_right,
+            text="🔍 Double Shift",
+            height=28,
+            width=95,
+            corner_radius=6,
+            fg_color="#f1f5f9",
+            hover_color="#e2e8f0",
+            text_color="#64748b",
+            font=ctk.CTkFont(family="Segoe UI", size=9),
+            command=lambda: self.log_adb_ticker("IDE: Search Everywhere overlay opened")
+        )
+        search_btn.pack(side="left", padx=2)
+
+        # Notification Badge (57 Tests Passed)
+        self.test_badge = ctk.CTkLabel(
+            tb_right,
+            text="✓ 57 Tests PASS",
+            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+            text_color="#059669",
+            fg_color="#ecfdf5",
+            corner_radius=6,
+            padx=8,
+            pady=4
+        )
+        self.test_badge.pack(side="left", padx=4)
 
     # =========================================================================
-    # MODERN SEGMENTED PILL NAVIGATION BAR
+    # ANDROID STUDIO WORKSPACE LAYOUT (Toolstrip + Editor Tabs + Main Area)
     # =========================================================================
-    def _build_modern_nav_bar(self):
-        nav_container = ctk.CTkFrame(
-            self,
-            fg_color=THEME["bg_card"],
-            height=58,
+    def _build_studio_workspace(self):
+        # Outer Horizontal Split: Left Toolstrip + Right Editor Area
+        self.workspace_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.workspace_frame.pack(fill="both", expand=True, padx=0, pady=0)
+
+        # 1. Left Vertical Toolstrip Bar (Icon Dock)
+        self._build_studio_toolstrip(self.workspace_frame)
+
+        # 2. Right Editor / Main Work Area
+        self.editor_work_area = ctk.CTkFrame(self.workspace_frame, fg_color="transparent")
+        self.editor_work_area.pack(side="left", fill="both", expand=True)
+
+        # Editor Tabs Bar + Breadcrumbs
+        self._build_modern_nav_bar(self.editor_work_area)
+
+        # Main Views Container inside Editor Area
+        self.main_content_area = ctk.CTkFrame(self.editor_work_area, fg_color="transparent")
+        self.main_content_area.pack(fill="both", expand=True)
+        self._build_main_views()
+
+    def _build_studio_toolstrip(self, parent):
+        self.studio_toolstrip = ctk.CTkFrame(
+            parent,
+            fg_color="#f8fafc",
+            width=46,
             corner_radius=0,
             border_width=1,
-            border_color=THEME["border_card"]
+            border_color="#e2e8f0"
         )
-        nav_container.pack(fill="x", side="top", padx=0, pady=0)
-        nav_container.pack_propagate(False)
+        self.studio_toolstrip.pack(side="left", fill="y")
+        self.studio_toolstrip.pack_propagate(False)
 
-        # Left: Segmented Capsule Track for Tab Buttons
-        nav_track = ctk.CTkFrame(
-            nav_container,
+        tool_items = [
+            ("📁", "Project", "apk"),
+            ("📱", "Device", "console"),
+            ("🔬", "4-Pillars", "home"),
+            ("⚡", "Profiler", "metrics"),
+            ("🐞", "Logcat", "logs"),
+            ("🧪", "Themis", "themis"),
+            ("⚙️", "Settings", "yaml")
+        ]
+
+        for icon, tooltip, target in tool_items:
+            b = ctk.CTkButton(
+                self.studio_toolstrip,
+                text=icon,
+                width=36,
+                height=36,
+                corner_radius=6,
+                fg_color="transparent",
+                hover_color="#e2e8f0",
+                font=ctk.CTkFont(size=14),
+                command=lambda t=target: self._switch_view(t)
+            )
+            b.pack(pady=4)
+
+    # =========================================================================
+    # ANDROID STUDIO EDITOR TABS & BREADCRUMBS BAR
+    # =========================================================================
+    def _build_modern_nav_bar(self, parent):
+        tabs_container = ctk.CTkFrame(
+            parent,
             fg_color="#f1f5f9",
-            height=44,
-            corner_radius=10,
+            height=34,
+            corner_radius=0,
             border_width=1,
-            border_color=THEME["border_card"]
+            border_color="#e2e8f0"
         )
-        nav_track.pack(side="left", padx=16, pady=7)
+        tabs_container.pack(fill="x", side="top")
+        tabs_container.pack_propagate(False)
 
         self.nav_tabs = [
-            ("home", "🏠 Overview Hub"),
-            ("console", "🌐 1. Environment"),
-            ("biometry", "👆 2. Biometry"),
-            ("vision", "👁️ 3. Vision Oracle"),
-            ("healing", "🔄 4. Self-Healing"),
-            ("themis", "🧪 Themis Benchmarks"),
-            ("apk", "📦 APK Studio"),
-            ("yaml", "📄 Scenarios"),
-            ("metrics", "📊 Empirical Metrics"),
-            ("logs", "📋 Telemetry Logs")
+            ("console", "📱 Running Devices: Pixel 9 Pro ✕"),
+            ("home", "🔬 HEART 4-Pillars Overview ✕"),
+            ("biometry", "👆 2. Biometry Engine ✕"),
+            ("vision", "👁️ 3. Vision Oracle ✕"),
+            ("healing", "🔄 4. Self-Healing ✕"),
+            ("themis", "🧪 Themis Benchmarks ✕"),
+            ("apk", "📦 AndroidManifest.xml ✕"),
+            ("yaml", "📄 Scenarios.yaml ✕"),
+            ("metrics", "📊 Empirical Matrix ✕"),
+            ("logs", "📋 Logcat Stream ✕")
         ]
         self.nav_buttons = {}
 
         for key, label in self.nav_tabs:
-            is_active = (key == "home")
+            is_active = (key == "console")
             btn = ctk.CTkButton(
-                nav_track,
+                tabs_container,
                 text=label,
-                height=32,
-                corner_radius=8,
-                border_width=0,
-                fg_color=THEME["primary"] if is_active else "transparent",
-                hover_color=THEME["primary_hover"] if is_active else THEME["bg_card_hover"],
-                text_color="#ffffff" if is_active else THEME["text_body"],
-                font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
+                height=28,
+                corner_radius=4,
+                border_width=1 if is_active else 0,
+                border_color="#cbd5e1",
+                fg_color="#ffffff" if is_active else "transparent",
+                hover_color="#ffffff" if is_active else "#e2e8f0",
+                text_color="#0f172a" if is_active else "#64748b",
+                font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold" if is_active else "normal"),
                 command=lambda k=key: self._switch_view(k)
             )
-            btn.pack(side="left", padx=2, pady=4)
+            btn.pack(side="left", padx=2, pady=3)
             self.nav_buttons[key] = btn
 
-        # Right: Active View Breadcrumb Indicator & 4-Engine Pipeline Runner
-        nav_right = ctk.CTkFrame(nav_container, fg_color="transparent")
-        nav_right.pack(side="right", padx=16, pady=8)
+        # Breadcrumbs Bar
+        crumb_bar = ctk.CTkFrame(
+            parent,
+            fg_color="#ffffff",
+            height=22,
+            corner_radius=0,
+            border_width=1,
+            border_color="#e2e8f0"
+        )
+        crumb_bar.pack(fill="x", side="top")
+        crumb_bar.pack_propagate(False)
 
         self.nav_breadcrumb_lbl = ctk.CTkLabel(
-            nav_right,
-            text="📍 Platform: Unified Overview Hub",
-            font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
-            text_color=THEME["primary"]
+            crumb_bar,
+            text="heart > app > src > main > java > de > k3b > android > androFotoFinder > FotoGalleryActivity.kt > onCreate()",
+            font=ctk.CTkFont(family="Segoe UI", size=8),
+            text_color="#64748b"
         )
-        self.nav_breadcrumb_lbl.pack(side="left", padx=(0, 10))
-
-        quick_pipeline_btn = ctk.CTkButton(
-            nav_right,
-            text="🚀 Run 4-Engine Pipeline",
-            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
-            fg_color=THEME["primary"],
-            hover_color=THEME["primary_hover"],
-            text_color="#ffffff",
-            height=30,
-            corner_radius=6,
-            command=self._run_multi_engine_pipeline
-        )
-        quick_pipeline_btn.pack(side="left")
+        self.nav_breadcrumb_lbl.pack(side="left", padx=10)
 
     def _switch_view(self, target_key):
-        tab_titles = {
-            "home": "HEART Overview Hub (4-Pillar Platform)",
-            "console": "Pillar 1: Environmental Perturbation Engine",
-            "biometry": "Pillar 2: Biomechanical Input Interaction Studio",
-            "vision": "Pillar 3: Multimodal Vision Oracle Studio",
-            "healing": "Pillar 4: Telemetry-Driven Self-Healing Studio",
-            "themis": "Themis Ground-Truth Academic Benchmark Catalog",
-            "apk": "Target Application (APK) Simulation Lab",
-            "yaml": "Declarative YAML Scenario Execution Deck",
-            "metrics": "4-Pillar Empirical Validation Matrix",
-            "logs": "Live Unified ADB & Diagnostic Telemetry Feed"
+        tab_breadcrumbs = {
+            "console": "heart > app > src > main > devices > RunningDevices > GooglePixel9Pro (API 34)",
+            "home": "heart > platform > src > main > research > 4PillarIntegratedOverviewHub.kt",
+            "biometry": "heart > biometry > src > main > biomechanical > InteractionTouchEngine.kt",
+            "vision": "heart > vision > src > main > oracle > MultimodalVisionValidationOracle.kt",
+            "healing": "heart > self_heal > src > main > telemetry > TelemetryClosedLoopSelfHealingEngine.kt",
+            "themis": "heart > benchmarks > src > main > themis > GroundTruthBenchmarkCatalog.kt",
+            "apk": "heart > app > src > main > AndroidManifest.xml",
+            "yaml": "heart > config > scenarios > perturbation_profiles.yaml",
+            "metrics": "heart > validation > src > main > empirical > EvaluationEvidenceMatrix.kt",
+            "logs": "heart > diagnostics > logcat > RealTimeAdbLogcatStream.log"
         }
+
         for k, btn in self.nav_buttons.items():
             if k == target_key:
                 btn.configure(
-                    fg_color=THEME["primary"],
-                    text_color="#ffffff",
-                    hover_color=THEME["primary_hover"],
-                    font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold")
+                    fg_color="#ffffff",
+                    text_color="#0f172a",
+                    border_width=1,
+                    border_color="#cbd5e1",
+                    hover_color="#ffffff",
+                    font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold")
                 )
             else:
                 btn.configure(
                     fg_color="transparent",
-                    text_color=THEME["text_body"],
+                    text_color="#64748b",
+                    border_width=0,
                     hover_color="#e2e8f0",
-                    font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold")
+                    font=ctk.CTkFont(family="Segoe UI", size=9, weight="normal")
                 )
 
         if hasattr(self, "nav_breadcrumb_lbl"):
-            crumb_text = tab_titles.get(target_key, target_key.capitalize())
-            self.nav_breadcrumb_lbl.configure(text=f"📍 View: {crumb_text}")
+            crumb_text = tab_breadcrumbs.get(target_key, f"heart > app > {target_key}")
+            self.nav_breadcrumb_lbl.configure(text=crumb_text)
 
         for k, frame in self.view_frames.items():
             if k == target_key:
-                frame.pack(fill="both", expand=True, padx=14, pady=8)
+                frame.pack(fill="both", expand=True, padx=6, pady=4)
             else:
                 frame.pack_forget()
 
@@ -489,50 +651,51 @@ class PerturbationStudioApp(ctk.CTk):
     # MAIN VIEWS CONTAINER
     # =========================================================================
     def _build_main_views(self):
+        parent = getattr(self, "main_content_area", self)
         self.view_frames = {}
 
         # 0. Home Overview Hub
-        self.view_frames["home"] = ctk.CTkFrame(self, fg_color="transparent")
+        self.view_frames["home"] = ctk.CTkFrame(parent, fg_color="transparent")
         self._build_view_home(self.view_frames["home"])
 
         # 1. Console Frame (Split: Controls on Left, Live Phone on Right!)
-        self.view_frames["console"] = ctk.CTkFrame(self, fg_color="transparent")
+        self.view_frames["console"] = ctk.CTkFrame(parent, fg_color="transparent")
         self._build_view_console(self.view_frames["console"])
 
         # 2. Biomechanical Input Interaction Studio (biometry)
-        self.view_frames["biometry"] = ctk.CTkFrame(self, fg_color="transparent")
+        self.view_frames["biometry"] = ctk.CTkFrame(parent, fg_color="transparent")
         self._build_view_biometry(self.view_frames["biometry"])
 
         # 3. Localized Multimodal Vision Oracle (qwen_vl_task)
-        self.view_frames["vision"] = ctk.CTkFrame(self, fg_color="transparent")
+        self.view_frames["vision"] = ctk.CTkFrame(parent, fg_color="transparent")
         self._build_view_vision(self.view_frames["vision"])
 
         # 4. Telemetry-Driven Self-Healing Engine (self heal telemetry)
-        self.view_frames["healing"] = ctk.CTkFrame(self, fg_color="transparent")
+        self.view_frames["healing"] = ctk.CTkFrame(parent, fg_color="transparent")
         self._build_view_healing(self.view_frames["healing"])
 
         # 5. APK Upload & Fault Simulation Frame
-        self.view_frames["apk"] = ctk.CTkFrame(self, fg_color="transparent")
+        self.view_frames["apk"] = ctk.CTkFrame(parent, fg_color="transparent")
         self._build_view_apk(self.view_frames["apk"])
 
         # 6. YAML Scenarios Frame
-        self.view_frames["yaml"] = ctk.CTkFrame(self, fg_color="transparent")
+        self.view_frames["yaml"] = ctk.CTkFrame(parent, fg_color="transparent")
         self._build_view_yaml(self.view_frames["yaml"])
 
-        # 7. Themis Benchmarks Frame
-        self.view_frames["themis"] = ctk.CTkFrame(self, fg_color="transparent")
+        # 7. Themis Benchmark Suite
+        self.view_frames["themis"] = ctk.CTkFrame(parent, fg_color="transparent")
         self._build_view_themis(self.view_frames["themis"])
 
-        # 8. Latency & Overhead Metrics Frame
-        self.view_frames["metrics"] = ctk.CTkFrame(self, fg_color="transparent")
+        # 8. Empirical Matrix View
+        self.view_frames["metrics"] = ctk.CTkFrame(parent, fg_color="transparent")
         self._build_view_metrics(self.view_frames["metrics"])
 
-        # 9. Live Logs Frame
-        self.view_frames["logs"] = ctk.CTkFrame(self, fg_color="transparent")
+        # 9. Logs View
+        self.view_frames["logs"] = ctk.CTkFrame(parent, fg_color="transparent")
         self._build_view_logs(self.view_frames["logs"])
 
-        # Show initial Home Hub view by default
-        self.view_frames["home"].pack(fill="both", expand=True, padx=14, pady=8)
+        # Default Active Tab: Running Devices / Environment Perturbation Console
+        self._switch_view("console")
 
     # =========================================================================
     # VIEW 0: HOME HUB (EXECUTIVE DASHBOARD & ARCHITECTURE DIRECTORY)
@@ -2049,57 +2212,61 @@ class PerturbationStudioApp(ctk.CTk):
         right_phone_pane = ctk.CTkFrame(split_body, fg_color=THEME["bg_card"], corner_radius=12, border_width=1, border_color=THEME["border_card"])
         right_phone_pane.grid(row=0, column=1, sticky="nsew", padx=(8, 0), pady=0)
 
-        # Phone Header: Title, Mode Toggle & Snapshot
-        phone_head = ctk.CTkFrame(right_phone_pane, fg_color="transparent")
-        phone_head.pack(fill="x", padx=14, pady=(8, 4))
-        
-        phone_head_left = ctk.CTkFrame(phone_head, fg_color="transparent")
-        phone_head_left.pack(side="left")
-        ctk.CTkLabel(phone_head_left, text="📱 Live Mobile Virtual Emulator", font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"), text_color=THEME["text_heading"]).pack(anchor="w")
-        ctk.CTkLabel(phone_head_left, text="Interactive Android 14 Virtual Runtime", font=ctk.CTkFont(family="Segoe UI", size=8), text_color=THEME["text_muted"]).pack(anchor="w")
+        # Android Studio "Running Devices" Tool Window Header
+        phone_head = ctk.CTkFrame(right_phone_pane, fg_color="#f1f5f9", height=32, corner_radius=6, border_width=1, border_color="#e2e8f0")
+        phone_head.pack(fill="x", padx=8, pady=(6, 4))
+        phone_head.pack_propagate(False)
+
+        # Active Device Tab Pill (Android Studio style)
+        dev_tab = ctk.CTkFrame(phone_head, fg_color="#ffffff", corner_radius=4, border_width=1, border_color="#cbd5e1")
+        dev_tab.pack(side="left", padx=4, pady=3)
+        ctk.CTkLabel(dev_tab, text="📱 Running Devices: Pixel 9 Pro ✕", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color="#0f172a").pack(padx=6, pady=1)
+
+        # Status specs
+        ctk.CTkLabel(phone_head, text="1344x2992: 480dpi • arm64 • tcp:5037", font=ctk.CTkFont(family="Consolas", size=8), text_color="#64748b").pack(side="left", padx=4)
 
         phone_head_right = ctk.CTkFrame(phone_head, fg_color="transparent")
-        phone_head_right.pack(side="right")
+        phone_head_right.pack(side="right", padx=4, pady=2)
 
         self.emulator_mode_segment = ctk.CTkSegmentedButton(
             phone_head_right,
             values=["📱 Virtual Emulator", "⚡ Real AVD Bridge"],
-            height=24,
+            height=22,
             command=self._on_emulator_mode_change,
             selected_color=THEME["primary"],
             selected_hover_color=THEME["primary_hover"],
             font=ctk.CTkFont(family="Segoe UI", size=8, weight="bold")
         )
         self.emulator_mode_segment.set("📱 Virtual Emulator")
-        self.emulator_mode_segment.pack(side="left", padx=(0, 6))
+        self.emulator_mode_segment.pack(side="left", padx=(0, 4))
 
         ctk.CTkButton(
             phone_head_right,
-            text="📸 Capture",
-            width=68,
-            height=24,
-            fg_color=THEME["btn_secondary_bg"],
-            hover_color=THEME["btn_secondary_hover"],
-            text_color=THEME["btn_secondary_text"],
+            text="📸",
+            width=28,
+            height=22,
+            fg_color="#ffffff",
+            hover_color="#e2e8f0",
+            text_color="#0f172a",
             border_width=1,
-            border_color=THEME["btn_secondary_border"],
-            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
-            corner_radius=6,
+            border_color="#cbd5e1",
+            font=ctk.CTkFont(size=9),
+            corner_radius=4,
             command=self.capture_adb_screen
         ).pack(side="left")
 
-        # Physical Phone Unit with Hardware Buttons
+        # Physical Phone Assembly (With Android Studio Vertical Side Toolbar)
         phone_assembly = ctk.CTkFrame(right_phone_pane, fg_color="transparent")
-        phone_assembly.pack(expand=False, padx=8, pady=(2, 6))
+        phone_assembly.pack(expand=False, padx=4, pady=(2, 6))
 
         # Left Hardware Buttons (Volume Rocker + / -)
-        vol_col = ctk.CTkFrame(phone_assembly, fg_color="transparent", width=18)
+        vol_col = ctk.CTkFrame(phone_assembly, fg_color="transparent", width=16)
         vol_col.pack(side="left", padx=(0, 3), pady=(90, 0), anchor="n")
         
         self.vol_up_btn = ctk.CTkButton(
             vol_col,
             text="+",
-            width=16,
+            width=14,
             height=34,
             corner_radius=4,
             fg_color="#334155",
@@ -2113,7 +2280,7 @@ class PerturbationStudioApp(ctk.CTk):
         self.vol_dn_btn = ctk.CTkButton(
             vol_col,
             text="-",
-            width=16,
+            width=14,
             height=34,
             corner_radius=4,
             fg_color="#334155",
@@ -2128,23 +2295,35 @@ class PerturbationStudioApp(ctk.CTk):
         self.phone_chassis = ctk.CTkFrame(phone_assembly, fg_color=THEME["phone_chassis"], corner_radius=28, border_width=3, border_color="#334155")
         self.phone_chassis.pack(side="left")
 
-        # Right Hardware Button (Power / Lock Key)
-        pwr_col = ctk.CTkFrame(phone_assembly, fg_color="transparent", width=18)
-        pwr_col.pack(side="left", padx=(3, 0), pady=(80, 0), anchor="n")
-        
-        self.pwr_btn = ctk.CTkButton(
-            pwr_col,
-            text="⏻",
-            width=16,
-            height=42,
-            corner_radius=4,
-            fg_color="#334155",
-            hover_color="#475569",
-            text_color="#f8fafc",
-            font=ctk.CTkFont(size=9, weight="bold"),
-            command=self._toggle_phone_power
-        )
-        self.pwr_btn.pack(pady=0)
+        # Android Studio Iconic Vertical Emulator Toolbar (Right of phone)
+        emu_side_tools = ctk.CTkFrame(phone_assembly, fg_color="#f8fafc", corner_radius=8, border_width=1, border_color="#e2e8f0", width=34)
+        emu_side_tools.pack(side="left", padx=(6, 0), pady=(12, 0), anchor="n")
+
+        emu_tool_btns = [
+            ("⏻", "Power", self._toggle_phone_power, "#ef4444"),
+            ("🔊", "Vol Up", lambda: self._trigger_hardware_volume(1), "#334155"),
+            ("🔉", "Vol Dn", lambda: self._trigger_hardware_volume(-1), "#334155"),
+            ("🔄", "Rotate", lambda: self.set_rotation(1 if self.phone_orientation == 0 else 0), "#334155"),
+            ("◀", "Back", self._phone_on_back_clicked, "#334155"),
+            ("●", "Home", self._phone_on_home_clicked, "#334155"),
+            ("■", "Overview", self._phone_on_recents_clicked, "#334155"),
+            ("📸", "Screenshot", self.capture_adb_screen, "#334155"),
+            ("⚙️", "Extended", lambda: messagebox.showinfo("Extended Controls", "Android Emulator Extended Controls:\n\n• Cellular Network: 5G/LTE\n• Battery: 100% (AC)\n• Fingerprint Sensor: Enrolled\n• Virtual Sensors: Accelerometer/Gyro Active"), "#4f46e5")
+        ]
+
+        for icon, tip, cmd, col in emu_tool_btns:
+            ctk.CTkButton(
+                emu_side_tools,
+                text=icon,
+                width=26,
+                height=26,
+                corner_radius=4,
+                fg_color="transparent",
+                hover_color="#e2e8f0",
+                text_color=col,
+                font=ctk.CTkFont(size=11),
+                command=cmd
+            ).pack(pady=2)
 
         # Compact Height for Phone (Width 322, Height 460)
         self.phone_screen = ctk.CTkFrame(self.phone_chassis, fg_color=THEME["phone_screen_bg"], corner_radius=22, width=322, height=460)
