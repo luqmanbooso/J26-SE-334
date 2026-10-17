@@ -131,7 +131,9 @@ class ReplaceCall(cst.CSTTransformer):
             return updated_node
         args = list(updated_node.args)
         args[0] = args[0].with_changes(value=cst.Attribute(value=cst.Name("AppiumBy"), attr=cst.Name(self.by)))
-        args[1] = args[1].with_changes(value=cst.SimpleString(repr(self.value)))
+        args[1] = args[1].with_changes(
+            value=cst.SimpleString(_preserve_string_literal(args[1].value, self.value))
+        )
         self._replaced = True
         return updated_node.with_changes(args=args)
 
@@ -169,6 +171,15 @@ def _by_literal(node: cst.BaseExpression) -> str:
         if node.value.value == "AppiumBy":
             return node.attr.value
     return _literal(node)
+
+
+def _preserve_string_literal(node: cst.BaseExpression, value: str) -> str:
+    """Use the original quote when it can represent the replacement safely."""
+    if isinstance(node, cst.SimpleString) and node.value[:1] in {"'", '"'}:
+        quote = node.value[0]
+        if quote not in value and "\\" not in value:
+            return f"{quote}{value}{quote}"
+    return repr(value)
 
 
 def _step_info(call: cst.Call, action: str | None) -> StepInfo:
