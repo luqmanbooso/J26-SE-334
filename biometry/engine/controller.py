@@ -36,6 +36,8 @@ class ActionRecord:
     responded: bool
     provocation: float
     contended: bool
+    hesitation_s: float = 0.0
+    rage_taps: int = 0
 
 
 @dataclass
@@ -98,6 +100,10 @@ class AdaptiveFeedbackController:
 
         before = self.probe.read_signature()
         self.dispatch(tap["actual"]["x"], tap["actual"]["y"], tap["delay"])
+        # A rage burst pounds the same point again before looking at the
+        # screen — which is exactly how the behaviour presents in a human.
+        for gap in tap.get("rage_gaps", []):
+            self.dispatch(tap["actual"]["x"], tap["actual"]["y"], gap)
         observation = self.probe.observe(before=before)
         provocation = self.probe.provocation(observation)
 
@@ -118,6 +124,8 @@ class AdaptiveFeedbackController:
             responded=observation.changed,
             provocation=provocation,
             contended=observation.contended,
+            hesitation_s=tap.get("hesitation", 0.0),
+            rage_taps=len(tap.get("rage_gaps", [])),
         )
         self.timeline.append(record)
         self._previous_point = (tap["actual"]["x"], tap["actual"]["y"])
