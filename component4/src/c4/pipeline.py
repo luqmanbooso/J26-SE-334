@@ -13,7 +13,9 @@ from c4.c3_interface.client import C3Client
 from c4.c3_interface.live_client import C3LiveClient
 from c4.config import TargetAppConfig
 from c4.execution.service import ExecutionService
-from c4.execution.models import ExecutionResult
+from c4.execution.models import ExecutionResult, FailureKind
+from c4.healing.baseline import BaselineStore
+from c4.healing.service import HealingOutcome, HealingService
 from c4.ingestion.loader import TelemetryIngestionService
 from c4.schemas import EventSource
 from c4.sessionization.service import SessionizationService
@@ -29,9 +31,12 @@ class PipelineRecord(BaseModel):
         "synthesis_failed",
         "dry_run",
         "executed",
+        "healed",
+        "heal_refused",
     ]
     synthesis: SynthesisResult | None = None
     execution: ExecutionResult | None = None
+    healing: HealingOutcome | None = None
 
 
 class Pipeline:
@@ -48,6 +53,7 @@ class Pipeline:
         execution: ExecutionService | None = None,
         c3_client: C3Client | None = None,
         use_c3: bool = True,
+        healer: HealingService | None = None,
     ) -> None:
         self.target = target
         self.ingestion = ingestion or TelemetryIngestionService()
@@ -61,6 +67,7 @@ class Pipeline:
             use_c3=use_c3,
         )
         self.execution = execution or ExecutionService(target=target)
+        self.healer = healer
 
     def run(
         self,
@@ -69,6 +76,7 @@ class Pipeline:
         *,
         dry_run: bool = False,
         limit: int | None = None,
+        capture_baseline: bool = False,
     ) -> list[PipelineRecord]:
         """Run all journeys from a Sentry telemetry file."""
         events = self.ingestion.parse_file(telemetry_path, EventSource.SENTRY)
@@ -114,14 +122,35 @@ class Pipeline:
                 )
                 continue
             execution = self.execution.execute(
-                result, runs_dir=root, run_id=safe_id
+                result,
+                runs_dir=root,
+                run_id=safe_id,
+                capture_baseline=capture_baseline,
             )
+            healing = None
+            record_status = "executed"
+            if (
+                self.healer is not None
+                and execution.failure is not None
+                and execution.failure.kind is FailureKind.LOCATOR_NOT_FOUND
+            ):
+                if isinstance(self.healer.baseline_store, BaselineStore):
+                    self.healer.baseline_store.save_from_run(safe_id, root / safe_id)
+                healing = self.healer.heal_and_rerun(
+                    result, execution, root / safe_id, safe_id
+                )
+                record_status = (
+                    "healed"
+                    if healing.final_status == "passed_after_healing"
+                    else "heal_refused"
+                )
             records.append(
                 PipelineRecord(
                     journey_id=journey.journey_id,
-                    status="executed",
+                    status=record_status,
                     synthesis=result,
                     execution=execution,
+                    healing=healing,
                 )
             )
         (root / "pipeline_report.json").write_text(
