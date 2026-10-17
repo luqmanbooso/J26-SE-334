@@ -1,0 +1,73 @@
+{
+  "experiment": "EXP-05 gesture & behaviour realism check",
+  "seed": 2026,
+  "n_per_level": 4000,
+  "stress_levels": [
+    0.05,
+    0.45,
+    0.9
+  ],
+  "all_pass": true,
+  "checks": {
+    "structure.speed_peak_near_middle": true,
+    "structure.ends_slower_than_peak": true,
+    "structure.paths_bow_off_chord": true,
+    "gesture.deviation_rises_with_stress": true,
+    "gesture.duration_shortens_with_stress": true,
+    "gesture.early_release_rises_with_stress": true,
+    "timing.hesitation_rises_with_stress": true,
+    "timing.gap_reads_as_pause": true,
+    "timing.rage_rises_with_stress": true,
+    "coupling.stress_response_removed_at_alpha0": true
+  },
+  "structure": {
+    "n_segments": 23,
+    "speed_peak_fraction": 0.5,
+    "speed_peak_near_middle": true,
+    "ends_slower_than_peak": true,
+    "mean_chord_deviation_px": 18.18,
+    "paths_bow_off_chord": true
+  },
+  "gesture": {
+    "median_deviation_px": {
+      "0.05": 15.98,
+      "0.45": 29.55,
+      "0.9": 43.7
+    },
+    "deviation_rises_with_stress": true,
+    "median_duration_s": {
+      "0.05": 0.2803,
+      "0.45": 0.1791,
+      "0.9": 0.1277
+    },
+    "duration_shortens_with_stress": true,
+    "early_release_rate": {
+      "0.05": 0.0355,
+      "0.45": 0.0727,
+      "0.9": 0.0955
+    },
+    "early_release_rises_with_stress": true
+  },
+  "timing": {
+    "hesitation_rate": {
+      "0.05": 0.038,
+      "0.45": 0.0715,
+      "0.9": 0.117
+    },
+    "hesitation_rises_with_stress": true,
+    "median_gap_vs_base_delay": 5.4,
+    "gap_reads_as_pause": true,
+    "rage_rate": {
+      "0.05": 0.0328,
+      "0.45": 0.0607,
+      "0.9": 0.0998
+    },
+    "rage_rises_with_stress": true
+  },
+  "coupling": {
+    "deviation_ratio_hi_lo": 1.0,
+    "hesitation_rate_hi": 0.0352,
+    "hesitation_rate_lo": 0.0375,
+    "stress_response_removed": true
+  }
+}
