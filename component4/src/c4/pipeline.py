@@ -10,6 +10,7 @@ from typing import Literal
 from pydantic import BaseModel
 
 from c4.c3_interface.client import C3Client
+from c4.c3_interface.live_client import C3LiveClient
 from c4.config import TargetAppConfig
 from c4.execution.service import ExecutionService
 from c4.execution.models import ExecutionResult
@@ -51,6 +52,8 @@ class Pipeline:
         self.target = target
         self.ingestion = ingestion or TelemetryIngestionService()
         self.sessionization = sessionization or SessionizationService()
+        if use_c3 and c3_client is None:
+            c3_client = C3LiveClient()
         self.synthesis = synthesis or SynthesisService(
             llm,
             target=target,
