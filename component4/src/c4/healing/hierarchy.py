@@ -30,6 +30,7 @@ class UiNode:
     focusable: bool
     checkable: bool
     password: bool
+    editable: bool
     parent_index: int | None
     ancestors: tuple[str, ...]
 
@@ -101,6 +102,7 @@ def parse_hierarchy(xml_text: str) -> UiHierarchy:
             focusable=_bool(element.attrib.get("focusable")),
             checkable=_bool(element.attrib.get("checkable")),
             password=_bool(element.attrib.get("password")),
+            editable=_bool(element.attrib.get("editable")),
             parent_index=parent.index if parent else None,
             ancestors=ancestor_names,
         )
