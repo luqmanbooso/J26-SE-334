@@ -107,7 +107,7 @@ def test_engine_heals_to_unique_new_resource_id() -> None:
 
     assert decision.status is HealingStatus.HEALED
     assert decision.healed_locator == {
-        "by": "id",
+        "by": "ID",
         "value": "com.example:id/btn_pay_now_v2",
     }
     assert decision.healed_script is not None

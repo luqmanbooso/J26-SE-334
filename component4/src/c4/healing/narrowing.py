@@ -19,11 +19,15 @@ class StructuralNarrower:
         hierarchy: UiHierarchy,
         descriptor: ElementDescriptor,
         action: str | None,
+        excluded_indices: set[int] | frozenset[int] | None = None,
     ) -> tuple[list[UiNode], dict[str, int]]:
         """Return candidates surviving rules R1 through R5."""
         counts: Counter[str] = Counter()
         result: list[UiNode] = []
         for node in hierarchy.nodes:
+            if excluded_indices and node.index in excluded_indices:
+                counts["R6"] += 1
+                continue
             if not node.enabled or not node.bounds or node.bounds[2] <= node.bounds[0] or node.bounds[3] <= node.bounds[1]:
                 counts["R1"] += 1
                 continue
@@ -48,7 +52,11 @@ def _action_compatible(node: UiNode, baseline: ElementDescriptor, action: str | 
         return node.clickable or node.focusable or _same_family(node.class_name, baseline.class_name)
     if action == "input":
         name = (node.class_name or "").lower()
-        return node.clickable or "edit" in name or "textinput" in name or "text" in name
+        return (
+            "edit" in name
+            or "textinput" in name
+            or bool(getattr(node, "editable", False))
+        )
     return True
 
 

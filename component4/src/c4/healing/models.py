@@ -51,11 +51,17 @@ class ElementDescriptor(BaseModel):
     def semantic_text(self) -> str:
         """Return deterministic tokens for semantic ranking."""
         values: list[str] = []
-        for value in (self.text, self.content_desc, self.resource_id):
+        for value in (self.text, self.content_desc, *self.sibling_texts):
             if value:
                 tokens = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", value)
                 tokens = re.sub(r"[_./:]+", " ", tokens)
                 values.extend(tokens.lower().split())
+        if self.resource_id:
+            resource = self.resource_id.split(":", 1)[-1]
+            resource = resource.split("/", 1)[-1]
+            tokens = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", resource)
+            tokens = re.sub(r"[_./:]+", " ", tokens)
+            values.extend(token for token in tokens.lower().split() if token != "id")
         if self.class_name:
             values.append(self.class_name.rsplit(".", 1)[-1].lower())
         return " ".join(values)
@@ -92,3 +98,5 @@ class HealingDecision(BaseModel):
     latency_ms: float = Field(ge=0.0)
     reason: str | None = None
     healed_script: str | None = None
+    rule_counts: dict[str, int] = Field(default_factory=dict)
+    r6_applied: bool = False
