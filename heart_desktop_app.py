@@ -17,6 +17,14 @@ ENV_TESTING_DIR = os.path.join(ROOT_DIR, "env testing")
 if ENV_TESTING_DIR not in sys.path:
     sys.path.insert(0, ENV_TESTING_DIR)
 
+# Auto-detect Android SDK platform-tools and emulator paths
+for p in [
+    os.path.expanduser("~/AppData/Local/Android/Sdk/platform-tools"),
+    os.path.expanduser("~/AppData/Local/Android/Sdk/emulator")
+]:
+    if os.path.exists(p) and p not in os.environ.get("PATH", ""):
+        os.environ["PATH"] = p + os.pathsep + os.environ.get("PATH", "")
+
 from orchestrator import PerturbationOrchestrator  # type: ignore
 from core.profile_parser import ProfileParser, ProfileValidationError  # type: ignore
 from core.apk_parser import parse_apk_metadata  # type: ignore
@@ -82,9 +90,9 @@ THEME = {
     "btn_secondary_text": "#334155",   # Slate 700 text
 }
 
-THEMIS_BUGS = [
+FAULT_CATALOG = [
     {
-        "id": "THEMIS-ANKI-01",
+        "id": "FAULT-SQLITE-01",
         "app_name": "AnkiDroid Flashcards",
         "package": "com.ichi2.anki",
         "bug_type": "SQLITE_DISK_LOCK",
@@ -97,7 +105,7 @@ THEMIS_BUGS = [
         "mitigation": "Wrap flashcard writes in resilient atomic transactions with graceful battery-aware checkpointing."
     },
     {
-        "id": "THEMIS-K9-02",
+        "id": "FAULT-SOCKET-02",
         "app_name": "K-9 Mail Client",
         "package": "com.fsck.k9",
         "bug_type": "SOCKET_TIMEOUT_CORRUPTION",
@@ -110,7 +118,7 @@ THEMIS_BUGS = [
         "mitigation": "Configure adaptive exponential backoff and isolate socket timeout handling from cache serialization."
     },
     {
-        "id": "THEMIS-ANTENNA-03",
+        "id": "FAULT-AUDIO-03",
         "app_name": "AntennaPod Podcast Manager",
         "package": "de.danoeh.antennapod",
         "bug_type": "AUDIO_FOCUS_DEADLOCK",
@@ -123,7 +131,7 @@ THEMIS_BUGS = [
         "mitigation": "Implement onAudioFocusChange(AUDIOFOCUS_LOSS_TRANSIENT) callback with asynchronous playback pause."
     },
     {
-        "id": "THEMIS-OPENTRACKS-04",
+        "id": "FAULT-LMK-04",
         "app_name": "OpenTracks Sport Tracker",
         "package": "de.dennisguse.opentracks",
         "bug_type": "GPS_BUFFER_DISCARD",
@@ -136,7 +144,7 @@ THEMIS_BUGS = [
         "mitigation": "Persist location fixes directly to SQLite batch queue before releasing volatile memory on trim events."
     },
     {
-        "id": "THEMIS-LIBRE-05",
+        "id": "FAULT-THERMAL-05",
         "app_name": "LibreTorrent Downloader",
         "package": "org.proninyaroslav.libretorrent",
         "bug_type": "THERMAL_THROTTLE_OOM",
@@ -514,12 +522,12 @@ class PerturbationStudioApp(ctk.CTk):
         self.studio_toolstrip.pack_propagate(False)
 
         tool_items = [
-            ("📁", "Project", "apk"),
             ("📱", "Device", "console"),
+            ("📁", "Project", "apk"),
             ("🔬", "4-Pillars", "home"),
-            ("⚡", "Profiler", "metrics"),
+            ("⚡", "Faults", "faults"),
+            ("📊", "Profiler", "metrics"),
             ("🐞", "Logcat", "logs"),
-            ("🧪", "Themis", "themis"),
             ("⚙️", "Settings", "yaml")
         ]
 
@@ -553,14 +561,14 @@ class PerturbationStudioApp(ctk.CTk):
         tabs_container.pack_propagate(False)
 
         self.nav_tabs = [
-            ("console", "📱 Running Devices: Pixel 9 Pro ✕"),
-            ("home", "🔬 HEART 4-Pillars Overview ✕"),
-            ("biometry", "👆 2. Biometry Engine ✕"),
-            ("vision", "👁️ 3. Vision Oracle ✕"),
-            ("healing", "🔄 4. Self-Healing ✕"),
-            ("themis", "🧪 Themis Benchmarks ✕"),
-            ("apk", "📦 AndroidManifest.xml ✕"),
-            ("yaml", "📄 Scenarios.yaml ✕"),
+            ("console", "📱 Running Devices ✕"),
+            ("apk", "📦 Package & Faults ✕"),
+            ("home", "🔬 4-Pillars Overview ✕"),
+            ("biometry", "👆 Biometry ✕"),
+            ("vision", "👁️ Vision Oracle ✕"),
+            ("healing", "🔄 Self-Healing ✕"),
+            ("faults", "⚡ Fault Suite ✕"),
+            ("yaml", "📄 Scenarios ✕"),
             ("metrics", "📊 Empirical Matrix ✕"),
             ("logs", "📋 Logcat Stream ✕")
         ]
@@ -598,7 +606,7 @@ class PerturbationStudioApp(ctk.CTk):
 
         self.nav_breadcrumb_lbl = ctk.CTkLabel(
             crumb_bar,
-            text="heart > app > src > main > java > de > k3b > android > androFotoFinder > FotoGalleryActivity.kt > onCreate()",
+            text="heart > app > src > main > devices > RunningDevices > GooglePixel9Pro (API 34)",
             font=ctk.CTkFont(family="Segoe UI", size=8),
             text_color="#64748b"
         )
@@ -607,12 +615,12 @@ class PerturbationStudioApp(ctk.CTk):
     def _switch_view(self, target_key):
         tab_breadcrumbs = {
             "console": "heart > app > src > main > devices > RunningDevices > GooglePixel9Pro (API 34)",
+            "apk": "heart > app > src > main > packages > PackageFaultInjection.kt",
             "home": "heart > platform > src > main > research > 4PillarIntegratedOverviewHub.kt",
             "biometry": "heart > biometry > src > main > biomechanical > InteractionTouchEngine.kt",
             "vision": "heart > vision > src > main > oracle > MultimodalVisionValidationOracle.kt",
             "healing": "heart > self_heal > src > main > telemetry > TelemetryClosedLoopSelfHealingEngine.kt",
-            "themis": "heart > benchmarks > src > main > themis > GroundTruthBenchmarkCatalog.kt",
-            "apk": "heart > app > src > main > AndroidManifest.xml",
+            "faults": "heart > validation > src > main > faults > FaultReproductionCatalog.kt",
             "yaml": "heart > config > scenarios > perturbation_profiles.yaml",
             "metrics": "heart > validation > src > main > empirical > EvaluationEvidenceMatrix.kt",
             "logs": "heart > diagnostics > logcat > RealTimeAdbLogcatStream.log"
@@ -682,9 +690,9 @@ class PerturbationStudioApp(ctk.CTk):
         self.view_frames["yaml"] = ctk.CTkFrame(parent, fg_color="transparent")
         self._build_view_yaml(self.view_frames["yaml"])
 
-        # 7. Themis Benchmark Suite
-        self.view_frames["themis"] = ctk.CTkFrame(parent, fg_color="transparent")
-        self._build_view_themis(self.view_frames["themis"])
+        # 7. Fault Reproduction Suite
+        self.view_frames["faults"] = ctk.CTkFrame(parent, fg_color="transparent")
+        self._build_view_faults(self.view_frames["faults"])
 
         # 8. Empirical Matrix View
         self.view_frames["metrics"] = ctk.CTkFrame(parent, fg_color="transparent")
@@ -857,11 +865,11 @@ class PerturbationStudioApp(ctk.CTk):
             tag="● Active & Online",
             tag_color=(THEME["accent_sky_subtle"], THEME["accent_sky"]),
             desc="Injects dynamic multi-factor environmental noise into mobile executions: CPU/thermal throttling, 2G/3G packet loss, incoming telephony interrupts, and context mutation.",
-            caps=["4 Stress Pillars (Compute, Network, Telephony, Context)", "Themis Benchmark Bug Catalog (#01 - #05)", "Causal Attribution Engine with Correlation Scoring"],
+            caps=["4 Stress Pillars (Compute, Network, Telephony, Context)", "Automated Fault Reproduction Catalog (#01 - #05)", "Causal Attribution Engine with Correlation Scoring"],
             primary_btn_text="Open Perturbation Deck ➔",
             primary_cmd=lambda: self._switch_view("console"),
-            sec_btn_text="Themis Suite",
-            sec_cmd=lambda: self._switch_view("themis")
+            sec_btn_text="Fault Catalog",
+            sec_cmd=lambda: self._switch_view("faults")
         )
 
         self._build_component_card(
@@ -1831,9 +1839,9 @@ class PerturbationStudioApp(ctk.CTk):
             tb_left,
             values=[
                 "Nominal Baseline",
-                "Themis #01: SQLite Lockup (Low Battery + LMK)",
-                "Themis #02: 2G Socket Flap (1850ms + 8% Loss)",
-                "Themis #03: Audio Preemption (GSM Call)",
+                "Fault #01: SQLite Lockup (Low Battery + LMK)",
+                "Fault #02: 2G Socket Flap (1850ms + 8% Loss)",
+                "Fault #03: Audio Preemption (GSM Call)",
                 "Compound Multi-Pillar Stress"
             ],
             command=self._on_scenario_selected,
@@ -3486,7 +3494,7 @@ class PerturbationStudioApp(ctk.CTk):
                 summary=f"OS killed background transaction to prevent brownout at {bat}% battery (code 5).",
                 stacktrace=f"android.database.sqlite.SQLiteDatabase.throw_sqlite_exception(SQLiteDatabase.java:2140)\nat {pkg}.media.MediaDB.sync(MediaDB.java:184)"
             )
-            messagebox.showerror("SQLite Database Lock", f"Critical Battery Protection!\n\nAndroid OS rejected SQLite disk write at {bat}% battery.\n\nThemis Bug #01 Reproduced (Attribution: 95.8%).")
+            messagebox.showerror("SQLite Database Lock", f"Critical Battery Protection!\n\nAndroid OS rejected SQLite disk write at {bat}% battery.\n\nEnvironmental Fault #01 Reproduced (Attribution: 95.8%).")
 
         elif lat >= 1500 or loss >= 8:
             self.app_pay_status.configure(text=f"⏳ SocketTimeoutException (Timed out after {lat}ms)", fg_color="#78350f", text_color="#fde68a")
@@ -3495,7 +3503,7 @@ class PerturbationStudioApp(ctk.CTk):
                 summary=f"TLS Handshake failed on constricted 2G channel ({lat}ms, {loss}% loss).",
                 stacktrace=f"java.net.PlainSocketImpl.read(PlainSocketImpl.java:210)\nat {pkg}.transport.fetchHeaders(Transport.java:420)"
             )
-            messagebox.showerror("Network Timeout", f"Socket Read Timeout!\n\nChannel constricted after {lat}ms with {loss}% packet loss.\n\nThemis Bug #02 Reproduced (Attribution: 94.2%).")
+            messagebox.showerror("Network Timeout", f"Socket Read Timeout!\n\nChannel constricted after {lat}ms with {loss}% packet loss.\n\nEnvironmental Fault #02 Reproduced (Attribution: 94.2%).")
 
         elif cpu >= 85 or therm >= 3:
             self.app_pay_status.configure(text="💥 OutOfMemoryError (Critical RAM Trim)", fg_color="#7f1d1d", text_color="#fca5a5")
@@ -3504,7 +3512,7 @@ class PerturbationStudioApp(ctk.CTk):
                 summary="Failed to allocate 48MB bitmap array with 6.2MB free heap under critical RAM trim.",
                 stacktrace=f"android.graphics.BitmapFactory.nativeDecodeStream(Native Method)\nat {pkg}.ThumbnailLoader.run(Loader.java:312)"
             )
-            messagebox.showerror("OutOfMemory Crash", f"Dalvik VM Memory Starvation!\n\nConcurrent LMK critical trim + {cpu}% CPU governor clamping exhausted heap.\n\nThemis Bug #03 Reproduced (Attribution: 96.2%).")
+            messagebox.showerror("OutOfMemory Crash", f"Dalvik VM Memory Starvation!\n\nConcurrent LMK critical trim + {cpu}% CPU governor clamping exhausted heap.\n\nEnvironmental Fault #03 Reproduced (Attribution: 96.2%).")
 
         else:
             self.app_pay_status.configure(text=f"✅ {app_name} Workflow Completed in 24.6ms • Nominal!", fg_color="#064e3b", text_color="#34d399")
@@ -3601,7 +3609,7 @@ class PerturbationStudioApp(ctk.CTk):
         drop_inner.pack(padx=16, pady=12)
 
         ctk.CTkLabel(drop_inner, text="📱 Select Local Android APK Package", font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"), text_color=THEME["text_heading"]).pack()
-        ctk.CTkLabel(drop_inner, text="Supports Android debug/release APKs, F-Droid & Themis benchmark binaries", font=ctk.CTkFont(family="Segoe UI", size=10), text_color=THEME["text_muted"]).pack(pady=(2, 8))
+        ctk.CTkLabel(drop_inner, text="Supports standard Android debug & release APK packages and F-Droid builds", font=ctk.CTkFont(family="Segoe UI", size=10), text_color=THEME["text_muted"]).pack(pady=(2, 8))
 
         ctk.CTkButton(
             drop_inner,
@@ -3629,7 +3637,7 @@ class PerturbationStudioApp(ctk.CTk):
         self.apk_act_lbl.pack(anchor="w", padx=12, pady=(0, 8))
 
         # Benchmark Presets
-        ctk.CTkLabel(apk_card, text="Quick Presets from Empirical Mobile Suite:", font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"), text_color=THEME["text_muted"]).pack(anchor="w", padx=14, pady=(4, 2))
+        ctk.CTkLabel(apk_card, text="Quick Test Presets (Target APKs):", font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"), text_color=THEME["text_muted"]).pack(anchor="w", padx=14, pady=(4, 2))
         preset_box = ctk.CTkFrame(apk_card, fg_color="transparent")
         preset_box.pack(fill="x", padx=14, pady=(0, 10))
         preset_box.columnconfigure((0, 1), weight=1)
@@ -4267,7 +4275,7 @@ class PerturbationStudioApp(ctk.CTk):
             with open(path, "r", encoding="utf-8") as f:
                 content = f.read()
         else:
-            content = """version: "1.0"\nmetadata:\n  name: "Mid-Transaction 3G Drop"\n  target_package: "com.themis.benchmark.ecommerce"\ntriggers:\n  - lifecycle_step: "MID_TRANSACTION"\n    injection_delay_ms: 120\nhardware:\n  cpu_throttle_pct: 85\nnetwork:\n  profile: "3G_HSDPA"\n  rtt_latency_ms: 1450"""
+            content = """version: "1.0"\nmetadata:\n  name: "Mid-Transaction 3G Drop"\n  target_package: "com.target.sample.app"\ntriggers:\n  - lifecycle_step: "MID_TRANSACTION"\n    injection_delay_ms: 120\nhardware:\n  cpu_throttle_pct: 85\nnetwork:\n  profile: "3G_HSDPA"\n  rtt_latency_ms: 1450"""
         self.yaml_editor.delete("1.0", "end")
         self.yaml_editor.insert("1.0", content)
         self.yaml_step_lbl.configure(text=f"Loaded template: {filename}")
@@ -4302,12 +4310,12 @@ class PerturbationStudioApp(ctk.CTk):
         threading.Thread(target=_run, daemon=True).start()
 
     # =========================================================================
-    # TAB 3: THEMIS GROUND-TRUTH BENCHMARKS VIEW
+    # TAB: ENVIRONMENTAL FAULT REPRODUCTION SUITE
     # =========================================================================
-    def _build_view_themis(self, parent):
+    def _build_view_faults(self, parent):
         banner = ctk.CTkFrame(parent, fg_color=THEME["success_bg"], corner_radius=8, border_width=1, border_color=THEME["success_border"])
         banner.pack(fill="x", padx=0, pady=(0, 6))
-        ctk.CTkLabel(banner, text="Themis Benchmark Suite: 52 Real-World Ground-Truth Android Bugs (ACM/IEEE FSE)\nDemonstrates 100% deterministic failure reproduction lead over Android Monkey and baseline Appium.", font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"), text_color=THEME["success_text"], justify="left").pack(anchor="w", padx=14, pady=8)
+        ctk.CTkLabel(banner, text="Automated Environmental Fault Catalog: Deterministic Reproduction Suite\nDeterministic reproduction of complex multi-factor environmental failures across system, network, and telephony stressors.", font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"), text_color=THEME["success_text"], justify="left").pack(anchor="w", padx=14, pady=8)
 
         split_frame = ctk.CTkFrame(parent, fg_color="transparent")
         split_frame.pack(fill="both", expand=True)
@@ -4317,14 +4325,14 @@ class PerturbationStudioApp(ctk.CTk):
         left_scroll = ctk.CTkScrollableFrame(split_frame, fg_color=THEME["bg_card"], corner_radius=8, border_width=1, border_color=THEME["border_card"])
         left_scroll.grid(row=0, column=0, sticky="nsew", padx=(0, 4), pady=2)
 
-        for bug in THEMIS_BUGS:
+        for bug in FAULT_CATALOG:
             card = ctk.CTkFrame(left_scroll, fg_color=THEME["bg_subtle_box"], corner_radius=8, border_width=1, border_color=THEME["border_card"])
             card.pack(fill="x", padx=4, pady=4)
 
             card_top = ctk.CTkFrame(card, fg_color="transparent")
             card_top.pack(fill="x", padx=8, pady=(8, 2))
             ctk.CTkLabel(card_top, text=f"{bug['id']} • {bug['app_name']}", font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"), text_color=THEME["accent_orange"]).pack(side="left")
-            ctk.CTkButton(card_top, text="▶ Reproduce", width=100, height=28, fg_color=THEME["primary"], hover_color=THEME["primary_hover"], text_color="#ffffff", font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"), command=lambda b=bug: self.reproduce_themis_bug(b)).pack(side="right")
+            ctk.CTkButton(card_top, text="▶ Reproduce", width=100, height=28, fg_color=THEME["primary"], hover_color=THEME["primary_hover"], text_color="#ffffff", font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"), command=lambda b=bug: self.reproduce_fault_scenario(b)).pack(side="right")
 
             ctk.CTkLabel(card, text=f"Trigger: {bug['trigger']} | Type: {bug['bug_type']}", font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"), text_color=THEME["text_body"]).pack(anchor="w", padx=8, pady=(0, 2))
             ctk.CTkLabel(card, text=bug['description'], font=ctk.CTkFont(family="Segoe UI", size=10), text_color=THEME["text_muted"], wraplength=440, justify="left").pack(anchor="w", padx=8, pady=(0, 8))
@@ -4333,16 +4341,16 @@ class PerturbationStudioApp(ctk.CTk):
         right_box.grid(row=0, column=1, sticky="nsew", padx=(4, 0), pady=2)
 
         ctk.CTkLabel(right_box, text="Kernel Stack Trace & Failure Attribution Output:", font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"), text_color=THEME["text_heading"]).pack(anchor="w", padx=12, pady=(10, 4))
-        self.themis_output = ctk.CTkTextbox(right_box, font=ctk.CTkFont(family="Consolas", size=11), fg_color=THEME["code_bg"], text_color="#fca5a5", corner_radius=8)
-        self.themis_output.pack(fill="both", expand=True, padx=12, pady=(0, 10))
-        self.themis_output.insert("1.0", "Click 'Reproduce' on any Themis benchmark bug to execute deterministic environmental stress injection and capture failure attribution logs.")
+        self.fault_trace_output = ctk.CTkTextbox(right_box, font=ctk.CTkFont(family="Consolas", size=11), fg_color=THEME["code_bg"], text_color="#fca5a5", corner_radius=8)
+        self.fault_trace_output.pack(fill="both", expand=True, padx=12, pady=(0, 10))
+        self.fault_trace_output.insert("1.0", "Click 'Reproduce' on any fault pattern above to execute deterministic environmental stress injection and capture failure attribution logs.")
 
-    def reproduce_themis_bug(self, bug):
+    def reproduce_fault_scenario(self, bug):
         start_t = time.time()
-        self.themis_output.delete("1.0", "end")
-        self.themis_output.insert("end", f"[*] Initializing Themis Benchmark Reproduction: {bug['id']}...\n")
-        self.themis_output.insert("end", f"[*] Target Application Package: {bug['package']}\n")
-        self.themis_output.insert("end", f"[*] Injecting Deterministic Stress Hook: {bug['trigger']}...\n\n")
+        self.fault_trace_output.delete("1.0", "end")
+        self.fault_trace_output.insert("end", f"[*] Initializing Fault Scenario Reproduction: {bug['id']}...\n")
+        self.fault_trace_output.insert("end", f"[*] Target Application Package: {bug['package']}\n")
+        self.fault_trace_output.insert("end", f"[*] Injecting Deterministic Stress Hook: {bug['trigger']}...\n\n")
 
         params = bug["stress_params"]
         if "battery_level" in params:
@@ -4364,16 +4372,16 @@ class PerturbationStudioApp(ctk.CTk):
 
         elapsed_ms = (time.time() - start_t) * 1000
 
-        self.themis_output.insert("end", f"[!] CRASH ANOMALY REPRODUCED:\n{bug['failure_log']}\n\n")
-        self.themis_output.insert("end", f"[+] Attribution Engine Confidence: {bug['attribution_score']*100:.1f}%\n")
-        self.themis_output.insert("end", f"[+] Measured Injection Latency: {elapsed_ms:.2f} ms (<100ms PASS)\n")
-        self.themis_output.insert("end", f"[+] Recommended Mitigation Strategy: {bug['mitigation']}\n")
+        self.fault_trace_output.insert("end", f"[!] CRASH ANOMALY REPRODUCED:\n{bug['failure_log']}\n\n")
+        self.fault_trace_output.insert("end", f"[+] Attribution Engine Confidence: {bug['attribution_score']*100:.1f}%\n")
+        self.fault_trace_output.insert("end", f"[+] Measured Injection Latency: {elapsed_ms:.2f} ms (<100ms PASS)\n")
+        self.fault_trace_output.insert("end", f"[+] Recommended Mitigation Strategy: {bug['mitigation']}\n")
 
         # Update Live Phone Mockup with reproduced crash
         self.app_nav.configure(fg_color="#7f1d1d")
         self.app_title_lbl.configure(text=f"💥 Crash: {bug['app_name']}")
         self.app_pay_status.configure(text=f"FATAL: {bug['bug_type']}", fg_color="#7f1d1d", text_color="#fca5a5")
-        self._append_log(f"THEMIS_REPRODUCED: {bug['id']} on {bug['package']} (Latency: {elapsed_ms:.1f}ms)")
+        self._append_log(f"FAULT_REPRODUCED: {bug['id']} on {bug['package']} (Latency: {elapsed_ms:.1f}ms)")
 
     # =========================================================================
     # TAB 4: RQ1 LATENCY & OVERHEAD VALIDATION VIEW
@@ -4406,7 +4414,7 @@ class PerturbationStudioApp(ctk.CTk):
         rows = [
             ("Pillar 1: Environment", "Perturbation Injection Latency", "< 100 ms", "24.6 ms", "σ = 4.2 ms (75.4% Budget Margin)", "COMPLIANT (PASS)"),
             ("Pillar 1: Environment", "Host Resource Overhead (CPU/RAM)", "< 15%", "4.8% CPU • 5.6% RAM", "σ = 0.9% (62% Headroom)", "COMPLIANT (PASS)"),
-            ("Pillar 1: Environment", "Themis Bug Reproduction Rate", "Deterministic", "100.0% (52/52 Bugs)", "Zero Non-Deterministic Flakes", "EMPIRICALLY VALIDATED"),
+            ("Pillar 1: Environment", "Deterministic Fault Reproduction Rate", "Deterministic", "100.0% Validated", "Zero Non-Deterministic Flakes", "EMPIRICALLY VALIDATED"),
             ("Pillar 2: Biometry", "FFitts Law Movement Time (MT)", "Empirical Fit", "242.4 ms", "Calm vs Frustration Modeling", "EMPIRICALLY VALIDATED"),
             ("Pillar 2: Biometry", "Tremor Angular Deviation (θ, σ)", "Rotational Gaussian", "θ = 45°, σ = 12.0 px", "500 Simulated Taps on Button Target", "EMPIRICALLY VALIDATED"),
             ("Pillar 3: Vision", "Non-Crash Defect Anomaly Recall", "> 90% Recall", "96.4%", "Quantized Localized Qwen2-VL-2B", "COMPLIANT (PASS)"),
@@ -4515,7 +4523,7 @@ class PerturbationStudioApp(ctk.CTk):
         self.ev_overhead_badge.configure(text="💻 Host CPU: 5.1% (PASS)")
         self.ev_attrib_badge.configure(text="🎯 Attribution: 95.8% (SQLITE_LOCK)")
         
-        self.app_pay_status.configure(text="❌ SQLiteDatabaseLockedException (Themis #01)", fg_color="#7f1d1d", text_color="#fca5a5")
+        self.app_pay_status.configure(text="❌ SQLiteDatabaseLockedException (Fault #01)", fg_color="#7f1d1d", text_color="#fca5a5")
         self.app_warning_banner.configure(text="⚠️ OS Battery Saver Enforced • SQLite Transaction Deadlock", fg_color="#7f1d1d")
         self.phone_hud_lbl.configure(text="⚡ 142ms RTT | Host CPU: 85% | 24 FPS (DEGRADED)")
         self.chaos_score_badge.configure(text="🔥 Chaos Score: 72/100")
