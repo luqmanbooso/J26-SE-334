@@ -59,10 +59,18 @@ class InterruptionStressor(BaseStressor):
             return f"SOCKET_FALLBACK: {self.adb.run_emulator_cmd(command)}"
 
     def trigger_incoming_call(self, phone_number: str = "15555215554") -> None:
-        """Triggers incoming GSM call on emulator."""
+        """Triggers incoming call interruption on emulator via GSM or on hardware via dialer intent and notification banner."""
         clean_number = "".join(filter(str.isdigit, str(phone_number))) or "15555215554"
         self.active_call_number = clean_number
-        resp = self._send_console_cmd(f"gsm call {clean_number}")
+
+        if not self.adb.is_simulated:
+            # Physical Device: Post call notification banner and trigger dialer preemption
+            self.adb.run_shell(f'cmd notification post -t "Incoming Call: +{clean_number}" -S bigtext "Incoming call from +{clean_number}... Ringing" call_tag 102')
+            self.adb.run_shell(f"am start -a android.intent.action.DIAL -d tel:{clean_number}")
+            resp = "PHYSICAL_DEVICE_DIALER_PREEMPTION"
+        else:
+            resp = self._send_console_cmd(f"gsm call {clean_number}")
+
         self.is_active = True
         self.logger.record("INTERRUPTION_CALL", "INCOMING_CALL_RINGING", {
             "number": clean_number,
@@ -75,11 +83,16 @@ class InterruptionStressor(BaseStressor):
         self.logger.record("INTERRUPTION_CALL", "CALL_ACCEPTED", {"action": "KEYCODE_CALL"})
 
     def dismiss_call(self, phone_number: Optional[str] = None) -> None:
-        """Declines or terminates call using GSM cancel and KEYCODE_ENDCALL (Keyevent 6)."""
+        """Declines or terminates call using GSM cancel and KEYCODE_ENDCALL or home intent."""
         target = phone_number or self.active_call_number or "15555215554"
         clean_number = "".join(filter(str.isdigit, str(target)))
-        resp = self._send_console_cmd(f"gsm cancel {clean_number}")
-        self.adb.run_shell("input keyevent 6")
+        if not self.adb.is_simulated:
+            self.adb.run_shell("am start -a android.intent.action.MAIN -c android.intent.category.HOME")
+            resp = "PHYSICAL_DEVICE_DISMISSED"
+        else:
+            resp = self._send_console_cmd(f"gsm cancel {clean_number}")
+            self.adb.run_shell("input keyevent 6")
+
         self.active_call_number = None
         self.logger.record("INTERRUPTION_CALL", "CALL_TERMINATED", {
             "number": clean_number,
@@ -90,8 +103,16 @@ class InterruptionStressor(BaseStressor):
         """Sends an SMS message notification banner."""
         src = "INVALID_SENDER" if force_fail else "".join(filter(str.isdigit, str(sender))) or "15555215554"
         clean_msg = message.replace('"', '').replace("'", "")
-        resp = self._send_console_cmd(f"sms send {src} {clean_msg}")
-        status = "FAILED_AT_MODEM" if "KO:" in resp else "APPLIED"
+
+        if not self.adb.is_simulated:
+            # Physical Device: Post real heads-up notification banner
+            self.adb.run_shell(f'cmd notification post -t "SMS from +{src}" -S bigtext "{clean_msg}" sms_tag 101')
+            resp = "PHYSICAL_DEVICE_NOTIFICATION_BANNER"
+            status = "APPLIED"
+        else:
+            resp = self._send_console_cmd(f"sms send {src} {clean_msg}")
+            status = "FAILED_AT_MODEM" if "KO:" in resp else "APPLIED"
+
         self.logger.record("INTERRUPTION_SMS", "SMS_NOTIFICATION_BANNER", {
             "sender": src,
             "message": clean_msg,

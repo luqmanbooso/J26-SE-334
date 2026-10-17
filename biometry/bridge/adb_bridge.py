@@ -12,6 +12,10 @@ class ADBBridge:
         Initializes the ADB Bridge.
         If multiple devices/emulators exist, specify device_id.
         """
+        adb_std_path = os.path.expanduser(r"~\AppData\Local\Android\Sdk\platform-tools")
+        if os.path.exists(adb_std_path) and adb_std_path not in os.environ.get("PATH", ""):
+            os.environ["PATH"] = adb_std_path + os.pathsep + os.environ.get("PATH", "")
+
         self.device_id = device_id
         self._verify_connection()
 
