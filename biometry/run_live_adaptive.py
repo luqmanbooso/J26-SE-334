@@ -9,6 +9,7 @@ the device instead of a stub.
 import argparse
 
 from bridge.adb_bridge import ADBBridge
+from bridge.oracle_client import OracleNotifier
 from bridge.device import AdbDispatcher
 from bridge.frame_probe import FrameProbe
 from bridge.hierarchy import parse_hierarchy, tappable_targets
@@ -32,6 +33,10 @@ def main():
                     help="app under test; read from the foreground window when omitted")
     ap.add_argument("--profile", default="default", choices=sorted(PROFILES),
                     help="named behaviour profile (IF-Orchestrator-to-C2)")
+    ap.add_argument("--oracle-url", default=None,
+                    help="C3 oracle base URL (e.g. http://127.0.0.1:8000); "
+                         "when set, every completed action triggers a capture "
+                         "(IF-C2-to-C3)")
     ap.add_argument("--out", default="results/live_run")
     args = ap.parse_args()
 
@@ -77,11 +82,19 @@ def main():
         source = StaticStress(args.stress)
     print(f"[live] behaviour profile: {args.profile}")
 
+    notify = None
+    if args.oracle_url:
+        notify = OracleNotifier(args.oracle_url,
+                                session_id=f"live-{args.profile}-{args.seed}",
+                                device_serial=bridge.device_id)
+        print(f"[live] triggering C3 oracle at {notify.url}")
+
     controller = AdaptiveFeedbackController(
         simulator=simulator,
         cognitive=source,
         probe=FrameProbe(bridge.device, package),
         dispatch=AdbDispatcher(bridge),
+        notify=notify,
         run_id=f"live-{'static' if args.static else 'adaptive'}",
         persona_id=args.profile,
     )
