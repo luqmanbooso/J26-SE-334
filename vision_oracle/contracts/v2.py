@@ -227,7 +227,16 @@ class VerdictEnvelopeV2(BaseModel):
 
     def to_c4_verdict(self) -> Any:
         """Bi-directional adapter: Converts V2 envelope to Component 4 C3Verdict contract."""
-        from c4.c3_interface.contract import C3Verdict, ScreenshotEvidence, DefectRegion
+        try:
+            from c4.c3_interface.contract import C3Verdict, ScreenshotEvidence, DefectRegion
+        except ImportError:
+            import sys
+            from pathlib import Path
+            repo_root = Path(__file__).resolve().parent.parent.parent
+            for p in [repo_root / "component4" / "src", Path.cwd() / "component4" / "src"]:
+                if p.exists() and str(p) not in sys.path:
+                    sys.path.insert(0, str(p))
+            from c4.c3_interface.contract import C3Verdict, ScreenshotEvidence, DefectRegion
 
         screenshot_evidence = ScreenshotEvidence(
             path=self.screenshot.storage_path,
