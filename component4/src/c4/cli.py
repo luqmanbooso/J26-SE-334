@@ -28,6 +28,7 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--runs-dir", required=True)
     run.add_argument("--dry-run", action="store_true")
     run.add_argument("--no-c3", action="store_true")
+    run.add_argument("--c3-strict", action="store_true")
     run.add_argument("--limit", type=int)
     run.add_argument("--model", default="qwen3:8b")
     run.add_argument("--ollama-url", default="http://127.0.0.1:11434")
@@ -105,6 +106,7 @@ def main(argv: list[str] | None = None) -> int:
             target,
             use_c3=not args.no_c3,
             healer=healer,
+            c3_strict=args.c3_strict,
         ).run(
             args.telemetry,
             args.runs_dir,
@@ -113,7 +115,7 @@ def main(argv: list[str] | None = None) -> int:
             capture_baseline=args.capture_baseline,
         )
         failed = any(
-            record.status == "synthesis_failed"
+            record.status in {"synthesis_failed", "error"}
             or (
                 record.execution is not None
                 and getattr(record.execution, "status", None) != "passed"
