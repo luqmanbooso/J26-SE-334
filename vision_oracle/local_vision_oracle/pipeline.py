@@ -11,6 +11,7 @@ Enforces:
 
 from __future__ import annotations
 
+import math
 import re
 import json
 import time
@@ -26,6 +27,7 @@ from vision_oracle.contracts.v2 import (
     Coverage,
     ScreenshotRef,
     Finding,
+    FindingType,
     CaptureBundle,
     VerdictEnvelopeV2,
     ReviewStatus,
@@ -116,7 +118,17 @@ class CoordinateMapper:
           y2 = cy + (ymax / 1000) * ch
         """
         cx, cy, cw, ch = view.crop_rect
+        if len(box_yxyx_1000) != 4:
+            raise ValueError(f"box_yxyx_1000 must contain exactly 4 coordinates, got {box_yxyx_1000}")
         ymin, xmin, ymax, xmax = box_yxyx_1000
+
+        # Validate normalized bounds before coordinate transformation
+        if ymin < 0 or xmin < 0 or ymax > 1000 or xmax > 1000:
+            raise ValueError(f"Normalized coordinates must be within [0, 1000], got {box_yxyx_1000}")
+        if ymin >= ymax:
+            raise ValueError(f"Invalid vertical coordinates: ymin={ymin} >= ymax={ymax}")
+        if xmin >= xmax:
+            raise ValueError(f"Invalid horizontal coordinates: xmin={xmin} >= xmax={xmax}")
 
         x1 = int(round(cx + (xmin / 1000.0) * cw))
         y1 = int(round(cy + (ymin / 1000.0) * ch))
@@ -126,10 +138,29 @@ class CoordinateMapper:
         # Clamp strictly within physical screen resolution
         x1 = max(0, min(x1, orig_width - 1))
         y1 = max(0, min(y1, orig_height - 1))
-        x2 = max(x1 + 1, min(x2, orig_width))
-        y2 = max(y1 + 1, min(y2, orig_height))
+        x2 = max(0, min(x2, orig_width))
+        y2 = max(0, min(y2, orig_height))
+
+        if x1 >= x2 or y1 >= y2:
+            raise ValueError(f"Mapped physical pixel box has non-positive area: [{x1}, {y1}, {x2}, {y2}]")
 
         return [x1, y1, x2, y2]
+
+    @staticmethod
+    def pixels_to_model(
+        x1: int,
+        y1: int,
+        x2: int,
+        y2: int,
+        orig_width: int,
+        orig_height: int,
+    ) -> List[int]:
+        """Maps physical pixel [x1, y1, x2, y2] to normalized [ymin, xmin, ymax, xmax] in [0, 1000]."""
+        ymin = int(round(max(0, min(1000, (y1 / max(1, orig_height)) * 1000.0))))
+        xmin = int(round(max(0, min(1000, (x1 / max(1, orig_width)) * 1000.0))))
+        ymax = int(round(max(0, min(1000, (y2 / max(1, orig_height)) * 1000.0))))
+        xmax = int(round(max(0, min(1000, (x2 / max(1, orig_width)) * 1000.0))))
+        return [ymin, xmin, ymax, xmax]
 
 
 class FindingParser:
@@ -173,78 +204,196 @@ class FindingParser:
             errors.append(f"JSON parsing error for view '{view.view_id}': {exc}. Raw snippet: {cleaned[:120]}")
             return findings, errors
 
+        if not isinstance(parsed, dict):
+            errors.append(f"Invalid root object type '{type(parsed).__name__}' for view '{view.view_id}'. Expected JSON object.")
+            return findings, errors
+
+        # Schema detection & top-level object validation
+        has_findings_key = "findings" in parsed
+        has_defect_key = "has_defect" in parsed
+
+        if not has_findings_key and not has_defect_key:
+            errors.append(
+                f"Unrecognized schema for view '{view.view_id}': neither 'findings' list nor 'has_defect' boolean present in model response. "
+                f"Keys received: {list(parsed.keys())}"
+            )
+            return findings, errors
+
+        valid_defect_types = {t.value for t in FindingType}
+
         # Check V2 schema
-        if "findings" in parsed and isinstance(parsed["findings"], list):
-            for item in parsed["findings"]:
+        if has_findings_key:
+            raw_findings_list = parsed["findings"]
+            if not isinstance(raw_findings_list, list):
+                errors.append(f"'findings' field must be a list, got {type(raw_findings_list).__name__}")
+                return findings, errors
+
+            for idx, item in enumerate(raw_findings_list):
                 if not isinstance(item, dict):
+                    errors.append(f"Finding item {idx} in view '{view.view_id}' must be a JSON object, got {type(item).__name__}")
                     continue
+
                 dtype = item.get("type") or item.get("defect_type")
-                if not dtype or dtype in ("none", "clean"):
+                if not dtype or not isinstance(dtype, str):
+                    errors.append(f"Finding item {idx} in view '{view.view_id}' missing required 'type' field")
+                    continue
+
+                dtype_clean = dtype.strip().lower()
+                if dtype_clean in ("none", "clean"):
+                    continue
+
+                if dtype_clean not in valid_defect_types:
+                    errors.append(
+                        f"Unknown defect type '{dtype}' in view '{view.view_id}'. "
+                        f"Allowed taxonomy: {sorted(list(valid_defect_types))}"
+                    )
                     continue
 
                 raw_box = item.get("bbox_yxyx_1000") or item.get("bounding_box") or item.get("bbox")
                 bbox_xyxy = None
-                if raw_box and isinstance(raw_box, list) and len(raw_box) == 4:
-                    try:
-                        bbox_xyxy = CoordinateMapper.model_to_pixels(
-                            box_yxyx_1000=[int(c) for c in raw_box],
-                            view=view,
-                            orig_width=orig_width,
-                            orig_height=orig_height,
-                        )
-                    except Exception as err:
-                        errors.append(f"Invalid bounding box {raw_box} in view '{view.view_id}': {err}")
+                boundary_touching = False
+                if raw_box is not None:
+                    if not isinstance(raw_box, (list, tuple)) or len(raw_box) != 4:
+                        errors.append(f"Invalid bounding box in view '{view.view_id}': must contain exactly 4 coordinates, got {raw_box}")
+                    else:
+                        try:
+                            ymin, xmin, ymax, xmax = [float(c) for c in raw_box]
+                            if ymin < 0 or xmin < 0 or ymax > 1000 or xmax > 1000:
+                                errors.append(f"Bounding box {raw_box} out of normalized bounds [0, 1000] in view '{view.view_id}'")
+                            elif ymin >= ymax or xmin >= xmax:
+                                errors.append(f"Invalid reversed or zero-area box [ymin={ymin}, xmin={xmin}, ymax={ymax}, xmax={xmax}] in view '{view.view_id}'")
+                            else:
+                                if ymin <= 5 or xmin <= 5 or ymax >= 995 or xmax >= 995:
+                                    boundary_touching = True
+                                bbox_xyxy = CoordinateMapper.model_to_pixels(
+                                    box_yxyx_1000=[int(round(ymin)), int(round(xmin)), int(round(ymax)), int(round(xmax))],
+                                    view=view,
+                                    orig_width=orig_width,
+                                    orig_height=orig_height,
+                                )
+                        except Exception as err:
+                            errors.append(f"Invalid bounding box {raw_box} in view '{view.view_id}': {err}")
 
-                explanation = item.get("explanation") or f"Detected visual defect '{dtype}'"
+                # Confidence validation (no fabricated 0.85/0.99/1.0 defaults)
+                conf_raw = item.get("confidence")
+                confidence = None
+                conf_method = "unavailable"
+                if conf_raw is not None:
+                    if not isinstance(conf_raw, (int, float)) or math.isnan(conf_raw) or math.isinf(conf_raw) or conf_raw < 0.0 or conf_raw > 1.0:
+                        errors.append(f"Invalid non-finite or out-of-range confidence '{conf_raw}' in view '{view.view_id}'")
+                    else:
+                        confidence = float(conf_raw)
+                        conf_method = "uncalibrated"
+
+                explanation = str(item.get("explanation") or f"Detected visual defect '{dtype_clean}' in view '{view.view_id}'")
+                if boundary_touching:
+                    explanation += " (touches view boundary; flagged for corroboration)"
+
                 findings.append(
                     Finding(
                         finding_id=f"find_{uuid.uuid4().hex[:12]}",
-                        type=str(dtype),
+                        type=dtype_clean,
                         bbox_xyxy=bbox_xyxy,
                         element_ref=item.get("affected_element_id") or item.get("element_ref"),
-                        explanation=str(explanation),
+                        explanation=explanation,
                         source="vlm",
-                        confidence=float(item.get("confidence")) if item.get("confidence") is not None else None,
-                        confidence_method="uncalibrated" if item.get("confidence") is not None else "unavailable",
+                        confidence=confidence,
+                        confidence_method=conf_method,
                         view_ids=[view.view_id],
                         review_status=ReviewStatus.UNREVIEWED,
                     )
                 )
 
         # Check Legacy schema
-        elif "has_defect" in parsed:
-            has_defect = bool(parsed.get("has_defect"))
-            defect_type = str(parsed.get("defect_type", "none")).lower()
-            if has_defect and defect_type not in ("none", "clean"):
-                raw_box = parsed.get("bounding_box")
-                bbox_xyxy = None
-                if raw_box and isinstance(raw_box, list) and len(raw_box) == 4:
+        elif has_defect_key:
+            has_defect_val = parsed.get("has_defect")
+            if not isinstance(has_defect_val, bool):
+                errors.append(
+                    f"Invalid schema: 'has_defect' must be an actual boolean, got {type(has_defect_val).__name__} ({has_defect_val!r})"
+                )
+                return findings, errors
+
+            raw_box = parsed.get("bounding_box") or parsed.get("bbox")
+            defect_type_raw = parsed.get("defect_type")
+
+            # Check contradictory clean combinations
+            if not has_defect_val:
+                if raw_box is not None:
+                    errors.append(f"Contradictory schema in view '{view.view_id}': has_defect is false but bounding box {raw_box} is present")
+                if defect_type_raw is not None and str(defect_type_raw).strip().lower() not in ("", "none", "clean"):
+                    errors.append(f"Contradictory schema in view '{view.view_id}': has_defect is false but defect_type is '{defect_type_raw}'")
+                return findings, errors
+
+            # has_defect is True
+            if not defect_type_raw or not isinstance(defect_type_raw, str):
+                errors.append(f"Missing required 'defect_type' field in view '{view.view_id}' when has_defect is true")
+                return findings, errors
+
+            defect_type_clean = defect_type_raw.strip().lower()
+            if defect_type_clean in ("none", "clean"):
+                errors.append(f"Contradictory schema in view '{view.view_id}': has_defect is true but defect_type is '{defect_type_clean}'")
+                return findings, errors
+
+            if defect_type_clean not in valid_defect_types:
+                errors.append(
+                    f"Unknown defect type '{defect_type_raw}' in view '{view.view_id}'. "
+                    f"Allowed taxonomy: {sorted(list(valid_defect_types))}"
+                )
+                return findings, errors
+
+            bbox_xyxy = None
+            boundary_touching = False
+            if raw_box is not None:
+                if not isinstance(raw_box, (list, tuple)) or len(raw_box) != 4:
+                    errors.append(f"Invalid legacy bounding box in view '{view.view_id}': must contain exactly 4 coordinates, got {raw_box}")
+                else:
                     try:
-                        bbox_xyxy = CoordinateMapper.model_to_pixels(
-                            box_yxyx_1000=[int(c) for c in raw_box],
-                            view=view,
-                            orig_width=orig_width,
-                            orig_height=orig_height,
-                        )
+                        ymin, xmin, ymax, xmax = [float(c) for c in raw_box]
+                        if ymin < 0 or xmin < 0 or ymax > 1000 or xmax > 1000:
+                            errors.append(f"Bounding box {raw_box} out of normalized bounds [0, 1000] in view '{view.view_id}'")
+                        elif ymin >= ymax or xmin >= xmax:
+                            errors.append(f"Invalid reversed or zero-area box [ymin={ymin}, xmin={xmin}, ymax={ymax}, xmax={xmax}] in view '{view.view_id}'")
+                        else:
+                            if ymin <= 5 or xmin <= 5 or ymax >= 995 or xmax >= 995:
+                                boundary_touching = True
+                            bbox_xyxy = CoordinateMapper.model_to_pixels(
+                                box_yxyx_1000=[int(round(ymin)), int(round(xmin)), int(round(ymax)), int(round(xmax))],
+                                view=view,
+                                orig_width=orig_width,
+                                orig_height=orig_height,
+                            )
                     except Exception as err:
                         errors.append(f"Invalid legacy bounding box {raw_box} in view '{view.view_id}': {err}")
 
-                explanation = parsed.get("explanation") or f"Detected visual defect '{defect_type}'"
-                conf = parsed.get("confidence")
-                findings.append(
-                    Finding(
-                        finding_id=f"find_{uuid.uuid4().hex[:12]}",
-                        type=defect_type,
-                        bbox_xyxy=bbox_xyxy,
-                        element_ref=parsed.get("affected_element_id"),
-                        explanation=str(explanation),
-                        source="vlm",
-                        confidence=float(conf) if conf is not None else 0.85,
-                        confidence_method="raw_heuristic" if conf is not None else "unavailable",
-                        view_ids=[view.view_id],
-                        review_status=ReviewStatus.UNREVIEWED,
-                    )
+            # Confidence validation (no fabricated 0.85/0.99/1.0 defaults)
+            conf_raw = parsed.get("confidence")
+            confidence = None
+            conf_method = "unavailable"
+            if conf_raw is not None:
+                if not isinstance(conf_raw, (int, float)) or math.isnan(conf_raw) or math.isinf(conf_raw) or conf_raw < 0.0 or conf_raw > 1.0:
+                    errors.append(f"Invalid non-finite or out-of-range confidence '{conf_raw}' in view '{view.view_id}'")
+                else:
+                    confidence = float(conf_raw)
+                    conf_method = "uncalibrated"
+
+            explanation = str(parsed.get("explanation") or f"Detected visual defect '{defect_type_clean}' in view '{view.view_id}'")
+            if boundary_touching:
+                explanation += " (touches view boundary; flagged for corroboration)"
+
+            findings.append(
+                Finding(
+                    finding_id=f"find_{uuid.uuid4().hex[:12]}",
+                    type=defect_type_clean,
+                    bbox_xyxy=bbox_xyxy,
+                    element_ref=parsed.get("affected_element_id"),
+                    explanation=explanation,
+                    source="vlm",
+                    confidence=confidence,
+                    confidence_method=conf_method,
+                    view_ids=[view.view_id],
+                    review_status=ReviewStatus.UNREVIEWED,
                 )
+            )
 
         return findings, errors
 
@@ -368,11 +517,13 @@ class AnalysisPipeline:
         raw_findings: List[Finding] = []
         errors: List[str] = []
         warnings: List[str] = []
-        completed_views = 0
+        valid_views = 0
+        raw_responses: Dict[str, str] = {}
 
         t_preprocess_acc = 0.0
         t_inference_acc = 0.0
 
+        sahi_oom_recovered = False
         for view in planned_views:
             t_p0 = time.perf_counter()
             # Crop view
@@ -406,24 +557,49 @@ class AnalysisPipeline:
             try:
                 response_text = self.backend.generate(messages=messages, image=view_img)
                 t_inference_acc += (time.perf_counter() - t_i0) * 1000.0
-                completed_views += 1
+                raw_responses[view.view_id] = response_text
 
-                # Parse findings
+                # Parse findings with strict validation
                 v_findings, v_errors = FindingParser.parse_findings(
                     response_text=response_text,
                     view=view,
                     orig_width=orig_w,
                     orig_height=orig_h,
                 )
-                raw_findings.extend(v_findings)
+
                 if v_errors:
                     errors.extend(v_errors)
+                    # View is counted as successfully analyzed ONLY after output passes validation
+                else:
+                    valid_views += 1
+                    raw_findings.extend(v_findings)
 
             except Exception as exc:
                 t_inference_acc += (time.perf_counter() - t_i0) * 1000.0
+                is_oom = (
+                    exc.__class__.__name__ == "OutOfMemoryError"
+                    or "out of memory" in str(exc).lower()
+                )
+                if is_oom:
+                    import gc
+                    gc.collect()
+                    try:
+                        import torch
+                        if torch.cuda.is_available():
+                            torch.cuda.empty_cache()
+                    except Exception:
+                        pass
+
+                # Fatal: global view failure, or non-OOM hardware crash on any view
+                if view.is_global or not is_oom:
+                    raise exc
+
+                # Non-fatal SAHI slice OOM: graceful fallback to global view passes, abort remaining slices
+                sahi_oom_recovered = True
                 err_msg = f"Failure during inference for view '{view.view_id}': {exc}"
                 logger.warning(err_msg)
                 warnings.append(err_msg)
+                break
 
         t_agg0 = time.perf_counter()
         deduped_findings = OverlapDeduplicator.deduplicate(raw_findings, iou_threshold=0.5)
@@ -431,30 +607,35 @@ class AnalysisPipeline:
 
         total_ms = (time.perf_counter() - t0) * 1000.0
 
-        # Determine scientific decision and analysis status
-        is_partial = len(warnings) > 0 or completed_views < len(planned_views)
-        has_critical_error = len(errors) > 0 and completed_views == 0
+        # Scientific Decision Policy (PP1 Section 3):
+        # - All required views valid; no findings -> No defect detected within configured scope
+        # - Valid finding; all required views valid -> Defect detected, complete
+        # - Valid finding; some views failed -> Defect detected, partial
+        # - No valid finding; some required views failed -> Inconclusive, partial
+        # - No valid views -> Inconclusive, error
+        all_required_views_valid = (valid_views == len(planned_views)) and (len(warnings) == 0)
 
-        if has_critical_error:
-            analysis_status = AnalysisStatus.ERROR
-            decision = AnalysisDecision.INCONCLUSIVE
-        elif is_partial:
+        if all_required_views_valid:
+            analysis_status = AnalysisStatus.COMPLETE
+            if len(deduped_findings) > 0:
+                decision = AnalysisDecision.DEFECT_DETECTED
+            else:
+                decision = AnalysisDecision.NO_DEFECT_DETECTED
+        elif valid_views > 0:
             analysis_status = AnalysisStatus.PARTIAL
             if len(deduped_findings) > 0:
                 decision = AnalysisDecision.DEFECT_DETECTED
             else:
                 decision = AnalysisDecision.INCONCLUSIVE
         else:
-            analysis_status = AnalysisStatus.COMPLETE
-            if len(deduped_findings) > 0:
-                decision = AnalysisDecision.DEFECT_DETECTED
-            else:
-                decision = AnalysisDecision.NO_DEFECT_DETECTED
+            # 0 valid views (all views failed generation or validation)
+            analysis_status = AnalysisStatus.ERROR
+            decision = AnalysisDecision.INCONCLUSIVE
 
         coverage = Coverage(
             policy=policy.value if hasattr(policy, "value") else str(policy),
             planned_views=len(planned_views),
-            completed_views=completed_views,
+            completed_views=valid_views,
             warnings=warnings,
         )
 
@@ -493,5 +674,9 @@ class AnalysisPipeline:
                 "device_serial": bundle.device_serial,
                 "app_package": bundle.app_package,
                 "hierarchy_status": bundle.hierarchy_status,
+                "raw_responses": raw_responses,
+                "valid_views": valid_views,
+                "failed_views": len(planned_views) - valid_views,
+                "sahi_oom_recovered": sahi_oom_recovered,
             },
         )

@@ -243,3 +243,87 @@ def test_verdict_envelope_multi_finding_and_primary_finding_semantics():
     assert c4_explicit.defect_type == "text_truncation"
     assert c4_explicit.confidence == 0.85
     assert len(c4_explicit.regions) == 3
+
+
+def test_verdict_envelope_c4_inconclusive_preservation_and_handover_outcomes():
+    """
+    Acceptance Test (PP1 Section 7):
+    - Do not reduce inconclusive to has_gui_defect=False
+    - Ready for test generation: enough action and target information exists
+    - Evidence only: finding is preserved, but reproduction context is insufficient
+    """
+    screenshot = ScreenshotRef(width=1080, height=2400, storage_path="/path/test.png")
+
+    # 1. Inconclusive verdict MUST NOT be reduced to has_gui_defect=False
+    v2_inconclusive = VerdictEnvelopeV2(
+        capture_id="cap_inconc_01",
+        session_id="session_inc",
+        action_id="act_inc_01",
+        analysis_status=AnalysisStatus.PARTIAL,
+        decision=AnalysisDecision.INCONCLUSIVE,
+        screenshot=screenshot,
+        findings=[],
+        coverage=Coverage(policy="global_plus_tiles_v1", planned_views=4, completed_views=2),
+    )
+    c4_inconc = v2_inconclusive.to_c4_verdict()
+    assert c4_inconc.has_gui_defect is None, "Inconclusive verdict was erroneously reduced to boolean False!"
+    assert c4_inconc.evidence["decision"] == "inconclusive"
+    assert c4_inconc.evidence["analysis_status"] == "partial"
+    assert c4_inconc.evidence["handover_outcome"] == "unsupported_inconclusive"
+
+    # 2. Ready for test generation: defect detected with action_id and element locator
+    v2_ready = VerdictEnvelopeV2(
+        capture_id="cap_ready_01",
+        session_id="session_ready",
+        action_id="act_tap_submit_42",
+        analysis_status=AnalysisStatus.COMPLETE,
+        decision=AnalysisDecision.DEFECT_DETECTED,
+        screenshot=screenshot,
+        findings=[
+            Finding(
+                type="component_overlap",
+                bbox_xyxy=[100, 200, 400, 500],
+                element_ref="com.shop:id/btn_checkout",
+                explanation="Button overlapped by banner",
+                confidence=0.91,
+            )
+        ],
+    )
+    c4_ready = v2_ready.to_c4_verdict()
+    assert c4_ready.has_gui_defect is True
+    assert c4_ready.evidence["handover_outcome"] == "ready_for_test_generation"
+    assert c4_ready.evidence["action_id"] == "act_tap_submit_42"
+
+    # 3. Evidence only: defect detected without replay action context
+    v2_evidence_only = VerdictEnvelopeV2(
+        capture_id="cap_no_action_01",
+        session_id="session_evidence",
+        analysis_status=AnalysisStatus.COMPLETE,
+        decision=AnalysisDecision.DEFECT_DETECTED,
+        screenshot=screenshot,
+        findings=[
+            Finding(
+                type="text_truncation",
+                bbox_xyxy=[50, 50, 300, 100],
+                element_ref=None,
+                explanation="Truncated text without element reference",
+            )
+        ],
+    )
+    c4_evidence = v2_evidence_only.to_c4_verdict()
+    assert c4_evidence.has_gui_defect is True
+    assert c4_evidence.evidence["handover_outcome"] == "evidence_only"
+
+    # 4. Clean verdict produces has_gui_defect=False
+    v2_clean = VerdictEnvelopeV2(
+        capture_id="cap_clean_01",
+        session_id="session_clean",
+        analysis_status=AnalysisStatus.COMPLETE,
+        decision=AnalysisDecision.NO_DEFECT_DETECTED,
+        screenshot=screenshot,
+        findings=[],
+    )
+    c4_clean = v2_clean.to_c4_verdict()
+    assert c4_clean.has_gui_defect is False
+    assert c4_clean.evidence["decision"] == "no_defect_detected"
+

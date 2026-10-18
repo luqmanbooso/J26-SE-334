@@ -74,14 +74,15 @@ class OracleRepository:
             conn.execute(
                 """
                 INSERT OR REPLACE INTO captures (
-                    capture_id, session_id, app_package, device_serial,
+                    capture_id, session_id, action_id, app_package, device_serial,
                     image_path, image_sha256, width, height,
                     hierarchy_xml, hierarchy_status, inter_modality_skew_ms, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                 """,
                 (
                     bundle.capture_id,
                     bundle.session_id,
+                    bundle.action_id,
                     bundle.app_package,
                     bundle.device_serial,
                     bundle.artifact_path or "",
@@ -95,16 +96,12 @@ class OracleRepository:
                 ),
             )
 
-    def get_capture(self, capture_id: str) -> Optional[CaptureBundle]:
-        """Loads capture bundle by ID."""
-        conn = self.db.get_connection()
-        cur = conn.execute("SELECT * FROM captures WHERE capture_id = ?;", (capture_id,))
-        row = cur.fetchone()
-        if not row:
-            return None
+    @staticmethod
+    def _row_to_capture_bundle(row: Any) -> CaptureBundle:
         return CaptureBundle(
             capture_id=row["capture_id"],
             session_id=row["session_id"],
+            action_id=row["action_id"] if "action_id" in row.keys() else None,
             app_package=row["app_package"],
             device_serial=row["device_serial"],
             timestamp_utc=row["created_at"],
@@ -116,6 +113,43 @@ class OracleRepository:
             hierarchy_status=row["hierarchy_status"],
             inter_modality_skew_ms=row["inter_modality_skew_ms"],
         )
+
+    def get_capture(self, capture_id: str) -> Optional[CaptureBundle]:
+        """Loads capture bundle by ID."""
+        conn = self.db.get_connection()
+        cur = conn.execute("SELECT * FROM captures WHERE capture_id = ?;", (capture_id,))
+        row = cur.fetchone()
+        if not row:
+            return None
+        return self._row_to_capture_bundle(row)
+
+    def list_session_captures(self, session_id: str) -> List[CaptureBundle]:
+        """Retrieves all captures belonging to a session in chronological order."""
+        conn = self.db.get_connection()
+        cur = conn.execute(
+            "SELECT * FROM captures WHERE session_id = ? ORDER BY created_at ASC;",
+            (session_id,),
+        )
+        rows = cur.fetchall()
+        return [self._row_to_capture_bundle(r) for r in rows]
+
+    def get_capture_by_action(self, action_id: str, session_id: Optional[str] = None) -> Optional[CaptureBundle]:
+        """Retrieves capture associated with a specific C2 action ID."""
+        conn = self.db.get_connection()
+        if session_id:
+            cur = conn.execute(
+                "SELECT * FROM captures WHERE action_id = ? AND session_id = ? ORDER BY created_at DESC LIMIT 1;",
+                (action_id, session_id),
+            )
+        else:
+            cur = conn.execute(
+                "SELECT * FROM captures WHERE action_id = ? ORDER BY created_at DESC LIMIT 1;",
+                (action_id,),
+            )
+        row = cur.fetchone()
+        if not row:
+            return None
+        return self._row_to_capture_bundle(row)
 
     def create_job(
         self,
@@ -209,6 +243,28 @@ class OracleRepository:
         if not row:
             return None
         return dict(row)
+
+    def get_job_by_capture(self, capture_id: str) -> Optional[Dict[str, Any]]:
+        """Retrieves most recent job associated with a capture ID."""
+        conn = self.db.get_connection()
+        cur = conn.execute("SELECT * FROM jobs WHERE capture_id = ? ORDER BY created_at DESC LIMIT 1;", (capture_id,))
+        row = cur.fetchone()
+        if not row:
+            return None
+        return dict(row)
+
+    def list_capture_jobs(self, capture_id: str) -> List[Dict[str, Any]]:
+        """Retrieves all jobs associated with a capture ID."""
+        conn = self.db.get_connection()
+        cur = conn.execute("SELECT * FROM jobs WHERE capture_id = ? ORDER BY created_at ASC;", (capture_id,))
+        rows = cur.fetchall()
+        return [dict(r) for r in rows]
+
+    def update_job_c4_delivery(self, job_id: str, status: str) -> None:
+        """Updates C4 delivery dispatch status for a job."""
+        conn = self.db.get_connection()
+        with conn:
+            conn.execute("UPDATE jobs SET c4_delivery_status = ? WHERE job_id = ?;", (status, job_id))
 
     def save_verdict(self, verdict: VerdictEnvelopeV2) -> None:
         """Atomically saves verdict and all associated findings."""

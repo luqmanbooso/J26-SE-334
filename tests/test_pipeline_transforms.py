@@ -155,3 +155,81 @@ def test_overlap_deduplicator_merges_overlapping_tiles():
     assert "global" in overlap_finding.view_ids
     assert "tile_0" in overlap_finding.view_ids
     assert overlap_finding.confidence == 0.92
+
+
+@pytest.mark.parametrize(
+    "invalid_response,expected_error_keyword",
+    [
+        ("Random gibberish that is not valid JSON", "JSON parsing error"),
+        ("{}", "neither 'findings' list nor 'has_defect' boolean"),
+        ('{"has_defect": "false", "defect_type": "none"}', "'has_defect' must be an actual boolean"),
+        ('{"has_defect": "true", "defect_type": "component_overlap"}', "'has_defect' must be an actual boolean"),
+        (
+            '{"has_defect": true, "defect_type": "component_overlap", "bounding_box": [500, 400, 200, 100]}',
+            "Invalid reversed or zero-area box",
+        ),
+        (
+            '{"has_defect": false, "bounding_box": [100, 100, 200, 200]}',
+            "Contradictory schema",
+        ),
+        (
+            '{"has_defect": true, "defect_type": "unrecognized_defect_xyz"}',
+            "Unknown defect type",
+        ),
+        (
+            '{"has_defect": true, "defect_type": "component_overlap", "confidence": "very_high"}',
+            "Invalid non-finite or out-of-range confidence",
+        ),
+        (
+            '{"findings": [{"type": "component_overlap", "bbox_yxyx_1000": [400, 500, 300, 200]}]}',
+            "Invalid reversed or zero-area box",
+        ),
+        (
+            '{"findings": [{"type": "unknown_defect_class", "explanation": "test"}]}',
+            "Unknown defect type",
+        ),
+        (
+            '{"has_defect": true, "defect_type": "component_overlap", "explanation": "truncated...',
+            "JSON parsing error",
+        ),
+    ],
+)
+def test_pipeline_invalid_responses_cannot_produce_clean_verdict(invalid_response: str, expected_error_keyword: str):
+    """
+    Acceptance Test (PP1 Section 3):
+    Malformed JSON, {}, string Booleans, invalid boxes and truncated responses
+    CANNOT produce a clean verdict (no_defect_detected).
+    Exercises the complete AnalysisPipeline, not only the parser.
+    """
+    from PIL import Image
+    from vision_oracle.local_vision_oracle.pipeline import AnalysisPipeline
+    from vision_oracle.local_vision_oracle.engine import MockInferenceBackend
+    from vision_oracle.contracts.v2 import CaptureBundle, AnalysisDecision, AnalysisStatus, CoveragePolicy
+
+    backend = MockInferenceBackend(default_response=invalid_response, simulated_latency_ms=0.0)
+    pipeline = AnalysisPipeline(backend=backend)
+
+    img = Image.new("RGB", (1080, 2400), (255, 255, 255))
+    bundle = CaptureBundle(
+        capture_id="cap_val_test",
+        width=1080,
+        height=2400,
+        image_sha256="testsha256",
+    )
+
+    verdict = pipeline.analyze(bundle=bundle, image=img, policy=CoveragePolicy.GLOBAL_ONLY)
+
+    # Invariant: Invalid responses must NEVER produce NO_DEFECT_DETECTED
+    assert verdict.decision != AnalysisDecision.NO_DEFECT_DETECTED, (
+        f"Pipeline erroneously produced clean decision for invalid response: {invalid_response}"
+    )
+    assert verdict.decision == AnalysisDecision.INCONCLUSIVE
+    assert verdict.analysis_status == AnalysisStatus.ERROR
+    assert len(verdict.errors) > 0
+    assert any(expected_error_keyword.lower() in err.lower() for err in verdict.errors), (
+        f"Expected '{expected_error_keyword}' in errors: {verdict.errors}"
+    )
+    assert verdict.coverage.completed_views == 0
+    assert "raw_responses" in verdict.metadata
+    assert verdict.metadata["raw_responses"]["global"] == invalid_response
+
