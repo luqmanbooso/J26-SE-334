@@ -65,5 +65,20 @@ class ADBBridge:
             time.sleep(pre_delay)
         self.device.tap(x, y)
 
+    def execute_swipe(self, path, duration_s: float, pre_delay: float = 0.0):
+        """Dispatch a synthesized gesture.
+
+        `input swipe` replays only a straight endpoint-to-endpoint line, so
+        the distorted path's curvature reaches the device as its endpoints
+        and the (stress-distorted) duration; the full path is preserved in
+        the timeline and the IF-C2-to-Driver events. Replaying the curve
+        itself needs a uiautomator2/sendevent driver — a known, post-PP1 gap.
+        """
+        if pre_delay > 0:
+            import time
+            time.sleep(pre_delay)
+        (x1, y1), (x2, y2) = path[0][:2], path[-1][:2]
+        self.device.swipe(x1, y1, x2, y2, duration_ms=duration_s * 1000.0)
+
 
 __all__ = ["ADBBridge", "NoDeviceError"]
