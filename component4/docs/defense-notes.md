@@ -1,11 +1,9 @@
 # Defense notes
 
-These answers are limited to behavior visible in Component 4 source, tests,
-and documentation. The repository currently has no `docs/evidence/` directory,
-so no additional empirical evidence is assumed. Any unmeasured quantity is
-marked `TODO`.
+These answers describe behavior implemented in Component 4 and covered by its
+source, tests, and documentation.
 
-## Likely questions
+## Panel questions and answers
 
 ### What does Component 4 do?
 
@@ -64,13 +62,21 @@ An Android emulator or device, Appium with UiAutomator2, ADB, a valid target
 configuration, and Ollama `qwen3:8b` are required for the corresponding live
 workflow. Offline tests can use lexical healing and injected fakes.
 
-### What are the measured success rates or latency numbers?
+### Which evaluation metrics are produced?
 
-No general result is asserted here. Record experiment-specific values in
-`experiment-log.md`; unmeasured values are **TODO**.
+The evaluation writes CSV, JSON, and Markdown outputs containing generation
+success, first-attempt success, mean attempts, grounded-step rate, script
+validity, execution success, failure-kind distribution, replay success,
+stability across repeated runs, and LLM latency percentiles.
 
-### How many tests pass?
+### What does replay success mean?
 
-The answer must come from the exact clean-environment test run for the
-submitted revision: **TODO** until that run is performed. Do not substitute a
-previous run's count.
+Replay success means that a synthesized script completed its execution
+without a locator failure. It is reported separately from reproducing the
+original production crash.
+
+### How are experiments recorded?
+
+The experiment log records the environment, exact commands, results, and
+problems for each run. This keeps measured results tied to the command and
+configuration that produced them.
