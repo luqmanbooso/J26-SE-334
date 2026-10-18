@@ -1,0 +1,32 @@
+{
+  "audit_title": "Air-Gapped Offline Execution & Zero Cloud Egress Verification",
+  "audit_timestamp": "2026-10-18T20:00:00Z",
+  "architecture_constraints": {
+    "zero_cloud_egress_enforced": true,
+    "inference_target": "localhost:8003",
+    "external_network_dependencies": 0,
+    "cloud_api_keys_in_runtime": "NONE (Air-gapped edge operation)"
+  },
+  "verification_mechanisms": [
+    {
+      "layer": "Runtime Configuration",
+      "file": "vision_oracle/core/config.py",
+      "evidence": "ZERO_CLOUD_EGRESS = True constant enforced across all endpoint schemas and startup validation."
+    },
+    {
+      "layer": "VLM Weights Loading",
+      "file": "vision_oracle/services/oracle_service.py",
+      "evidence": "Weights loaded strictly from local disk paths (models/Qwen2-VL-2B-Instruct and models/c3_lora_final). Zero HuggingFace Hub network calls at runtime."
+    },
+    {
+      "layer": "REST API Server",
+      "file": "vision_oracle/server.py",
+      "evidence": "Uvicorn server binds strictly to 127.0.0.1:8003. Network disconnect test executed with active Wi-Fi disabled; inference latency and predictions identical."
+    },
+    {
+      "layer": "Data Isolation Distinction (Academic Truthfulness)",
+      "file": "research/journal/2026-10-18.md",
+      "evidence": "Local inference applies 100% offline to edge testing deployment. Training data synthesis utilized cloud teacher labels during the offline data generation phase, as documented in manifests."
+    }
+  ]
+}

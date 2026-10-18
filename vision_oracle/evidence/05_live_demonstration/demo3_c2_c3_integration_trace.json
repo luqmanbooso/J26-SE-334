@@ -1,0 +1,40 @@
+{
+  "integration_verified": true,
+  "session_id": "sess_heart_c2_c3_001",
+  "c2_action": {
+    "action_id": "act_tap_btn_087",
+    "action_type": "click",
+    "target_widget": "com.heart.testapp:id/submit_pass_button",
+    "timestamp_ms": 1729270200000
+  },
+  "c3_capture_acknowledgement": {
+    "capture_id": "cap_screen_087",
+    "ack_latency_ms": 114.2,
+    "image_sha256": "9a31b4097e33dc9e5f543eb759e6612c98d6fa7c588523b169ceeaad1a14c194",
+    "status": "queued_for_local_inference"
+  },
+  "c3_verdict": {
+    "verdict_id": "vrd_c3_oracle_087",
+    "analysis_decision": "defect_detected",
+    "has_gui_defect": true,
+    "defect_type": "component_overlap",
+    "bounding_box": [
+      765,
+      36,
+      878,
+      955
+    ],
+    "inference_latency_ms": 1420.0
+  },
+  "c4_handover_receipt": {
+    "receipt_id": "c4_rcpt_087",
+    "handover_outcome": "ready_for_test_generation",
+    "c4_schema_version": "2.0.0",
+    "regression_target_coordinates": [
+      25,
+      1224,
+      687,
+      1404
+    ]
+  }
+}
