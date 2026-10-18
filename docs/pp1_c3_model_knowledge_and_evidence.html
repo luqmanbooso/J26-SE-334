@@ -838,6 +838,97 @@ python -c "from vision_oracle.core.manifest import get_active_model_manifest; pr
 
     <!-- TAB 7: Viva Defense Script -->
     <div id="tab-viva" class="tab-content">
+      <div class="card" style="border-left: 4px solid var(--accent); background: rgba(88, 166, 255, 0.05); margin-bottom: 20px;">
+        <h2 class="card-title" style="display: flex; align-items: center; gap: 8px;">
+          <span>🎯 Ready-to-Speak 30-Second Viva Opening Script</span>
+          <span class="badge badge-primary">High-Impact Delivery</span>
+        </h2>
+        <blockquote style="font-size: 0.95rem; line-height: 1.6; font-style: italic; color: var(--heading); margin: 12px 0 0 0; padding-left: 16px; border-left: 3px solid var(--accent);">
+          "Good morning, examiners. The core challenge in automating mobile GUI testing is that 68% of display bugs—such as component clipping, text overlap, and dynamic layout collisions—render correctly in static XML view hierarchies and only fail visually at runtime. Existing solutions fail in production: cloud MLLMs like VisionDroid or GPT-4o expose pre-release proprietary screens, incur 3-to-10 second latency, and violate enterprise GDPR, HIPAA, and PCI DSS compliance by caching unmasked customer PII on third-party servers. Meanwhile, commercial diff tools like Applitools depend entirely on pre-existing baselines, making them incapable of Day-Zero detection or autonomous crawler exploration.<br><br>
+          Component 3 solves this by providing a zero-baseline, air-gapped Vision-Language Model oracle. By quantizing Qwen2-VL-2B via 4-bit NF4 LoRA into 3.24GB VRAM, we achieve 80.6% precision on commodity 4GB laptop hardware with measured zero network egress and a sub-150ms capture SLA, seamlessly bridging autonomous exploration in C2 with automated Appium test script generation in C4."
+        </blockquote>
+      </div>
+
+      <div class="grid grid-2" style="margin-bottom: 20px;">
+        <div class="card">
+          <h3 class="card-title" style="font-size: 1.1rem;">🔒 Privacy & Regulatory Proof (Why Cloud APIs Fail)</h3>
+          <ul style="font-size: 0.88rem; line-height: 1.6; padding-left: 20px; color: var(--text-main); margin-top: 10px;">
+            <li><strong>Technical Mechanism:</strong> 4-bit NF4 LoRA quantization ($r=16, \alpha=32$) fits Qwen2-VL-2B inside <strong>3.24 GB VRAM</strong> on consumer hardware (RTX 3050 4GB) with <strong>zero outbound network egress</strong>.</li>
+            <li><strong>Why Cloud APIs Fail:</strong> Commercial APIs are not stateless. Screenshots are cached for <strong>24h on disk</strong> (Google) or up to <strong>30 days in abuse-monitoring logs</strong> with human inspection (OpenAI/Anthropic).</li>
+            <li><strong>GDPR Violation:</strong> Transmitting unmasked mobile screens containing end-user PII constitutes unauthorized third-party sub-processing.</li>
+            <li><strong>HIPAA Violation:</strong> Lack of endpoint-specific Business Associate Agreements (BAAs) prevents transmitting UI states with PHI.</li>
+            <li><strong>PCI DSS v4.0 (Req 3, 6, 12.5.2):</strong> Sending payment screens expands Cardholder Data Environment (CDE) scope to cloud vendors.</li>
+            <li><strong>C3 Advantage:</strong> 100% offline local execution eliminates all third-party retention and compliance exposure by architecture.</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <h3 class="card-title" style="font-size: 1.1rem;">💡 Research Novelty on 4GB Consumer Edge</h3>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px;">
+            <em>Frame C3 as a zero-egress, 4-bit edge-quantized VLM oracle for baseline-free GUI defect localization.</em>
+          </p>
+          <ul style="font-size: 0.88rem; line-height: 1.6; padding-left: 20px; color: var(--text-main);">
+            <li><strong>Spatial Localization + Generative Semantics:</strong> Older CNNs (OwlEye, Nighthawk) only output coarse heatmaps/IDs with no semantic diagnostic text. Heavyweight research models (Ferret-UI) require 8× A100 GPUs. C3 quantizes <strong>M-RoPE</strong> (2D spatial coordinates) and <strong>Naive Dynamic Resolution</strong> into 4GB VRAM.</li>
+            <li><strong>Solves Static DOM/JSON Failure:</strong> Static view-trees fail on text truncation and overlap because font rendering inside widgets cannot be extracted from XML, WebViews/canvases hide nodes, and floating elements create hierarchy noise.</li>
+            <li><strong>Targets the Critical 68%:</strong> C3's two verified classes—component overlap (47%) and text truncation (21%)—comprise <strong>68% of all real Android display bugs</strong> and <strong>84% of accessibility scaling failures</strong>.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom: 20px;">
+        <h3 class="card-title" style="font-size: 1.1rem; display: flex; align-items: center; justify-content: space-between;">
+          <span>⚖️ Comparative Validity Matrix: C3 vs. Applitools vs. VisionDroid</span>
+          <span class="badge badge-success">Empirically Grounded</span>
+        </h3>
+        <div class="table-container" style="margin-top: 12px;">
+          <table>
+            <thead>
+              <tr>
+                <th>Dimension</th>
+                <th>HEART C3 (Our Local Oracle)</th>
+                <th>Applitools Eyes (Commercial Tool)</th>
+                <th>VisionDroid (IEEE TSE 2025 MLLM)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Core Mechanism</strong></td>
+                <td><span class="badge badge-success">Zero-baseline VLM oracle</span> (1 unseen screen)</td>
+                <td><span class="badge badge-warning">Baseline diff comparator</span> (needs golden run)</td>
+                <td><span class="badge badge-primary">Cloud MLLM</span> (multi-turn sequence prompts)</td>
+              </tr>
+              <tr>
+                <td><strong>Day-Zero & Crawler Support</strong></td>
+                <td><strong>Yes</strong> — detects bugs on first run on novel screens</td>
+                <td><strong>No</strong> — records Day-1 bug as approved baseline; fails crawlers</td>
+                <td><strong>Yes</strong> — detects intra/inter-page bugs without baselines</td>
+              </tr>
+              <tr>
+                <td><strong>Data Privacy & Egress</strong></td>
+                <td><strong>100% Local (4GB VRAM)</strong>, 0 outbound egress</td>
+                <td>Public Cloud default; On-Prem requires custom enterprise tier</td>
+                <td><strong>High Risk</strong> — streams UI screenshots to cloud APIs</td>
+              </tr>
+              <tr>
+                <td><strong>Operational Cost</strong></td>
+                <td><strong>$0 marginal cost</strong> (open-weight Qwen2-VL-2B)</td>
+                <td><strong>$667/mo ($8,004/yr)</strong> Starter; custom quote for On-Prem</td>
+                <td>High per-token API cost for high-resolution vision prompts</td>
+              </tr>
+              <tr>
+                <td><strong>Empirical Precision</strong></td>
+                <td><strong>80.6% Precision</strong> (55.3% Recall, 71.0% Acc on N=300)</td>
+                <td>No peer-reviewed benchmark (99.9999% is marketing claim)</td>
+                <td><strong>50.0%–72.0% Precision</strong> across 3 benchmark datasets</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="font-size: 0.85rem; line-height: 1.5; color: var(--text-muted); margin-top: 10px;">
+          <strong>Why C3's 80.6% Precision Wins:</strong> In automated CI/CD testing (C2 &rarr; C3 &rarr; C4), precision is far more critical than recall—false positives trigger C4 to synthesize broken Appium test scripts. C3's 80.6% precision beats VisionDroid's cloud MLLM (50%–72%), beats Nighthawk's occlusion model (77.0%), beats OwlEye's truncation model (39.0%), and matches Nighthawk's overall real-world precision (~80.9%).
+        </div>
+      </div>
+
       <div class="card">
         <h2 class="card-title">Oral Defense & Examiner Viva Script (10 Anticipated Questions)</h2>
         <p style="font-size: 0.9rem; margin-bottom: 16px;">
