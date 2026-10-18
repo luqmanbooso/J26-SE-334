@@ -41,6 +41,8 @@ def resolve_path(rel_candidate: Union[str, Path]) -> Optional[Path]:
         C3_DIR,
         REPO_ROOT,
         REPO_ROOT / "models",
+        C3_DIR / "results" / "weights",
+        C3_DIR / "results",
         RESEARCH_ROOT,
         RESEARCH_ROOT / "RD" / "models",
         RESEARCH_ROOT / "results",
@@ -60,7 +62,11 @@ def resolve_path(rel_candidate: Union[str, Path]) -> Optional[Path]:
 
 
 BASE_MODEL_PATH = resolve_path("models/Qwen2-VL-2B-Instruct") or resolve_path("RD/models/Qwen2-VL-2B-Instruct")
-LORA_WEIGHTS_PATH = resolve_path("models/c3_lora_final") or resolve_path("results/c3_lora_final")
+LORA_WEIGHTS_PATH = (
+    resolve_path("models/c3_lora_final")
+    or resolve_path("results/weights/c3_lora_final")
+    or resolve_path("results/c3_lora_final")
+)
 
 SERVICE_PORT = int(os.getenv("C3_PORT", "8003"))
 SERVICE_TITLE = "HEART Component 3 - Localized Vision-Semantic Oracle API"

@@ -268,7 +268,7 @@ Invoke-RestMethod -Uri "http://127.0.0.1:8003/v2/results/verdict_3f8190d7ca02" -
 ```
 
 > **Viva / Defense Invariant: Defect Capacity & PP1 Scope Boundary**
-> - **Model Capacity:** The QLoRA fine-tuned checkpoint (`results/c3_lora_final`) is trained on single-defect bounding box annotations (`[ymin, xmin, ymax, xmax]`). Each inference call yields at most one primary visual defect.
+> - **Model Capacity:** The QLoRA fine-tuned checkpoint (`models/c3_lora_final`) is trained on single-defect bounding box annotations (`[ymin, xmin, ymax, xmax]`). Each inference call yields at most one primary visual defect.
 > - **Pipeline Capacity:** The multi-tile planner (`global_plus_tiles_v1`) analyzes slices and deduplicates distinct findings across tiles into `findings: [...]`.
 > - **Academic Truthfulness:** To prevent viva examiners from alleging unverified claims of "exhaustive multi-bug detection", the system explicitly declares `scope: {"mode": "single_primary_visual_finding", "exhaustive": false}` and sets `primary_finding` as the sole authoritative verdict. Dense multi-defect retraining is scheduled post-PP1.
 

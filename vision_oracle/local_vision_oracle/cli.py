@@ -228,8 +228,13 @@ def cmd_inspect(args: argparse.Namespace) -> int:
         backend = MockInferenceBackend()
     else:
         from local_vision_oracle.engine import TransformersInferenceBackend
-        default_base = r"D:\university\Resesarch\RD\models\Qwen2-VL-2B-Instruct"
-        default_lora = r"D:\university\Resesarch\results\c3_lora_final"
+        try:
+            from vision_oracle.core.config import BASE_MODEL_PATH, LORA_WEIGHTS_PATH
+            default_base = str(BASE_MODEL_PATH) if BASE_MODEL_PATH else r"D:\university\Resesarch\RD\models\Qwen2-VL-2B-Instruct"
+            default_lora = str(LORA_WEIGHTS_PATH) if LORA_WEIGHTS_PATH else r"D:\university\Resesarch\J26-SE-334\models\c3_lora_final"
+        except Exception:
+            default_base = r"D:\university\Resesarch\RD\models\Qwen2-VL-2B-Instruct"
+            default_lora = r"D:\university\Resesarch\J26-SE-334\models\c3_lora_final"
         base_path = getattr(args, "base_model", None) or default_base
         lora_path = getattr(args, "weights", None) or default_lora
         backend = TransformersInferenceBackend(
