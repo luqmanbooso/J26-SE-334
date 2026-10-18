@@ -152,3 +152,22 @@ def test_v2_job_cancellation(test_client):
     cancel_resp = test_client.post(f"/v2/jobs/{job_id}/cancel")
     assert cancel_resp.status_code == 200
     assert cancel_resp.json()["status"] == "cancellation_requested"
+
+
+def test_v2_capture_with_image_path(test_client, tmp_path):
+    img_file = tmp_path / "sample_screen.png"
+    img = Image.new("RGB", (1080, 2400), (200, 200, 200))
+    img.save(img_file)
+
+    payload = {
+        "session_id": "session_image_path_test",
+        "image_path": str(img_file),
+        "raw_hierarchy": "<hierarchy/>",
+    }
+    resp = test_client.post("/v2/captures", json=payload)
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["capture_id"].startswith("cap_")
+    assert data["width"] == 1080
+    assert data["height"] == 2400
+

@@ -3,15 +3,18 @@ V2 REST Endpoints for Component 3.
 Compliant with Phase H and Section 10.1 of HEART C3 Full Implementation Plan.
 """
 
+import os
 import io
 import time
 import base64
 import uuid
+from pathlib import Path
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, HTTPException, status, Query
 from PIL import Image
 
+from vision_oracle.core.config import resolve_path
 from vision_oracle.contracts.v2 import (
     JobState,
     CoveragePolicy,
@@ -103,22 +106,22 @@ def register_capture(payload: CaptureRegisterRequest):
                 detail=f"Invalid base64 screenshot payload: {exc}",
             )
     else:
-        path = payload.image_path
-        if not path or not io.os.path.exists(path):
+        raw_path = payload.image_path
+        resolved = resolve_path(raw_path) if raw_path else None
+        if not resolved or not resolved.exists():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Specified image_path does not exist: {path}",
+                detail=f"Specified image_path does not exist: {raw_path}",
             )
         try:
-            with open(path, "rb") as f:
-                image_bytes = f.read()
-            img = Image.open(path)
+            image_bytes = resolved.read_bytes()
+            img = Image.open(resolved)
             img.load()
             width, height = img.size
         except Exception as exc:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Failed to read image from path {path}: {exc}",
+                detail=f"Failed to read image from path {raw_path}: {exc}",
             )
 
     capture_id = f"cap_{uuid.uuid4().hex[:12]}"
