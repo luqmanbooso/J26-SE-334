@@ -69,7 +69,7 @@ class InterruptionStressor(BaseStressor):
         elif not self.adb.is_simulated:
             # Physical Device: Post real incoming call notification banner without launching outgoing dialer
             self.adb.run_shell("am force-stop com.google.android.dialer")
-            self.adb.run_shell(f'cmd notification post -t "Incoming call" -S bigtext call_tag "+{clean_number}\\nIncoming cellular call (Ringing)..."')
+            self.adb.run_shell(f'cmd notification post -t "Incoming call" -S bigtext call_tag "+{clean_number}: Incoming cellular call ringing..."')
             resp = "PHYSICAL_DEVICE_INCOMING_CALL_BANNER"
         else:
             resp = self._send_console_cmd(f"gsm call {clean_number}")
