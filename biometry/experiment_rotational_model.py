@@ -7,7 +7,7 @@ from simulation.simulator import BiometricSimulator
 
 def main():
     os.makedirs("results", exist_ok=True)
-    simulator = BiometricSimulator(base_sigma=10.0, base_time=0.25)
+    simulator = BiometricSimulator(base_time=0.25)
     
     target = {"x": 500, "y": 800, "width": 160, "height": 70}
     test_angles_deg = [45, 90, 135]

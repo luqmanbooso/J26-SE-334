@@ -1,7 +1,13 @@
-import subprocess
+import os
+import shlex
 import shutil
+import subprocess
+import sys
 import time
 from typing import Optional, Dict, Any, List
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from common.adb import AdbDevice, NoDeviceError  # noqa: E402
 
 class ADBClient:
     """Robust ADB interface with hardware execution and virtual device simulation fallback."""
@@ -23,6 +29,7 @@ class ADBClient:
             "gps_coords": {"lat": 37.422, "lon": -122.084}
         }
         self.command_history: List[str] = []
+        self._device = None          # shared AdbDevice, created on first real command
         self._initialize_connection()
 
     def _initialize_connection(self) -> None:
@@ -62,7 +69,19 @@ class ADBClient:
 
     def _enable_simulation(self, reason: str) -> None:
         self.is_simulated = True
-        print(f"[ADB Bridge] {reason} Falling back to Virtual ADB Device Simulator ({self.simulated_device_name}).")
+        if self.force_simulation:
+            print(f"[ADB Bridge] Simulation requested explicitly. {reason}")
+            return
+        # An unrequested fallback must be impossible to miss. A run that injects
+        # nothing looks exactly like a clean one in the results, so this is the
+        # most dangerous state the engine can be in.
+        banner = "!" * 78
+        print(f"\n{banner}\n"
+              f"!! NO REAL DEVICE — SIMULATION FALLBACK ENGAGED\n"
+              f"!! {reason}\n"
+              f"!! Nothing is being injected into a real device. Any results from\n"
+              f"!! this run are SIMULATED and must not be reported as measurements.\n"
+              f"{banner}\n")
 
     def run_cmd(self, cmd: str) -> str:
         """Executes an ADB command either via hardware bridge or virtual simulator."""
@@ -71,23 +90,15 @@ class ADBClient:
         if self.is_simulated:
             return self._handle_simulated_cmd(cmd)
 
-        device_flag = f"-s {self.device_id} " if self.device_id else ""
-        full_cmd = f"adb {device_flag}{cmd}"
-        try:
-            res = subprocess.run(
-                full_cmd,
-                shell=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                timeout=15
-            )
-            if res.returncode != 0 and "error" in res.stderr.lower():
-                print(f"[ADB Warning] Non-zero code for '{cmd}': {res.stderr.strip()}")
-            return res.stdout.strip()
-        except Exception as e:
-            print(f"[ADB Execution Error] {str(e)} -> routing to virtual simulator.")
-            return self._handle_simulated_cmd(cmd)
+        # Routed through the shared device layer: list arguments rather than a
+        # shell string, and serialised against C2's and C4's traffic so a dump
+        # from one component cannot corrupt another's timing measurement.
+        if self._device is None:
+            self._device = AdbDevice(serial=self.device_id, verify=False)
+        res = self._device.run(*shlex.split(cmd), timeout=15)
+        if res.returncode != 0 and "error" in res.stderr.lower():
+            print(f"[ADB Warning] Non-zero code for '{cmd}': {res.stderr.strip()}")
+        return res.stdout.strip()
 
     def run_shell(self, shell_cmd: str) -> str:
         """Executes an 'adb shell' command."""

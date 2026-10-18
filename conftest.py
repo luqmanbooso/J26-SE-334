@@ -1,11 +1,18 @@
 import os
 import sys
 
-# Guarantee 'env testing' and root are always present on sys.path across all platforms
+# Put every component's import root on sys.path, so `pytest` from the repository
+# root collects all of them. Directories whose names contain spaces cannot be
+# packages, so each one has to be added explicitly.
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
-ENV_TESTING_DIR = os.path.join(ROOT_DIR, "env testing")
 
-if ENV_TESTING_DIR not in sys.path:
-    sys.path.insert(0, ENV_TESTING_DIR)
-if ROOT_DIR not in sys.path:
-    sys.path.insert(0, ROOT_DIR)
+_IMPORT_ROOTS = [
+    ROOT_DIR,                                   # common/, tests/
+    os.path.join(ROOT_DIR, "env testing"),      # C1
+    os.path.join(ROOT_DIR, "component4", "src"),  # C4's packaged component
+    os.path.join(ROOT_DIR, "vision_oracle"),    # C3 Oracle
+]
+
+for _path in _IMPORT_ROOTS:
+    if os.path.isdir(_path) and _path not in sys.path:
+        sys.path.insert(0, _path)
