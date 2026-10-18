@@ -19,7 +19,10 @@ Thumbs.db
 *.log
 /perturbation_event_log.json
 /environment_failure_attribution.json
-/results/
+/results/*
+!/results/*.py
+!/results/exp-02/
+scratch/
 
 # Large documents & binaries (>100MB exceeds GitHub limits)
 *.pdf

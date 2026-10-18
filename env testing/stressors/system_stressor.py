@@ -40,13 +40,14 @@ class SystemStressor(BaseStressor):
         self.is_active = True
 
         if not self.adb.is_simulated:
-            # On real Android shell: launch background CPU worker
-            worker_cmd = "sh -c 'for i in 1 2 3; do (while true; do :; done &); done; echo PID:$!'"
+            # On real Android shell: launch background CPU worker non-blocking
+            worker_cmd = "sh -c 'nohup yes >/dev/null 2>&1 & echo PID:$!'"
             output = self.adb.run_shell(worker_cmd)
             for line in output.splitlines():
                 if "PID:" in line:
                     pid = line.split("PID:")[-1].strip()
-                    self.cpu_stress_pids.append(pid)
+                    if pid.isdigit():
+                        self.cpu_stress_pids.append(pid)
         else:
             self.adb.simulated_state["cpu_stress_active"] = True
 
@@ -77,6 +78,9 @@ class SystemStressor(BaseStressor):
                 self.adb.run_shell(f"kill -9 {pid}")
             self.cpu_stress_pids.clear()
 
+        if not self.adb.is_simulated:
+            self.adb.run_shell("killall yes")
+
         if self.adb.is_simulated:
             self.adb.simulated_state["cpu_stress_active"] = False
 
@@ -94,8 +98,8 @@ class SystemStressor(BaseStressor):
         else:
             trim_level = "RUNNING_MODERATE"
 
-        # Broadcast Android trim memory intent
-        self.adb.run_shell(f"am send-trim-memory {target} {trim_level}")
+        # Broadcast Android trim memory intent non-blocking
+        threading.Thread(target=self.adb.run_shell, args=(f"am send-trim-memory {target} {trim_level}",), daemon=True).start()
         self.logger.record("SYSTEM_RAM", "LMK_MEMORY_PRESSURE", {
             "ram_pct": pressure_pct,
             "trim_level": trim_level,
@@ -106,7 +110,7 @@ class SystemStressor(BaseStressor):
         """Broadcasts arbitrary Android trim memory intent directly."""
         target = target_package or "com.android.settings"
         clean_level = trim_level if trim_level.startswith("TRIM_MEMORY_") else f"TRIM_MEMORY_{trim_level}"
-        self.adb.run_shell(f"am send-trim-memory {target} {clean_level}")
+        threading.Thread(target=self.adb.run_shell, args=(f"am send-trim-memory {target} {clean_level}",), daemon=True).start()
         self.logger.record("SYSTEM_RAM", "LMK_TRIM_BROADCAST", {
             "trim_level": clean_level,
             "target_package": target
@@ -140,10 +144,12 @@ class SystemStressor(BaseStressor):
     def set_thermal_state(self, state: Any = "Warn") -> None:
         """Triggers thermal throttling profiles: 'Normal' (35°C), 'Warn' (55°C), 'Critical' (80°C)."""
         temp_map = {
+            "Nominal": 32.0,
             "Normal": 35.0,
-            "Light": 42.0,
+            "Fair": 45.0,
             "Moderate": 50.0,
             "Warn": 55.0,
+            "Serious": 65.0,
             "Severe": 65.0,
             "Critical": 80.0
         }
@@ -177,6 +183,16 @@ class SystemStressor(BaseStressor):
         self.current_state.clear()
         self.logger.record("SYSTEM_HARDWARE", "SYSTEM_RESET_NOMINAL", {})
         return True
+
+    def reset_battery(self) -> None:
+        """Resets battery state to nominal charging baseline."""
+        self.adb.run_shell("dumpsys battery reset")
+        self.current_state.pop("battery_level", None)
+        self.current_state.pop("battery_unplugged", None)
+        if self.adb.is_simulated:
+            self.adb.simulated_state["battery_level"] = 100
+            self.adb.simulated_state["battery_unplugged"] = False
+        self.logger.record("SYSTEM_POWER", "BATTERY_RESET", {})
 
     def reset(self) -> None:
         """Alias for revert() for backwards compatibility."""
