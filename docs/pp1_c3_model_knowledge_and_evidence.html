@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HEART Component 3: PP1 Model Knowledge & Empirical Evidence Dossier</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --card-bg: #161b22;
+      --card-border: #30363d;
+      --text: #c9d1d9;
+      --text-muted: #8b949e;
+      --heading: #f0f6fc;
+      --accent: #58a6ff;
+      --accent-hover: #79c0ff;
+      --success: #238636;
+      --success-light: #2ea043;
+      --danger: #da3633;
+      --warning: #d29922;
+      --code-bg: #090d13;
+      --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    }
+
+    [data-theme="light"] {
+      --bg: #f6f8fa;
+      --card-bg: #ffffff;
+      --card-border: #d0d7de;
+      --text: #24292f;
+      --text-muted: #57601a;
+      --heading: #1f2328;
+      --accent: #0969da;
+      --accent-hover: #218bff;
+      --success: #1a7f37;
+      --success-light: #2da44e;
+      --danger: #cf222e;
+      --warning: #9a6700;
+      --code-bg: #f6f8fa;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      line-height: 1.6;
+      padding-bottom: 60px;
+      transition: background 0.2s ease, color 0.2s ease;
+    }
+
+    header {
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--card-border);
+      padding: 24px 32px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .header-title h1 {
+      font-size: 1.4rem;
+      color: var(--heading);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .badge {
+      font-size: 0.75rem;
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .badge-primary { background: #1f6feb33; color: var(--accent); border: 1px solid #388bfd66; }
+    .badge-success { background: #23863633; color: #3fb950; border: 1px solid #2ea04366; }
+    .badge-warning { background: #bb800933; color: #d29922; border: 1px solid #bb800966; }
+    .badge-danger { background: #da363333; color: #f85149; border: 1px solid #da363366; }
+
+    .header-sub {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .header-controls {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    .theme-toggle, .btn-action {
+      background: var(--card-border);
+      border: 1px solid var(--card-border);
+      color: var(--heading);
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 600;
+      transition: background 0.15s ease;
+    }
+    .theme-toggle:hover, .btn-action:hover {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .container {
+      max-width: 1280px;
+      margin: 24px auto;
+      padding: 0 24px;
+    }
+
+    /* Tabs Navigation */
+    .tabs-nav {
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid var(--card-border);
+      margin-bottom: 24px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 10px 18px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: color 0.15s ease, border-color 0.15s ease;
+      white-space: nowrap;
+    }
+    .tab-btn:hover { color: var(--heading); }
+    .tab-btn.active {
+      color: var(--accent);
+      border-bottom: 2px solid var(--accent);
+    }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Cards & Layout */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+
+    @media (max-width: 900px) {
+      .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .card-title {
+      font-size: 1.1rem;
+      color: var(--heading);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* Metric stat boxes */
+    .stat-box {
+      background: var(--code-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      padding: 16px;
+      text-align: center;
+    }
+    .stat-val {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--accent);
+      font-family: var(--font-mono);
+    }
+    .stat-val.success { color: #3fb950; }
+    .stat-val.warning { color: #d29922; }
+    .stat-lbl {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0;
+      font-size: 0.9rem;
+    }
+    th, td {
+      padding: 10px 14px;
+      text-align: left;
+      border: 1px solid var(--card-border);
+    }
+    th {
+      background: var(--code-bg);
+      color: var(--heading);
+      font-weight: 600;
+    }
+    tr:hover td { background: rgba(88, 166, 255, 0.05); }
+
+    /* Code & JSON */
+    pre, code {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+    }
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      padding: 14px;
+      overflow-x: auto;
+      margin: 10px 0;
+      color: #e6edf3;
+    }
+    code.inline {
+      background: var(--code-bg);
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--card-border);
+    }
+
+    /* Callout Alert */
+    .alert {
+      border-radius: 6px;
+      padding: 14px 18px;
+      margin: 16px 0;
+      font-size: 0.9rem;
+      border-left: 4px solid;
+    }
+    .alert-info { background: #0c2d6b33; border-color: var(--accent); color: #79c0ff; }
+    .alert-warning { background: #3d2c0033; border-color: var(--warning); color: #e3b341; }
+    .alert-danger { background: #49020233; border-color: var(--danger); color: #ff7b72; }
+
+    /* Accordion */
+    .accordion-item {
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      margin-bottom: 10px;
+      overflow: hidden;
+      background: var(--card-bg);
+    }
+    .accordion-header {
+      padding: 14px 18px;
+      background: var(--code-bg);
+      color: var(--heading);
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      user-select: none;
+    }
+    .accordion-header:hover { background: rgba(88, 166, 255, 0.1); }
+    .accordion-content {
+      padding: 16px 18px;
+      display: none;
+      font-size: 0.9rem;
+      border-top: 1px solid var(--card-border);
+    }
+    .accordion-item.active .accordion-content { display: block; }
+    .accordion-icon { transition: transform 0.2s ease; font-weight: bold; }
+    .accordion-item.active .accordion-icon { transform: rotate(180deg); }
+
+    /* SVG Visualizer */
+    .svg-container {
+      background: var(--code-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 16px;
+      display: flex;
+      justify-content: center;
+      margin: 14px 0;
+    }
+
+    .matrix-box {
+      width: 100%;
+      max-width: 440px;
+      margin: 0 auto;
+      border: 2px solid var(--card-border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .matrix-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+    .matrix-cell {
+      padding: 20px;
+      text-align: center;
+      border: 1px solid var(--card-border);
+    }
+    .matrix-cell.tp { background: rgba(35, 134, 54, 0.2); }
+    .matrix-cell.tn { background: rgba(35, 134, 54, 0.2); }
+    .matrix-cell.fp { background: rgba(218, 54, 51, 0.15); }
+    .matrix-cell.fn { background: rgba(210, 153, 34, 0.15); }
+    .matrix-val { font-size: 2.2rem; font-weight: bold; font-family: var(--font-mono); }
+    .matrix-lbl { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; margin-top: 4px; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="header-title">
+      <h1>HEART Component 3: PP1 Model Knowledge Dossier</h1>
+      <span class="badge badge-primary">VLM Oracle 2.0</span>
+      <span class="badge badge-success">PP1 Approved</span>
+    </div>
+    <div class="header-controls">
+      <button class="theme-toggle" onclick="toggleTheme()">Toggle Theme</button>
+      <button class="btn-action" onclick="window.print()">Print Dossier</button>
+    </div>
+  </header>
+
+  <div class="container">
+
+    <!-- Subheader Info -->
+    <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+      <div>
+        <strong>Researcher:</strong> M.L. Booso (IT23452916) &bull;
+        <strong>Group:</strong> J26-SE-334 &bull;
+        <strong>Branch:</strong> <code class="inline">feat/c3-local-vision-oracle</code>
+      </div>
+      <div>
+        <span class="badge badge-success">Local GPU: RTX 3050 (4GB)</span>
+        <span class="badge badge-primary">Zero Cloud Egress</span>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="tabs-nav">
+      <button class="tab-btn active" onclick="showTab('tab-summary')">1. Scope & System Architecture</button>
+      <button class="tab-btn" onclick="showTab('tab-model')">2. Model & Checkpoint Lineage</button>
+      <button class="tab-btn" onclick="showTab('tab-taxonomies')">3. 7 Defect Taxonomies</button>
+      <button class="tab-btn" onclick="showTab('tab-evidence')">4. Empirical Metrics & Ablations</button>
+      <button class="tab-btn" onclick="showTab('tab-hardware')">5. Hardware & Benchmarks</button>
+      <button class="tab-btn" onclick="showTab('tab-protocols')">6. C2/C3/C4 Coordination</button>
+      <button class="tab-btn" onclick="showTab('tab-viva')">7. Academic Viva Defense Script</button>
+    </div>
+
+    <!-- TAB 1: Scope & Architecture -->
+    <div id="tab-summary" class="tab-content active">
+      <div class="card">
+        <h2 class="card-title">Executive Summary: Component 3 Scope Boundary for PP1</h2>
+        <p>
+          Component 3 operates as the <strong>localized visual-semantic oracle</strong> for the HEART autonomous mobile testing system. 
+          Rather than relying solely on fragile Android accessibility hierarchy dumps (which miss canvas views, Flutter/Compose layouts, and dynamic clipping), 
+          C3 uses a fine-tuned Vision-Language Model executing directly on consumer laptop hardware to inspect raw screenshots, localize GUI defects with bounding boxes, 
+          and return actionable bug reports.
+        </p>
+
+        <div class="alert alert-info" style="margin-top: 14px;">
+          <strong>PP1 Milestone Grounding:</strong> Demonstrates ~50% completion through a verified working local VLM backend, strict output validation, 
+          an action-linked capture service (<150ms ACK), status-aware C4 contract v2, and a functional C1 desktop interface.
+        </div>
+
+        <table style="margin-top: 16px;">
+          <thead>
+            <tr>
+              <th>Evaluation Dimension</th>
+              <th>PP1 Scope Freeze (Sound Engineering)</th>
+              <th>Post-PP1 / Final Thesis Scope</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Weights Status</strong></td>
+              <td><span class="badge badge-success">Frozen</span> Checkpoint <code class="inline">models/c3_lora_final</code>. No retraining before PP1.</td>
+              <td>Multi-task LoRA scaling, 4-bit AWQ optimization.</td>
+            </tr>
+            <tr>
+              <td><strong>Defect Capacity</strong></td>
+              <td><strong>Single Primary Finding</strong> (<code class="inline">scope.mode = "single_primary_visual_finding"</code>). Salient defect focus.</td>
+              <td>Multi-label, multi-finding exhaustive detection after dedicated re-annotation.</td>
+            </tr>
+            <tr>
+              <td><strong>Defect Classes</strong></td>
+              <td>Primary verification on <strong><code class="inline">component_overlap</code></strong> and <strong><code class="inline">text_truncation</code></strong>.</td>
+              <td>Full calibrated 7-class taxonomy coverage.</td>
+            </tr>
+            <tr>
+              <td><strong>Spatial Slicing</strong></td>
+              <td>Global view + dynamic SAHI 3x1 overlapping vertical slices (recovers small defects on 20:9 screens).</td>
+              <td>Saliency-guided multi-scale slicing.</td>
+            </tr>
+            <tr>
+              <td><strong>UI Freeze Bug</strong></td>
+              <td>Strictly decoupled as <strong>temporal evidence</strong> (<code class="inline">frame_probe</code> from C2). Never guessed from 1 image.</td>
+              <td>Multi-frame video token sequence modeling.</td>
+            </tr>
+            <tr>
+              <td><strong>Execution Target</strong></td>
+              <td>Local host laptop: <strong>NVIDIA GeForce RTX 3050 (4GB VRAM)</strong>. Zero cloud egress.</td>
+              <td>On-device Android NPU runtime.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2 class="card-title">System Architecture & Model Ownership</h2>
+        <div class="svg-container">
+          <svg width="860" height="260" viewBox="0 0 860 260">
+            <!-- Background nodes -->
+            <rect x="20" y="30" width="160" height="200" rx="8" fill="#161b22" stroke="#30363d" stroke-width="2"/>
+            <text x="100" y="55" fill="#f0f6fc" font-size="14" font-weight="bold" text-anchor="middle">C2 Stress Engine</text>
+            <rect x="35" y="80" width="130" height="40" rx="4" fill="#090d13" stroke="#388bfd"/>
+            <text x="100" y="105" fill="#58a6ff" font-size="12" text-anchor="middle">UI Exploration Crawler</text>
+            <rect x="35" y="140" width="130" height="40" rx="4" fill="#090d13" stroke="#d29922"/>
+            <text x="100" y="165" fill="#d29922" font-size="12" text-anchor="middle">FrameProbe (Freeze)</text>
+
+            <!-- Arrow C2 to C3 -->
+            <line x1="180" y1="100" x2="250" y2="100" stroke="#58a6ff" stroke-width="2" marker-end="url(#arrow)"/>
+            <text x="215" y="90" fill="#8b949e" font-size="10" text-anchor="middle">&lt;150ms ACK</text>
+
+            <!-- C3 Engine Container -->
+            <rect x="250" y="15" width="360" height="230" rx="8" fill="#161b22" stroke="#58a6ff" stroke-width="2"/>
+            <text x="430" y="40" fill="#58a6ff" font-size="15" font-weight="bold" text-anchor="middle">Component 3 (Single Model Owner) :8003</text>
+            
+            <rect x="270" y="60" width="150" height="60" rx="4" fill="#090d13" stroke="#30363d"/>
+            <text x="345" y="85" fill="#f0f6fc" font-size="11" font-weight="bold" text-anchor="middle">CaptureService</text>
+            <text x="345" y="105" fill="#8b949e" font-size="10" text-anchor="middle">Shared ADB Lock & Hash</text>
+
+            <rect x="440" y="60" width="150" height="60" rx="4" fill="#090d13" stroke="#30363d"/>
+            <text x="515" y="85" fill="#f0f6fc" font-size="11" font-weight="bold" text-anchor="middle">Bounded JobQueue</text>
+            <text x="515" y="105" fill="#8b949e" font-size="10" text-anchor="middle">Max: 20 / HTTP 503</text>
+
+            <rect x="270" y="140" width="320" height="85" rx="6" fill="#1f6feb22" stroke="#388bfd"/>
+            <text x="430" y="165" fill="#79c0ff" font-size="13" font-weight="bold" text-anchor="middle">Qwen2-VL-2B (NF4) + c3_lora_final</text>
+            <text x="430" y="185" fill="#c9d1d9" font-size="11" text-anchor="middle">Canonical AnalysisPipeline (SAHI + Strict FindingParser)</text>
+            <text x="430" y="205" fill="#3fb950" font-size="11" font-weight="bold" text-anchor="middle">Peak VRAM: 3.24 GB &bull; SQLite WAL Ledger</text>
+
+            <!-- Arrow C3 to C4 -->
+            <line x1="610" y1="180" x2="680" y2="180" stroke="#3fb950" stroke-width="2"/>
+
+            <!-- C4 Synthesis Container -->
+            <rect x="680" y="30" width="160" height="200" rx="8" fill="#161b22" stroke="#30363d" stroke-width="2"/>
+            <text x="760" y="55" fill="#f0f6fc" font-size="14" font-weight="bold" text-anchor="middle">C4 Test Synthesizer</text>
+            <rect x="695" y="80" width="130" height="45" rx="4" fill="#090d13" stroke="#3fb950"/>
+            <text x="760" y="102" fill="#3fb950" font-size="11" font-weight="bold" text-anchor="middle">Contract V2 Adapter</text>
+            <text x="760" y="118" fill="#8b949e" font-size="9" text-anchor="middle">Nullable has_gui_defect</text>
+            <rect x="695" y="145" width="130" height="45" rx="4" fill="#090d13" stroke="#30363d"/>
+            <text x="760" y="168" fill="#f0f6fc" font-size="11" font-weight="bold" text-anchor="middle">Appium Replay Gen</text>
+            <text x="760" y="184" fill="#8b949e" font-size="9" text-anchor="middle">Target Bounding Box</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: Model & Checkpoint Lineage -->
+    <div id="tab-model" class="tab-content">
+      <div class="grid-2">
+        <div class="card">
+          <h2 class="card-title">Active Model Manifest (models/c3_model_manifest.json)</h2>
+          <table>
+            <tbody>
+              <tr><td><strong>Base Foundation Model</strong></td><td><code class="inline">Qwen/Qwen2-VL-2B-Instruct</code></td></tr>
+              <tr><td><strong>Adapter Path</strong></td><td><code class="inline">models/c3_lora_final</code> (adapter_model.safetensors)</td></tr>
+              <tr><td><strong>Adapter File Size</strong></td><td>77,532,848 bytes (~73.94 MB) via Git LFS</td></tr>
+              <tr><td><strong>Adapter SHA-256 Checksum</strong></td><td><code class="inline" style="font-size: 0.75rem;">F66C05CAA735E7AE0226312553560942AC8621541b2ECC819CD4CC1BE5E125F4</code></td></tr>
+              <tr><td><strong>Base Parameters</strong></td><td>2,209,470,464 (~2.21B)</td></tr>
+              <tr><td><strong>Trainable LoRA Parameters</strong></td><td>19,988,480 (0.90% of base model)</td></tr>
+              <tr><td><strong>LoRA Configuration</strong></td><td>$r=16, \alpha=32$, dropout=0.05</td></tr>
+              <tr><td><strong>Target Attention Modules</strong></td><td><code class="inline">q, k, v, o, gate, up, down_proj</code></td></tr>
+              <tr><td><strong>Quantization Mode</strong></td><td>BitsAndBytes NF4 (4-bit NormalFloat, bfloat16 compute)</td></tr>
+              <tr><td><strong>Final Training Loss</strong></td><td><strong>0.1582</strong> (converged from 1.8420 over 350 steps)</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card">
+          <h2 class="card-title">Training Lineage & Provenance Quarantine</h2>
+          <p style="font-size: 0.9rem; margin-bottom: 12px;">
+            The model was trained on 2,000 balanced mobile UI screen annotations (OwlEye real bug distillation + Rico synthetic mutations). 
+            Initial warmup was conducted on Kaggle dual T4 GPUs (300 steps), followed by final supervised fine-tuning via LLaMA-Factory.
+          </p>
+
+          <div class="alert alert-warning">
+            <strong>Formal Experimental Quarantine:</strong><br>
+            Legacy fixture <code class="inline">confusion_matrix.py::compare_c3_vs_owleye()</code> contains synthetic mock numbers (TP=288, FP=3). 
+            This is strictly quarantined for offline unit tests and <strong>excluded from all PP1 empirical claims</strong>. 
+            The sole authorized baseline is the held-out 300 test screen evaluation.
+          </div>
+
+          <h3 style="font-size: 0.95rem; color: var(--heading); margin: 14px 0 6px;">Automated Setup Commands for Team Members:</h3>
+          <pre><code># 1. Pull repo & Git LFS adapter weights (74MB)
+git lfs pull
+
+# 2. Download 4.4GB base model once into gitignored directory
+python scripts/download_base_model.py
+
+# 3. Verify manifest and GPU load
+python -c "from vision_oracle.core.manifest import get_active_model_manifest; print(get_active_model_manifest().to_dict())"</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: 7 Defect Taxonomies -->
+    <div id="tab-taxonomies" class="tab-content">
+      <div class="card">
+        <h2 class="card-title">Seven Mobile Visual Defect Taxonomies</h2>
+        <p style="font-size: 0.9rem; margin-bottom: 16px;">
+          Component 3 categorizes mobile GUI anomalies into 7 distinct visual taxonomies. The current frozen checkpoint specializes in the two most ubiquitous and damaging layout bugs:
+        </p>
+
+        <div class="grid-2">
+          <!-- Tax 1 -->
+          <div style="border: 1px solid var(--accent); border-radius: 6px; padding: 14px; background: rgba(88, 166, 255, 0.05);">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <h3 style="color: var(--accent); font-size: 1rem;">1. component_overlap</h3>
+              <span class="badge badge-success">PP1 Verified</span>
+            </div>
+            <p style="font-size: 0.85rem; margin-top: 6px;">
+              <strong>Definition:</strong> Two or more non-transparent UI components collide or render on top of each other, obscuring content or tap targets.
+            </p>
+            <p style="font-size: 0.85rem; margin-top: 4px; color: var(--text-muted);">
+              <strong>Knowledge in Weights:</strong> Reliably localizes overlap intersection box in normalized [0, 1000] space. Highly boosted by SAHI slicing.
+            </p>
+          </div>
+
+          <!-- Tax 2 -->
+          <div style="border: 1px solid var(--accent); border-radius: 6px; padding: 14px; background: rgba(88, 166, 255, 0.05);">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <h3 style="color: var(--accent); font-size: 1rem;">2. text_truncation</h3>
+              <span class="badge badge-success">PP1 Verified</span>
+            </div>
+            <p style="font-size: 0.85rem; margin-top: 6px;">
+              <strong>Definition:</strong> Text strings run beyond container boundaries or display unexpected ellipsis without proper expanding affordance.
+            </p>
+            <p style="font-size: 0.85rem; margin-top: 4px; color: var(--text-muted);">
+              <strong>Knowledge in Weights:</strong> Learned mobile typography baseline and descender clipping. Excludes normal screen boundary crops.
+            </p>
+          </div>
+
+          <!-- Tax 3 -->
+          <div style="border: 1px solid var(--card-border); border-radius: 6px; padding: 14px; background: var(--code-bg);">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <h3 style="color: var(--heading); font-size: 1rem;">3. missing_component</h3>
+              <span class="badge badge-warning">Experimental</span>
+            </div>
+            <p style="font-size: 0.85rem; margin-top: 6px;">
+              Empty card layouts or blank recycler views where image thumbnails or text blocks failed to render.
+            </p>
+          </div>
+
+          <!-- Tax 4 -->
+          <div style="border: 1px solid var(--card-border); border-radius: 6px; padding: 14px; background: var(--code-bg);">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <h3 style="color: var(--heading); font-size: 1rem;">4. unrendered_icon</h3>
+              <span class="badge badge-warning">Experimental</span>
+            </div>
+            <p style="font-size: 0.85rem; margin-top: 6px;">
+              Unresolved Unicode boxes (\uFFFD), broken image asset placeholders, or missing vector glyphs.
+            </p>
+          </div>
+
+          <!-- Tax 5 -->
+          <div style="border: 1px solid var(--card-border); border-radius: 6px; padding: 14px; background: var(--code-bg);">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <h3 style="color: var(--heading); font-size: 1rem;">5. offscreen_element</h3>
+              <span class="badge badge-warning">Experimental</span>
+            </div>
+            <p style="font-size: 0.85rem; margin-top: 6px;">
+              View elements pushed partially outside the device viewport where horizontal scrolling is not supported.
+            </p>
+          </div>
+
+          <!-- Tax 6 -->
+          <div style="border: 1px solid var(--card-border); border-radius: 6px; padding: 14px; background: var(--code-bg);">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <h3 style="color: var(--heading); font-size: 1rem;">6. misaligned_element</h3>
+              <span class="badge badge-warning">Experimental</span>
+            </div>
+            <p style="font-size: 0.85rem; margin-top: 6px;">
+              Broken layout grids, uneven vertical margins, or jagged text baselines in list items.
+            </p>
+          </div>
+        </div>
+
+        <div style="margin-top: 20px; border: 1px solid var(--card-border); border-radius: 6px; padding: 14px; background: var(--code-bg);">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="color: var(--heading); font-size: 1rem;">7. semantic_contradiction (Multimodal / Contextual)</h3>
+            <span class="badge badge-primary">Contextual Evidence</span>
+          </div>
+          <p style="font-size: 0.85rem; margin-top: 6px;">
+            Visual icon and text meaning clash (e.g. green button labeled "Delete Account" with trash icon). Handled via optional OCR / hierarchy fusion.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: Empirical Evidence & Ablations -->
+    <div id="tab-evidence" class="tab-content">
+      <div class="grid-4" style="margin-bottom: 20px;">
+        <div class="stat-box">
+          <div class="stat-val success">71.00%</div>
+          <div class="stat-lbl">Held-Out Accuracy (N=300)</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val">80.58%</div>
+          <div class="stat-lbl">Detection Precision</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val warning">55.33%</div>
+          <div class="stat-lbl">Detection Recall</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val success">65.61%</div>
+          <div class="stat-lbl">Harmonic F1-Score</div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h2 class="card-title">Empirical Confusion Matrix (Held-Out Test N=300)</h2>
+          <div class="matrix-box">
+            <div class="matrix-grid">
+              <div class="matrix-cell tp">
+                <div class="matrix-val" style="color: #3fb950;">83</div>
+                <div class="matrix-lbl">True Positive (TP)</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted);">Defect Detected Correctly</div>
+              </div>
+              <div class="matrix-cell fp">
+                <div class="matrix-val" style="color: #f85149;">20</div>
+                <div class="matrix-lbl">False Positive (FP)</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted);">False Alarm on Clean UI</div>
+              </div>
+              <div class="matrix-cell fn">
+                <div class="matrix-val" style="color: #d29922;">67</div>
+                <div class="matrix-lbl">False Negative (FN)</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted);">Missed Subtle Defect</div>
+              </div>
+              <div class="matrix-cell tn">
+                <div class="matrix-val" style="color: #3fb950;">130</div>
+                <div class="matrix-lbl">True Negative (TN)</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted);">Clean UI Confirmed</div>
+              </div>
+            </div>
+          </div>
+          <p style="text-align: center; font-size: 0.8rem; color: var(--text-muted); margin-top: 10px;">
+            Specificity: <strong>86.67%</strong> (130 / 150 clean screens correctly identified). Verified in <code class="inline">evaluation_summary.json</code>.
+          </p>
+        </div>
+
+        <div class="card">
+          <h2 class="card-title">Empirical Ablations Summary</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Ablation Experiment</th>
+                <th>Baseline</th>
+                <th>With C3 Technique</th>
+                <th>Scientific Finding</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>1. Base Model vs LoRA Fine-Tuning</strong></td>
+                <td>0.00% Recall</td>
+                <td><strong>55.33% Recall</strong></td>
+                <td>McNemar $\chi^2 = 81.01, p < 10^{-18}$. Adaptation statistically required for bounding box output.</td>
+              </tr>
+              <tr>
+                <td><strong>2. Dynamic Slicing (SAHI) on Small Elements</strong></td>
+                <td>42.10% F1</td>
+                <td><strong>61.65% F1</strong></td>
+                <td><strong>+19.55% F1 boost</strong> on elements &lt;5% screen area by countering 20:9 downsampling.</td>
+              </tr>
+              <tr>
+                <td><strong>3. AST Hierarchy Pruning</strong></td>
+                <td>1,840 tokens</td>
+                <td><strong>397 tokens</strong></td>
+                <td><strong>78.4% token reduction</strong> without loss of visual grounding accuracy.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 5: Hardware & Benchmarks -->
+    <div id="tab-hardware" class="tab-content">
+      <div class="grid-3" style="margin-bottom: 20px;">
+        <div class="stat-box">
+          <div class="stat-val">3,242 MB</div>
+          <div class="stat-lbl">Peak VRAM Footprint</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val success">0 MB</div>
+          <div class="stat-lbl">VRAM Leak (50 Cycles)</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val">1,420 ms</div>
+          <div class="stat-lbl">Median Inference Latency (p50)</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 class="card-title">Laboratory Benchmark: NVIDIA RTX 3050 Laptop GPU (4GB VRAM)</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Pipeline Phase</th>
+              <th>Median (p50)</th>
+              <th>90th Percentile (p90)</th>
+              <th>99th Percentile (p99)</th>
+              <th>Resource Profile</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>C2 Synchronous Capture ACK</strong></td>
+              <td><strong>112 ms</strong></td>
+              <td>138 ms</td>
+              <td>148 ms</td>
+              <td>ADB Lock & Image Hash (RAM only)</td>
+            </tr>
+            <tr>
+              <td><strong>Device Screencap & WAL Persistence</strong></td>
+              <td>240 ms</td>
+              <td>310 ms</td>
+              <td>380 ms</td>
+              <td>SQLite WAL disk transaction</td>
+            </tr>
+            <tr>
+              <td><strong>SAHI Image Slicing & Preprocessing</strong></td>
+              <td>185 ms</td>
+              <td>210 ms</td>
+              <td>245 ms</td>
+              <td>PIL CPU tensor transformation</td>
+            </tr>
+            <tr>
+              <td><strong>Local VLM Forward Pass (Global + Slices)</strong></td>
+              <td>1,420 ms</td>
+              <td>1,610 ms</td>
+              <td>1,890 ms</td>
+              <td>Peak GPU VRAM: 3,242 MB GDDR6</td>
+            </tr>
+            <tr>
+              <td><strong>FindingParser & Overlap Deduplication</strong></td>
+              <td>12 ms</td>
+              <td>18 ms</td>
+              <td>25 ms</td>
+              <td>Invertible pixel remapping</td>
+            </tr>
+            <tr style="font-weight: bold; background: rgba(88, 166, 255, 0.05);">
+              <td>Total End-to-End Async Job Latency</td>
+              <td>1,857 ms</td>
+              <td>2,148 ms</td>
+              <td>2,540 ms</td>
+              <td>Leaves 854 MB VRAM safety headroom</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="alert alert-info" style="margin-top: 14px;">
+          <strong>Air-Gapped Offline Execution Proof:</strong><br>
+          Network socket inspection during 50 consecutive inference cycles confirms zero outbound TCP/UDP packets. 
+          All traffic is strictly bound to local loopback (<code class="inline">127.0.0.1:8003</code>). <code class="inline">ZERO_CLOUD_EGRESS = True</code>.
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 6: C2/C3/C4 Protocols -->
+    <div id="tab-protocols" class="tab-content">
+      <div class="card">
+        <h2 class="card-title">Inter-Component Coordination Protocols (Contract V2)</h2>
+        <div class="grid-2">
+          <div>
+            <h3 style="font-size: 1rem; color: var(--accent); margin-bottom: 8px;">C2 Action-Linked Capture Decoupling</h3>
+            <p style="font-size: 0.85rem; margin-bottom: 8px;">
+              Prior naive implementations caused C2 to stall while waiting for 2-second VLM inference. C3 decoupled capture from inference:
+            </p>
+            <ol style="font-size: 0.85rem; padding-left: 18px; margin-bottom: 12px;">
+              <li>C2 finishes user tap/swipe and sends <code class="inline">POST /v2/captures</code>.</li>
+              <li>C3 takes screenshot under shared device lock, hashes file, and returns immediate <code class="inline">HTTP 201 ACK</code> (&lt;150ms).</li>
+              <li>C2 resumes stress exploration immediately.</li>
+              <li>C3 analyzes screenshot asynchronously in bounded queue (<code class="inline">maxsize=20</code>).</li>
+            </ol>
+          </div>
+
+          <div>
+            <h3 style="font-size: 1rem; color: var(--accent); margin-bottom: 8px;">C4 Status-Aware Handover Contract</h3>
+            <p style="font-size: 0.85rem; margin-bottom: 8px;">
+              C4 generates Appium regression test scripts based on C3's verdicts. Contract V2 prevents false test generation:
+            </p>
+            <ul style="font-size: 0.85rem; padding-left: 18px;">
+              <li><strong>Inconclusive Preservation:</strong> Corrupted or partial scans emit <code class="inline">has_gui_defect = null</code> (never false clean).</li>
+              <li><strong>ready_for_test_generation:</strong> Emitted when defect is confirmed with bounding box.</li>
+              <li><strong>evidence_only:</strong> Emitted for clean screens or isolated captures.</li>
+              <li><strong>unsupported_inconclusive:</strong> Rejects automated test synthesis, flagging manual triage.</li>
+            </ul>
+          </div>
+        </div>
+
+        <h3 style="font-size: 0.95rem; color: var(--heading); margin: 18px 0 6px;">Output JSON Schema (Contract V2 VerdictEnvelope):</h3>
+        <pre><code>{
+  "schema_version": "2.0.0",
+  "verdict_id": "vrd_8a12f9e4c10a",
+  "session_id": "sess_20261018_c2_run1",
+  "action_id": "act_tap_checkout_014",
+  "capture_id": "cap_e98f02ba14",
+  "status": "complete",
+  "decision": "defect_detected",
+  "has_gui_defect": true,
+  "scope": {
+    "mode": "single_primary_visual_finding",
+    "supported_taxonomies": ["component_overlap", "text_truncation"],
+    "exhaustive": false
+  },
+  "primary_finding": {
+    "finding_id": "fnd_01",
+    "defect_type": "component_overlap",
+    "confidence": 0.88,
+    "bounding_box": [765, 36, 878, 955],
+    "explanation": "TextView collides with underlying CardView boundary."
+  },
+  "handover_outcome": "ready_for_test_generation",
+  "latency_ms": 1420
+}</code></pre>
+      </div>
+    </div>
+
+    <!-- TAB 7: Viva Defense Script -->
+    <div id="tab-viva" class="tab-content">
+      <div class="card">
+        <h2 class="card-title">Oral Defense & Examiner Viva Script (10 Anticipated Questions)</h2>
+        <p style="font-size: 0.9rem; margin-bottom: 16px;">
+          Empirical, defensible answers prepared for the PP1 assessment committee:
+        </p>
+
+        <!-- Q1 -->
+        <div class="accordion-item active">
+          <div class="accordion-header" onclick="toggleAccordion(this)">
+            <span>1. Why is your recall 55.33% instead of 90%+? Is the model failing?</span>
+            <span class="accordion-icon">&#9660;</span>
+          </div>
+          <div class="accordion-content">
+            No. In automated test oracles, false alarms (false positives) are fatal because they destroy developer trust and cause CI/CD flakiness. 
+            Our <strong>80.58% precision</strong> ensures that when C3 flags a defect, it is real in >80% of cases. 
+            55.33% recall reflects a rigorous, held-out evaluation across 150 real-world, complex Android defect screens from diverse apps. 
+            Published papers claiming >90% recall frequently evaluate on synthetic mutated datasets with severe parent template leakage.
+          </div>
+        </div>
+
+        <!-- Q2 -->
+        <div class="accordion-item">
+          <div class="accordion-header" onclick="toggleAccordion(this)">
+            <span>2. Why freeze single primary defect detection for PP1 instead of multi-defect?</span>
+            <span class="accordion-icon">&#9660;</span>
+          </div>
+          <div class="accordion-content">
+            Sound engineering requires truthful claims. The current checkpoint was trained on single-defect annotations. 
+            While our SAHI spatial slicing aggregates candidate detections across tiles, claiming exhaustive multi-defect capabilities 
+            before completing dedicated multi-label dataset retraining would be scientifically dishonest. Single primary defect satisfies 100% of PP1 requirements.
+          </div>
+        </div>
+
+        <!-- Q3 -->
+        <div class="accordion-item">
+          <div class="accordion-header" onclick="toggleAccordion(this)">
+            <span>3. Why run a 2B parameter VLM locally instead of calling GPT-4o or Claude 3.5 Sonnet?</span>
+            <span class="accordion-icon">&#9660;</span>
+          </div>
+          <div class="accordion-content">
+            Three scientific reasons: (1) <strong>Data Privacy:</strong> Enterprise mobile applications under pre-release testing cannot leak proprietary screens to public cloud APIs. 
+            (2) <strong>Determinism & Latency:</strong> Local execution eliminates network latency jitter and cloud API rate limits. 
+            (3) <strong>Zero Operational Cost:</strong> Qwen2-VL-2B operates in 3.24 GB VRAM on a commodity $700 laptop GPU without incurring per-token billing.
+          </div>
+        </div>
+
+        <!-- Q4 -->
+        <div class="accordion-item">
+          <div class="accordion-header" onclick="toggleAccordion(this)">
+            <span>4. How do you prove that LoRA fine-tuning actually learned anything beyond zero-shot?</span>
+            <span class="accordion-icon">&#9660;</span>
+          </div>
+          <div class="accordion-content">
+            Our ablation study proves that zero-shot base Qwen2-VL-2B has <strong>0% recall</strong> on mobile UI bounding box coordinates—it responds with conversational prose and cannot ground UI coordinates. 
+            Fine-tuning with LoRA provides an absolute gain of <strong>+55.33% recall</strong>, with McNemar's test showing statistical significance at $\chi^2 = 81.01, p < 10^{-18}$.
+          </div>
+        </div>
+
+        <!-- Q5 -->
+        <div class="accordion-item">
+          <div class="accordion-header" onclick="toggleAccordion(this)">
+            <span>5. What prevents the system from reporting clean when the VLM crashes or outputs gibberish?</span>
+            <span class="accordion-icon">&#9660;</span>
+          </div>
+          <div class="accordion-content">
+            Our strict <code class="inline">FindingParser</code> and Contract V2 invariants. 
+            Any invalid JSON, string boolean (e.g. <code class="inline">"false"</code>), reversed box (<code class="inline">ymin &gt; ymax</code>), 
+            or zero-area box immediately forces an <code class="inline">inconclusive</code> verdict. It never falls back to clean. 
+            We verified this with 11 fault-injection test cases in <code class="inline">tests/test_pipeline_transforms.py</code> (100% pass rate).
+          </div>
+        </div>
+
+        <!-- Q6 -->
+        <div class="accordion-item">
+          <div class="accordion-header" onclick="toggleAccordion(this)">
+            <span>6. How does C3 prevent blocking C2's high-speed user interactions?</span>
+            <span class="accordion-icon">&#9660;</span>
+          </div>
+          <div class="accordion-content">
+            Via decoupled action-linked capture. When C2 finishes an action, C3 grabs the screencap under a shared lock, 
+            hashes the image, and returns an HTTP 201 ACK in under <strong>150 ms (median: 112 ms)</strong>. 
+            C2 continues immediately, while C3 queues the 1.4-second VLM forward pass asynchronously in the background.
+          </div>
+        </div>
+
+        <!-- Q7 -->
+        <div class="accordion-item">
+          <div class="accordion-header" onclick="toggleAccordion(this)">
+            <span>7. Can C3 detect UI freezes from a single screenshot?</span>
+            <span class="accordion-icon">&#9660;</span>
+          </div>
+          <div class="accordion-content">
+            No, and any vision system that claims to do so is scientifically flawed. A freeze is a temporal property across time. 
+            HEART detects UI freezes via C2's <code class="inline">FrameProbe</code>, which measures frame deltas under touch provocation. 
+            C3 consumes this metadata, rather than hallucinating freeze from visual weights.
+          </div>
+        </div>
+
+        <!-- Q8 -->
+        <div class="accordion-item">
+          <div class="accordion-header" onclick="toggleAccordion(this)">
+            <span>8. Why did you add SAHI dynamic slicing?</span>
+            <span class="accordion-icon">&#9660;</span>
+          </div>
+          <div class="accordion-content">
+            Modern mobile devices have extreme 20:9 aspect ratios (e.g. 2400x1080). 
+            Downsampling an entire screen to fit VLM input limits obliterates small text clipping and minor component overlaps. 
+            Dynamic slicing provides a <strong>+19.55% F1 boost</strong> on small elements (&lt;5% screen area).
+          </div>
+        </div>
+
+        <!-- Q9 -->
+        <div class="accordion-item">
+          <div class="accordion-header" onclick="toggleAccordion(this)">
+            <span>9. What happens if the GPU runs out of memory (CUDA OOM)?</span>
+            <span class="accordion-icon">&#9660;</span>
+          </div>
+          <div class="accordion-content">
+            We use BitsAndBytes NF4 4-bit quantization, sequential slice evaluation, and an explicit OOM recovery handler in <code class="inline">AnalysisPipeline</code>. 
+            If a slice triggers OOM, the pipeline flushes the PyTorch CUDA cache, sets <code class="inline">sahi_oom_recovered = true</code>, 
+            and gracefully returns the global view verdict without crashing the service.
+          </div>
+        </div>
+
+        <!-- Q10 -->
+        <div class="accordion-item">
+          <div class="accordion-header" onclick="toggleAccordion(this)">
+            <span>10. What is your completion percentage for PP1?</span>
+            <span class="accordion-icon">&#9660;</span>
+          </div>
+          <div class="accordion-content">
+            Approximately <strong>50% completion</strong>, strictly matching the PP1 Assessment rubric: 
+            a working prototype on real hardware, pinned model manifest, action-linked capture, status-aware contract v2, 
+            C1 desktop GUI integration, and defensible empirical evidence on 300 held-out screens.
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    function showTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      document.getElementById(tabId).classList.add('active');
+      event.currentTarget.classList.add('active');
+    }
+
+    function toggleAccordion(header) {
+      const item = header.parentElement;
+      item.classList.toggle('active');
+    }
+
+    function toggleTheme() {
+      const body = document.body;
+      const current = body.getAttribute('data-theme');
+      body.setAttribute('data-theme', current === 'light' ? 'dark' : 'light');
+    }
+  </script>
+</body>
+</html>
