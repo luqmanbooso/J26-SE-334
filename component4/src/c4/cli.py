@@ -13,6 +13,7 @@ from c4.synthesis.qwen_client import OllamaQwenClient
 from c4.healing import HealingConfig, HealingEngine, HealingService
 from c4.healing.baseline import BaselineStore
 from c4.healing.semantic import LexicalEmbedder
+from c4.schemas import EventSource
 from c4.store.repository import TestRepository
 
 
@@ -24,6 +25,7 @@ def build_parser() -> argparse.ArgumentParser:
     preflight.add_argument("--config", required=True)
     run = subparsers.add_parser("run")
     run.add_argument("--telemetry", required=True)
+    run.add_argument("--source", choices=("sentry", "crashlytics"), default="sentry")
     run.add_argument("--config", required=True)
     run.add_argument("--runs-dir", required=True)
     run.add_argument("--dry-run", action="store_true")
@@ -110,19 +112,27 @@ def main(argv: list[str] | None = None) -> int:
         ).run(
             args.telemetry,
             args.runs_dir,
+            source=EventSource(args.source),
             dry_run=args.dry_run,
             limit=args.limit,
             capture_baseline=args.capture_baseline,
         )
-        failed = any(
-            record.status in {"synthesis_failed", "error"}
-            or (
-                record.execution is not None
-                and getattr(record.execution, "status", None) != "passed"
-            )
-            for record in records
-        )
+        failed = any(_record_failed(record) for record in records)
         return 1 if failed else 0
     except (OSError, ValueError, TypeError, ImportError) as error:
         print(str(error), file=sys.stderr)
         return 2
+
+
+def _record_failed(record: object) -> bool:
+    """Return whether a pipeline record's final outcome is unsuccessful."""
+    status = getattr(record, "status", None)
+    if status in {"synthesis_failed", "error", "heal_refused"}:
+        return True
+    if status == "healed":
+        healing = getattr(record, "healing", None)
+        return getattr(healing, "final_status", None) != "passed_after_healing"
+    if status == "executed":
+        execution = getattr(record, "execution", None)
+        return getattr(execution, "status", None) != "passed"
+    return False
