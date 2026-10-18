@@ -18,6 +18,10 @@ class AdbDispatcher:
         self.bridge.execute_tap(x, y, pre_delay)
         self.dispatched += 1
 
+    def swipe(self, path, duration_s, pre_delay=0.0):
+        self.bridge.execute_swipe(path, duration_s, pre_delay)
+        self.dispatched += 1
+
 
 def live_probe(bridge, **kwargs):
     """A LatencyProbe reading the real screen over ADB."""

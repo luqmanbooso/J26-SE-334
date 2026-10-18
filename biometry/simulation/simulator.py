@@ -3,6 +3,7 @@ import math
 import numpy as np
 
 from models.coupling import StressCoupling
+from models.gesture import GestureDistortionSynthesizer
 from models.spatial import RotationalSpatialModel
 from models.timing import TimingModel
 
@@ -25,6 +26,9 @@ class BiometricSimulator:
             coupling=self.coupling, rng=self.rng)
         self.timing_model = TimingModel(
             base_time=base_time, coupling=self.coupling, rng=self.rng)
+        self.gesture_model = GestureDistortionSynthesizer(
+            sigma_absolute_mm=sigma_absolute_mm, px_per_mm=px_per_mm,
+            coupling=self.coupling, rng=self.rng)
 
     def simulate_tap(self, target_x, target_y, width, height, stress, prev_x=None, prev_y=None, angle=None):
         actual_x, actual_y, theta = self.spatial_model.generate_touch(
@@ -39,6 +43,8 @@ class BiometricSimulator:
         )
 
         delay = self.timing_model.generate_delay(stress)
+        hesitation = self.timing_model.hesitation_gap(stress)
+        rage_gaps = self.timing_model.rage_burst(stress)
 
         # Calculate Euclidean error distance
         error_distance = math.sqrt(
@@ -60,5 +66,15 @@ class BiometricSimulator:
             "error_distance": round(error_distance, 2),
             "is_hit": is_hit,
             "stress": stress,
-            "delay": round(delay, 4),
+            "delay": round(delay + hesitation, 4),
+            "hesitation": round(hesitation, 4),
+            "rage_gaps": [round(g, 4) for g in rage_gaps],
         }
+    def simulate_swipe(self, x1, y1, x2, y2, stress, duration_s=None):
+        """One distorted swipe plus its pre-action delay, as a single record."""
+        gesture = self.gesture_model.synthesize(
+            x1, y1, x2, y2, stress, duration_s=duration_s)
+        gesture["delay"] = round(
+            self.timing_model.generate_delay(stress)
+            + self.timing_model.hesitation_gap(stress), 4)
+        return gesture
