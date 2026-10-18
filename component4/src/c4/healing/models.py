@@ -52,19 +52,26 @@ class ElementDescriptor(BaseModel):
     def semantic_text(self) -> str:
         """Return deterministic tokens for semantic ranking."""
         values: list[str] = []
+        has_visible_text = bool(self.text or self.content_desc)
         for value in (self.text, self.content_desc):
             if value:
                 tokens = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", value)
                 tokens = re.sub(r"[_./:]+", " ", tokens)
                 values.extend(tokens.lower().split())
-        if not self.text and not self.content_desc and self.resource_id:
-            resource = self.resource_id.split(":", 1)[-1]
-            resource = resource.split("/", 1)[-1]
-            tokens = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", resource)
-            tokens = re.sub(r"[_./:]+", " ", tokens)
-            values.extend(token for token in tokens.lower().split() if token != "id")
-        if self.class_name:
-            values.append(self.class_name.rsplit(".", 1)[-1].lower())
+        if not has_visible_text:
+            if self.class_name:
+                values.append(self.class_name.rsplit(".", 1)[-1].lower())
+            if self.resource_id:
+                resource = self.resource_id.split(":", 1)[-1]
+                resource = resource.split("/", 1)[-1]
+                tokens = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", resource)
+                tokens = re.sub(r"[_./:]+", " ", tokens)
+                generic_tokens = {"title", "summary", "content"}
+                values.extend(
+                    token
+                    for token in tokens.lower().split()
+                    if token not in {"id", *generic_tokens}
+                )
         return " ".join(values)
 
 
