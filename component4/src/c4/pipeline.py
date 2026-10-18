@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import struct
 from pathlib import Path
 from typing import Literal
 
@@ -11,6 +12,8 @@ from pydantic import BaseModel
 
 from c4.c3_interface.client import C3Client
 from c4.c3_interface.live_client import C3LiveClient
+from c4.c3_interface.contract import C3Verdict
+from c4.c3_interface.normalize import normalize_verdict
 from c4.config import TargetAppConfig
 from c4.execution.service import ExecutionService
 from c4.execution.models import ExecutionResult, FailureKind
@@ -33,10 +36,15 @@ class PipelineRecord(BaseModel):
         "executed",
         "healed",
         "heal_refused",
+        "error",
     ]
     synthesis: SynthesisResult | None = None
     execution: ExecutionResult | None = None
     healing: HealingOutcome | None = None
+    c3_status: Literal[
+        "not_requested", "used", "unavailable", "invalid", "no_evidence"
+    ] = "not_requested"
+    c3_verdict: C3Verdict | None = None
 
 
 class Pipeline:
@@ -54,6 +62,7 @@ class Pipeline:
         c3_client: C3Client | None = None,
         use_c3: bool = True,
         healer: HealingService | None = None,
+        c3_strict: bool = False,
     ) -> None:
         self.target = target
         self.ingestion = ingestion or TelemetryIngestionService()
@@ -65,21 +74,25 @@ class Pipeline:
             target=target,
             c3_client=c3_client,
             use_c3=use_c3,
+            c3_strict=c3_strict,
         )
         self.execution = execution or ExecutionService(target=target)
         self.healer = healer
+        self.c3_client = c3_client
+        self.c3_strict = c3_strict
 
     def run(
         self,
         telemetry_path: str | Path,
         runs_dir: str | Path,
         *,
+        source: EventSource | str = EventSource.SENTRY,
         dry_run: bool = False,
         limit: int | None = None,
         capture_baseline: bool = False,
     ) -> list[PipelineRecord]:
-        """Run all journeys from a Sentry telemetry file."""
-        events = self.ingestion.parse_file(telemetry_path, EventSource.SENTRY)
+        """Run all journeys from a provider telemetry file."""
+        events = self.ingestion.parse_file(telemetry_path, source)
         journeys = self.sessionization.process(events)
         if limit is not None:
             journeys = journeys[:limit]
@@ -95,6 +108,8 @@ class Pipeline:
                         journey_id=journey.journey_id,
                         status="skipped_not_reproducible",
                         synthesis=result,
+                        c3_status=result.c3_status,
+                        c3_verdict=result.c3_verdict,
                     )
                 )
                 continue
@@ -102,8 +117,10 @@ class Pipeline:
                 records.append(
                     PipelineRecord(
                         journey_id=journey.journey_id,
-                        status="synthesis_failed",
+                        status="error" if result.status == "error" else "synthesis_failed",
                         synthesis=result,
+                        c3_status=result.c3_status,
+                        c3_verdict=result.c3_verdict,
                     )
                 )
                 continue
@@ -118,6 +135,8 @@ class Pipeline:
                         journey_id=journey.journey_id,
                         status="dry_run",
                         synthesis=result,
+                        c3_status=result.c3_status,
+                        c3_verdict=result.c3_verdict,
                     )
                 )
                 continue
@@ -129,6 +148,16 @@ class Pipeline:
             )
             healing = None
             record_status = "executed"
+            c3_verdict = result.c3_verdict
+            c3_status = result.c3_status
+            if execution.failure is not None:
+                handoff = self._c3_execution_handoff(
+                    journey, execution, root / safe_id
+                )
+                if handoff is not None:
+                    c3_verdict, c3_status = handoff
+                    if self.c3_strict and c3_status in {"unavailable", "invalid"}:
+                        record_status = "error"
             if (
                 self.healer is not None
                 and execution.failure is not None
@@ -152,6 +181,8 @@ class Pipeline:
                     synthesis=result,
                     execution=execution,
                     healing=healing,
+                    c3_status=c3_status,
+                    c3_verdict=c3_verdict,
                 )
             )
         (root / "pipeline_report.json").write_text(
@@ -164,7 +195,51 @@ class Pipeline:
         )
         return records
 
+    def _c3_execution_handoff(
+        self,
+        journey,
+        execution,
+        run_dir: Path,
+    ) -> tuple[C3Verdict, str] | None:
+        """Send captured failure artifacts to C3 without using device commands."""
+        client = self.c3_client or getattr(self.synthesis, "c3_client", None)
+        failure = execution.failure
+        if client is None or failure is None:
+            return None
+        hierarchy_path = run_dir / "page_source.xml"
+        screenshot_path = run_dir / "screenshot.png"
+        if not hierarchy_path.is_file() or not screenshot_path.is_file():
+            return None
+        try:
+            width, height = _png_dimensions(screenshot_path)
+            verdict = client.get_verdict(
+                journey.session_id,
+                journey.failure,
+                journey,
+                hierarchy_xml=hierarchy_path.read_text(encoding="utf-8"),
+                screenshot_path=str(screenshot_path),
+                screenshot_width=width,
+                screenshot_height=height,
+            )
+        except Exception:
+            return None
+        status = getattr(client, "last_status", "used")
+        (run_dir / "c3_verdict.json").write_text(
+            json.dumps(verdict.model_dump(mode="json"), indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+        return normalize_verdict(verdict), status
+
 
 def _safe_name(value: str) -> str:
     sanitized = re.sub(r"[^A-Za-z0-9_.-]+", "_", value).strip("._")
     return sanitized or "journey"
+
+
+def _png_dimensions(path: Path) -> tuple[int, int]:
+    """Read PNG dimensions from its fixed header without image dependencies."""
+    with path.open("rb") as stream:
+        header = stream.read(24)
+    if len(header) < 24 or header[:8] != b"\x89PNG\r\n\x1a\n" or header[12:16] != b"IHDR":
+        raise ValueError(f"invalid PNG file: {path}")
+    return struct.unpack(">II", header[16:24])
