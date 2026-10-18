@@ -121,6 +121,9 @@ def test_verdict_and_finding_persistence(repo):
     assert loaded_verdict is not None
     assert loaded_verdict.decision == AnalysisDecision.DEFECT_DETECTED
     assert len(loaded_verdict.findings) == 2
+    assert loaded_verdict.primary_finding is not None
+    assert loaded_verdict.primary_finding.finding_id == "find_01"
+    assert loaded_verdict.scope["mode"] == "single_primary_visual_finding"
 
     # Check finding details
     f1 = next(f for f in loaded_verdict.findings if f.finding_id == "find_01")
