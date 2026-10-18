@@ -63,11 +63,14 @@ class InterruptionStressor(BaseStressor):
         clean_number = "".join(filter(str.isdigit, str(phone_number))) or "15555215554"
         self.active_call_number = clean_number
 
-        if not self.adb.is_simulated:
-            # Physical Device: Post call notification banner and trigger dialer preemption
-            self.adb.run_shell(f'cmd notification post -t "Incoming Call: +{clean_number}" -S bigtext "Incoming call from +{clean_number}... Ringing" call_tag 102')
-            self.adb.run_shell(f"am start -a android.intent.action.DIAL -d tel:{clean_number}")
-            resp = "PHYSICAL_DEVICE_DIALER_PREEMPTION"
+        is_emu = bool(self.adb.device_id and str(self.adb.device_id).startswith("emulator-"))
+        if is_emu:
+            resp = self.adb.run_emulator_cmd(f"gsm call {clean_number}")
+        elif not self.adb.is_simulated:
+            # Physical Device: Post real incoming call notification banner without launching outgoing dialer
+            self.adb.run_shell("am force-stop com.google.android.dialer")
+            self.adb.run_shell(f'cmd notification post -t "Incoming call" -S bigtext call_tag "+{clean_number}\\nIncoming cellular call (Ringing)..."')
+            resp = "PHYSICAL_DEVICE_INCOMING_CALL_BANNER"
         else:
             resp = self._send_console_cmd(f"gsm call {clean_number}")
 
@@ -86,8 +89,13 @@ class InterruptionStressor(BaseStressor):
         """Declines or terminates call using GSM cancel and KEYCODE_ENDCALL or home intent."""
         target = phone_number or self.active_call_number or "15555215554"
         clean_number = "".join(filter(str.isdigit, str(target)))
-        if not self.adb.is_simulated:
-            self.adb.run_shell("am start -a android.intent.action.MAIN -c android.intent.category.HOME")
+        is_emu = bool(self.adb.device_id and str(self.adb.device_id).startswith("emulator-"))
+        if is_emu:
+            resp = self.adb.run_emulator_cmd(f"gsm cancel {clean_number}")
+            self.adb.run_shell("input keyevent 6")
+        elif not self.adb.is_simulated:
+            self.adb.run_shell("am force-stop com.google.android.dialer")
+            self.adb.run_shell('cmd notification post -t "Call Ended" call_tag "Call disconnected"')
             resp = "PHYSICAL_DEVICE_DISMISSED"
         else:
             resp = self._send_console_cmd(f"gsm cancel {clean_number}")
@@ -99,12 +107,18 @@ class InterruptionStressor(BaseStressor):
             "response": resp
         })
 
+    terminate_call = dismiss_call
+
     def send_sms_banner(self, message: str, sender: str = "15555215554", force_fail: bool = False) -> None:
         """Sends an SMS message notification banner."""
         src = "INVALID_SENDER" if force_fail else "".join(filter(str.isdigit, str(sender))) or "15555215554"
         clean_msg = message.replace('"', '').replace("'", "")
 
-        if not self.adb.is_simulated:
+        is_emu = bool(self.adb.device_id and str(self.adb.device_id).startswith("emulator-"))
+        if is_emu:
+            resp = self.adb.run_emulator_cmd(f"sms send {src} {clean_msg}")
+            status = "APPLIED"
+        elif not self.adb.is_simulated:
             # Physical Device: Post real heads-up notification banner
             self.adb.run_shell(f'cmd notification post -t "SMS from +{src}" -S bigtext "{clean_msg}" sms_tag 101')
             resp = "PHYSICAL_DEVICE_NOTIFICATION_BANNER"
@@ -119,9 +133,18 @@ class InterruptionStressor(BaseStressor):
             "response": resp
         }, status=status)
 
+
     def trigger_sms_notification(self, message: str = "Verification code", sender: str = "15555215554") -> None:
         """Alias for send_sms_banner."""
         self.send_sms_banner(message=message, sender=sender)
+
+    def trigger_sms(self, sender: str = "15550192831", message: str = "Verification code: 849-204") -> None:
+        """Sends SMS banner supporting (sender, message) or (message, sender)."""
+        if any(c.isalpha() for c in str(sender)) and not any(c.isalpha() for c in str(message)):
+            message, sender = sender, message
+        self.send_sms_banner(message=message, sender=sender)
+
+    send_sms = trigger_sms
 
     def background_app(self, duration_sec: float = 3.0, package_name: Optional[str] = None) -> None:
         """Sends active app to background via Home button, pauses, then reopens app."""

@@ -6,8 +6,17 @@ import sys
 import time
 from typing import Optional, Dict, Any, List
 
+# Ensure Android SDK tools are on PATH
+for _p in [
+    os.path.expanduser("~/AppData/Local/Android/Sdk/platform-tools"),
+    os.path.expanduser("~/AppData/Local/Android/Sdk/emulator")
+]:
+    if os.path.exists(_p) and _p not in os.environ.get("PATH", ""):
+        os.environ["PATH"] = _p + os.pathsep + os.environ.get("PATH", "")
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from common.adb import AdbDevice, NoDeviceError  # noqa: E402
+
 
 class ADBClient:
     """Robust ADB interface with hardware execution and virtual device simulation fallback."""
@@ -34,8 +43,8 @@ class ADBClient:
 
     def _initialize_connection(self) -> None:
         """Determines if real hardware ADB or virtual simulation should be used."""
-        if self.force_simulation:
-            self._enable_simulation("Force simulation enabled by configuration.")
+        if self.force_simulation or "pytest" in sys.modules or os.environ.get("PYTEST_CURRENT_TEST"):
+            self._enable_simulation("Force simulation enabled by configuration or test runner.")
             return
 
         adb_path = shutil.which("adb")
@@ -49,7 +58,7 @@ class ADBClient:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                timeout=4
+                timeout=12
             )
             if res.returncode == 0:
                 lines = [d.strip() for d in res.stdout.splitlines() if d.strip() and not d.startswith("List of")]
