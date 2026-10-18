@@ -86,12 +86,13 @@ class Pipeline:
         telemetry_path: str | Path,
         runs_dir: str | Path,
         *,
+        source: EventSource | str = EventSource.SENTRY,
         dry_run: bool = False,
         limit: int | None = None,
         capture_baseline: bool = False,
     ) -> list[PipelineRecord]:
-        """Run all journeys from a Sentry telemetry file."""
-        events = self.ingestion.parse_file(telemetry_path, EventSource.SENTRY)
+        """Run all journeys from a provider telemetry file."""
+        events = self.ingestion.parse_file(telemetry_path, source)
         journeys = self.sessionization.process(events)
         if limit is not None:
             journeys = journeys[:limit]
