@@ -78,9 +78,22 @@ def test_the_dispatched_point_is_the_distorted_one():
 
 
 def test_run_walks_every_target():
+    """One record per target; dispatches may exceed that only by rage bursts."""
     c, _, taps = build()
     timeline = c.run([TARGET] * 6)
-    assert len(taps) == 6 and len(timeline.records) == 6
+    assert len(timeline.records) == 6
+    bursts = sum(r.rage_taps for r in timeline.records)
+    assert len(taps) == 6 + bursts
+
+
+def test_a_rage_burst_pounds_the_same_point():
+    c, _, taps = build()
+    timeline = c.run([TARGET] * 60)
+    bursty = [r for r in timeline.records if r.rage_taps]
+    assert bursty, "no burst in 60 stressed actions — raise n or reseed"
+    r = bursty[0]
+    repeats = [t for t in taps if (t[0], t[1]) == (r.x, r.y)]
+    assert len(repeats) == 1 + r.rage_taps
 
 
 # --- the loop is actually closed -------------------------------------------
