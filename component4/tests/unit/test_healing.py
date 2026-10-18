@@ -174,6 +174,29 @@ def test_generic_id_falls_back_to_unique_text() -> None:
     )
 
 
+def test_semantic_text_prioritizes_visible_text_and_filters_generic_ids() -> None:
+    visible = ElementDescriptor(
+        text="Network & internet",
+        content_desc=None,
+        class_name="android.widget.TextView",
+        resource_id="android:id/title",
+        sibling_texts=["Settings"],
+    )
+    structural = ElementDescriptor(
+        class_name="android.widget.Button",
+        resource_id="com.example:id/btn_login",
+        sibling_texts=["Ignored"],
+    )
+    generic = ElementDescriptor(
+        class_name="android.widget.TextView",
+        resource_id="android:id/summary",
+    )
+
+    assert visible.semantic_text() == "network & internet"
+    assert structural.semantic_text() == "button btn login"
+    assert generic.semantic_text() == "textview"
+
+
 @pytest.mark.live_sbert
 def test_live_sbert_settings_rename() -> None:
     if not __import__("os").environ.get("C4_LIVE_SBERT"):
@@ -196,7 +219,7 @@ def step_0(driver) -> None:
 
     print(f"confidence={decision.confidence}")
     assert decision.status is HealingStatus.HEALED
-    assert decision.confidence is not None and decision.confidence >= 0.5
+    assert decision.confidence is not None and decision.confidence >= 0.8
     assert decision.healed_locator == {
         "by": "ANDROID_UIAUTOMATOR",
         "value": 'new UiSelector().text("Network & internet")',
