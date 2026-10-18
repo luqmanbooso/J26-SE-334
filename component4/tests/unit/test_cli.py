@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import subprocess
 import sys
+from types import SimpleNamespace
 
+from c4.cli import _record_failed, build_parser
 
 SCRIPT = """from appium.webdriver.common.appiumby import AppiumBy
 
@@ -81,3 +83,36 @@ def test_cli_heal_returns_one_for_refusal_and_two_for_bad_input(tmp_path) -> Non
         "--repo-dir",
     ):
         assert option in help_result.stdout
+
+
+def test_run_source_defaults_to_sentry_and_accepts_crashlytics() -> None:
+    parser = build_parser()
+
+    assert parser.parse_args(
+        ["run", "--telemetry", "events.json", "--config", "app.json", "--runs-dir", "runs"]
+    ).source == "sentry"
+    assert parser.parse_args(
+        [
+            "run",
+            "--telemetry",
+            "events.json",
+            "--config",
+            "app.json",
+            "--runs-dir",
+            "runs",
+            "--source",
+            "crashlytics",
+        ]
+    ).source == "crashlytics"
+
+
+def test_cli_exit_outcome_uses_healing_final_status() -> None:
+    assert not _record_failed(
+        SimpleNamespace(
+            status="healed",
+            healing=SimpleNamespace(final_status="passed_after_healing"),
+        )
+    )
+    assert _record_failed(
+        SimpleNamespace(status="heal_refused", healing=SimpleNamespace(final_status="refused"))
+    )
