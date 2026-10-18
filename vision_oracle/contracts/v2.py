@@ -167,6 +167,13 @@ class VerdictEnvelopeV2(BaseModel):
     decision: AnalysisDecision = Field(...)
     coverage: Coverage = Field(default_factory=Coverage)
     screenshot: ScreenshotRef = Field(...)
+    scope: Dict[str, Any] = Field(
+        default_factory=lambda: {"mode": "single_primary_visual_finding", "exhaustive": False}
+    )
+    primary_finding: Optional[Finding] = Field(
+        default=None,
+        description="Supported single primary visual finding for PP1, or null if clean"
+    )
     findings: List[Finding] = Field(default_factory=list)
     model_run_id: str = Field(default="qwen2-vl-2b-instruct-local")
     timings_ms: Dict[str, float] = Field(default_factory=dict)
@@ -177,11 +184,17 @@ class VerdictEnvelopeV2(BaseModel):
     def enforce_scientific_invariants(self) -> VerdictEnvelopeV2:
         """
         Enforce strict scientific truthfulness rules:
+        - Populate primary_finding from findings if present
         - no_defect_detected requires complete status and zero findings.
         - partial analysis with zero findings must be inconclusive.
         - error status must never be reported as no_defect_detected.
         - bounding boxes must remain strictly within screenshot physical pixel bounds.
         """
+        if self.primary_finding is None and len(self.findings) > 0:
+            self.primary_finding = self.findings[0]
+        elif self.primary_finding is not None and len(self.findings) == 0:
+            self.findings = [self.primary_finding]
+
         # Rule 1: Clean verdict requires complete coverage
         if self.decision == AnalysisDecision.NO_DEFECT_DETECTED:
             if self.analysis_status != AnalysisStatus.COMPLETE:
@@ -266,9 +279,10 @@ class VerdictEnvelopeV2(BaseModel):
                     )
                 )
 
-        primary_defect = self.findings[0].type if self.findings else None
+        primary = self.primary_finding or (self.findings[0] if self.findings else None)
+        primary_defect = primary.type if primary else None
         has_defect = (self.decision == AnalysisDecision.DEFECT_DETECTED)
-        primary_confidence = float(self.findings[0].confidence) if (self.findings and self.findings[0].confidence is not None) else (0.85 if has_defect else 0.0)
+        primary_confidence = float(primary.confidence) if (primary and primary.confidence is not None) else (0.85 if has_defect else 0.0)
 
         return C3Verdict(
             schema_version="2.0.0",
