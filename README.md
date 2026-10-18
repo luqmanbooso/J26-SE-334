@@ -97,6 +97,51 @@ J26-SE-334/
 
 ---
 
+## 🤖 Component 3 (Vision-Semantic Oracle) Setup & Model Weights
+
+Component 3 uses an edge-quantized Vision-Language Model (`Qwen2-VL-2B-Instruct`) fine-tuned with domain-specific LoRA adapters (`c3_lora_final`) to detect non-crash visual and layout defects on mobile screens.
+
+### 1. Fine-Tuned Weights (Included in Repository)
+The fine-tuned LoRA weights are committed directly in the repository at:
+```
+models/c3_lora_final/
+├── adapter_model.safetensors  (73.9 MB - Trained visual defect adapter)
+├── adapter_config.json        (PEFT LoRA config: r=16, alpha=32)
+└── tokenizer.json
+```
+No separate download is required for the fine-tuned weights; pulling this git branch provides them automatically.
+
+### 2. Download the Base Model (One-Time Setup)
+Due to its ~4.4 GB size, the base `Qwen2-VL-2B-Instruct` model weights are excluded from Git (`.gitignore`).
+Download the base model into `models/Qwen2-VL-2B-Instruct` using the included setup script:
+
+```powershell
+# Automated download via Hugging Face snapshot
+python scripts/download_base_model.py
+```
+
+*Alternative manual CLI command:*
+```bash
+huggingface-cli download Qwen/Qwen2-VL-2B-Instruct --local-dir models/Qwen2-VL-2B-Instruct
+```
+
+### 3. Launch the Backend Server
+Once the base model is downloaded, start the air-gapped Vision Oracle service:
+
+```powershell
+python -m vision_oracle.server
+```
+* **Liveness Endpoint:** `http://127.0.0.1:8003/health/live`
+* **Readiness Endpoint:** `http://127.0.0.1:8003/health/ready`
+* **Interactive Documentation:** Refer to `docs/c3_backend_walkthrough.html`
+
+### 4. Run Verification Tests
+```powershell
+pytest tests/
+```
+
+---
+
 ## 📊 Evaluation & Datasets
 
 * **Themis Dataset**: Evaluated across 52 non-crash GUI bugs.

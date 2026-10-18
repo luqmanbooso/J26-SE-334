@@ -437,6 +437,21 @@
         </table>
       </div>
 
+      <div class="card">
+        <h3>Model Weights Staging (For Team Members)</h3>
+        <ul>
+          <li><strong>Fine-Tuned Adapter (Included in Repo):</strong> <code>models/c3_lora_final/</code> (73.9 MB). Tracked in git; ready upon pull.</li>
+          <li><strong>Base Model (One-Time Download):</strong> Excluded from git due to size (~4.4 GB). Download directly into <code>models/Qwen2-VL-2B-Instruct</code>:</li>
+        </ul>
+        <div class="code-container">
+          <div class="code-header">
+            <span>PowerShell (Run once)</span>
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          </div>
+          <pre><code>python scripts/download_base_model.py</code></pre>
+        </div>
+      </div>
+
       <h3>Starting the Vision Oracle Server</h3>
       <p>Launch the server from the root of repository <code>J26-SE-334</code>:</p>
       
