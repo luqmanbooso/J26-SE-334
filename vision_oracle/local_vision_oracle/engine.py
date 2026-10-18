@@ -5,13 +5,21 @@ inference execution, and verdict parsing with sub-millisecond telemetry.
 Grounded in Proposal FR3, FR4, FR7 and CLAIM-01, CLAIM-02.
 """
 
+import os
+import sys
+if "PYTORCH_CUDA_ALLOC_CONF" not in os.environ:
+    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+
 import time
 import hashlib
+import logging
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional, Dict, Any, Union, Callable
 from PIL import Image
+
+logger = logging.getLogger("vision_oracle.engine")
 
 from local_vision_oracle.schemas import (
     Verdict,
@@ -162,56 +170,80 @@ class TransformersInferenceBackend(InferenceBackend):
         **kwargs: Any,
     ) -> str:
         self._load_model()
+        import gc
         import torch
 
         # Ensure image is constrained to prevent VRAM thrashing
         img_eval = image.copy()
         img_eval.thumbnail((720, 1280), Image.Resampling.LANCZOS)
 
-        if self.adapter_dir:
-            clean_prompt = (
-                "<|im_start|>user\n"
-                "<|vision_start|><|image_pad|><|vision_end|>"
-                "Analyze this mobile screen for non-crash visual and semantic defects.\n\n"
-                "Return the verdict in the specified JSON format.<|im_end|>\n"
-                "<|im_start|>assistant\n"
-            )
-            inputs = self.processor(
-                text=[clean_prompt],
-                images=[img_eval],
-                return_tensors="pt",
-            )
-        else:
-            text_prompt = self.processor.apply_chat_template(
-                messages, tokenize=False, add_generation_prompt=True
-            )
-            inputs = self.processor(
-                text=[text_prompt],
-                images=[img_eval],
-                padding=True,
-                return_tensors="pt",
-            )
+        inputs = None
+        generated_ids = None
+        trimmed_ids = None
 
-        if hasattr(self.model, "device"):
-            inputs = inputs.to(self.model.device)
+        try:
+            if self.adapter_dir:
+                clean_prompt = (
+                    "<|im_start|>user\n"
+                    "<|vision_start|><|image_pad|><|vision_end|>"
+                    "Analyze this mobile screen for non-crash visual and semantic defects.\n\n"
+                    "Return the verdict in the specified JSON format.<|im_end|>\n"
+                    "<|im_start|>assistant\n"
+                )
+                inputs = self.processor(
+                    text=[clean_prompt],
+                    images=[img_eval],
+                    return_tensors="pt",
+                )
+            else:
+                text_prompt = self.processor.apply_chat_template(
+                    messages, tokenize=False, add_generation_prompt=True
+                )
+                inputs = self.processor(
+                    text=[text_prompt],
+                    images=[img_eval],
+                    padding=True,
+                    return_tensors="pt",
+                )
 
+            if hasattr(self.model, "device"):
+                inputs = inputs.to(self.model.device)
 
-        with torch.no_grad():
-            generated_ids = self.model.generate(
-                **inputs,
-                max_new_tokens=max_new_tokens,
-                do_sample=(temperature > 0.0),
-                temperature=temperature if temperature > 0.0 else None,
-            )
+            with torch.inference_mode():
+                generated_ids = self.model.generate(
+                    **inputs,
+                    max_new_tokens=max_new_tokens,
+                    do_sample=(temperature > 0.0),
+                    temperature=temperature if temperature > 0.0 else None,
+                )
 
-        trimmed_ids = [
-            out_ids[len(in_ids):]
-            for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
-        ]
-        response_text = self.processor.batch_decode(
-            trimmed_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False
-        )[0]
-        return response_text
+            trimmed_ids = [
+                out_ids[len(in_ids):]
+                for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
+            ]
+            response_text = self.processor.batch_decode(
+                trimmed_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False
+            )[0]
+            return response_text
+
+        finally:
+            if inputs is not None:
+                try:
+                    if hasattr(inputs, "keys"):
+                        for k in list(inputs.keys()):
+                            del inputs[k]
+                except Exception:
+                    pass
+                del inputs
+            if generated_ids is not None:
+                del generated_ids
+            if trimmed_ids is not None:
+                del trimmed_ids
+            if "img_eval" in locals():
+                del img_eval
+            gc.collect()
+            if hasattr(torch, "cuda") and torch.cuda.is_available():
+                torch.cuda.empty_cache()
 
 
 class OracleEngine:
@@ -378,10 +410,23 @@ class OracleEngine:
 
         # Stage 4: Global Inference Execution
         t_inf_start = time.perf_counter()
-        raw_output = self.backend.generate(
-            messages=messages,
-            image=preprocessed.image,
-        )
+        try:
+            raw_output = self.backend.generate(
+                messages=messages,
+                image=preprocessed.image,
+            )
+        except Exception as inf_err:
+            if inf_err.__class__.__name__ == "OutOfMemoryError" or "out of memory" in str(inf_err).lower():
+                logger.error("CUDA OutOfMemoryError during global inference pass: %s", inf_err)
+                import gc
+                gc.collect()
+                try:
+                    import torch
+                    if torch.cuda.is_available():
+                        torch.cuda.empty_cache()
+                except Exception:
+                    pass
+            raise
         t_inf_end = time.perf_counter()
         inference_ms = round((t_inf_end - t_inf_start) * 1000.0, 2)
 
@@ -394,20 +439,57 @@ class OracleEngine:
             if len(slices) > 1:
                 detected_slice_verdicts = []
                 for current_slice in slices:
-                    slice_prep = self.preprocessor.preprocess(current_slice.image)
-                    slice_msgs = self.prompt_builder.build_qwen_chat_input(
-                        image_content=slice_prep.image,
-                        pruned_nodes=None,
-                        metadata={"viewport_slice_index": current_slice.slice_index},
-                    )
-                    t_slice_start = time.perf_counter()
-                    slice_raw = self.backend.generate(messages=slice_msgs, image=slice_prep.image)
-                    t_slice_end = time.perf_counter()
-                    inference_ms += round((t_slice_end - t_slice_start) * 1000.0, 2)
-                    sv = VerdictParser.parse(slice_raw)
-                    if sv.has_defect:
-                        global_bbox = current_slice.map_bbox_to_global(sv.bounding_box)
-                        detected_slice_verdicts.append((current_slice, sv, global_bbox))
+                    slice_prep = None
+                    slice_msgs = None
+                    slice_raw = None
+                    try:
+                        slice_prep = self.preprocessor.preprocess(current_slice.image)
+                        slice_msgs = self.prompt_builder.build_qwen_chat_input(
+                            image_content=slice_prep.image,
+                            pruned_nodes=None,
+                            metadata={"viewport_slice_index": current_slice.slice_index},
+                        )
+                        t_slice_start = time.perf_counter()
+                        slice_raw = self.backend.generate(messages=slice_msgs, image=slice_prep.image)
+                        t_slice_end = time.perf_counter()
+                        inference_ms += round((t_slice_end - t_slice_start) * 1000.0, 2)
+                        sv = VerdictParser.parse(slice_raw)
+                        if sv.has_defect:
+                            global_bbox = current_slice.map_bbox_to_global(sv.bounding_box)
+                            detected_slice_verdicts.append((current_slice, sv, global_bbox))
+                    except Exception as slice_err:
+                        if slice_err.__class__.__name__ == "OutOfMemoryError" or "out of memory" in str(slice_err).lower():
+                            logger.warning(
+                                "CUDA OutOfMemoryError encountered during SAHI slice %d. "
+                                "Reclaiming VRAM cache and aborting SAHI passes (falling back to global verdict).",
+                                current_slice.slice_index,
+                            )
+                            run_metadata["sahi_oom_recovered"] = True
+                            import gc
+                            gc.collect()
+                            try:
+                                import torch
+                                if torch.cuda.is_available():
+                                    torch.cuda.empty_cache()
+                            except Exception:
+                                pass
+                            break
+                        raise
+                    finally:
+                        if slice_prep is not None:
+                            del slice_prep
+                        if slice_msgs is not None:
+                            del slice_msgs
+                        if slice_raw is not None:
+                            del slice_raw
+                        try:
+                            import torch
+                            if torch.cuda.is_available():
+                                import gc
+                                gc.collect()
+                                torch.cuda.empty_cache()
+                        except Exception:
+                            pass
 
                 if detected_slice_verdicts:
                     primary_slice, primary_sv, primary_bbox = detected_slice_verdicts[0]
@@ -435,6 +517,19 @@ class OracleEngine:
                     run_metadata["detected_by"] = "sahi_dynamic_tiling"
                     run_metadata["sahi_slices_with_defects"] = [s[0].slice_index for s in detected_slice_verdicts]
                     run_metadata["all_detected_regions"] = all_regions
+
+        del preprocessed
+        del messages
+        if 'slices' in locals():
+            del slices
+        try:
+            import torch
+            if torch.cuda.is_available():
+                import gc
+                gc.collect()
+                torch.cuda.empty_cache()
+        except Exception:
+            pass
 
         latency = LatencyBreakdown(
             capture_ms=0.0,

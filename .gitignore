@@ -23,6 +23,7 @@ Thumbs.db
 
 # Large documents & binaries (>100MB exceeds GitHub limits)
 *.pdf
+*.zip
 
 # Python artifacts
 __pycache__/
