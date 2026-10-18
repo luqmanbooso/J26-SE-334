@@ -350,7 +350,8 @@
       <button class="tab-btn" onclick="showTab('tab-evidence')">4. Empirical Metrics & Ablations</button>
       <button class="tab-btn" onclick="showTab('tab-hardware')">5. Hardware & Benchmarks</button>
       <button class="tab-btn" onclick="showTab('tab-protocols')">6. C2/C3/C4 Coordination</button>
-      <button class="tab-btn" onclick="showTab('tab-viva')">7. Academic Viva Defense Script</button>
+      <button class="tab-btn" onclick="showTab('tab-viva')">7. Architectural FAQ & Industry Comparison</button>
+
     </div>
 
     <!-- TAB 1: Scope & Architecture -->
@@ -840,9 +841,10 @@ python -c "from vision_oracle.core.manifest import get_active_model_manifest; pr
     <div id="tab-viva" class="tab-content">
       <div class="card" style="border-left: 4px solid var(--accent); background: rgba(88, 166, 255, 0.05); margin-bottom: 20px;">
         <h2 class="card-title" style="display: flex; align-items: center; gap: 8px;">
-          <span>🎯 Ready-to-Speak 30-Second Viva Opening Script</span>
-          <span class="badge badge-primary">High-Impact Delivery</span>
+          <span>🎯 Technical Executive Summary (30-Second Grounding)</span>
+          <span class="badge badge-primary">Executive Summary</span>
         </h2>
+
         <blockquote style="font-size: 0.95rem; line-height: 1.6; font-style: italic; color: var(--heading); margin: 12px 0 0 0; padding-left: 16px; border-left: 3px solid var(--accent);">
           "Good morning, examiners. The core challenge in automating mobile GUI testing is that 68% of display bugs—such as component clipping, text overlap, and dynamic layout collisions—render correctly in static XML view hierarchies and only fail visually at runtime. Existing solutions fail in production: cloud MLLMs like VisionDroid or GPT-4o expose pre-release proprietary screens, incur 3-to-10 second latency, and violate enterprise GDPR, HIPAA, and PCI DSS compliance by caching unmasked customer PII on third-party servers. Meanwhile, commercial diff tools like Applitools depend entirely on pre-existing baselines, making them incapable of Day-Zero detection or autonomous crawler exploration.<br><br>
           Component 3 solves this by providing a zero-baseline, air-gapped Vision-Language Model oracle. By quantizing Qwen2-VL-2B via 4-bit NF4 LoRA into 3.24GB VRAM, we achieve 80.6% precision on commodity 4GB laptop hardware with measured zero network egress and a sub-150ms capture SLA, seamlessly bridging autonomous exploration in C2 with automated Appium test script generation in C4."
@@ -930,10 +932,11 @@ python -c "from vision_oracle.core.manifest import get_active_model_manifest; pr
       </div>
 
       <div class="card">
-        <h2 class="card-title">Oral Defense & Examiner Viva Script (10 Anticipated Questions)</h2>
+        <h2 class="card-title">Technical & Architectural Verification FAQ (10 Core Principles)</h2>
         <p style="font-size: 0.9rem; margin-bottom: 16px;">
-          Empirical, defensible answers prepared for the PP1 assessment committee:
+          Empirical, architectural design decisions and validation rationale:
         </p>
+
 
         <!-- Q1 -->
         <div class="accordion-item active">

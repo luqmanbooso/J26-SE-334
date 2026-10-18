@@ -194,12 +194,13 @@ When reviewing the empirical evidence from these steps, examiners should reach t
 
 ---
 
-## 5. Academic Defense & Examiner Talking Points
+## 5. Architectural Defense Rationale & Industry Comparison
 
-### 5.1 30-Second Opening Defense Pitch
-> *"Good morning, examiners. The core challenge in automating mobile GUI testing is that 68% of display bugs—such as component clipping, text overlap, and dynamic layout collisions—render correctly in static XML view hierarchies and only fail visually at runtime. Existing solutions fail in production: cloud MLLMs like VisionDroid or GPT-4o expose pre-release proprietary screens, incur 3-to-10 second latency, and violate enterprise GDPR, HIPAA, and PCI DSS compliance by caching unmasked customer PII on third-party servers. Meanwhile, commercial diff tools like Applitools depend entirely on pre-existing baselines, making them incapable of Day-Zero detection or autonomous crawler exploration.*  
+### 5.1 Technical Executive Summary (30-Second Architecture Grounding)
+> *"The core challenge in automating mobile GUI testing is that 68% of display bugs—such as component clipping, text overlap, and dynamic layout collisions—render correctly in static XML view hierarchies and only fail visually at runtime. Existing solutions fail in production: cloud MLLMs like VisionDroid or GPT-4o expose pre-release proprietary screens, incur 3-to-10 second latency, and violate enterprise GDPR, HIPAA, and PCI DSS compliance by caching unmasked customer PII on third-party servers. Meanwhile, commercial diff tools like Applitools depend entirely on pre-existing baselines, making them incapable of Day-Zero detection or autonomous crawler exploration.*  
 >  
 > *Component 3 solves this by providing a zero-baseline, air-gapped Vision-Language Model oracle. By quantizing Qwen2-VL-2B via 4-bit NF4 LoRA into 3.24GB VRAM, we achieve 80.6% precision on commodity 4GB laptop hardware with measured zero network egress and a sub-150ms capture SLA, seamlessly bridging autonomous exploration in C2 with automated Appium test script generation in C4."*
+
 
 ### 5.2 Regulatory & Privacy Proof (Why Cloud APIs Fail)
 * **Technical Mechanism:** Compressing open-weight `Qwen2-VL-2B` via **4-bit NF4 LoRA quantization** ($r=16, \alpha=32$) allows the oracle to fit completely inside **3.24GB VRAM** on a commodity laptop GPU (NVIDIA RTX 3050 4GB). It executes air-gapped with **measured zero outbound network egress** (`ZERO_CLOUD_EGRESS = True`, 100% local loopback `127.0.0.1:8003`).
@@ -234,7 +235,7 @@ When reviewing the empirical evidence from these steps, examiners should reach t
 | **Operational Cost** | **$0 marginal cost** (open-weight `Qwen2-VL-2B`) | **$667/month** ($8,004/yr) Starter; custom enterprise quote for On-Prem | High per-token API cost for high-res multi-turn image prompts |
 | **Empirical Precision** | **80.6% Precision** (55.3% Recall, 71.0% Acc on $N=300$) | **No peer-reviewed benchmark** (99.9999% is an unverified marketing figure) | **50.0%–72.0% Precision** (42.0%–65.0% Recall across 3 datasets) |
 
-#### Empirical Proof Points for Examiners:
+#### Key Empirical Proof Points:
 * **Why C3 beats Applitools for Autonomous Testing:** Applitools officially states that its first test run captures a baseline image. If an application contains truncated text or overlapping buttons on Day 1, Applitools records the bug as ground truth. Furthermore, our autonomous crawler (C2) dynamically discovers novel screens that have no prior baseline — rendering diff-based tools unusable.
 * **Why C3's 80.6% Precision is Validated Against Literature:** In an autonomous testing pipeline (C2 $\rightarrow$ C3 $\rightarrow$ C4), **precision is far more critical than recall** because false positives trigger C4 to synthesize broken Appium scripts. C3's **80.6% precision**:
   * Outperforms **VisionDroid's MLLM precision (50%–72%)**.

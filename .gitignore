@@ -48,3 +48,7 @@ env testing/uploads/*.apk
 # PyInstaller build artifacts
 build/
 *.spec
+
+# Private Defense & Viva Preparation (Local Only)
+*viva_defense_script*
+

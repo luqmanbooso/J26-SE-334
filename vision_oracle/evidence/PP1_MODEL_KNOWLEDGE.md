@@ -294,7 +294,7 @@ To preserve absolute academic integrity and avoid misleading examiners during PP
 
 ---
 
-## 10. Academic Viva Defense Script (10 Anticipated Questions)
+## 10. Technical & Architectural Verification FAQ (10 Core Principles)
 
 1. **Q: Why is your recall 55.33% instead of 90%+? Is the model failing?**  
    *A:* No. In automated test oracles, false positives are fatal because they cause test flakiness and developer distrust. Our 80.58% precision ensures that when C3 flags a defect, it is real. 55.33% recall reflects a rigorous, held-out evaluation on diverse real Android apps. Higher numbers in prior literature frequently suffer from synthetic data contamination or lenient evaluation criteria.
@@ -328,12 +328,13 @@ To preserve absolute academic integrity and avoid misleading examiners during PP
 
 ---
 
-## 11. Crucial Theoretical Justifications & Defense Evidence
+## 11. Crucial Theoretical Justifications & Empirical Comparison
 
-### 11.1 Ready-to-Speak 30-Second Viva Opening Script
-> *"Good morning, examiners. The core challenge in automating mobile GUI testing is that 68% of display bugs—such as component clipping, text overlap, and dynamic layout collisions—render correctly in static XML view hierarchies and only fail visually at runtime. Existing solutions fail in production: cloud MLLMs like VisionDroid or GPT-4o expose pre-release proprietary screens, incur 3-to-10 second latency, and violate enterprise GDPR, HIPAA, and PCI DSS compliance by caching unmasked customer PII on third-party servers. Meanwhile, commercial diff tools like Applitools depend entirely on pre-existing baselines, making them incapable of Day-Zero detection or autonomous crawler exploration.*  
+### 11.1 Technical Executive Summary (30-Second Architecture Grounding)
+> *"The core challenge in automating mobile GUI testing is that 68% of display bugs—such as component clipping, text overlap, and dynamic layout collisions—render correctly in static XML view hierarchies and only fail visually at runtime. Existing solutions fail in production: cloud MLLMs like VisionDroid or GPT-4o expose pre-release proprietary screens, incur 3-to-10 second latency, and violate enterprise GDPR, HIPAA, and PCI DSS compliance by caching unmasked customer PII on third-party servers. Meanwhile, commercial diff tools like Applitools depend entirely on pre-existing baselines, making them incapable of Day-Zero detection or autonomous crawler exploration.*  
 >  
 > *Component 3 solves this by providing a zero-baseline, air-gapped Vision-Language Model oracle. By quantizing Qwen2-VL-2B via 4-bit NF4 LoRA into 3.24GB VRAM, we achieve 80.6% precision on commodity 4GB laptop hardware with measured zero network egress and a sub-150ms capture SLA, seamlessly bridging autonomous exploration in C2 with automated Appium test script generation in C4."*
+
 
 ---
 
