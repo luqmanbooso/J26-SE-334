@@ -71,13 +71,15 @@ class OracleRepository:
                     "INSERT OR IGNORE INTO sessions (session_id, created_at) VALUES (?, ?);",
                     (bundle.session_id, bundle.timestamp_utc),
                 )
+            warnings_json = json.dumps(bundle.warnings) if bundle.warnings else "[]"
             conn.execute(
                 """
                 INSERT OR REPLACE INTO captures (
                     capture_id, session_id, action_id, app_package, device_serial,
                     image_path, image_sha256, width, height,
-                    hierarchy_xml, hierarchy_status, inter_modality_skew_ms, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                    hierarchy_xml, hierarchy_status, inter_modality_skew_ms,
+                    capture_started_epoch_ms, capture_completed_epoch_ms, warnings_json, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                 """,
                 (
                     bundle.capture_id,
@@ -92,12 +94,16 @@ class OracleRepository:
                     bundle.raw_hierarchy,
                     bundle.hierarchy_status,
                     bundle.inter_modality_skew_ms,
+                    bundle.capture_started_epoch_ms,
+                    bundle.capture_completed_epoch_ms,
+                    warnings_json,
                     bundle.timestamp_utc,
                 ),
             )
 
     @staticmethod
     def _row_to_capture_bundle(row: Any) -> CaptureBundle:
+        warnings = json.loads(row["warnings_json"]) if "warnings_json" in row.keys() and row["warnings_json"] else []
         return CaptureBundle(
             capture_id=row["capture_id"],
             session_id=row["session_id"],
@@ -112,6 +118,9 @@ class OracleRepository:
             raw_hierarchy=row["hierarchy_xml"],
             hierarchy_status=row["hierarchy_status"],
             inter_modality_skew_ms=row["inter_modality_skew_ms"],
+            capture_started_epoch_ms=row["capture_started_epoch_ms"] if "capture_started_epoch_ms" in row.keys() else None,
+            capture_completed_epoch_ms=row["capture_completed_epoch_ms"] if "capture_completed_epoch_ms" in row.keys() else None,
+            warnings=warnings,
         )
 
     def get_capture(self, capture_id: str) -> Optional[CaptureBundle]:
@@ -316,15 +325,16 @@ class OracleRepository:
             conn.execute(
                 """
                 INSERT OR REPLACE INTO verdicts (
-                    verdict_id, job_id, session_id, capture_id, schema_version,
+                    verdict_id, job_id, session_id, action_id, capture_id, schema_version,
                     decision, analysis_status, model_run_id, coverage_json,
                     screenshot_json, timings_json, errors_json, metadata_json, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                 """,
                 (
                     verdict.verdict_id,
                     verdict.job_id,
                     verdict.session_id,
+                    verdict.action_id,
                     verdict.capture_id,
                     verdict.schema_version,
                     verdict.decision.value,
@@ -402,12 +412,14 @@ class OracleRepository:
 
         coverage_dict = json.loads(vrow["coverage_json"])
         screenshot_dict = json.loads(vrow["screenshot_json"])
+        action_id = vrow["action_id"] if "action_id" in vrow.keys() else None
 
         return VerdictEnvelopeV2(
             schema_version=vrow["schema_version"],
             job_id=vrow["job_id"],
             verdict_id=vrow["verdict_id"],
             session_id=vrow["session_id"],
+            action_id=action_id,
             capture_id=vrow["capture_id"],
             analysis_status=AnalysisStatus(vrow["analysis_status"]),
             decision=AnalysisDecision(vrow["decision"]),

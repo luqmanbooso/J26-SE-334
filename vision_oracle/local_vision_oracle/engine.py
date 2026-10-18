@@ -165,8 +165,8 @@ class TransformersInferenceBackend(InferenceBackend):
         self,
         messages: List[Dict[str, Any]],
         image: Image.Image,
-        max_new_tokens: int = 96,
-        temperature: float = 0.01,
+        max_new_tokens: int = 160,
+        temperature: float = 0.0,
         **kwargs: Any,
     ) -> str:
         self._load_model()

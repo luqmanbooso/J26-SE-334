@@ -60,6 +60,9 @@ class DatabaseManager:
                             hierarchy_xml TEXT,
                             hierarchy_status TEXT NOT NULL,
                             inter_modality_skew_ms REAL,
+                            capture_started_epoch_ms INTEGER,
+                            capture_completed_epoch_ms INTEGER,
+                            warnings_json TEXT,
                             created_at TEXT NOT NULL,
                             FOREIGN KEY(session_id) REFERENCES sessions(session_id)
                         );
@@ -86,6 +89,7 @@ class DatabaseManager:
                             verdict_id TEXT PRIMARY KEY,
                             job_id TEXT NOT NULL,
                             session_id TEXT,
+                            action_id TEXT,
                             capture_id TEXT NOT NULL,
                             schema_version TEXT NOT NULL,
                             decision TEXT NOT NULL,
@@ -137,7 +141,23 @@ class DatabaseManager:
                     except sqlite3.OperationalError:
                         pass
                     try:
+                        conn.execute("ALTER TABLE captures ADD COLUMN capture_started_epoch_ms INTEGER;")
+                    except sqlite3.OperationalError:
+                        pass
+                    try:
+                        conn.execute("ALTER TABLE captures ADD COLUMN capture_completed_epoch_ms INTEGER;")
+                    except sqlite3.OperationalError:
+                        pass
+                    try:
+                        conn.execute("ALTER TABLE captures ADD COLUMN warnings_json TEXT;")
+                    except sqlite3.OperationalError:
+                        pass
+                    try:
                         conn.execute("ALTER TABLE jobs ADD COLUMN c4_delivery_status TEXT DEFAULT 'pending';")
+                    except sqlite3.OperationalError:
+                        pass
+                    try:
+                        conn.execute("ALTER TABLE verdicts ADD COLUMN action_id TEXT;")
                     except sqlite3.OperationalError:
                         pass
 

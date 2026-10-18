@@ -40,8 +40,8 @@ class Verdict(BaseModel):
         default=None,
         description="Granular sub-category or edge case description (e.g. keyboard_occlusion, contrast_violation, rtl_alignment)."
     )
-    confidence: float = Field(
-        ..., 
+    confidence: Optional[float] = Field(
+        default=None, 
         ge=0.0, 
         le=1.0, 
         description="Confidence score of the oracle prediction, normalized between 0.0 and 1.0."

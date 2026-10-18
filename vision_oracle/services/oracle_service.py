@@ -258,19 +258,16 @@ class OracleService:
 
                 if job_id in self._cancelled_jobs:
                     self._cancelled_jobs.discard(job_id)
-                    self._job_queue.task_done()
                     continue
 
                 job = self._repo.get_job(job_id)
                 if not job or job["state"] == JobState.CANCELLED.value:
-                    self._job_queue.task_done()
                     continue
 
                 self._repo.update_job(job_id, JobState.RUNNING)
                 capture = self._repo.get_capture(job["capture_id"])
                 if not capture or not capture.artifact_path or not Path(capture.artifact_path).exists():
                     self._repo.update_job(job_id, JobState.FAILED, error_message="Capture image artifact missing")
-                    self._job_queue.task_done()
                     continue
 
                 try:
@@ -281,7 +278,6 @@ class OracleService:
                         if job_id in self._cancelled_jobs:
                             self._cancelled_jobs.discard(job_id)
                             self._repo.update_job(job_id, JobState.CANCELLED, error_message="Cancelled prior to inference")
-                            self._job_queue.task_done()
                             continue
 
                         verdict_v2 = self._pipeline.analyze(
@@ -295,12 +291,10 @@ class OracleService:
                     if job_id in self._cancelled_jobs:
                         self._cancelled_jobs.discard(job_id)
                         self._repo.update_job(job_id, JobState.CANCELLED, error_message="Cancelled during inference")
-                        self._job_queue.task_done()
                         continue
 
                     latest_job = self._repo.get_job(job_id)
                     if latest_job and latest_job["state"] == JobState.CANCELLED.value:
-                        self._job_queue.task_done()
                         continue
 
                     # Persist verdict to SQLite
@@ -311,13 +305,19 @@ class OracleService:
                         completed_views=verdict_v2.coverage.completed_views,
                     )
 
-                    # Cache in memory ledger for legacy observers
+                    # Cache in memory ledger for legacy observers (isolated so C4 failure never fails inference)
+                    try:
+                        c4_dict = verdict_v2.to_c4_verdict().model_dump()
+                    except Exception as c4_err:
+                        logger.warning("C4 verdict conversion failed for job %s: %s", job_id, c4_err)
+                        c4_dict = {"status": "conversion_error", "error": str(c4_err)}
+
                     record = {
                         "verdict_id": verdict_v2.verdict_id,
                         "session_id": verdict_v2.session_id or "default_session",
                         "timestamp": verdict_v2.screenshot.artifact_id,
                         "verdict_v2": verdict_v2.model_dump(),
-                        "c4_verdict": verdict_v2.to_c4_verdict().model_dump(),
+                        "c4_verdict": c4_dict,
                     }
                     with self._verdict_lock:
                         self._recent_verdicts.appendleft(record)
@@ -438,7 +438,7 @@ class OracleService:
         )
         self._repo.save_capture(bundle)
 
-        policy = CoveragePolicy.GLOBAL_PLUS_TILES_V1 if enable_sahi else CoveragePolicy.GLOBAL_ONLY_V1
+        policy = CoveragePolicy.GLOBAL_PLUS_TILES_V1 if enable_sahi else CoveragePolicy.GLOBAL_ONLY
 
         with self._inference_lock:
             verdict_v2 = self._pipeline.analyze(
@@ -460,7 +460,7 @@ class OracleService:
         confidence = (
             float(primary.confidence)
             if primary and primary.confidence is not None
-            else (0.95 if verdict_v2.decision == AnalysisDecision.DEFECT_DETECTED else 0.05)
+            else None
         )
 
         norm_box = None
@@ -490,8 +490,10 @@ class OracleService:
             screen_id=screen_id or bundle.capture_id,
             verdict=verdict,
             latency_breakdown=LatencyBreakdown(
-                inference_ms=verdict_v2.timings_ms.get("pipeline_total_ms", 0.0),
-                total_pipeline_ms=verdict_v2.timings_ms.get("pipeline_total_ms", 0.0),
+                preprocess_ms=verdict_v2.timings_ms.get("preprocess_ms", 0.0),
+                inference_ms=verdict_v2.timings_ms.get("inference_ms", 0.0),
+                total_pipeline_ms=verdict_v2.timings_ms.get("total_pipeline_ms", 0.0),
+                meets_sla=(verdict_v2.timings_ms.get("total_pipeline_ms", 0.0) <= 1500.0),
             ),
             timestamp=bundle.timestamp_utc,
             engine_used=verdict_v2.model_run_id,
