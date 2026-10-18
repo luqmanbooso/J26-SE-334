@@ -1,0 +1,34 @@
+{
+  "timestamp": "2026-10-14 22:03:29",
+  "total_samples": 10,
+  "clean_samples": 6,
+  "defect_samples": 4,
+  "weights_path": "C:\\Users\\hp\\Downloads\\Downloads\\c3_lora_run3_weights",
+  "dataset_path": "dataset\\test.json",
+  "confusion_matrix": {
+    "tp": 3,
+    "fp": 1,
+    "fn": 1,
+    "tn": 5
+  },
+  "metrics": {
+    "accuracy_pct": 80.0,
+    "precision_pct": 75.0,
+    "recall_pct": 75.0,
+    "f1_score_pct": 75.0,
+    "defect_type_accuracy_pct": 66.67,
+    "mean_bbox_iou": 0.5952,
+    "loc_accuracy_iou50_pct": 66.67,
+    "mean_latency_ms": 17777.88,
+    "p95_latency_ms": 39229.07,
+    "sla_under_1500ms_pct": 0.0
+  },
+  "mcnemar": {
+    "lora_wins_b": 3,
+    "baseline_wins_c": 1,
+    "chi2": 0.25,
+    "p_value": 0.617075,
+    "statistically_significant": false
+  },
+  "evaluation_duration_seconds": 178.42
+}

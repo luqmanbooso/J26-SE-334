@@ -4,9 +4,10 @@ frontend/node_modules/
 dist/
 frontend/dist/
 
-# OS metadata
+# OS & editor metadata
 .DS_Store
 Thumbs.db
+.obsidian/
 
 # Environment variables
 .env
