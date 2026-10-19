@@ -145,7 +145,8 @@ class AppExplorer:
                  current_package=None,
                  app_package=None, relaunch=None, max_actions=None, max_depth=None,
                  max_relaunches=5, settle_s=0.4, sleep=time.sleep, reporter=None,
-                 min_side=20.0, max_side=900.0, ready_tries=12, ready_interval=1.0):
+                 min_side=20.0, max_side=900.0, ready_tries=12, ready_interval=1.0,
+                 stable_tries=3, stable_interval=0.4):
         # max_actions / max_depth default to None = unlimited: the walk runs
         # until the reachable app is exhausted. Termination holds on a finite
         # app regardless — each (screen, target) is tapped once and exhausted
@@ -168,6 +169,8 @@ class AppExplorer:
         self.max_side = max_side
         self.ready_tries = ready_tries
         self.ready_interval = ready_interval
+        self.stable_tries = stable_tries
+        self.stable_interval = stable_interval
 
         self._canon = {}              # base signature -> canonical frame id (swap merging)
         self.visited = set()          # frame ids entered at least once
@@ -268,7 +271,7 @@ class AppExplorer:
             raise _LostPlace("Back left the app")
 
     def _ensure_on(self, expected_frame):
-        root = self.dump()
+        root = self._stable_dump()
         actual = self._identity(root)
         if actual != expected_frame:
             raise _LostPlace("Back did not restore {} (now on {})".format(
@@ -276,15 +279,35 @@ class AppExplorer:
         return root
 
     def _await_ready(self):
-        """After a (cold) launch, the app shows a splash before its first real
-        screen. Poll the dump until it has tappable targets, or give up after
-        `ready_tries`, so the walk does not read an empty splash as a dead end."""
+        """After a (cold) launch, the app shows a splash and then loads its first
+        screen progressively. Poll until the screen has tappable targets *and*
+        has stopped changing (two equal signatures in a row), so the walk reads a
+        fully-loaded screen, not a splash or a half-rendered one."""
         root = self.dump()
+        prev = None
         for _ in range(self.ready_tries):
-            if self._targets(root):
+            sig = self.base_signature(root)
+            if self._targets(root) and sig == prev:
                 return root
+            prev = sig
             self.sleep(self.ready_interval)
             root = self.dump()
+        return root
+
+    def _stable_dump(self):
+        """Dump, then wait until the screen stops changing — progressive content
+        loading or an animation can otherwise give the same screen a different
+        signature depending on how far it had rendered, which splits one screen
+        into several and breaks the cache. Returns the first settled dump."""
+        root = self.dump()
+        prev = self.base_signature(root)
+        for _ in range(self.stable_tries):
+            self.sleep(self.stable_interval)
+            nxt = self.dump()
+            sig = self.base_signature(nxt)
+            if sig == prev:
+                return nxt
+            prev, root = sig, nxt
         return root
 
     # --- the walk -----------------------------------------------------------
@@ -361,7 +384,7 @@ class AppExplorer:
                 label = (nxt.element_id or nxt.resource_id or "?")[:30]
                 self.sleep(self.settle_s)
 
-                new_root = self.dump()
+                new_root = self._stable_dump()
                 new_base = self.base_signature(new_root)
                 new_frame = self._canon.get(new_base, new_base)
 
@@ -425,7 +448,7 @@ class AppExplorer:
                 except _UnwindTo as unwind:
                     if unwind.sig != frame:
                         raise                 # a deeper tap returned above us: keep unwinding
-                    root = self.dump()        # the app is back on this screen; carry on
+                    root = self._stable_dump()   # the app is back on this screen; carry on
                     continue
                 self._go_back()
                 root = self._ensure_on(frame)
@@ -449,7 +472,7 @@ class AppExplorer:
             self.controller.act(element.as_target())
             self.actions_used += 1
             self.sleep(self.settle_s)
-            root = self.dump()
+            root = self._stable_dump()
         return root
 
     def _recover(self, reason):
