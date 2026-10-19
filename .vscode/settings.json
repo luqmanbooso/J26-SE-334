@@ -1,9 +1,13 @@
 {
   "python.analysis.extraPaths": [
+    "d:/J26-SE-334/env testing",
+    "${workspaceFolder}/env testing",
     "./env testing",
     "."
   ],
   "python.autoComplete.extraPaths": [
+    "d:/J26-SE-334/env testing",
+    "${workspaceFolder}/env testing",
     "./env testing",
     "."
   ],
