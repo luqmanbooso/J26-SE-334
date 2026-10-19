@@ -6,6 +6,7 @@ more importantly, the real spread of element sizes, which is what exercises the
 FFitts width dependence. A synthetic rectangle does not.
 """
 import glob
+import hashlib
 import os
 import re
 import xml.etree.ElementTree as ET
@@ -64,14 +65,60 @@ def _element(node):
     )
 
 
+def _as_root(source):
+    """A dump — path, raw XML, or an ElementTree root — as a root Element."""
+    if isinstance(source, ET.Element):
+        return source
+    if isinstance(source, (str, os.PathLike)) and os.path.exists(source):
+        return ET.parse(source).getroot()
+    return ET.fromstring(source)
+
+
+def structural_signature(source, grid=8, drop_packages=("com.android.systemui",)):
+    """A digest of a screen's *structure*, stable across volatile content.
+
+    Keys each node by class, resource-id, clickability and grid-snapped bounds,
+    and deliberately ignores text / content-desc (a clock, a counter, the
+    selected row) so the same logical screen hashes the same on every visit.
+    System chrome (status/navigation bars) is dropped so it cannot perturb the
+    identity. This is the identity the explorer's visited/exhausted cache is
+    keyed on: the coarser it is, the more aggressively structurally-identical
+    screens (a list-detail page template) collapse to one — which, for
+    exhausting an app rather than its data, is the point. For strict,
+    every-pixel change detection use `full_signature` instead.
+    """
+    root = _as_root(source)
+    g = grid if grid and grid > 0 else 1
+    rows = []
+    for node in root.iter("node"):
+        if node.get("package", "") in drop_packages:
+            continue
+        try:
+            x1, y1, x2, y2 = parse_bounds(node.get("bounds"))
+        except ValueError:
+            x1 = y1 = x2 = y2 = 0
+        rows.append("{}|{}|{}|{},{},{},{}".format(
+            node.get("class", ""), node.get("resource-id", ""),
+            node.get("clickable", ""), x1 // g, y1 // g, x2 // g, y2 // g))
+    rows.sort()   # order-independent: a reflow that only reorders is the same screen
+    return hashlib.sha1("\n".join(rows).encode("utf-8")).hexdigest()
+
+
+def full_signature(source):
+    """A digest of the *entire* screen XML — strict change detection.
+
+    Any moved pixel of text or a blinking cursor changes it, so as a screen
+    *identity* it over-counts and makes every revisit look new; that is why
+    `structural_signature` is the explorer's default. Kept for `--signature
+    full` and parity with `latency_probe.hierarchy_signature`.
+    """
+    root = _as_root(source)
+    return hashlib.sha1(ET.tostring(root, encoding="unicode").encode("utf-8")).hexdigest()
+
+
 def parse_hierarchy(source):
     """Parse a dump — a path, raw XML, or an ElementTree root — into UiElements."""
-    if isinstance(source, ET.Element):
-        root = source
-    elif isinstance(source, (str, os.PathLike)) and os.path.exists(source):
-        root = ET.parse(source).getroot()
-    else:
-        root = ET.fromstring(source)
+    root = _as_root(source)
     out = []
     for node in root.iter("node"):
         try:

@@ -80,5 +80,23 @@ class ADBBridge:
         (x1, y1), (x2, y2) = path[0][:2], path[-1][:2]
         self.device.swipe(x1, y1, x2, y2, duration_ms=duration_s * 1000.0)
 
+    def press_back(self):
+        """Dispatch the Android system Back action (KEYCODE_BACK).
+
+        The explorer's way out of a screen a tap opened. Back is the one
+        app-agnostic "go back" — an in-app back button could be any element,
+        in any position, with any label — so the traversal never hunts for one.
+        """
+        self.device.run("shell", "input", "keyevent", "KEYCODE_BACK")
+
+    def launch_package(self, package):
+        """(Re)launch an app through its launcher intent (via `monkey`).
+
+        Used to recover a traversal after Back has left the app while targets
+        remain to exhaust. `monkey` needs no activity name — only the package.
+        """
+        self.device.run("shell", "monkey", "-p", package,
+                        "-c", "android.intent.category.LAUNCHER", "1")
+
 
 __all__ = ["ADBBridge", "NoDeviceError"]
