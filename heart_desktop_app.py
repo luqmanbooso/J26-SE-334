@@ -1753,7 +1753,7 @@ class HeartSimpleApp(ctk.CTk):
 
     def _e2e_pipeline_worker(self):
         import random, re
-        adb_bin = r"C:\Users\user\AppData\Local\Android\Sdk\platform-tools\adb.exe"
+        adb_bin = get_adb_binary()
         dev_id = getattr(self.adb, "device_id", None)
         active_pkg = self.app_selector.get().strip() if hasattr(self, "app_selector") else "de.k3b.android.androFotoFinder"
         orig_w = getattr(self, "_orig_w", 1080)
@@ -2112,7 +2112,7 @@ class HeartSimpleApp(ctk.CTk):
         self._append_log(f"[FRAME PROBE] Sampling dumpsys gfxinfo for '{pkg}' (RDR-0008, 58ms read cost)...")
         
         def _worker():
-            adb_bin = r"C:\Users\user\AppData\Local\Android\Sdk\platform-tools\adb.exe"
+            adb_bin = get_adb_binary()
             dev_id = getattr(self.adb, "device_id", None)
             cmd = [adb_bin]
             if dev_id and not getattr(self.adb, "is_simulated", False):
@@ -3673,7 +3673,7 @@ class HeartSimpleApp(ctk.CTk):
     # =========================================================================
     def _scan_device_and_apps(self, preferred_id=None):
         def _worker():
-            adb_bin = r"C:\Users\user\AppData\Local\Android\Sdk\platform-tools\adb.exe"
+            adb_bin = get_adb_binary()
             try:
                 res = subprocess.run([adb_bin, "devices", "-l"], capture_output=True, text=True, timeout=8)
                 lines = [l.strip() for l in res.stdout.splitlines() if l.strip() and not l.startswith("List of")]
@@ -3744,7 +3744,7 @@ class HeartSimpleApp(ctk.CTk):
 
     def _switch_to_device(self, dev_id):
         def _worker():
-            adb_bin = r"C:\Users\user\AppData\Local\Android\Sdk\platform-tools\adb.exe"
+            adb_bin = get_adb_binary()
             self.adb.device_id = dev_id
             self.adb.is_simulated = False
             is_emu = dev_id.startswith("emulator-")
@@ -3802,7 +3802,7 @@ class HeartSimpleApp(ctk.CTk):
     def _send_adb_input(self, input_cmd):
         """Send input command instantly without blocking GUI thread."""
         dev_id = getattr(self.adb, "device_id", None)
-        adb_bin = r"C:\Users\user\AppData\Local\Android\Sdk\platform-tools\adb.exe"
+        adb_bin = get_adb_binary()
         cmd = [adb_bin]
         if dev_id and not getattr(self.adb, "is_simulated", False):
             cmd.extend(["-s", dev_id])
@@ -3847,7 +3847,7 @@ class HeartSimpleApp(ctk.CTk):
         def _worker():
             try:
                 import io
-                adb_bin = r"C:\Users\user\AppData\Local\Android\Sdk\platform-tools\adb.exe"
+                adb_bin = get_adb_binary()
                 dev_id = getattr(self.adb, "device_id", None)
                 is_emu = bool(dev_id and str(dev_id).startswith("emulator-"))
 
@@ -4015,7 +4015,7 @@ class HeartSimpleApp(ctk.CTk):
         pkg = self.app_selector.get().strip()
         self._append_log(f"[APP RUNNER] Launching '{pkg}' on device...")
         def _launch():
-            adb_bin = r"C:\Users\user\AppData\Local\Android\Sdk\platform-tools\adb.exe"
+            adb_bin = get_adb_binary()
             cmd_prefix = [adb_bin]
             if self.adb.device_id and not self.adb.is_simulated:
                 cmd_prefix.extend(["-s", self.adb.device_id])
@@ -4065,7 +4065,7 @@ class HeartSimpleApp(ctk.CTk):
 
     def _install_apk_worker(self, apk_path):
         def _worker():
-            adb_bin = r"C:\Users\user\AppData\Local\Android\Sdk\platform-tools\adb.exe"
+            adb_bin = get_adb_binary()
             dev_id = getattr(self.adb, "device_id", None)
             
             import glob, re
@@ -4176,7 +4176,7 @@ class HeartSimpleApp(ctk.CTk):
         self._append_log("[FINDINGS EXPORT] Compiling comprehensive telemetry, perturbations, and failure attribution...")
         def _worker():
             try:
-                adb_bin = r"C:\Users\user\AppData\Local\Android\Sdk\platform-tools\adb.exe"
+                adb_bin = get_adb_binary()
                 dev_id = getattr(self.adb, "device_id", "default")
                 active_pkg = self.app_selector.get().strip() if hasattr(self, "app_selector") else "unknown.package"
                 
@@ -4535,8 +4535,8 @@ class HeartSimpleApp(ctk.CTk):
                                  lambda: self._append_log(f"[CONTEXT] Dark Mode set: {val}"))
 
     def _launch_avd(self):
-        adb_bin = r"C:\Users\user\AppData\Local\Android\Sdk\platform-tools\adb.exe"
-        emu_bin = r"C:\Users\user\AppData\Local\Android\Sdk\emulator\emulator.exe"
+        adb_bin = get_adb_binary()
+        emu_bin = get_emulator_binary()
         self._append_log("[EMULATOR] Checking Android Virtual Device...")
 
         # Check if an emulator is already running
@@ -4548,11 +4548,26 @@ class HeartSimpleApp(ctk.CTk):
                 self._scan_device_and_apps(preferred_id=emu_id)
                 return
 
-        # Not running: launch emulator process
-        self._append_log("[EMULATOR] Launching 'Pixel_9_Pro' in background...")
+        # Dynamically discover installed AVD
+        target_avd = "Medium_Phone"
         try:
-            subprocess.Popen([emu_bin, "-avd", "Pixel_9_Pro"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            messagebox.showinfo("AVD Launching", "Android Emulator 'Pixel_9_Pro' starting in background.\n\nPlease allow 20-30 seconds for boot. It will connect automatically.")
+            avd_res = subprocess.run([emu_bin, "-list-avds"], capture_output=True, text=True, timeout=5)
+            avd_list = [l.strip() for l in avd_res.stdout.splitlines() if l.strip()]
+            if avd_list:
+                if "Medium_Phone" in avd_list:
+                    target_avd = "Medium_Phone"
+                elif "Pixel_9_Pro" in avd_list:
+                    target_avd = "Pixel_9_Pro"
+                else:
+                    target_avd = avd_list[0]
+        except Exception:
+            pass
+
+        # Not running: launch emulator process
+        self._append_log(f"[EMULATOR] Launching '{target_avd}' in background...")
+        try:
+            subprocess.Popen([emu_bin, "-avd", target_avd], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            messagebox.showinfo("AVD Launching", f"Android Emulator '{target_avd}' starting in background.\n\nPlease allow 20-30 seconds for boot. It will connect automatically.")
             self._poll_for_emulator()
         except Exception as e:
             messagebox.showerror("AVD Error", f"Failed to start emulator:\n{e}")
@@ -4560,7 +4575,7 @@ class HeartSimpleApp(ctk.CTk):
     def _poll_for_emulator(self, attempts=0):
         if attempts > 15:
             return
-        adb_bin = r"C:\Users\user\AppData\Local\Android\Sdk\platform-tools\adb.exe"
+        adb_bin = get_adb_binary()
         res = subprocess.run([adb_bin, "devices"], capture_output=True, text=True, timeout=4)
         for line in res.stdout.splitlines():
             if line.startswith("emulator-"):
