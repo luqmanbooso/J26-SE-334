@@ -1,0 +1,14 @@
+<hierarchy>
+  <node class="android.widget.FrameLayout" enabled="true" bounds="[0,0][1080,800]">
+    <node class="android.widget.LinearLayout" enabled="true" bounds="[0,0][1080,800]">
+      <node class="android.widget.LinearLayout" clickable="true" enabled="true" bounds="[0,0][1080,80]">
+        <node class="android.widget.TextView" resource-id="com.example:id/sim_cards" text="SIM cards" enabled="true" bounds="[20,0][700,80]" />
+      </node>
+      <node class="android.widget.LinearLayout" clickable="true" enabled="true" bounds="[0,80][1080,160]">
+        <node class="android.widget.TextView" content-desc="Wi-Fi" text="Wi-Fi" enabled="true" bounds="[20,80][700,160]" />
+      </node>
+      <node class="android.widget.Button" resource-id="com.example:id/continue" text="Continue" clickable="true" enabled="true" bounds="[20,180][400,260]" />
+      <node class="android.widget.ImageButton" resource-id="com.example:id/settings" content-desc="Settings" clickable="true" enabled="true" bounds="[420,180][520,280]" />
+    </node>
+  </node>
+</hierarchy>

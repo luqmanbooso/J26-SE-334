@@ -116,6 +116,17 @@ Use `--no-execute` for synthesis-only evaluation, `--no-c3` only for an
 explicit no-C3 ablation, `--repeats N` for stability, and `--limit N` to cap
 journeys.
 
+Run the deterministic offline healing evaluation:
+
+```powershell
+python -m evaluation.run_healing_eval `
+  --embedder lexical --out evaluation/results/healing
+```
+
+It writes scenarios, per-method results, aggregate summaries, a threshold
+sweep, and run metadata. Use `--embedder sbert` for the reported semantic
+experiment when the Sentence-BERT model is available.
+
 ## Configuration
 
 - [`configs/target_app.example.json`](configs/target_app.example.json) contains

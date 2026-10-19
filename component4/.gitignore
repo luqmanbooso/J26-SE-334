@@ -16,6 +16,8 @@ __pycache__/
 # Local datasets and generated artifacts
 data/*
 !data/README.md
+evaluation/data/*
+!evaluation/data/README.md
 runs/*
 models/
 artifacts/
