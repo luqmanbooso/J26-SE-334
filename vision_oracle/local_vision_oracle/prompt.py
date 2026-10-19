@@ -18,15 +18,16 @@ Your task is to analyze the provided mobile UI screenshot and pruned view hierar
 2. text_truncation: Label text is cut off or clipped by parent container boundaries.
 3. missing_component: An expected UI element declared in DOM is completely invisible or renders with zero glass area.
 4. unrendered_asset: An image container is visible but displays an empty placeholder or broken image icon.
-5. functional_incongruence: Visual state contradicts system state (e.g., infinite spinner on success screen).
-6. other_defect: Any visual/functional UI defect not covered above (e.g., severe contrast violation).
-7. none: The screen renders cleanly with proper spacing, alignment, and rendering.
+5. data_binding_null: A text or data widget displays raw 'null', 'nullnull', or unpopulated template placeholders.
+6. functional_incongruence: Visual state contradicts system state (e.g., infinite spinner on success screen).
+7. other_defect: Any visual/functional UI defect not covered above (e.g., severe contrast violation).
+8. none: The screen renders cleanly with proper spacing, alignment, and rendering.
 
 ### Output Grammar (Strict JSON Only):
 You must output a single, valid JSON object strictly matching this schema:
 {
   "has_defect": <boolean: true or false>,
-  "defect_type": "<one of: none, component_overlap, text_truncation, missing_component, unrendered_asset, functional_incongruence, other_defect>",
+  "defect_type": "<one of: none, component_overlap, text_truncation, missing_component, unrendered_asset, data_binding_null, functional_incongruence, other_defect>",
   "sub_category": "<optional string or null>",
   "confidence": <float between 0.0 and 1.0>,
   "bounding_box": [<ymin>, <xmin>, <ymax>, <xmax>] or null if has_defect is false,

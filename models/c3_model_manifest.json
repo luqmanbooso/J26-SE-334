@@ -1,14 +1,14 @@
 {
   "manifest_version": "1.0",
   "timestamp_utc": "2026-10-18T10:00:00Z",
-  "repository_commit": "c906380f059776485034ed6dd099508cea906613",
+  "repository_commit": "51b235a3392bf80f7aa7290b4a9eb65ea31f31c9",
   "model": {
     "base_model_identifier": "Qwen/Qwen2-VL-2B-Instruct",
     "base_model_path": "D:\\university\\Resesarch\\J26-SE-334\\models\\Qwen2-VL-2B-Instruct",
     "pinned_revision": "main",
     "adapter_path": "D:\\university\\Resesarch\\J26-SE-334\\models\\c3_lora_final",
     "adapter_weights_file": "adapter_model.safetensors",
-    "adapter_sha256": "f66c05caa735e7ae0226312553560942ac8621541b2ecc819cd4cc1be5e125f4",
+    "adapter_sha256": "1a3642f57db0d85e1426216d1bbc32829a466f684cd85d82a83ad7ed711b6354",
     "adapter_active": true
   },
   "environment": {

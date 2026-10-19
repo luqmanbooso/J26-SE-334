@@ -249,8 +249,14 @@ class VerdictEnvelopeV2(BaseModel):
         except ImportError:
             import sys
             from pathlib import Path
-            repo_root = Path(__file__).resolve().parent.parent.parent
-            for p in [repo_root / "component4" / "src", Path.cwd() / "component4" / "src"]:
+            repo_candidates = [
+                Path(__file__).resolve().parent.parent,
+                Path(__file__).resolve().parent.parent.parent,
+                Path.cwd(),
+                Path.cwd() / "J26-SE-334",
+            ]
+            for r in repo_candidates:
+                p = r / "component4" / "src"
                 if p.exists() and str(p) not in sys.path:
                     sys.path.insert(0, str(p))
             from c4.c3_interface.contract import C3Verdict, ScreenshotEvidence, DefectRegion

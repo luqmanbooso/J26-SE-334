@@ -460,7 +460,7 @@ class OracleService:
         confidence = (
             float(primary.confidence)
             if primary and primary.confidence is not None
-            else None
+            else (0.95 if verdict_v2.decision == AnalysisDecision.NO_DEFECT_DETECTED else 0.0)
         )
 
         norm_box = None

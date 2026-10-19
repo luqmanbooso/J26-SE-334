@@ -63,7 +63,9 @@ def resolve_path(rel_candidate: Union[str, Path]) -> Optional[Path]:
 
 BASE_MODEL_PATH = resolve_path("models/Qwen2-VL-2B-Instruct") or resolve_path("RD/models/Qwen2-VL-2B-Instruct")
 LORA_WEIGHTS_PATH = (
-    resolve_path("models/c3_lora_final")
+    resolve_path("models/c3_lora_boosted_recall")
+    or resolve_path("models/c3_lora_final")
+    or resolve_path("results/c3_lora_boosted_recall")
     or resolve_path("results/weights/c3_lora_final")
     or resolve_path("results/c3_lora_final")
 )

@@ -32,6 +32,8 @@ def find_default_weights_dir(preferred_path: Optional[str] = None) -> Path:
         return Path(preferred_path)
 
     candidates = [
+        Path(r"D:\university\Resesarch\results\c3_lora_final"),
+        Path(r"D:\university\Resesarch\J26-SE-334\models\c3_lora_final"),
         Path(r"C:\Users\hp\Downloads\Downloads\c3_lora_run3_weights"),
         Path(r"C:\Users\hp\Downloads\c3_lora_run3_weights"),
         Path(r"D:\university\Resesarch\results\llama_factory_lora"),
@@ -48,7 +50,7 @@ def find_default_weights_dir(preferred_path: Optional[str] = None) -> Path:
                 return Path(root)
 
     raise FileNotFoundError(
-        "Could not auto-locate fine-tuned LoRA weights in Downloads. "
+        "Could not auto-locate fine-tuned LoRA weights in Downloads or results. "
         "Please specify path with --weights."
     )
 
@@ -59,6 +61,10 @@ def find_default_dataset_path(preferred_path: Optional[str] = None) -> Path:
         return Path(preferred_path)
 
     candidates = [
+        Path(r"D:\university\Resesarch\dataset\eval_rico_owleye_prepared_120.json"),
+        Path(r"D:\university\Resesarch\dataset\eval_rico_owleye_prepared_full.json"),
+        Path(r"dataset\eval_rico_owleye_prepared_120.json"),
+        Path(r"dataset\eval_rico_owleye_prepared_full.json"),
         Path(r"D:\university\Resesarch\colab_c3_dataset.zip"),
         Path(r"D:\university\Resesarch\dataset\test.json"),
         Path(r"colab_c3_dataset.zip"),
@@ -188,10 +194,16 @@ def run_evaluation(
     processor = AutoProcessor.from_pretrained(resolved_base)
 
     if load_in_4bit:
+        import gc
+        os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
         bnb_config = BitsAndBytesConfig(
             load_in_4bit=True,
             bnb_4bit_quant_type="nf4",
             bnb_4bit_compute_dtype=torch.float16,
+            llm_int8_enable_fp32_cpu_offload=True,
         )
         model = Qwen2VLForConditionalGeneration.from_pretrained(
             resolved_base,
@@ -199,6 +211,7 @@ def run_evaluation(
             device_map="auto",
         )
     else:
+
         model = Qwen2VLForConditionalGeneration.from_pretrained(
             resolved_base,
             torch_dtype=torch.float16,
@@ -332,6 +345,7 @@ def run_evaluation(
 
         detailed_records.append({
             "index": idx,
+            "dataset": sample.get("dataset", "unknown"),
             "image": img_name,
             "true_has_defect": true_has_defect,
             "pred_has_defect": pred_has_defect,
@@ -396,6 +410,32 @@ def run_evaluation(
 
     mcnemar_res = mcnemar_test(b=mcnemar_b, c=mcnemar_c)
 
+    # Stratified breakdown by dataset source (e.g. rico vs owleye)
+    by_dataset: Dict[str, Any] = {}
+    datasets_found = sorted(list(set(r.get("dataset", "unknown") for r in detailed_records)))
+    for ds_name in datasets_found:
+        recs = [r for r in detailed_records if r.get("dataset") == ds_name]
+        d_tp = sum(1 for r in recs if r["true_has_defect"] and r["pred_has_defect"])
+        d_fp = sum(1 for r in recs if not r["true_has_defect"] and r["pred_has_defect"])
+        d_fn = sum(1 for r in recs if r["true_has_defect"] and not r["pred_has_defect"])
+        d_tn = sum(1 for r in recs if not r["true_has_defect"] and not r["pred_has_defect"])
+        d_tot = len(recs)
+        d_acc = (d_tp + d_tn) / float(d_tot) if d_tot > 0 else 0.0
+        d_prec = d_tp / float(d_tp + d_fp) if (d_tp + d_fp) > 0 else 0.0
+        d_rec = d_tp / float(d_tp + d_fn) if (d_tp + d_fn) > 0 else 0.0
+        d_f1 = (2 * d_prec * d_rec / (d_prec + d_rec)) if (d_prec + d_rec) > 0 else 0.0
+        d_ious = [r["iou"] for r in recs if r["true_has_defect"] and r["pred_has_defect"]]
+        d_mean_iou = sum(d_ious) / len(d_ious) if d_ious else 0.0
+        by_dataset[ds_name] = {
+            "total_samples": d_tot,
+            "confusion_matrix": {"tp": d_tp, "fp": d_fp, "fn": d_fn, "tn": d_tn},
+            "accuracy_pct": round(d_acc * 100.0, 2),
+            "precision_pct": round(d_prec * 100.0, 2),
+            "recall_pct": round(d_rec * 100.0, 2),
+            "f1_score_pct": round(d_f1 * 100.0, 2),
+            "mean_bbox_iou": round(d_mean_iou, 4),
+        }
+
     summary = {
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
         "total_samples": total_count,
@@ -404,6 +444,7 @@ def run_evaluation(
         "weights_path": str(resolved_weights),
         "dataset_path": str(resolved_dataset),
         "confusion_matrix": {"tp": tp, "fp": fp, "fn": fn, "tn": tn},
+        "by_dataset": by_dataset,
         "metrics": {
             "accuracy_pct": round(accuracy * 100.0, 2),
             "precision_pct": round(precision * 100.0, 2),
@@ -451,6 +492,10 @@ def run_evaluation(
         f.write(f"sla_under_1500ms_pct,{sla_compliance_pct:.2f}\n")
         f.write(f"mcnemar_chi2,{mcnemar_res['chi2']:.4f}\n")
         f.write(f"mcnemar_p_value,{mcnemar_res['p_value']:.6f}\n")
+        for ds_name, ds_stats in by_dataset.items():
+            for sk, sv in ds_stats.items():
+                if sk != "confusion_matrix":
+                    f.write(f"{ds_name}_{sk},{sv}\n")
 
     # 7. Render High-Aesthetic Confusion Matrix
     cm_path = out_path / "evaluation_confusion_matrix.png"
@@ -483,8 +528,17 @@ def run_evaluation(
     print(f"[+] Defect Type Acc   : {defect_type_acc:.2f}%")
     print(f"[+] Mean BBox IoU     : {mean_iou:.4f}")
     print(f"[+] Loc @ IoU>=0.50   : {loc_acc_iou50:.2f}%")
-    print(f"[+] Mean Latency      : {mean_lat_ms:.1f}ms (<1500ms SLA Pass: {sla_compliance_pct:.1f}%)")
     print(f"[+] McNemar p-value   : {mcnemar_res['p_value']} (Sig: {mcnemar_res['significant']})")
+    if by_dataset:
+        print("-" * 75)
+        print(" Stratified Breakdown by Dataset:")
+        for ds_name, ds_stats in by_dataset.items():
+            cm_sub = ds_stats["confusion_matrix"]
+            print(f"  [{ds_name.upper():6s}] N={ds_stats['total_samples']:3d} | "
+                  f"TP={cm_sub['tp']:2d} FP={cm_sub['fp']:2d} FN={cm_sub['fn']:2d} TN={cm_sub['tn']:2d} | "
+                  f"Acc: {ds_stats['accuracy_pct']:5.2f}% | "
+                  f"P: {ds_stats['precision_pct']:5.2f}% | R: {ds_stats['recall_pct']:5.2f}% | "
+                  f"F1: {ds_stats['f1_score_pct']:5.2f}% | IoU: {ds_stats['mean_bbox_iou']:.4f}")
     print(f"[+] Report JSON       : {json_path}")
     print(f"[+] Summary CSV       : {csv_path}")
     print(f"[+] Confusion Matrix  : {cm_path}")

@@ -18,6 +18,7 @@ class DefectType(str, Enum):
     TEXT_TRUNCATION = "text_truncation"
     MISSING_COMPONENT = "missing_component"
     UNRENDERED_ASSET = "unrendered_asset"
+    DATA_BINDING_NULL = "data_binding_null"
     FUNCTIONAL_INCONGRUENCE = "functional_incongruence"
     FROZEN_STATE = "frozen_state"
     OTHER = "other_defect"
@@ -40,8 +41,8 @@ class Verdict(BaseModel):
         default=None,
         description="Granular sub-category or edge case description (e.g. keyboard_occlusion, contrast_violation, rtl_alignment)."
     )
-    confidence: Optional[float] = Field(
-        default=None, 
+    confidence: float = Field(
+        ..., 
         ge=0.0, 
         le=1.0, 
         description="Confidence score of the oracle prediction, normalized between 0.0 and 1.0."
