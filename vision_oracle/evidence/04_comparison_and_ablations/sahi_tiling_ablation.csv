@@ -1,5 +1,0 @@
-Configuration,Input_Tokens,Token_Reduction_Pct,Pipeline_Latency_ms,F1_Score,Precision,Recall
-Full_Unpruned_XML,8120,0.0%,4850.0,85.20%,88.10%,82.50%
-Heuristic_Depth_Capped,1850,77.2%,2340.0,91.40%,93.00%,89.85%
-AST_Deterministic_Pruner_C3,420,94.8%,1400.2,97.46%,98.97%,96.00%
-Vision_Only_No_DOM,0,100.0%,1250.0,77.91%,81.20%,74.88%
