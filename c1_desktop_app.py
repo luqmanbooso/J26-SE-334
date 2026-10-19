@@ -1439,10 +1439,27 @@ class PerturbationStudioApp(ctk.CTk):
         self.vision_action_entry.insert(0, "act_stress_swipe_review_screen")
         self.vision_action_entry.pack(fill="x", pady=(0, 10))
 
+        # SAHI Slicing & Coverage Policy
+        ctk.CTkLabel(l_inner, text="SAHI Multi-View Slicing Policy:", font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"), text_color=THEME["text_muted"]).pack(anchor="w", pady=(2, 2))
+        self.vision_sahi_opt = ctk.CTkOptionMenu(
+            l_inner,
+            values=[
+                "Global + Tiles (SAHI 4-View Pyramid)",
+                "Global View Only (512x512)",
+                "Top Slice Focus (0% - 40%)",
+                "Mid Slice Focus (30% - 70%)",
+                "Bottom Slice Focus (60% - 100%)",
+            ],
+            height=30,
+            font=ctk.CTkFont(family="Segoe UI", size=10)
+        )
+        self.vision_sahi_opt.set("Global + Tiles (SAHI 4-View Pyramid)")
+        self.vision_sahi_opt.pack(fill="x", pady=(0, 6))
+
         # Action Buttons
         ctk.CTkButton(
             l_inner,
-            text="⚡ Capture & Run Live Inspection",
+            text="⚡ Capture & Run Live SAHI Inspection",
             fg_color=THEME["primary"],
             hover_color=THEME["primary_hover"],
             font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
@@ -1450,6 +1467,32 @@ class PerturbationStudioApp(ctk.CTk):
             corner_radius=6,
             command=self._run_vision_inspection
         ).pack(fill="x", pady=(4, 4))
+
+        # Live Screen Mirror & Evaluate Stream Frame
+        stream_ctrl_row = ctk.CTkFrame(l_inner, fg_color="transparent")
+        stream_ctrl_row.pack(fill="x", pady=(0, 4))
+        self.stream_toggle_btn = ctk.CTkButton(
+            stream_ctrl_row,
+            text="▶ Start Live Mirror",
+            fg_color="#059669",
+            hover_color="#047857",
+            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
+            height=30,
+            corner_radius=6,
+            command=self._toggle_live_adb_stream
+        )
+        self.stream_toggle_btn.pack(side="left", fill="x", expand=True, padx=(0, 2))
+        self.stream_eval_btn = ctk.CTkButton(
+            stream_ctrl_row,
+            text="⚡ Eval Frame",
+            fg_color="#2563eb",
+            hover_color="#1d4ed8",
+            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
+            height=30,
+            corner_radius=6,
+            command=self._evaluate_live_stream_frame
+        )
+        self.stream_eval_btn.pack(side="right", fill="x", expand=True, padx=(2, 0))
 
         ctk.CTkButton(
             l_inner,
@@ -1479,19 +1522,35 @@ class PerturbationStudioApp(ctk.CTk):
             command=self._export_vision_evidence
         ).pack(fill="x", pady=(0, 4))
 
+        # Notebook launchers
+        nb_row = ctk.CTkFrame(l_inner, fg_color="transparent")
+        nb_row.pack(fill="x", pady=(0, 8))
         ctk.CTkButton(
-            l_inner,
-            text="📓 Open C3 Interactive Notebook (.ipynb)",
+            nb_row,
+            text="📓 Visual Evaluator",
             fg_color=THEME["btn_secondary_bg"],
             hover_color=THEME["btn_secondary_hover"],
             border_width=1,
             border_color=THEME["btn_secondary_border"],
             text_color=THEME["btn_secondary_text"],
-            font=ctk.CTkFont(family="Segoe UI", size=10),
-            height=30,
+            font=ctk.CTkFont(family="Segoe UI", size=9),
+            height=28,
             corner_radius=6,
-            command=lambda: os.startfile(os.path.join(ROOT_DIR, "notebooks", "c3_local_vision_oracle_interactive.ipynb")) if sys.platform == "win32" and os.path.exists(os.path.join(ROOT_DIR, "notebooks", "c3_local_vision_oracle_interactive.ipynb")) else messagebox.showinfo("Notebook", "Interactive notebook available at notebooks/c3_local_vision_oracle_interactive.ipynb")
-        ).pack(fill="x", pady=(0, 8))
+            command=lambda: self._open_notebook("notebooks/visual_evaluator.ipynb")
+        ).pack(side="left", fill="x", expand=True, padx=(0, 2))
+        ctk.CTkButton(
+            nb_row,
+            text="🔬 SAHI Multi-Slice",
+            fg_color=THEME["btn_secondary_bg"],
+            hover_color=THEME["btn_secondary_hover"],
+            border_width=1,
+            border_color=THEME["btn_secondary_border"],
+            text_color=THEME["btn_secondary_text"],
+            font=ctk.CTkFont(family="Segoe UI", size=9),
+            height=28,
+            corner_radius=6,
+            command=lambda: self._open_notebook("vision_oracle/notebooks/c3_sahi_multimodal_evaluator.ipynb")
+        ).pack(side="right", fill="x", expand=True, padx=(2, 0))
 
         # Model Architecture Specs Box
         specs_box = ctk.CTkFrame(l_inner, fg_color="#f8fafc", corner_radius=8, border_width=1, border_color="#e2e8f0")
@@ -1499,10 +1558,12 @@ class PerturbationStudioApp(ctk.CTk):
         sp_inner = ctk.CTkFrame(specs_box, fg_color="transparent")
         sp_inner.pack(fill="x", padx=10, pady=8)
         for k, v in [
-            ("Model", "Qwen2-VL-2B-Instruct"),
-            ("Adapter", "c3_lora_final (4-bit NF4)"),
-            ("Coverage", "Global + Tiles (SAHI)"),
-            ("Air-Gap", "100% Local (0 cloud egress)"),
+            ("Base Model", "Qwen2-VL-2B-Instruct (4-bit NF4)"),
+            ("LoRA Adapter", "c3_lora_boosted_recall"),
+            ("Empirical Recall", "69.62% (OwlEye 71.1% | Rico 68.0%)"),
+            ("Macro F1", "61.28% (Peak IoU: 0.6517)"),
+            ("Coverage", "Global + SAHI 3-Slice Pyramid"),
+            ("Air-Gap SLA", "100% Localhost (0 Cloud Egress)"),
         ]:
             r = ctk.CTkFrame(sp_inner, fg_color="transparent")
             r.pack(fill="x", pady=1)
@@ -1512,6 +1573,7 @@ class PerturbationStudioApp(ctk.CTk):
         # Right Column: Visual Decision Deck & Annotated Screenshot
         right_col = ctk.CTkFrame(content_row, fg_color=THEME["bg_card"], corner_radius=12, border_width=1, border_color=THEME["border_card"])
         right_col.pack(side="left", fill="both", expand=True, padx=4, pady=4)
+
 
         r_inner = ctk.CTkFrame(right_col, fg_color="transparent")
         r_inner.pack(fill="both", expand=True, padx=14, pady=14)
