@@ -31,11 +31,6 @@ class EnvironmentAttributionEngine:
                 if abs(fail_epoch - e.get("epoch_ms", fail_epoch)) <= window_ms
             ]
 
-            # Intelligent causal fallback: If clock drift or post-test export leaves strict window empty,
-            # correlate with the most relevant active causal stressors from the test session
-            if not correlated_events and events:
-                correlated_events = self._find_causal_matches(failure, events)
-
             attribution = self._analyze_causality(failure, correlated_events)
             attributions.append(attribution)
 
@@ -69,26 +64,26 @@ class EnvironmentAttributionEngine:
                     confidence = 0.94
                     explanation = f"Network failure directly triggered by {action} (params: {params}). App failed to recover gracefully."
 
-            # Memory / ANR / CPU / Runtime crash causality
-            elif any(term in fail_type or term in fail_desc for term in ["ANR", "FREEZE", "OOM", "CRASH_LMK", "FRAME_DROP", "CRASH_RUNTIME", "OUTOFMEMORY"]):
-                if any(k in category for k in ["SYSTEM_CPU", "SYSTEM_RAM", "SYSTEM_IO", "SYSTEM_THERMAL", "SYSTEM_POWER", "SYSTEM"]):
+            # Memory / ANR / CPU causality
+            elif any(term in fail_type or term in fail_desc for term in ["ANR", "FREEZE", "OOM", "CRASH_LMK", "FRAME_DROP"]):
+                if "SYSTEM_CPU" in category or "SYSTEM_RAM" in category or "SYSTEM_IO" in category:
                     primary_trigger = action
                     confidence = 0.91
                     explanation = f"App freeze or resource termination attributed to {action} under heavy device starvation."
 
             # Layout / Visual Collision causality
             elif any(term in fail_type or term in fail_desc for term in ["OVERFLOW", "COLLISION", "TRUNCATION", "VISUAL_BUG"]):
-                if "ORIENTATION" in category or "FONT_SCALE" in category or "CONTEXT" in category:
+                if "ORIENTATION" in category or "FONT_SCALE" in category:
                     primary_trigger = action
                     confidence = 0.93
                     explanation = f"GUI layout defect induced by dynamic {action} (params: {params}). Layout constraints broke."
 
-            # Interruption / State restoration / Database causality
-            elif any(term in fail_type or term in fail_desc for term in ["NULLPOINTER", "STATE_LOSS", "ILLEGAL_STATE", "RESTORE_FAIL", "DATABASE_EXCEPTION", "ILLEGALARGUMENT", "SQLITE"]):
-                if any(k in category for k in ["INTERRUPTION", "CONTEXT", "SYSTEM"]):
+            # Interruption / State restoration causality
+            elif any(term in fail_type or term in fail_desc for term in ["NULLPOINTER", "STATE_LOSS", "ILLEGAL_STATE", "RESTORE_FAIL"]):
+                if "INTERRUPTION" in category:
                     primary_trigger = action
                     confidence = 0.89
-                    explanation = f"Activity lifecycle or data storage state corruption induced by {action} under environmental perturbation."
+                    explanation = f"Activity lifecycle state loss caused by sudden {action} backgrounding/interruption."
 
         return {
             "failure_id": failure.get("id", f"FAIL_{int(time.time()*1000)}"),
@@ -111,35 +106,6 @@ class EnvironmentAttributionEngine:
         elif "APP_BACKGROUNDED" in trigger or "INCOMING_CALL" in trigger:
             return "Persist transient state inside onSaveInstanceState() / ViewModel SavedStateHandle."
         return "Audit error boundaries and add fallback UI indicators during environmental fluctuations."
-
-    def _find_causal_matches(self, failure: Dict[str, Any], events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        fail_type = failure.get("type", "").upper()
-        fail_desc = failure.get("description", "").lower()
-
-        matches = []
-        for e in reversed(events):
-            cat = e.get("category", "").upper()
-            act = e.get("action", "").upper()
-
-            if any(term in fail_type or term in fail_desc for term in ["TIMEOUT", "SOCKET", "NETWORK", "OFFLINE", "PAYMENT_DROP"]):
-                if "NETWORK" in cat:
-                    matches.append(e)
-            elif any(term in fail_type or term in fail_desc for term in ["ANR", "FREEZE", "OOM", "CRASH_LMK", "FRAME_DROP", "CRASH_RUNTIME"]):
-                if "SYSTEM_CPU" in cat or "SYSTEM_RAM" in cat or "SYSTEM_IO" in cat or "SYSTEM_THERMAL" in cat:
-                    matches.append(e)
-            elif any(term in fail_type or term in fail_desc for term in ["OVERFLOW", "COLLISION", "TRUNCATION", "VISUAL_BUG"]):
-                if "ORIENTATION" in cat or "FONT_SCALE" in cat or "CONTEXT" in cat:
-                    matches.append(e)
-            elif any(term in fail_type or term in fail_desc for term in ["NULLPOINTER", "STATE_LOSS", "ILLEGAL_STATE", "RESTORE_FAIL", "DATABASE_EXCEPTION"]):
-                if "INTERRUPTION" in cat or "CONTEXT" in cat or "SYSTEM" in cat:
-                    matches.append(e)
-
-            if len(matches) >= 3:
-                break
-
-        if not matches and events:
-            matches.append(events[-1])
-        return matches
 
     def _load_events(self) -> List[Dict[str, Any]]:
         try:

@@ -4,9 +4,10 @@ frontend/node_modules/
 dist/
 frontend/dist/
 
-# OS metadata
+# OS & editor metadata
 .DS_Store
 Thumbs.db
+.obsidian/
 
 # Environment variables
 .env
@@ -19,13 +20,24 @@ Thumbs.db
 *.log
 /perturbation_event_log.json
 /environment_failure_attribution.json
-/results/*
-!/results/*.py
-!/results/exp-02/
-scratch/
+/results/
+
+# Vision Oracle Models
+# Base model (>4GB, download separately via scripts/download_base_model.py)
+/models/Qwen2-VL-2B-Instruct/
+models/Qwen2-VL-2B-Instruct/
+models/base/
+/models/base/
+
+# Ensure fine-tuned LoRA weights are tracked in repo
+!/models/c3_lora_final/
+!/models/c3_lora_final/**
+!/models/c3_lora_boosted_recall/
+!/models/c3_lora_boosted_recall/**
 
 # Large documents & binaries (>100MB exceeds GitHub limits)
 *.pdf
+*.zip
 
 # Python artifacts
 __pycache__/
@@ -38,3 +50,7 @@ env testing/uploads/*.apk
 # PyInstaller build artifacts
 build/
 *.spec
+
+# Private Defense & Viva Preparation (Local Only)
+*viva_defense_script*
+

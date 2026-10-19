@@ -81,10 +81,7 @@ def test_mock_client_returns_configured_verdict_copy() -> None:
     result.metadata["changed"] = True
 
     assert configured.metadata == {}
-    assert result.metadata == {
-        "changed": True,
-        "original_defect_type": "OVERFLOW_Y_COLLISION",
-    }
+    assert result.metadata == {"changed": True}
 
 
 def test_mock_client_returns_deterministic_default_for_unknown_session() -> None:

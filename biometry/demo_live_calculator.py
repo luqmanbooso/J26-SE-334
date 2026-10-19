@@ -1,12 +1,5 @@
-import os
-import sys
 import time
 import subprocess
-
-adb_std_path = os.path.expanduser(r"~\AppData\Local\Android\Sdk\platform-tools")
-if os.path.exists(adb_std_path) and adb_std_path not in os.environ.get("PATH", ""):
-    os.environ["PATH"] = adb_std_path + os.pathsep + os.environ.get("PATH", "")
-
 from bridge.adb_bridge import ADBBridge
 from models.stress import StressModel
 from simulation.simulator import BiometricSimulator
@@ -33,14 +26,11 @@ def launch_calculator():
         text=True
     ).stdout
 
-    known_packages = ["com.miui.calculator", "com.google.android.calculator", "com.android.calculator2"]
+    known_packages = ["com.google.android.calculator", "com.android.calculator2"]
     for pkg in known_packages:
         if pkg in pkg_check:
             print(f"[Android] Found package: {pkg}. Launching...")
-            if pkg == "com.miui.calculator":
-                subprocess.run(["adb", "shell", "am", "start", "-n", "com.miui.calculator/.cal.CalculatorActivity"], capture_output=True)
-            else:
-                subprocess.run(["adb", "shell", "monkey", "-p", pkg, "-c", "android.intent.category.LAUNCHER", "1"], capture_output=True)
+            subprocess.run(["adb", "shell", "monkey", "-p", pkg, "-c", "android.intent.category.LAUNCHER", "1"], capture_output=True)
             time.sleep(1.5)
             return
 
@@ -49,19 +39,16 @@ def launch_calculator():
     time.sleep(1.5)
 
 
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8")
-
 def find_calc_button(bridge: ADBBridge, key: str):
     """
     Finds calculator keys across different Android OS variants:
     Checks text labels, content descriptions, and resource-id tags.
     """
     aliases = {
-        "7": ["digit_7", "digit7", "7", "seven"],
-        "+": ["op_add", "plus", "+", "add"],
-        "5": ["digit_5", "digit5", "5", "five"],
-        "=": ["btn_equal_s", "btn_equal", "equals", "equal", "="]
+        "7": ["7", "digit_7", "seven"],
+        "+": ["+", "plus", "op_add", "add"],
+        "5": ["5", "digit_5", "five"],
+        "=": ["=", "equal", "equals", "eq"]
     }
     
     search_terms = aliases.get(key, [key])

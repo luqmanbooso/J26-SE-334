@@ -26,5 +26,3 @@ logs/
 *.egg-info/
 build/
 dist/
-
-runs*/

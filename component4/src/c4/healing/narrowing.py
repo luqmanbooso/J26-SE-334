@@ -21,8 +21,8 @@ class StructuralNarrower:
         action: str | None,
         excluded_indices: set[int] | frozenset[int] | None = None,
     ) -> tuple[list[UiNode], dict[str, int]]:
-        """Return candidates surviving rules R1 through R7."""
-        counts: Counter[str] = Counter({f"R{rule}": 0 for rule in range(1, 8)})
+        """Return candidates surviving rules R1 through R5."""
+        counts: Counter[str] = Counter()
         result: list[UiNode] = []
         for node in hierarchy.nodes:
             if excluded_indices and node.index in excluded_indices:
@@ -34,10 +34,7 @@ class StructuralNarrower:
             if descriptor.package and node.package and node.package != descriptor.package:
                 counts["R2"] += 1
                 continue
-            if _is_pure_layout(node):
-                counts["R7"] += 1
-                continue
-            if not _action_compatible(hierarchy, node, descriptor, action):
+            if not _action_compatible(node, descriptor, action):
                 counts["R3"] += 1
                 continue
             if descriptor.class_name and not _class_family_compatible(node.class_name, descriptor.class_name):
@@ -50,22 +47,9 @@ class StructuralNarrower:
         return result, dict(counts)
 
 
-def _action_compatible(
-    hierarchy: UiHierarchy,
-    node: UiNode,
-    baseline: ElementDescriptor,
-    action: str | None,
-) -> bool:
+def _action_compatible(node: UiNode, baseline: ElementDescriptor, action: str | None) -> bool:
     if action in {"tap", "navigate"}:
-        return (
-            node.clickable
-            or node.focusable
-            or _has_clickable_ancestor(hierarchy, node)
-            or (
-                bool(baseline.class_name)
-                and _same_family(node.class_name, baseline.class_name)
-            )
-        )
+        return node.clickable or node.focusable or _same_family(node.class_name, baseline.class_name)
     if action == "input":
         name = (node.class_name or "").lower()
         return (
@@ -74,38 +58,6 @@ def _action_compatible(
             or bool(getattr(node, "editable", False))
         )
     return True
-
-
-def _has_clickable_ancestor(hierarchy: UiHierarchy, node: UiNode) -> bool:
-    parent_by_index = {candidate.index: candidate for candidate in hierarchy.nodes}
-    parent_index = node.parent_index
-    while parent_index is not None:
-        parent = parent_by_index.get(parent_index)
-        if parent is None:
-            return False
-        if parent.clickable:
-            return True
-        parent_index = parent.parent_index
-    return False
-
-
-def _is_pure_layout(node: UiNode) -> bool:
-    if node.text or node.content_desc or node.clickable:
-        return False
-    name = (node.class_name or "").rsplit(".", 1)[-1].lower()
-    return name in {
-        "framelayout",
-        "linearlayout",
-        "relativelayout",
-        "constraintlayout",
-        "viewgroup",
-        "scrollview",
-        "recyclerview",
-        "listview",
-        "horizontalscrollview",
-        "cardview",
-        "view",
-    }
 
 
 def _class_family_compatible(candidate: str | None, baseline: str) -> bool:

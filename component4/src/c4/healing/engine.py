@@ -5,13 +5,7 @@ from __future__ import annotations
 import time
 
 from c4.healing.changes import detect_changes
-from c4.healing.hierarchy import (
-    HierarchyParseError,
-    UiHierarchy,
-    UiNode,
-    node_to_descriptor,
-    parse_hierarchy,
-)
+from c4.healing.hierarchy import HierarchyParseError, node_to_descriptor, parse_hierarchy
 from c4.healing.models import (
     CandidateScore,
     ElementDescriptor,
@@ -78,27 +72,29 @@ class HealingEngine:
             )
             if not candidates:
                 return self._finish(base, HealingStatus.REFUSED_NO_CANDIDATES, started, reason="No structurally compatible candidates remain.", rule_counts=rule_counts, r6_applied=r6_applied)
-            limited = _cap_candidates(candidates, self.config.max_candidates_ranked)
+            limited = candidates[: self.config.max_candidates_ranked]
             ranked = rank(
                 descriptor.semantic_text(),
                 [(node.index, node_to_descriptor(node, hierarchy).semantic_text()) for node in limited],
                 self.embedder,
             )
-            node_by_index = {node.index: node for node in limited}
             top = [
                 CandidateScore(
                     node_index=index,
-                    descriptor=node_to_descriptor(node_by_index[index], hierarchy),
+                    descriptor=node_to_descriptor(next(node for node in limited if node.index == index), hierarchy),
                     score=score,
-                    locator_preview=_locator_preview(node_by_index[index], hierarchy),
+                    locator_preview=build_unique_locator(
+                        next(node for node in limited if node.index == index), hierarchy
+                    )[1]
+                    if build_unique_locator(next(node for node in limited if node.index == index), hierarchy)
+                    else None,
                 )
-                for index, score in ranked[: self.config.top_k_reported]
+                for index, score in ranked[:5]
             ]
             policy, confidence, margin = decide(ranked, self.config)
             base.update(
                 candidates_total=len(hierarchy.nodes),
                 candidates_after_narrowing=len(candidates),
-                candidates_ranked=len(ranked),
                 top_candidates=top,
                 confidence=confidence,
                 margin=margin,
@@ -160,22 +156,6 @@ def _fallback_descriptor(by: str, value: str, context: dict[str, object] | None)
         content_desc=content_desc,
         sibling_texts=context_values,
     )
-
-
-def _cap_candidates(candidates: list[UiNode], limit: int) -> list[UiNode]:
-    """Apply the deterministic safety cap after structural narrowing."""
-    if len(candidates) <= limit:
-        return candidates
-    prioritized = sorted(
-        candidates,
-        key=lambda node: (not bool(node.text or node.content_desc), node.index),
-    )
-    return prioritized[:limit]
-
-
-def _locator_preview(node: UiNode, hierarchy: UiHierarchy) -> str | None:
-    locator = build_unique_locator(node, hierarchy)
-    return locator[1] if locator else None
 
 
 def _appium_by_to_ast(by: str) -> str:

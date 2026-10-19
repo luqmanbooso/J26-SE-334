@@ -20,13 +20,15 @@ htmlcov/
 # Local Model Weights & Checkpoints (Heavy Binaries >100MB)
 models/
 weights/
-results/
+results/weights/
+**/checkpoint-*/
 *.bin
 *.safetensors
 *.pt
 *.pth
 *.onnx
 *.gguf
+*.zip
 
 # Notebook Checkpoints
 .ipynb_checkpoints/

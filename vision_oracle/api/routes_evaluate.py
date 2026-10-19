@@ -4,9 +4,11 @@ Synchronous evaluation routes.
 
 import os
 import io
+import gc
 import base64
 from typing import Optional, Union
 from PIL import Image
+import torch
 from fastapi import APIRouter, HTTPException
 
 from vision_oracle.api.schemas import EvaluateRequest
@@ -51,7 +53,24 @@ def evaluate_screen(req: EvaluateRequest):
             enable_sahi=req.enable_sahi,
             session_id=req.session_id,
         )
+    except NoDeviceError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": "device_unavailable",
+                "message": str(exc),
+                "resolution": "Check ADB connection or ensure device is attached with USB debugging enabled.",
+            },
+        )
     except Exception as exc:
+        if exc.__class__.__name__ == "OutOfMemoryError" or "out of memory" in str(exc).lower():
+            gc.collect()
+            if hasattr(torch, "cuda") and torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            raise HTTPException(
+                status_code=503,
+                detail=f"GPU VRAM exhausted / GPU out of memory during evaluation: {exc}. Allocator cache cleared, please retry with backoff.",
+            )
         raise HTTPException(status_code=500, detail=f"Evaluation failed: {exc}")
 
 
@@ -62,6 +81,21 @@ def evaluate_device(serial: Optional[str] = None, action_context: Optional[str] 
     try:
         return service.evaluate_device(serial=serial, action_context=action_context)
     except NoDeviceError as exc:
-        raise HTTPException(status_code=503, detail=str(exc))
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": "device_unavailable",
+                "message": str(exc),
+                "resolution": "Check ADB connection or ensure device is attached with USB debugging enabled.",
+            },
+        )
     except Exception as exc:
+        if exc.__class__.__name__ == "OutOfMemoryError" or "out of memory" in str(exc).lower():
+            gc.collect()
+            if hasattr(torch, "cuda") and torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            raise HTTPException(
+                status_code=503,
+                detail=f"GPU VRAM exhausted / GPU out of memory during device evaluation: {exc}. Allocator cache cleared, please retry with backoff.",
+            )
         raise HTTPException(status_code=500, detail=f"Device evaluation failed: {exc}")

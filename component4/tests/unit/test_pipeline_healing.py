@@ -7,15 +7,10 @@ from c4.execution.models import ExecutionResult, ExecutionStatus, FailureInfo, F
 from c4.healing.service import HealingOutcome
 from c4.pipeline import Pipeline
 from c4.synthesis.service import SynthesisResult
-from c4.schemas import EventSource
 
 
 class FakeIngestion:
-    def __init__(self):
-        self.source = None
-
     def parse_file(self, path, source):
-        self.source = source
         return ["event"]
 
 
@@ -66,11 +61,11 @@ class FakeHealer:
         return HealingOutcome(final_status=self.status)
 
 
-def _pipeline(execution, healer, ingestion=None):
+def _pipeline(execution, healer):
     return Pipeline(
         object(),
         TargetAppConfig(package="com.example", activity="MainActivity"),
-        ingestion=ingestion or FakeIngestion(),
+        ingestion=FakeIngestion(),
         sessionization=FakeSessionization(),
         synthesis=FakeSynthesis(),
         execution=execution,
@@ -101,16 +96,3 @@ def test_pipeline_does_not_heal_non_locator_failures(tmp_path) -> None:
 
     assert records[0].status == "executed"
     assert records[0].healing is None
-
-
-def test_pipeline_dispatches_selected_telemetry_source(tmp_path) -> None:
-    ingestion = FakeIngestion()
-    _pipeline(FakeExecution(None), None, ingestion=ingestion).run(
-        "telemetry.json", tmp_path / "sentry", source=EventSource.SENTRY
-    )
-    assert ingestion.source is EventSource.SENTRY
-
-    _pipeline(FakeExecution(None), None, ingestion=ingestion).run(
-        "telemetry.json", tmp_path / "crashlytics", source=EventSource.CRASHLYTICS
-    )
-    assert ingestion.source is EventSource.CRASHLYTICS

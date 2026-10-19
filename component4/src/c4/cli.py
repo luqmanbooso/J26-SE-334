@@ -13,7 +13,6 @@ from c4.synthesis.qwen_client import OllamaQwenClient
 from c4.healing import HealingConfig, HealingEngine, HealingService
 from c4.healing.baseline import BaselineStore
 from c4.healing.semantic import LexicalEmbedder
-from c4.schemas import EventSource
 from c4.store.repository import TestRepository
 
 
@@ -25,12 +24,10 @@ def build_parser() -> argparse.ArgumentParser:
     preflight.add_argument("--config", required=True)
     run = subparsers.add_parser("run")
     run.add_argument("--telemetry", required=True)
-    run.add_argument("--source", choices=("sentry", "crashlytics"), default="sentry")
     run.add_argument("--config", required=True)
     run.add_argument("--runs-dir", required=True)
     run.add_argument("--dry-run", action="store_true")
     run.add_argument("--no-c3", action="store_true")
-    run.add_argument("--c3-strict", action="store_true")
     run.add_argument("--limit", type=int)
     run.add_argument("--model", default="qwen3:8b")
     run.add_argument("--ollama-url", default="http://127.0.0.1:11434")
@@ -108,31 +105,22 @@ def main(argv: list[str] | None = None) -> int:
             target,
             use_c3=not args.no_c3,
             healer=healer,
-            c3_strict=args.c3_strict,
         ).run(
             args.telemetry,
             args.runs_dir,
-            source=EventSource(args.source),
             dry_run=args.dry_run,
             limit=args.limit,
             capture_baseline=args.capture_baseline,
         )
-        failed = any(_record_failed(record) for record in records)
+        failed = any(
+            record.status == "synthesis_failed"
+            or (
+                record.execution is not None
+                and getattr(record.execution, "status", None) != "passed"
+            )
+            for record in records
+        )
         return 1 if failed else 0
     except (OSError, ValueError, TypeError, ImportError) as error:
         print(str(error), file=sys.stderr)
         return 2
-
-
-def _record_failed(record: object) -> bool:
-    """Return whether a pipeline record's final outcome is unsuccessful."""
-    status = getattr(record, "status", None)
-    if status in {"synthesis_failed", "error", "heal_refused"}:
-        return True
-    if status == "healed":
-        healing = getattr(record, "healing", None)
-        return getattr(healing, "final_status", None) != "passed_after_healing"
-    if status == "executed":
-        execution = getattr(record, "execution", None)
-        return getattr(execution, "status", None) != "passed"
-    return False

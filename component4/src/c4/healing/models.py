@@ -16,8 +16,7 @@ class HealingConfig(BaseModel):
 
     confidence_threshold: float = Field(default=0.5, ge=0.0, le=1.0)
     ambiguity_margin: float = Field(default=0.05, ge=0.0, le=1.0)
-    max_candidates_ranked: int = Field(default=300, ge=1)
-    top_k_reported: int = Field(default=5, ge=1)
+    max_candidates_ranked: int = Field(default=10, ge=1)
     max_heal_rounds: int = Field(default=3, ge=1)
     embedder: Literal["sbert", "lexical"] = "sbert"
     sbert_model: str = "sentence-transformers/all-MiniLM-L6-v2"
@@ -52,26 +51,19 @@ class ElementDescriptor(BaseModel):
     def semantic_text(self) -> str:
         """Return deterministic tokens for semantic ranking."""
         values: list[str] = []
-        has_visible_text = bool(self.text or self.content_desc)
-        for value in (self.text, self.content_desc):
+        for value in (self.text, self.content_desc, *self.sibling_texts):
             if value:
                 tokens = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", value)
                 tokens = re.sub(r"[_./:]+", " ", tokens)
                 values.extend(tokens.lower().split())
-        if not has_visible_text:
-            if self.class_name:
-                values.append(self.class_name.rsplit(".", 1)[-1].lower())
-            if self.resource_id:
-                resource = self.resource_id.split(":", 1)[-1]
-                resource = resource.split("/", 1)[-1]
-                tokens = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", resource)
-                tokens = re.sub(r"[_./:]+", " ", tokens)
-                generic_tokens = {"title", "summary", "content"}
-                values.extend(
-                    token
-                    for token in tokens.lower().split()
-                    if token not in {"id", *generic_tokens}
-                )
+        if self.resource_id:
+            resource = self.resource_id.split(":", 1)[-1]
+            resource = resource.split("/", 1)[-1]
+            tokens = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", resource)
+            tokens = re.sub(r"[_./:]+", " ", tokens)
+            values.extend(token for token in tokens.lower().split() if token != "id")
+        if self.class_name:
+            values.append(self.class_name.rsplit(".", 1)[-1].lower())
         return " ".join(values)
 
 
@@ -100,7 +92,6 @@ class HealingDecision(BaseModel):
     margin: float | None = None
     candidates_total: int = 0
     candidates_after_narrowing: int = 0
-    candidates_ranked: int = 0
     top_candidates: list[CandidateScore] = Field(default_factory=list, max_length=5)
     embedder: str
     threshold: float

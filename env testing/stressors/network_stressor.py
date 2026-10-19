@@ -58,23 +58,13 @@ class NetworkStressor(BaseStressor):
 
     def set_bandwidth_profile(self, profile: str = "edge") -> None:
         """Sets emulator network bandwidth profile: 'full', 'lte', 'hsdpa', 'umts', 'edge', 'gprs', 'gsm'."""
+        valid_profiles = ["full", "lte", "hsdpa", "umts", "edge", "gprs", "gsm"]
         clean_profile = profile.lower().strip()
-        if clean_profile in ("3g", "hspa", "hsdpa"):
-            clean_profile = "hsdpa"
-        elif clean_profile in ("4g", "5g", "lte", "normal"):
-            clean_profile = "lte"
-        elif clean_profile in ("offline", "dead_zone"):
-            self.set_mode("offline")
-            return
-        elif clean_profile not in ["full", "lte", "hsdpa", "umts", "edge", "gprs", "gsm"]:
+        if clean_profile not in valid_profiles:
             clean_profile = "edge"
 
         self.current_state["speed_profile"] = clean_profile
-        if self.current_state.get("mode") == "offline":
-            self.set_mode("normal")
-
-        if not self.adb.is_simulated and (not self.adb.device_id or self.adb.device_id.startswith("emulator-")):
-            self.adb.run_emulator_cmd(f"network speed {clean_profile}")
+        self.adb.run_emulator_cmd(f"network speed {clean_profile}")
         self.logger.record("NETWORK_THROTTLE", "BANDWIDTH_PROFILE_SET", {"profile": clean_profile})
 
     def inject_latency(self, latency_ms: int = 1200) -> None:
@@ -93,8 +83,7 @@ class NetworkStressor(BaseStressor):
         else:
             delay_mode = "none"
 
-        if not self.adb.is_simulated and (not self.adb.device_id or self.adb.device_id.startswith("emulator-")):
-            self.adb.run_emulator_cmd(f"network delay {delay_mode}")
+        self.adb.run_emulator_cmd(f"network delay {delay_mode}")
         self.logger.record("NETWORK_LATENCY", "LATENCY_INJECTED", {
             "latency_ms": latency_ms,
             "delay_profile": delay_mode
@@ -125,9 +114,8 @@ class NetworkStressor(BaseStressor):
     def revert(self) -> bool:
         """Restores baseline unthrottled network."""
         self.set_mode("normal")
-        if not self.adb.is_simulated and (not self.adb.device_id or self.adb.device_id.startswith("emulator-")):
-            self.adb.run_emulator_cmd("network speed full")
-            self.adb.run_emulator_cmd("network delay none")
+        self.adb.run_emulator_cmd("network speed full")
+        self.adb.run_emulator_cmd("network delay none")
         self.is_active = False
         self.current_state.clear()
         self.logger.record("NETWORK", "NETWORK_RESET_NOMINAL", {})

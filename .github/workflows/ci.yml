@@ -61,8 +61,7 @@ jobs:
 
       - name: Verify Python Syntax Across Core Modules
         run: |
-          if [ -f heart_desktop_app.py ]; then python -m py_compile heart_desktop_app.py; fi
-          if [ -f c1_desktop_app.py ]; then python -m py_compile c1_desktop_app.py; fi
+          python -m py_compile c1_desktop_app.py
           python -m py_compile "env testing/server.py"
           python -m py_compile "env testing/orchestrator.py"
           python -m py_compile "env testing/attribution_engine.py"

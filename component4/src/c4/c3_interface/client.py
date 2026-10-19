@@ -19,10 +19,5 @@ class C3Client(Protocol):
         session_id: str,
         failure: NormalizedEvent,
         journey: FailureJourney | None = None,
-        *,
-        hierarchy_xml: str | None = None,
-        screenshot_path: str | None = None,
-        screenshot_width: int | None = None,
-        screenshot_height: int | None = None,
     ) -> C3Verdict:
         """Return visual evidence for a failure."""

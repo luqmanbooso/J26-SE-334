@@ -115,19 +115,42 @@ class AdbDevice:
         return [ln.split("\t")[0] for ln in out.splitlines()[1:]
                 if "\tdevice" in ln]
 
-    def verify(self):
-        found = self.list_devices(self.adb)
+    @classmethod
+    def resolve_serial(cls, serial: Optional[str] = None, adb: str = "adb") -> str:
+        """Validates requested serial or auto-resolves when exactly one device is attached.
+
+        Raises:
+            NoDeviceError: if no devices attached, multiple attached without explicit serial,
+                           or requested serial not found.
+        """
+        found = cls.list_devices(adb=adb)
         if not found:
             raise NoDeviceError(
                 "no Android device or emulator is attached. Connect one and "
-                "enable USB debugging; this will not silently simulate.")
-        if self.serial and self.serial not in found:
-            raise NoDeviceError(f"device {self.serial!r} not attached; have {found}")
-        if self.serial is None and len(found) > 1:
+                "enable USB debugging; this will not silently simulate."
+            )
+        if serial:
+            if serial not in found:
+                raise NoDeviceError(f"device {serial!r} not attached; have {found}")
+            return serial
+        if len(found) > 1:
             raise NoDeviceError(
-                f"{len(found)} devices attached {found} — pass serial= to choose one.")
-        self.serial = self.serial or found[0]
+                f"{len(found)} devices attached {found} — pass serial= to choose one."
+            )
+        return found[0]
+
+    def verify(self):
+        self.serial = self.resolve_serial(self.serial, self.adb)
         return self.serial
+
+    def is_connected(self) -> bool:
+        """Returns True if this device is attached and in 'device' state."""
+        try:
+            found = self.list_devices(self.adb)
+            return (self.serial in found) if self.serial else (len(found) > 0)
+        except NoDeviceError:
+            return False
+
 
     # --- the one path to the device ----------------------------------------
 
@@ -183,31 +206,50 @@ class AdbDevice:
 
     # --- hierarchy, cached --------------------------------------------------
 
-    def dump_hierarchy(self, max_age_s=0.0):
+    def dump_hierarchy(self, max_age_s: float = 0.0, max_retries: int = 2, backoff_s: float = 0.2) -> str:
         """Current UI hierarchy as XML text.
 
         With `max_age_s > 0` a dump younger than that is reused instead of
         issuing another. `uiautomator dump` costs a few hundred milliseconds and
         blocks the device, so sharing one across callers in a polling cycle is
         the difference between measuring the app and measuring ourselves.
+        Retries on transient failure with exponential backoff before declaring device lost.
+        Raises NoDeviceError if no <hierarchy> element is returned or device is disconnected.
         """
         if self._cache and (time.monotonic() - self._cache[0]) <= max_age_s:
             return self._cache[1]
-        with DeviceLock(self.serial, self._lock_timeout):
-            subprocess.run(self._argv(["shell", "uiautomator", "dump",
-                                       "/sdcard/window_dump.xml"]),
-                           capture_output=True, text=True, timeout=60)
-            raw = subprocess.run(self._argv(["exec-out", "cat", "/sdcard/window_dump.xml"]),
-                                 capture_output=True, text=True, errors="ignore",
-                                 timeout=60).stdout
-        self._dumps += 1
-        text = raw.replace("\r\r\n", "\n").replace("\r\n", "\n")
-        match = re.search(r"(<hierarchy[\s\S]*?</hierarchy>)", text)
-        if not match:
-            raise RuntimeError("no <hierarchy> element in the device dump")
-        xml = match.group(1).strip()
-        self._cache = (time.monotonic(), xml)
-        return xml
+
+        last_exc: Optional[Exception] = None
+        for attempt in range(max_retries + 1):
+            try:
+                with DeviceLock(self.serial, self._lock_timeout):
+                    subprocess.run(self._argv(["shell", "uiautomator", "dump",
+                                               "/sdcard/window_dump.xml"]),
+                                   capture_output=True, text=True, timeout=60)
+                    raw = subprocess.run(self._argv(["exec-out", "cat", "/sdcard/window_dump.xml"]),
+                                         capture_output=True, text=True, errors="ignore",
+                                         timeout=60).stdout
+                self._dumps += 1
+                text = (raw or "").replace("\r\r\n", "\n").replace("\r\n", "\n")
+                match = re.search(r"(<hierarchy[\s\S]*?</hierarchy>)", text)
+                if not match:
+                    raise NoDeviceError(
+                        f"no <hierarchy> element in the device dump from {self.serial!r} "
+                        f"(device disconnected or offline)"
+                    )
+                xml = match.group(1).strip()
+                self._cache = (time.monotonic(), xml)
+                return xml
+            except FileNotFoundError as exc:
+                raise NoDeviceError(
+                    f"{self.adb!r} is not on PATH. Install Android platform-tools "
+                    f"(e.g. `sudo pacman -S android-tools`).") from exc
+            except NoDeviceError as exc:
+                last_exc = exc
+                if attempt < max_retries:
+                    time.sleep(backoff_s * (2 ** attempt))
+                    continue
+                raise last_exc
 
     def hierarchy_root(self, max_age_s=0.0):
         return ET.fromstring(self.dump_hierarchy(max_age_s))
@@ -219,37 +261,62 @@ class AdbDevice:
 
     # --- screencap & display metrics ----------------------------------------
 
-    def screencap(self, as_pil: bool = True):
+    def screencap(self, as_pil: bool = True, max_retries: int = 2, backoff_s: float = 0.2):
         """Captures live screen directly via streaming binary exec-out screencap.
 
         Zero temporary file creation on device (<200ms latency).
         Handles Windows CRLF translation on binary pipe cleanly.
         Returns PIL.Image.Image or raw bytes.
+        Retries on transient disconnections or empty streams with exponential backoff.
+        Raises NoDeviceError if device remains unreachable or stream is empty/corrupt.
         """
-        raw_bytes = self.run_bytes("exec-out", "screencap", "-p")
-        if not raw_bytes:
-            raise RuntimeError("adb screencap returned 0 bytes from device")
-
-        # Normalize Windows stdout CRLF injection if present.
-        # On Windows, ADB exec-out can mangle \n into \r\n, turning \r\n into \r\r\n.
-        # Replacing \r\r\n with \r\n restores original binary byte stream.
         png_sig = b"\x89PNG\r\n\x1a\n"
-        if raw_bytes.startswith(png_sig):
-            clean_bytes = raw_bytes
-        elif raw_bytes.startswith(b"\x89PNG\r\r\n\x1a\r\r\n") or raw_bytes.startswith(b"\x89PNG\r\r\n\x1a\n"):
-            clean_bytes = raw_bytes.replace(b"\r\r\n", b"\r\n")
-        else:
-            clean_bytes = raw_bytes.replace(b"\r\r\n", b"\r\n")
-            idx = clean_bytes.find(png_sig)
-            if idx != -1:
-                clean_bytes = clean_bytes[idx:]
-            elif not clean_bytes.startswith(png_sig):
-                raise RuntimeError("Failed to decode valid PNG signature from adb screencap stream")
+        last_exc: Optional[Exception] = None
 
-        if as_pil:
-            from PIL import Image
-            return Image.open(io.BytesIO(clean_bytes))
-        return clean_bytes
+        for attempt in range(max_retries + 1):
+            try:
+                raw_bytes = self.run_bytes("exec-out", "screencap", "-p")
+                if not raw_bytes:
+                    raise NoDeviceError(
+                        f"adb screencap returned 0 bytes from device {self.serial!r} "
+                        f"(device disconnected or offline)"
+                    )
+
+                # Normalize Windows stdout CRLF injection if present.
+                # On Windows, ADB exec-out can mangle \n into \r\n, turning \r\n into \r\r\n.
+                # Replacing \r\r\n with \r\n restores original binary byte stream.
+                if raw_bytes.startswith(png_sig):
+                    clean_bytes = raw_bytes
+                elif raw_bytes.startswith(b"\x89PNG\r\r\n\x1a\r\r\n") or raw_bytes.startswith(b"\x89PNG\r\r\n\x1a\n"):
+                    clean_bytes = raw_bytes.replace(b"\r\r\n", b"\r\n")
+                else:
+                    clean_bytes = raw_bytes.replace(b"\r\r\n", b"\r\n")
+                    idx = clean_bytes.find(png_sig)
+                    if idx != -1:
+                        clean_bytes = clean_bytes[idx:]
+                    elif not clean_bytes.startswith(png_sig):
+                        raise NoDeviceError(
+                            f"Failed to decode valid PNG signature from adb screencap stream for device {self.serial!r}"
+                        )
+
+                if as_pil:
+                    from PIL import Image
+                    try:
+                        img = Image.open(io.BytesIO(clean_bytes))
+                        img.load()
+                        return img
+                    except Exception as exc:
+                        raise NoDeviceError(
+                            f"Corrupted image payload from screencap for device {self.serial!r}: {exc}"
+                        ) from exc
+                return clean_bytes
+
+            except NoDeviceError as exc:
+                last_exc = exc
+                if attempt < max_retries:
+                    time.sleep(backoff_s * (2 ** attempt))
+                    continue
+                raise last_exc
 
     def get_display_metrics(self) -> Dict[str, Any]:
         """Queries physical screen resolution and pixel density from Android WindowManager."""
