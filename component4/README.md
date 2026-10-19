@@ -24,9 +24,12 @@ flowchart LR
     USERS --> TEL
   end
   APP --> C3["C3: judges each screen for visual and non-crash defects"]
-  C3 -->|"verdicts"| C4["C4: builds an Appium test from the failure journey, runs it, repairs broken locators, versions each repair"]
+  C3 -->|"verdicts"| C4["C4: telemetry-driven test synthesis and self-healing"]
   TEL --> C4
-  C4 -->|"failure screen + UI hierarchy"| C3
+  C4 --> JC["Journey creation"]
+  JC --> SYN["Synthesis, execution and safe healing"]
+  SYN -->|"failure screen + UI hierarchy"| C3
+  C4 -->|"journey seed (exported by C4; consumed by C1 and C2)"| C1C2["C1 / C2"]
   APP -. "planned: failure logs, not implemented" .-> C4
 ```
 
@@ -41,7 +44,8 @@ explicit `--no-c3` mode is reserved for offline tests and ablation runs.
 flowchart TD
   A["Sentry / Crashlytics JSON or JSONL"] --> B["Ingestion: normalise events, drop malformed and duplicate records"]
   B --> C["Sessionization: one failure journey per crash"]
-  C --> JC["Journey creation: export a versioned journey seed"]
+  C --> C4["C4 journey creation: build and export a versioned journey seed"]
+  C4 --> JC["Journey seed available for C4 synthesis"]
   JC --> D["Synthesis: local Qwen3 via Ollama writes steps, then an Appium script is generated"]
   V["C3 verdict and evidence"] --> D
   D --> E["Execution: run on device through Appium, save run artifacts"]
@@ -51,7 +55,8 @@ flowchart TD
   G --> H{"Confident, unique match?"}
   H -->|"no"| I["Refuse, script unchanged"]
   H -->|"yes"| J["Rewrite locator, re-run, store a new test version"]
-  JC -. "journey seed (exported by C4; consumed by C1 and C2)" .-> C1C2["C1 / C2"]
+  C4 -->|"journey seed (exported by C4; consumed by C1 and C2)"| SEED["C1 / C2 seed hand-off"]
+  SEED -. "consumed by C1 and C2" .-> C1C2["C1 / C2"]
 ```
 
 ## Quick start
