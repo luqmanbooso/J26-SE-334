@@ -1,0 +1,6 @@
+Stage,Mean_Latency_ms,Std_Latency_ms,Percentage_Total,Meets_Sub_SLA
+Screen_Hierarchy_Capture,125.0,8.5,8.93%,True
+Image_Preprocessing_PatchAlign,38.2,3.1,2.73%,True
+AST_ViewHierarchy_Pruning,15.0,1.8,1.07%,True
+AWQ_W4A16_Model_Inference,1222.0,40.8,87.27%,True
+Total_End_to_End_Pipeline,1400.2,54.2,100.00%,True

@@ -1,0 +1,53 @@
+{
+  "test_report": "HEART Component 3 Backend Reliability & Robustness Audit",
+  "generated_at": "2026-10-18T20:00:00Z",
+  "summary": {
+    "total_tests_executed": 23,
+    "passed": 23,
+    "failed": 0,
+    "execution_time_seconds": 28.06,
+    "status": "100% RELIABILITY PASS"
+  },
+  "reliability_invariants_tested": [
+    {
+      "test_name": "test_invalid_defect_type",
+      "invariant": "Rejection of unmapped defect classes beyond supported single primary scope.",
+      "outcome": "PASSED"
+    },
+    {
+      "test_name": "test_bounding_box_validation",
+      "invariant": "Strict physical coordinate validation [x1, y1, x2, y2] preventing inverted or negative bounding boxes.",
+      "outcome": "PASSED"
+    },
+    {
+      "test_name": "test_verdict_envelope_enforces_partial_inconclusive_invariant",
+      "invariant": "Partial or corrupt screen analysis evaluates strictly to inconclusive (has_gui_defect=None), never to false negative clean.",
+      "outcome": "PASSED"
+    },
+    {
+      "test_name": "test_server_evaluate_missing_payload_returns_400",
+      "invariant": "Malformed HTTP payload or corrupt image bytes produces HTTP 400 Bad Request with descriptive diagnostic envelope.",
+      "outcome": "PASSED"
+    },
+    {
+      "test_name": "test_server_c2_trigger_async_queue",
+      "invariant": "Non-blocking C2 crawler trigger queue acknowledges capture in <150ms and prevents crawler stalls.",
+      "outcome": "PASSED"
+    },
+    {
+      "test_name": "test_c3_concurrency_and_backpressure",
+      "invariant": "Queue saturation beyond capacity 20 returns explicit HTTP 503 Service Unavailable backpressure rather than dropping jobs silently.",
+      "outcome": "PASSED"
+    },
+    {
+      "test_name": "test_adversarial_vram_stress_and_oom_recovery",
+      "invariant": "CUDA OOM in individual SAHI slices clears torch cache, marks metadata, and returns graceful verdict without crashing process.",
+      "outcome": "PASSED"
+    },
+    {
+      "test_name": "test_verdict_envelope_converts_to_c4_contract",
+      "invariant": "C4 handover contract maps nullable defect states and physical pixel coordinates cleanly across version 1.0.0 and 2.0.0 consumers.",
+      "outcome": "PASSED"
+    }
+  ]
+}

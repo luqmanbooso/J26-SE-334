@@ -20,6 +20,9 @@ if ROOT_DIR not in sys.path:
 ENV_TESTING_DIR = os.path.join(ROOT_DIR, "env testing")
 if ENV_TESTING_DIR not in sys.path:
     sys.path.insert(0, ENV_TESTING_DIR)
+RESULTS_DIR = os.path.join(ROOT_DIR, "results")
+if RESULTS_DIR not in sys.path:
+    sys.path.insert(0, RESULTS_DIR)
 
 # Biometric User Mimic Simulator import
 BIOMETRY_DIR = os.path.join(ROOT_DIR, "biometry")
@@ -39,6 +42,17 @@ except Exception:
     FrameProbe = None
     FrameStats = None
     FRAME_PROBE_AVAILABLE = False
+
+from typing import Optional, List, Dict, Any, Union
+
+# C3 Local Vision-Semantic Oracle Integration
+try:
+    from vision_oracle.services.oracle_service import get_oracle_service
+    from vision_oracle.contracts.v2 import AnalysisDecision, AnalysisStatus
+    from common.adb import AdbDevice, NoDeviceError
+    VISION_ORACLE_AVAILABLE = True
+except Exception as _v_err:
+    VISION_ORACLE_AVAILABLE = False
 
 # Auto-detect Android SDK tools
 for p in [
@@ -419,7 +433,7 @@ class HeartSimpleApp(ctk.CTk):
 
         self.nav_tabs = ctk.CTkSegmentedButton(
             nav_box,
-            values=["Environmental Stressors", "User Touch & Biometrics", "Empirical Findings & KPI"],
+            values=["Environmental Stressors", "User Touch & Biometrics", "👁️ Vision Oracle", "Empirical Findings & KPI"],
             command=self._on_nav_tab_changed,
             height=30,
             font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
@@ -447,7 +461,11 @@ class HeartSimpleApp(ctk.CTk):
         self.bio_scroll = ctk.CTkScrollableFrame(left_col, fg_color="transparent", corner_radius=0)
         self._build_biometry_view(self.bio_scroll)
 
-        # View 3: Live Findings & Dashboard
+        # View 3: Localized Multimodal Vision Oracle (Component 3)
+        self.vision_scroll = ctk.CTkScrollableFrame(left_col, fg_color="transparent", corner_radius=0)
+        self._build_vision_view(self.vision_scroll)
+
+        # View 4: Live Findings & Dashboard
         self.kpi_scroll = ctk.CTkScrollableFrame(left_col, fg_color="transparent", corner_radius=0)
         self._build_kpi_dashboard_view(self.kpi_scroll)
 
@@ -471,12 +489,16 @@ class HeartSimpleApp(ctk.CTk):
         self.env_scroll.grid_forget()
         self.bio_scroll.grid_forget()
         self.kpi_scroll.grid_forget()
+        if hasattr(self, "vision_scroll"):
+            self.vision_scroll.grid_forget()
 
         if "Environmental" in value:
             self.env_scroll.grid(row=1, column=0, sticky="nsew")
         elif "Biometric" in value or "Touch" in value:
             self.bio_scroll.grid(row=1, column=0, sticky="nsew")
             self._redraw_biometry_canvas()
+        elif "Vision" in value or "Oracle" in value:
+            self.vision_scroll.grid(row=1, column=0, sticky="nsew")
         elif "Findings" in value or "KPI" in value:
             self.kpi_scroll.grid(row=1, column=0, sticky="nsew")
             self._refresh_dashboard_view()
@@ -2008,7 +2030,10 @@ class HeartSimpleApp(ctk.CTk):
 
             # Generate Live Pipeline Timeline Chart & JSON Artifact
             try:
-                from generate_clean_timelines import plot_live_pipeline_timeline
+                try:
+                    from results.generate_clean_timelines import plot_live_pipeline_timeline  # type: ignore
+                except ImportError:
+                    from generate_clean_timelines import plot_live_pipeline_timeline  # type: ignore
                 plot_live_pipeline_timeline(
                     pipeline_records,
                     out_png="heart_pipeline_live_timeline.png",
@@ -2128,6 +2153,482 @@ class HeartSimpleApp(ctk.CTk):
             self.after(0, _update)
 
         threading.Thread(target=_worker, daemon=True).start()
+
+    # =========================================================================
+    # TAB: COMPONENT 3 - LOCALIZED MULTIMODAL VISION ORACLE (PP1 VERIFIED)
+    # =========================================================================
+    def _build_vision_view(self, parent):
+        banner = ctk.CTkFrame(parent, fg_color=THEME["bg_card"], corner_radius=8, border_width=1, border_color=THEME["border"])
+        banner.pack(fill="x", pady=(0, 10))
+
+        b_head = ctk.CTkFrame(banner, fg_color="transparent")
+        b_head.pack(fill="x", padx=14, pady=10)
+
+        ctk.CTkLabel(
+            b_head,
+            text="Component 3: Localized Multimodal Vision-Semantic Test Oracle",
+            font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"),
+            text_color=THEME["text_heading"]
+        ).pack(anchor="w")
+
+        ctk.CTkLabel(
+            b_head,
+            text="Edge VLM Ingestion • 4-Bit NF4 Quantization • SAHI Multi-View Slicing • Zero Cloud Egress",
+            font=ctk.CTkFont(family="Segoe UI", size=10),
+            text_color=THEME["text_muted"]
+        ).pack(anchor="w", pady=(2, 0))
+
+        # 2. Scope & Target Device Card
+        scope_card = self._create_card(parent, "Inspection Scope & Tiling Policy", subtitle="ADB Target & SAHI Coverage")
+        sc_inner = ctk.CTkFrame(scope_card, fg_color="transparent")
+        sc_inner.pack(fill="x", padx=14, pady=(4, 10))
+
+        row1 = ctk.CTkFrame(sc_inner, fg_color="transparent")
+        row1.pack(fill="x", pady=(0, 6))
+
+        col1 = ctk.CTkFrame(row1, fg_color="transparent")
+        col1.pack(side="left", fill="x", expand=True, padx=(0, 6))
+        ctk.CTkLabel(col1, text="Attached ADB Target:", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color=THEME["text_muted"]).pack(anchor="w")
+        dev_opts = ["Auto-Detect (First Attached)", "Local Image Mode"]
+        try:
+            if VISION_ORACLE_AVAILABLE:
+                live_devs = AdbDevice.list_devices()
+                if live_devs:
+                    dev_opts = live_devs + dev_opts
+        except Exception:
+            pass
+        self.vision_dev_opt = ctk.CTkOptionMenu(col1, values=dev_opts, height=28, font=ctk.CTkFont(family="Segoe UI", size=9))
+        self.vision_dev_opt.set(dev_opts[0])
+        self.vision_dev_opt.pack(fill="x", pady=(2, 0))
+
+        col2 = ctk.CTkFrame(row1, fg_color="transparent")
+        col2.pack(side="right", fill="x", expand=True, padx=(6, 0))
+        ctk.CTkLabel(col2, text="Foreground Package:", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color=THEME["text_muted"]).pack(anchor="w")
+        self.vision_pkg_entry = ctk.CTkEntry(col2, height=28, font=ctk.CTkFont(family="Consolas", size=9))
+        self.vision_pkg_entry.insert(0, "com.ichi2.anki")
+        self.vision_pkg_entry.pack(fill="x", pady=(2, 0))
+
+        row2 = ctk.CTkFrame(sc_inner, fg_color="transparent")
+        row2.pack(fill="x", pady=(4, 0))
+
+        col3 = ctk.CTkFrame(row2, fg_color="transparent")
+        col3.pack(side="left", fill="x", expand=True, padx=(0, 6))
+        ctk.CTkLabel(col3, text="SAHI Multi-View Slicing Policy:", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color=THEME["text_muted"]).pack(anchor="w")
+        self.vision_sahi_opt = ctk.CTkOptionMenu(
+            col3,
+            values=[
+                "Global + Tiles (SAHI 4-View Pyramid)",
+                "Global View Only (512x512)",
+                "Top Slice Focus (0% - 40%)",
+                "Mid Slice Focus (30% - 70%)",
+                "Bottom Slice Focus (60% - 100%)",
+            ],
+            height=28,
+            font=ctk.CTkFont(family="Segoe UI", size=9)
+        )
+        self.vision_sahi_opt.set("Global + Tiles (SAHI 4-View Pyramid)")
+        self.vision_sahi_opt.pack(fill="x", pady=(2, 0))
+
+        col4 = ctk.CTkFrame(row2, fg_color="transparent")
+        col4.pack(side="right", fill="x", expand=True, padx=(6, 0))
+        ctk.CTkLabel(col4, text="Action Context (C2 Coupling):", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color=THEME["text_muted"]).pack(anchor="w")
+        self.vision_action_entry = ctk.CTkEntry(col4, height=28, font=ctk.CTkFont(family="Segoe UI", size=9))
+        self.vision_action_entry.insert(0, "act_stress_swipe_review_screen")
+        self.vision_action_entry.pack(fill="x", pady=(2, 0))
+
+        # 3. Execution Control Deck
+        ctrl_card = self._create_card(parent, "Inference Execution & Artifact Export", subtitle="One-Click Autonomous Oracle")
+        c_inner = ctk.CTkFrame(ctrl_card, fg_color="transparent")
+        c_inner.pack(fill="x", padx=14, pady=(4, 10))
+
+        btn_row1 = ctk.CTkFrame(c_inner, fg_color="transparent")
+        btn_row1.pack(fill="x", pady=(0, 4))
+
+        ctk.CTkButton(
+            btn_row1,
+            text="⚡ Run Live SAHI Inspection",
+            fg_color=THEME["primary"],
+            hover_color=THEME["primary_hover"],
+            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
+            height=32,
+            corner_radius=6,
+            command=self._run_vision_inspection
+        ).pack(side="left", fill="x", expand=True, padx=(0, 3))
+
+        ctk.CTkButton(
+            btn_row1,
+            text="📸 Inspect Current Mirror Frame",
+            fg_color="#059669",
+            hover_color="#047857",
+            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
+            height=32,
+            corner_radius=6,
+            command=self._eval_active_mirror_screen
+        ).pack(side="right", fill="x", expand=True, padx=(3, 0))
+
+        btn_row2 = ctk.CTkFrame(c_inner, fg_color="transparent")
+        btn_row2.pack(fill="x", pady=(2, 4))
+
+        ctk.CTkButton(
+            btn_row2,
+            text="📂 Inspect Local Screenshot File...",
+            fg_color=THEME["bg_box"],
+            hover_color="#e2e8f0",
+            text_color=THEME["text_heading"],
+            border_width=1,
+            border_color=THEME["border"],
+            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+            height=28,
+            corner_radius=6,
+            command=self._inspect_local_screenshot
+        ).pack(side="left", fill="x", expand=True, padx=(0, 3))
+
+        ctk.CTkButton(
+            btn_row2,
+            text="📥 Export Evidence Envelope (.json)",
+            fg_color=THEME["bg_box"],
+            hover_color="#e2e8f0",
+            text_color=THEME["text_heading"],
+            border_width=1,
+            border_color=THEME["border"],
+            font=ctk.CTkFont(family="Segoe UI", size=9),
+            height=28,
+            corner_radius=6,
+            command=self._export_vision_evidence
+        ).pack(side="right", fill="x", expand=True, padx=(3, 0))
+
+        nb_row = ctk.CTkFrame(c_inner, fg_color="transparent")
+        nb_row.pack(fill="x", pady=(2, 0))
+        ctk.CTkButton(
+            nb_row,
+            text="📓 Open Visual Evaluator Notebook",
+            fg_color="#eff6ff",
+            hover_color="#dbeafe",
+            text_color="#1d4ed8",
+            border_width=1,
+            border_color="#bfdbfe",
+            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+            height=26,
+            corner_radius=6,
+            command=lambda: self._open_notebook("notebooks/visual_evaluator.ipynb")
+        ).pack(side="left", fill="x", expand=True, padx=(0, 3))
+        ctk.CTkButton(
+            nb_row,
+            text="🔬 Open SAHI Multi-Slice Notebook",
+            fg_color="#eff6ff",
+            hover_color="#dbeafe",
+            text_color="#1d4ed8",
+            border_width=1,
+            border_color="#bfdbfe",
+            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+            height=26,
+            corner_radius=6,
+            command=lambda: self._open_notebook("notebooks/c3_sahi_multimodal_evaluator.ipynb")
+        ).pack(side="right", fill="x", expand=True, padx=(3, 0))
+
+        # 4. Architecture Specs Card
+        specs_card = self._create_card(parent, "Grounded Model Architecture & Benchmarks", subtitle="RTX 3050 Laptop GPU (4GB VRAM)")
+        sp_inner = ctk.CTkFrame(specs_card, fg_color="transparent")
+        sp_inner.pack(fill="x", padx=14, pady=(4, 10))
+
+        for k, v in [
+            ("Base VLM Architecture", "Qwen2-VL-2B-Instruct (4-bit NF4 Quantized)"),
+            ("Active Domain Adapter", "c3_lora_boosted_recall (LoRA r=16, alpha=32)"),
+            ("Empirical Recall Rate", "69.62% (OwlEye 71.08% | Rico 68.00%)"),
+            ("Macro F1-Score & IoU", "61.28% F1 (Peak BBox IoU: 0.6517)"),
+            ("High-Res View Planning", "Global + SAHI 3-Slice Pyramid (Aspect-Preserved)"),
+            ("Offline Air-Gap SLA", "100% Localhost Execution (0 Cloud API Egress)"),
+        ]:
+            r = ctk.CTkFrame(sp_inner, fg_color="transparent")
+            r.pack(fill="x", pady=1)
+            ctk.CTkLabel(r, text=f"{k}:", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color=THEME["text_muted"]).pack(side="left")
+            ctk.CTkLabel(r, text=v, font=ctk.CTkFont(family="Segoe UI", size=9), text_color=THEME["text_heading"]).pack(side="right")
+
+        # 5. Multimodal Decision Deck Card
+        deck_card = self._create_card(parent, "Multimodal Decision Deck & Visual Evidence", subtitle="Contract V2 Output")
+        d_inner = ctk.CTkFrame(deck_card, fg_color="transparent")
+        d_inner.pack(fill="x", padx=14, pady=(4, 10))
+
+        d_top = ctk.CTkFrame(d_inner, fg_color="transparent")
+        d_top.pack(fill="x", pady=(0, 6))
+
+        self.vision_status_pill = ctk.CTkLabel(
+            d_top,
+            text="⚪ STANDBY (NO INSPECTION RUN)",
+            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
+            text_color=THEME["text_muted"],
+            fg_color="#f1f5f9",
+            corner_radius=6,
+            padx=10,
+            pady=4
+        )
+        self.vision_status_pill.pack(side="left")
+
+        self.vision_defect_card = ctk.CTkFrame(d_inner, fg_color="#f8fafc", corner_radius=8, border_width=1, border_color="#e2e8f0")
+        self.vision_defect_card.pack(fill="x", pady=(0, 8))
+        vd_inner = ctk.CTkFrame(self.vision_defect_card, fg_color="transparent")
+        vd_inner.pack(fill="x", padx=12, pady=8)
+
+        self.vision_defect_header = ctk.CTkLabel(
+            vd_inner,
+            text="🔍 Oracle Status: Ready for inspection",
+            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
+            text_color=THEME["text_heading"]
+        )
+        self.vision_defect_header.pack(anchor="w")
+
+        self.vision_defect_lbl = ctk.CTkLabel(
+            vd_inner,
+            text="Select an attached device, click 'Inspect Current Mirror Frame', or pick a local screenshot to run VLM analysis.",
+            font=ctk.CTkFont(family="Segoe UI", size=9),
+            text_color=THEME["text_body"],
+            justify="left"
+        )
+        self.vision_defect_lbl.pack(anchor="w", pady=(2, 0))
+
+        split_deck = ctk.CTkFrame(d_inner, fg_color="transparent")
+        split_deck.pack(fill="both", expand=True)
+
+        self.vision_img_card = ctk.CTkFrame(split_deck, fg_color="#0f172a", corner_radius=8, width=170, height=220)
+        self.vision_img_card.pack(side="left", padx=(0, 6), pady=0)
+        self.vision_img_card.pack_propagate(False)
+
+        self.vision_image_lbl = ctk.CTkLabel(
+            self.vision_img_card,
+            text="📸 Visual Evidence\n(Bounding Box\nOverlay)",
+            font=ctk.CTkFont(family="Segoe UI", size=9),
+            text_color="#94a3b8"
+        )
+        self.vision_image_lbl.pack(expand=True)
+
+        log_card = ctk.CTkFrame(split_deck, fg_color="transparent")
+        log_card.pack(side="left", fill="both", expand=True)
+
+        ctk.CTkLabel(log_card, text="Inference Log & Contract Handover:", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color=THEME["text_muted"]).pack(anchor="w", pady=(0, 2))
+        self.vision_log_box = ctk.CTkTextbox(log_card, height=195, font=ctk.CTkFont(family="Consolas", size=9), fg_color="#0f172a", text_color="#f8fafc")
+        self.vision_log_box.pack(fill="both", expand=True)
+        self.vision_log_box.insert("end", "[C3 Oracle] System ready. Grounded in Qwen2-VL-2B + c3_lora_boosted_recall.\n[C3 Oracle] Awaiting trigger or manual inspection request.\n")
+
+    def _inspect_local_screenshot(self):
+        file_path = filedialog.askopenfilename(
+            title="Select Mobile Screenshot",
+            filetypes=[("Image Files", "*.png;*.jpg;*.jpeg"), ("All Files", "*.*")],
+        )
+        if file_path:
+            self._run_vision_inspection_file(file_path)
+
+    def _eval_active_mirror_screen(self):
+        """Grabs active screen from phone mirror/ADB and runs C3 Oracle evaluation."""
+        if hasattr(self, "nav_tabs"):
+            self.nav_tabs.set("👁️ Vision Oracle")
+            self._on_nav_tab_changed("👁️ Vision Oracle")
+
+        tmp_dir = os.path.join(ROOT_DIR, "results", "captures")
+        os.makedirs(tmp_dir, exist_ok=True)
+        snap_path = os.path.join(tmp_dir, f"snap_eval_{int(time.time())}.png")
+
+        if getattr(self, "current_mirror_img", None) is not None:
+            try:
+                self.current_mirror_img.save(snap_path)
+                self._run_vision_inspection_file(snap_path)
+                return
+            except Exception:
+                pass
+
+        self._run_vision_inspection()
+
+    def _run_vision_inspection_file(self, file_path: str):
+        if hasattr(self, "vision_status_pill"):
+            self.vision_status_pill.configure(text="🔵 ANALYZING IMAGE...", text_color="#1d4ed8", fg_color="#eff6ff")
+        if hasattr(self, "vision_log_box"):
+            self.vision_log_box.insert("end", f"\n[C3 Oracle] Evaluating local screenshot: {file_path}\n")
+            self.vision_log_box.see("end")
+
+        def _worker():
+            try:
+                service = get_oracle_service()
+                action_ctx = self.vision_action_entry.get().strip() if hasattr(self, "vision_action_entry") else "local_image_eval"
+                res = service.evaluate(
+                    image_input=file_path,
+                    action_context=action_ctx or "local_image_eval",
+                    enable_sahi=True,
+                )
+                self.after(0, lambda: self._update_vision_ui_results(res, file_path))
+            except Exception as exc:
+                err_msg = str(exc)
+                self.after(0, lambda msg=err_msg: self._handle_vision_error(msg))
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _run_vision_inspection(self):
+        if hasattr(self, "vision_status_pill"):
+            self.vision_status_pill.configure(text="🔵 CAPTURING DEVICE SCREEN...", text_color="#1d4ed8", fg_color="#eff6ff")
+        if hasattr(self, "vision_log_box"):
+            self.vision_log_box.insert("end", "\n[C3 Oracle] Initiating live screen inspection via shared ADB...\n")
+            self.vision_log_box.see("end")
+
+        selected_dev = self.vision_dev_opt.get() if hasattr(self, "vision_dev_opt") else "Auto-Detect"
+        serial = None if "Auto-Detect" in selected_dev or "Local Image" in selected_dev else selected_dev
+        if serial is None and hasattr(self, "adb") and getattr(self.adb, "device_id", None):
+            serial = self.adb.device_id
+
+        def _worker():
+            try:
+                service = get_oracle_service()
+                action_ctx = self.vision_action_entry.get().strip() if hasattr(self, "vision_action_entry") else "live_device_eval"
+                res = service.evaluate_device(
+                    serial=serial,
+                    action_context=action_ctx or "live_device_eval",
+                )
+                art_path = res.get("verdict_v2", {}).get("screenshot", {}).get("storage_path")
+                self.after(0, lambda: self._update_vision_ui_results(res, art_path))
+            except NoDeviceError as nde:
+                nde_msg = f"ADB NoDeviceError: {nde}. Attach device or use 'Inspect Local Screenshot File'."
+                self.after(0, lambda msg=nde_msg: self._handle_vision_error(msg))
+            except Exception as exc:
+                err_msg = str(exc)
+                self.after(0, lambda msg=err_msg: self._handle_vision_error(msg))
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _handle_vision_error(self, err_msg: str):
+        if hasattr(self, "vision_status_pill"):
+            self.vision_status_pill.configure(text="❌ INSPECTION ERROR", text_color="#be123c", fg_color="#fff1f2")
+        if hasattr(self, "vision_defect_header"):
+            self.vision_defect_header.configure(text="❌ Error Encountered", text_color="#be123c")
+        if hasattr(self, "vision_defect_lbl"):
+            self.vision_defect_lbl.configure(text=err_msg)
+        if hasattr(self, "vision_log_box"):
+            self.vision_log_box.insert("end", f"[ERROR] {err_msg}\n")
+            self.vision_log_box.see("end")
+
+    def _update_vision_ui_results(self, result_dict: dict, screenshot_path: Optional[str]):
+        self._latest_verdict_v2 = result_dict.get("verdict_v2", {})
+        c4_verdict = result_dict.get("c4_verdict", {})
+        v2 = self._latest_verdict_v2
+
+        decision = v2.get("decision", "inconclusive")
+        status = v2.get("analysis_status", "error")
+        primary_finding = v2.get("primary_finding") or (v2.get("findings", [{}])[0] if v2.get("findings") else None)
+        handover_outcome = c4_verdict.get("evidence", {}).get("handover_outcome", "evidence_only")
+
+        if decision == "defect_detected":
+            pill_text = "🔴 COMPLETED: DEFECT DETECTED"
+            pill_fg = "#fff1f2"
+            pill_txt = "#be123c"
+            card_border = "#fecdd3"
+            f_type = primary_finding.get("type", "BUG").upper() if primary_finding else "DEFECT"
+            header_text = f"⚠️ [NON-CRASH DEFECT: {f_type}]"
+            header_txt = "#be123c"
+        elif decision == "no_defect_detected":
+            pill_text = "🟢 COMPLETED: NO DEFECT DETECTED"
+            pill_fg = "#ecfdf5"
+            pill_txt = "#047857"
+            card_border = "#a7f3d0"
+            header_text = "✅ [CLEAN STATE CERTIFIED WITHIN SCOPE]"
+            header_txt = "#047857"
+        else:
+            pill_text = f"🟠 {status.upper()}: INCONCLUSIVE"
+            pill_fg = "#fff7ed"
+            pill_txt = "#c2410c"
+            card_border = "#fed7aa"
+            header_text = "⚠️ [SCAN INCONCLUSIVE - PARTIAL COVERAGE]"
+            header_txt = "#c2410c"
+
+        if hasattr(self, "vision_status_pill"):
+            self.vision_status_pill.configure(text=pill_text, fg_color=pill_fg, text_color=pill_txt)
+        if hasattr(self, "vision_defect_card"):
+            self.vision_defect_card.configure(fg_color=pill_fg, border_color=card_border)
+        if hasattr(self, "vision_defect_header"):
+            self.vision_defect_header.configure(text=header_text, text_color=header_txt)
+
+        conf_str = "Uncalibrated"
+        if decision == "defect_detected" and primary_finding:
+            conf = primary_finding.get("confidence")
+            conf_str = f"{float(conf):.1%}" if conf is not None else "Uncalibrated"
+            bbox = primary_finding.get("bbox_xyxy", [])
+            expl = primary_finding.get("explanation", "Detected visual abnormality.")
+            detail_str = (
+                f"Type: {primary_finding.get('type')}  |  Confidence: {conf_str}\n"
+                f"Bounding Box: {bbox}\n"
+                f"Explanation: {expl}\n"
+                f"Handover Outcome: '{handover_outcome}' (Dispatched to Component 4 synthesis)"
+            )
+        elif decision == "no_defect_detected":
+            detail_str = (
+                "Verified: No layout collision, text truncation, or missing element detected.\n"
+                "UI rendering is spatially consistent within active viewport scope.\n"
+                f"Handover Outcome: '{handover_outcome}'"
+            )
+        else:
+            detail_str = f"Status: {status}. Analysis coverage incomplete. Retrying capture or logging evidence."
+
+        if hasattr(self, "vision_defect_lbl"):
+            self.vision_defect_lbl.configure(text=detail_str)
+
+        if screenshot_path and os.path.exists(screenshot_path) and hasattr(self, "vision_image_lbl"):
+            try:
+                base_img = Image.open(screenshot_path).convert("RGB")
+                orig_w, orig_h = base_img.size
+                draw_img = base_img.copy()
+                draw = ImageDraw.Draw(draw_img)
+
+                if decision == "defect_detected" and primary_finding and primary_finding.get("bbox_xyxy"):
+                    bbox = primary_finding["bbox_xyxy"]
+                    for off in range(3):
+                        draw.rectangle(
+                            [bbox[0] - off, bbox[1] - off, bbox[2] + off, bbox[3] + off],
+                            outline="#dc2626"
+                        )
+                elif decision == "no_defect_detected":
+                    draw.rectangle([0, 0, orig_w - 1, orig_h - 1], outline="#059669", width=4)
+
+                card_w, card_h = 160, 210
+                scale = min(card_w / orig_w, card_h / orig_h)
+                new_w, new_h = max(1, int(orig_w * scale)), max(1, int(orig_h * scale))
+                scaled = draw_img.resize((new_w, new_h), Image.Resampling.LANCZOS)
+                self._vis_overlay_tk = ImageTk.PhotoImage(scaled)
+                self.vision_image_lbl.configure(image=self._vis_overlay_tk, text="")
+            except Exception as e:
+                self.vision_image_lbl.configure(text=f"Render error:\n{e}")
+
+        timings = v2.get("timings", {})
+        total_time = timings.get("total_pipeline_ms", 0)
+        infer_time = timings.get("inference_ms", timings.get("inference_total_ms", 0))
+        if hasattr(self, "vision_log_box"):
+            self.vision_log_box.insert("end", f"[Verdict ID] {v2.get('verdict_id')}\n")
+            self.vision_log_box.insert("end", f"[Decision] {decision.upper()} | Status: {status.upper()} | Handover: {handover_outcome}\n")
+            self.vision_log_box.insert("end", f"[Timings] Total: {total_time:.1f}ms (Inference: {infer_time:.1f}ms)\n")
+            if primary_finding:
+                self.vision_log_box.insert("end", f"[Primary Finding] {primary_finding.get('type')} (Confidence: {conf_str})\n")
+            self.vision_log_box.insert("end", f"[C4 Dispatch] Handover outcome: {handover_outcome}\n---\n")
+            self.vision_log_box.see("end")
+
+    def _export_vision_evidence(self):
+        if not hasattr(self, "_latest_verdict_v2") or not self._latest_verdict_v2:
+            messagebox.showinfo("Export Evidence", "No active evaluation verdict to export yet. Run an inspection first.")
+            return
+        out_path = filedialog.asksaveasfilename(
+            defaultextension=".json",
+            filetypes=[("JSON Files", "*.json")],
+            initialfile=f"{self._latest_verdict_v2.get('verdict_id', 'verdict')}_evidence.json",
+        )
+        if out_path:
+            with open(out_path, "w", encoding="utf-8") as f:
+                json.dump(self._latest_verdict_v2, f, indent=2)
+            messagebox.showinfo("Export Evidence", f"Successfully exported canonical verdict evidence:\n{out_path}")
+
+    def _open_notebook(self, rel_path: str):
+        full_path = os.path.join(ROOT_DIR, rel_path)
+        if not os.path.exists(full_path):
+            full_path = os.path.join(ROOT_DIR, "vision_oracle", rel_path)
+        if sys.platform == "win32" and os.path.exists(full_path):
+            try:
+                os.startfile(full_path)
+                return
+            except Exception:
+                pass
+        messagebox.showinfo("Notebook Launcher", f"Interactive notebook located at:\n{full_path}")
 
     # =========================================================================
     # TAB 3: LIVE FINDINGS & DASHBOARD
@@ -2971,6 +3472,19 @@ class HeartSimpleApp(ctk.CTk):
             border_color=THEME["border"],
             corner_radius=6,
             command=self._refresh_screen_async
+        ).pack(side="right", padx=2)
+
+        ctk.CTkButton(
+            toolstrip,
+            text="👁️ Eval Screen",
+            width=80,
+            height=26,
+            fg_color="#2563eb",
+            hover_color="#1d4ed8",
+            text_color="#ffffff",
+            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+            corner_radius=6,
+            command=self._eval_active_mirror_screen
         ).pack(side="right", padx=2)
 
         # Real-time E2E Pipeline Status HUD

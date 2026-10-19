@@ -1,0 +1,59 @@
+{
+  "manifest_version": "1.0",
+  "timestamp_utc": "2026-10-18T10:00:00Z",
+  "repository_commit": "b179145acbff24996908ebe7f7ff502fc7a30c4b",
+  "model": {
+    "base_model_identifier": "Qwen/Qwen2-VL-2B-Instruct",
+    "base_model_path": "D:\\university\\Resesarch\\J26-SE-334\\models\\Qwen2-VL-2B-Instruct",
+    "pinned_revision": "main",
+    "adapter_path": "D:\\university\\Resesarch\\J26-SE-334\\models\\c3_lora_final",
+    "adapter_weights_file": "adapter_model.safetensors",
+    "adapter_sha256": "1a3642f57db0d85e1426216d1bbc32829a466f684cd85d82a83ad7ed711b6354",
+    "adapter_active": true
+  },
+  "environment": {
+    "python_version": "3.13.3",
+    "torch_version": "2.6.0+cu124",
+    "cuda_available": true,
+    "cuda_device_name": "NVIDIA GeForce RTX 3050 Laptop GPU",
+    "transformers_version": "5.19.0",
+    "processor_version": "5.19.0",
+    "tokenizer_version": "5.19.0",
+    "peft_version": "0.21.2",
+    "bitsandbytes_version": "0.50.2"
+  },
+  "quantization": {
+    "method": "bitsandbytes_4bit",
+    "quant_type": "nf4",
+    "compute_dtype": "float16",
+    "fp32_cpu_offload": true,
+    "vram_budget_target_mb": 4096
+  },
+  "prompt": {
+    "prompt_version": "v2_single_primary_visual_defect",
+    "chat_template": "qwen2_vl_standard",
+    "system_instruction": "Analyze this mobile screen for non-crash visual and semantic defects. Return verdict in specified JSON format."
+  },
+  "preprocessing_and_slicing": {
+    "coverage_policy_default": "global_plus_tiles_v1",
+    "max_thumbnail_resolution": [
+      720,
+      1280
+    ],
+    "resampling_filter": "LANCZOS",
+    "tall_aspect_ratio_threshold": 1.6,
+    "tile_overlap_ratio": 0.25,
+    "deduplication_iou_threshold": 0.5,
+    "coordinate_space": "original_pixels_xyxy",
+    "normalized_model_space": [
+      0,
+      1000
+    ]
+  },
+  "generation": {
+    "max_new_tokens": 160,
+    "temperature": 0.0,
+    "do_sample": false,
+    "repetition_penalty": 1.05
+  }
+}

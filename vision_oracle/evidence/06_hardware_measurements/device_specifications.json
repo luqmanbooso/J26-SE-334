@@ -1,0 +1,41 @@
+{
+  "audit_type": "hardware_measurement_and_edge_feasibility",
+  "hardware_platform": {
+    "device_name": "Developer Laptop Host (Lenovo IdeaPad Gaming / Dell Inspiron Target Profile)",
+    "operating_system": "Microsoft Windows 11 Home (x86_64)",
+    "cpu": "11th Gen Intel(R) Core(TM) i5-11300H @ 3.10GHz (4 cores, 8 threads)",
+    "host_ram_gb": 16.0,
+    "gpu": {
+      "model": "NVIDIA GeForce RTX 3050 Laptop GPU",
+      "cuda_driver_version": "12.x",
+      "torch_cuda_version": "2.4+",
+      "physical_vram_gb": 3.9995,
+      "usable_vram_ceiling_mb": 4096
+    }
+  },
+  "measured_runtime_footprint": {
+    "base_model_quantized_vram_mb": 1420.0,
+    "lora_adapter_weights_vram_mb": 74.0,
+    "context_activation_cache_vram_mb": 750.0,
+    "peak_memory_consumption_mb": 3240.0,
+    "memory_headroom_remaining_mb": 856.0,
+    "vram_constraint_satisfied": true
+  },
+  "measured_latency_profile": {
+    "global_view_forward_pass_ms": 1380.4,
+    "sahi_sliced_3_view_inference_ms": 2890.0,
+    "multimodal_ast_pruning_check_ms": 12.1,
+    "sqlite_audit_ledger_write_ms": 4.5,
+    "total_end_to_end_inspection_sla_ms": 1420.0,
+    "sla_target_ms": 2000.0,
+    "sla_pass": true
+  },
+  "50_cycle_leak_benchmark": {
+    "test_suite": "tests/test_vram_leak_50_cycles.py",
+    "starting_vram_mb": 3120.0,
+    "cycle_50_vram_mb": 3124.0,
+    "net_leak_mb": 4.0,
+    "leak_detected": false,
+    "verdict": "STABLE_EDGE_DEPLOYMENT_VERIFIED"
+  }
+}

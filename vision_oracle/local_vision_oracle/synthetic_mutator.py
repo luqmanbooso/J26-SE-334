@@ -262,6 +262,57 @@ class SyntheticMutator:
             mutated_hierarchy=hierarchy_data,
         )
 
+    def mutate_data_binding_null(
+        self,
+        image: Image.Image,
+        nodes: List[UINode],
+        screen_id: str,
+        hierarchy_data: Dict[str, Any],
+    ) -> Optional[MutationResult]:
+        """Replaces text content with raw 'null' or 'nullnull' literal (data binding failure)."""
+        text_nodes = [n for n in nodes if n.text and len(n.text.strip()) > 2 and n.width > 40 and n.height > 20]
+        if not text_nodes:
+            return None
+
+        target = self.rng.choice(text_nodes)
+        w, h = image.size
+        x1, y1, x2, y2 = target.bounds
+        x1, y1 = max(0, x1), max(0, y1)
+        x2, y2 = min(w, x2), min(h, y2)
+        if x2 <= x1 or y2 <= y1:
+            return None
+
+        mutated_img = image.copy()
+        draw = ImageDraw.Draw(mutated_img)
+
+        try:
+            bg_color = image.getpixel((max(0, x1 - 2), max(0, y1 - 2)))
+        except Exception:
+            bg_color = (255, 255, 255)
+
+        draw.rectangle([x1, y1, x2, y2], fill=bg_color)
+        null_str = self.rng.choice(["null", "nullnull", "NULL", "NaN"])
+        font_size = max(14, min(36, int((y2 - y1) * 0.7)))
+        try:
+            font = ImageFont.truetype("arial.ttf", font_size)
+        except Exception:
+            font = ImageFont.load_default()
+
+        draw.text((x1 + 4, y1 + 2), null_str, fill=(120, 120, 120), font=font)
+
+        bbox = self._normalize_box((x1, y1, x2, y2), w, h)
+        elem_id = target.resource_id or target.class_name
+
+        return MutationResult(
+            screen_id=f"{screen_id}_mut_null",
+            image=mutated_img,
+            defect_type=DefectType.DATA_BINDING_NULL,
+            bounding_box=bbox,
+            affected_element_id=elem_id,
+            explanation=f"Data binding defect: widget {target.class_name} ({elem_id}) renders unpopulated literal string '{null_str}'.",
+            mutated_hierarchy=hierarchy_data,
+        )
+
     def mutate(
         self,
         image_path: Union[str, Path],
@@ -279,18 +330,21 @@ class SyntheticMutator:
 
         screen_id = Path(image_path).stem
 
-        # Select mutation
-        choices = ["overlap", "truncation", "missing"]
+        # Select mutation across academic taxonomy
+        choices = ["overlap", "truncation", "missing", "null"]
         selected = mutation_type or self.rng.choice(choices)
 
         if selected == "overlap":
             res = self.mutate_component_overlap(img, nodes, screen_id, h_data)
             if res: return res
-        if selected == "truncation":
+        elif selected == "truncation":
             res = self.mutate_text_truncation(img, nodes, screen_id, h_data)
             if res: return res
-        if selected == "missing":
+        elif selected == "missing":
             res = self.mutate_missing_component(img, nodes, screen_id, h_data)
+            if res: return res
+        elif selected == "null":
+            res = self.mutate_data_binding_null(img, nodes, screen_id, h_data)
             if res: return res
 
         # Fallback if preferred choice couldn't find matching nodes
@@ -299,8 +353,10 @@ class SyntheticMutator:
                 res = self.mutate_component_overlap(img, nodes, screen_id, h_data)
             elif fallback == "truncation":
                 res = self.mutate_text_truncation(img, nodes, screen_id, h_data)
-            else:
+            elif fallback == "missing":
                 res = self.mutate_missing_component(img, nodes, screen_id, h_data)
+            elif fallback == "null":
+                res = self.mutate_data_binding_null(img, nodes, screen_id, h_data)
             if res:
                 return res
 

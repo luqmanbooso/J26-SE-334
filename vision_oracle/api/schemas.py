@@ -11,9 +11,14 @@ class C2TriggerPayload(BaseModel):
     action_id: str = Field(..., description="Unique ID of user/simulated action.")
     session_id: str = Field(default="live_session", description="Testing session identifier.")
     target_element_id: Optional[str] = Field(default=None, description="Widget tapped or targeted.")
+    app_package: Optional[str] = Field(default=None, description="Target app package under test.")
     stress_level: Optional[float] = Field(default=0.0, description="Biomechanical stress intensity [0, 1].")
     delay_ms: Optional[float] = Field(default=0.0, description="Delay observed or injected.")
     device_serial: Optional[str] = Field(default=None, description="Target ADB device serial.")
+    action_started_epoch_ms: Optional[int] = Field(default=None)
+    action_completed_epoch_ms: Optional[int] = Field(default=None)
+    observation: Optional[dict] = Field(default=None)
+    perturbation_event_ids: Optional[list] = Field(default=None)
 
 
 class EvaluateRequest(BaseModel):

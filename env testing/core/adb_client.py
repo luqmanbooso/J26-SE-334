@@ -238,21 +238,6 @@ class ADBClient:
 
     def get_device_info(self) -> Dict[str, Any]:
         """Returns live device status metadata."""
-        if not self.is_simulated and self.device_id:
-            try:
-                mfg = self.run_shell("getprop ro.product.manufacturer").strip()
-                model = self.run_shell("getprop ro.product.model").strip()
-                rel = self.run_shell("getprop ro.build.version.release").strip()
-                model_str = f"{mfg} {model} (Android {rel})".strip()
-            except Exception:
-                model_str = f"Hardware ({self.device_id})"
-            return {
-                "device_id": self.device_id,
-                "is_simulated": False,
-                "target_model": model_str,
-                "state": self.simulated_state
-            }
-
         return {
             "device_id": self.device_id or "emulator-5554",
             "is_simulated": self.is_simulated,

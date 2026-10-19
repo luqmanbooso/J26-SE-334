@@ -1,0 +1,43 @@
+{
+  "timestamp": "2026-10-04T17:01:54.158137+00:00",
+  "owleye": {
+    "dataset_name": "OwlEye UI Defect Dataset",
+    "location": "RD\\OwlEye\\Dataset",
+    "bug_image_count": 2000,
+    "normal_image_count": 2000,
+    "total_images": 4000,
+    "is_balanced": true,
+    "sample_resolutions": [
+      [
+        1080,
+        1920
+      ]
+    ],
+    "sample_modes": [
+      "RGB"
+    ],
+    "corrupt_files_detected": 0,
+    "verified": true
+  },
+  "rico": {
+    "dataset_name": "Rico Mobile Dataset",
+    "location": "RD\\rico_dataset_v0.1_semantic_annotations\\semantic_annotations",
+    "total_png_count": 66261,
+    "total_json_count": 66261,
+    "paired_count": 66261,
+    "orphaned_png_count": 0,
+    "orphaned_json_count": 0,
+    "sample_resolutions": [
+      [
+        1440,
+        2560
+      ]
+    ],
+    "sample_modes": [
+      "RGBA"
+    ],
+    "sample_pruning_ratio": 39.14,
+    "verified": true
+  },
+  "summary_verdict": "PASSED"
+}

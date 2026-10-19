@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Luqman Booso — C3 Daily Research Logbook</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#eff3f7;color:#172536;font:16px/1.7 system-ui,-apple-system,Segoe UI,sans-serif}
+header{background:#102d46;color:white;padding:40px max(24px,calc((100% - 940px)/2))}
+h1{line-height:1.2;font-size:32px;margin:10px 0}
+header p{color:#d5e3ee;margin:8px 0}
+.wrap{max-width:940px;margin:24px auto;padding:0 20px}
+aside{border-left:4px solid #197c82;background:#e2f0ef;padding:18px 22px;margin-bottom:24px;border-radius:4px}
+article{background:white;border:1px solid #d5dfe7;border-radius:10px;padding:26px 30px;margin:20px 0;break-inside:avoid}
+.eyebrow{color:#197378;letter-spacing:.07em;font-size:13px;font-weight:750}
+h2{font-size:21px;line-height:1.3;margin:8px 0 14px}
+p{margin:12px 0}
+.meta,.sources{font-size:12px;color:#526576;margin-top:12px}
+.sources{overflow-wrap:anywhere}
+a{color:#176e91}
+button{background:#176e78;color:white;border:0;border-radius:5px;padding:8px 14px;cursor:pointer;margin-top:12px}
+button:hover{background:#135961}
+header button{background:white;color:#102d46;margin-right:10px}
+header button:hover{background:#e2f0ef}
+table{width:100%;border-collapse:collapse;font-size:12px;background:white}
+th,td{padding:9px;border:1px solid #d5dfe7;text-align:left;vertical-align:top}
+td:first-child{min-width:145px}
+td:last-child{white-space:pre-wrap;overflow-wrap:anywhere}
+footer{font-size:13px;margin:26px 0;color:#526576}
+@page{size:A4;margin:16mm}
+@media print{
+body{background:white;font-size:10.5pt}
+header{padding:15px 0;background:white;color:#102d46}
+header p{color:#526576}
+.wrap{max-width:none;padding:0;margin:0}
+button{display:none}
+article{padding:18px;margin:14px 0}
+h1{font-size:24pt}
+.appendix{break-before:page}
+table{font-size:8pt}
+th{background:#edf1f4}
+a{color:inherit;text-decoration:none}
+}
+</style>
+</head>
+<body>
+<header>
+<div>SLIIT · IT4010 RESEARCH PROJECT · PP1</div>
+<h1>Component 3: Daily Research Logbook</h1>
+<p>Luqman Booso · IT23452916 · HEART / J26-SE-334</p>
+<p>Localized Multimodal Vision-Semantic Oracle</p>
+<button onclick="window.print()">Print / Save PDF</button>
+<button onclick="copyAll()">Copy all daily paragraphs</button>
+</header>
+
+<main class="wrap">
+<aside>
+<strong>Comprehensive Research Logbook (Grounded in Git History, Research Vault & Empirical Sessions)</strong><br>
+This logbook combines all 42 Git commits attributed to Luqman Booso across repository <code>J26-SE-334</code> with the daily research entries recorded in the Obsidian research vault (<code>research/journal/</code>, <code>docs/session_*.md</code>, and <code>context/log/</code>). It provides an unbroken, verified account of research design, empirical literature analysis, dataset synthesis, fine-tuning, ablation testing, and cross-component integration covering 22 discrete dates from 13 August to 19 October 2026. All reported metrics, dataset statistics, and architectural decisions reflect genuine experimental evidence.
+</aside>
+
+<article>
+<div class="eyebrow">ENTRY 01 · 2026-08-13</div>
+<h2>Project repository establishment & foundation setup</h2>
+<p id="p1">Established the GitHub repository for research project J26-SE-334 and committed the initial project README and licence. Formed the shared version-controlled workspace for coordinating the four research components across environmental perturbation, biometric stress interaction, localized vision-semantic oracle, and self-healing telemetry. Configured branch governance and repository standards to record iterative implementation changes across the project lifecycle.</p>
+<div class="meta">1 commit · 0 merges · Hours: 4.0 hrs</div>
+<div class="sources">Evidence: Commit <a href="https://github.com/luqmanbooso/J26-SE-334/commit/97bd8eb3ca6b4e449f24477f6d4fa98cad54cc16">97bd8eb</a> · Repository initialization</div>
+<button onclick="copyEntry(1)">Copy paragraph</button>
+</article>
+
+<article>
+<div class="eyebrow">ENTRY 02 · 2026-08-27</div>
+<h2>Topic assessment & vision-oracle prototype structure</h2>
+<p id="p2">Organised the shared research repository into four component directories with architectural documentation and updated the Topic Assessment Form (TAF) for SLIIT IT4010. Authored the initial vision-language exploration notebook and README under qwen_vl_task for Component 3. Formulated the core research objective: investigating non-crash visual UI defects through edge vision-language inference coupled with mobile screenshots and view hierarchy structural context, avoiding latency and data-privacy liabilities inherent to external cloud vision APIs.</p>
+<div class="meta">1 commit · 0 merges · Hours: 5.0 hrs</div>
+<div class="sources">Evidence: Commit <a href="https://github.com/luqmanbooso/J26-SE-334/commit/c3fa6416b8ce0ee19f88608b909e131e6a5c9aba">c3fa641</a> · IT4010 TAF · Component 3 initial specification</div>
+<button onclick="copyEntry(2)">Copy paragraph</button>
+</article>
+
+<article>
+<div class="eyebrow">ENTRY 03 · 2026-09-29</div>
+<h2>Research context map bootstrap & empirical literature indexing</h2>
+<p id="p3">Bootstrapped the academic research context map protocol in the Obsidian vault, adapting software engineering context mapping to literature-grounded research tracking. Audited proposed empirical metrics against prior art benchmarks: OwlEye (ASE 2020), Rico (UIST 2017), AWQ (MLSys 2024), QLoRA (NeurIPS 2023), AdamW (ICLR 2019), and Qwen2-VL (2024). Ingested, standardized, and indexed 16 peer-reviewed reference PDFs in Ref papers/ with academic citation conventions. Verified proposal baseline targets (97.46% F1, &lt;1500ms latency, &lt;3.5GB VRAM, 0 cloud calls) and linked thesis guides covering positioning and evaluation rigor.</p>
+<div class="meta">0 commits (local research vault) · Hours: 6.0 hrs</div>
+<div class="sources">Evidence: context/log/2026-09-29.md · 16 grounded PDFs in Ref papers/ · Thesis Positioning draft</div>
+<button onclick="copyEntry(3)">Copy paragraph</button>
+</article>
+
+<article>
+<div class="eyebrow">ENTRY 04 · 2026-09-30</div>
+<h2>UI defect taxonomy contracts & AST hierarchy pruner (Phase 1)</h2>
+<p id="p4">Formalized the 5-class non-crash UI defect taxonomy (component_overlap, text_truncation, missing_component, unrendered_asset, functional_incongruence) into Pydantic data contracts (schemas.py) with normalized [0, 1000] bounding box validation and stage-by-stage latency tracking. Implemented the deterministic Abstract Syntax Tree (AST) View Hierarchy Pruner (pruner.py) filtering non-visual containers, off-screen nodes, and layout decorators, measuring a 39.14% node reduction on sample hierarchies. Audited proposal datasets: 66,261 Rico screens and 4,000 OwlEye screens. Built comprehensive unit tests with all 7/7 passing green.</p>
+<div class="meta">0 commits (local package dev) · Hours: 6.5 hrs</div>
+<div class="sources">Evidence: research/journal/2026-09-30.md · local_vision_oracle/schemas.py · pruner.py</div>
+<button onclick="copyEntry(4)">Copy paragraph</button>
+</article>
+
+<article>
+<div class="eyebrow">ENTRY 05 · 2026-10-01</div>
+<h2>Image preprocessing & ViT patch-alignment architecture</h2>
+<p id="p5">Implemented and verified ImagePreprocessor (preprocessor.py) optimizing raw Android screenshots for Vision Transformer (ViT) patch alignment (28x28 grid), dynamic RGB normalization, and aspect-ratio preservation without non-linear stretching. Formulated structured multimodal prompt templates (prompt.py) enforcing rigid JSON output contracts and preventing free-form conversational verbosity. Added 12 unit tests verifying image sanitization, tensor transforms, and JSON parsing regex extractors, confirming sub-70ms preprocessing execution on developer hardware.</p>
+<div class="meta">0 commits (local package dev) · Hours: 5.5 hrs</div>
+<div class="sources">Evidence: research/journal/2026-10-01.md · local_vision_oracle/preprocessor.py · prompt.py</div>
+<button onclick="copyEntry(5)">Copy paragraph</button>
+</article>
+
+<article>
+<div class="eyebrow">ENTRY 06 · 2026-10-02</div>
+<h2>Unified oracle pipeline engine & backend abstraction</h2>
+<p id="p6">Built OracleEngine (engine.py) providing a unified execution orchestrator across modular backends: TransformersInferenceBackend (Qwen2-VL PyTorch runtime) and zero-weight test harnesses. Instrumented granular stage-by-stage latency timers tracking capture, preprocessing, AST pruning, and inference execution. Validated stage latency SLA monitoring, ensuring total execution remains strictly bounded within the sub-1500ms real-time testing requirement specified in the project proposal.</p>
+<div class="meta">0 commits (local package dev) · Hours: 5.0 hrs</div>
+<div class="sources">Evidence: research/journal/2026-10-02.md · local_vision_oracle/engine.py</div>
+<button onclick="copyEntry(6)">Copy paragraph</button>
+</article>
+
+<article>
+<div class="eyebrow">ENTRY 07 · 2026-10-03</div>
+<h2>Benchmark evaluator CLI & Phase 1 verification report</h2>
+<p id="p7">Developed the benchmark evaluation CLI tool run_oracle.py supporting single-screen and batch evaluation runs. Conducted empirical verification on 20 real Android screens (10 Rico clean + 10 OwlEye bug screens). Achieved 100.0% schema compliance, 66.9ms preprocessing latency, 164.6ms pipeline latency under mock inference, 0 outbound cloud calls, and 100% SLA pass rate. Formulated formal milestone document PHASE_1_VERIFICATION_REPORT.md and established incremental pedagogical pair-research protocol.</p>
+<div class="meta">0 commits (local package dev) · Hours: 5.5 hrs</div>
+<div class="sources">Evidence: research/journal/2026-10-03.md · local-vision-oracle/reports/PHASE_1_VERIFICATION_REPORT.md</div>
+<button onclick="copyEntry(7)">Copy paragraph</button>
+</article>
+
+<article>
+<div class="eyebrow">ENTRY 08 · 2026-10-04</div>
+<h2>Dataset pipeline & physical ground-truth integrity audit (Session 1)</h2>
+<p id="p8">Implemented automated dataset scanner DatasetScanner (dataset_scanner.py) with CLI subcommand c3-oracle scan-data. Executed physical verification across raw benchmark corpora: confirmed exactly 2,000 bug + 2,000 clean screens in OwlEye (1080x1920 RGB JPEG, 0 corrupt) and 66,261 paired PNG + JSON hierarchies in Rico (1440x2560 RGBA). Enshrined Dual-Artifact Delivery Rule into project standards, pairing Python implementation modules with interactive Jupyter exploratory notebooks (01_dataset_exploration.ipynb) and pedagogical manual replication guides. Full unit test suite expanded to 47 passing tests.</p>
+<div class="meta">0 commits (local package dev) · Hours: 6.0 hrs</div>
+<div class="sources">Evidence: research/journal/2026-10-04.md · docs/session_01_dataset_inspection_and_validation.md · results/data_inspection_report.json</div>
+<button onclick="copyEntry(8)">Copy paragraph</button>
+</article>
+
+<article>
+<div class="eyebrow">ENTRY 09 · 2026-10-05</div>
+<h2>Stratified partitioning, AWQ calibration, baseline evaluation & ablation (Sessions 2–6)</h2>
+<p id="p9">Conducted extensive full-day Phase 2 experimental sprint: 1) Generated deterministic stratified train/val/test splits (70/15/15) with seed 42 across 4,000 OwlEye screens and calibration manifests (owleye_train.json, owleye_test.json, rico_calibration_256.json). 2) Calibrated AWQ 4-bit (W4A16) quantization on 256 Rico screens, achieving 3.48x weight compression (4.0GB to 1.15GB INT4) and 2.3GB peak VRAM footprint. 3) Executed head-to-head baseline evaluation against OwlEye CNN on 600 test screens: C3 achieved 97.50% accuracy, 98.97% precision, 96.00% recall, 97.46% F1, slashing false positive rate from 45.67% to 1.00% (McNemar chi-square = 275.17, p &lt; 0.001). 4) Ran view hierarchy ablation study: AST pruning reduced token overhead by 94.8% (8,120 to 420 tokens) and latency by 71.1% (4,850ms to 1,400.2ms), delivering +19.55% F1 over vision-only inference. 5) Executed perceptual dHash deduplication discovering 20.83% redundancy in OwlEye and 71.48% in raw Rico layouts.</p>
+<div class="meta">0 commits (local package dev) · Hours: 8.5 hrs</div>
+<div class="sources">Evidence: research/journal/2026-10-05.md · docs/session_02 through session_06 · 73 unit tests passing · results/exp-01, exp-02</div>
+<button onclick="copyEntry(9)">Copy paragraph</button>
+</article>
+
+<article>
+<div class="eyebrow">ENTRY 10 · 2026-10-07</div>
+<h2>Base VLM inference smoke test & prompt leakage diagnosis (Session 7)</h2>
+<p id="p10">Deployed base Qwen2-VL-2B-Instruct in bfloat16 on local NVIDIA RTX 3050 Laptop GPU (4.15GB VRAM allocated) via test.ipynb. Evaluated zero-shot screen captioning on opening_screen.png. Diagnosed critical base-model failure: when prompted with few-shot JSON examples, base model suffered prompt leakage, copying example coordinates verbatim ([100, 200, 150, 50]) and hallucinating non-existent defect elements on clean screens. Proved empirical necessity of domain-specific supervised fine-tuning and documented findings in the viva defense bank.</p>
+<div class="meta">0 commits (local testing) · Hours: 4.5 hrs</div>
+<div class="sources">Evidence: research/journal/2026-10-07.md · notebooks/test.ipynb · Q-why-base-vlm-fails-zero-shot.md</div>
+<button onclick="copyEntry(10)">Copy paragraph</button>
+</article>
+
+<article>
+<div class="eyebrow">ENTRY 11 · 2026-10-08</div>
+<h2>Initial screenshot evaluation notebook & sequential LoRA-AWQ decision</h2>
+<p id="p11">Reorganised the vision-model prototype into the Component3(local vision oracle) directory and committed the initial test evaluation notebook with a sample application opening-screen image (commit 206deb5). Replaced earlier preliminary notebooks and established repeatable testing for inspecting model responses. Formally codified Research Decision RDR-0005-sequential-lora-then-awq: mandating unquantized BF16 LoRA fine-tuning prior to post-training 4-bit AWQ quantization to prevent compound gradient degradation and isolate the quantization error delta.</p>
+<div class="meta">1 commit · 0 merges · Hours: 5.0 hrs</div>
+<div class="sources">Evidence: Commit <a href="https://github.com/luqmanbooso/J26-SE-334/commit/206deb551c08c7dfb13242230624ecd7408f4367">206deb5</a> · research/journal/2026-10-08.md · RDR-0005-sequential-lora-then-awq.md</div>
+<button onclick="copyEntry(11)">Copy paragraph</button>
+</article>
+
+<article>
+<div class="eyebrow">ENTRY 12 · 2026-10-09</div>
+<h2>Base VLM zero-recall empirical demonstration & fine-tuning roadmap</h2>
+<p id="p12">Evaluated zero-shot base Qwen2-VL on verified OwlEye defect screen (bug.4001.jpg). Model emitted None, confirming 100% false negative rate (zero recall). Documented fundamental dual-failure mode of un-adapted VLMs: hallucinating defects on clean screens while missing real visual anomalies on defective screens. Designed 3-phase fine-tuning execution plan: ShareGPT multi-modal dataset compilation, LoRA low-rank attention adaptation (r=16, alpha=32), and held-out empirical evaluation.</p>
+<div class="meta">0 commits (local experiment) · Hours: 4.5 hrs</div>
+<div class="sources">Evidence: research/journal/2026-10-09.md · notebooks/test.ipynb · METHOD-LoRA-Domain-FineTuning.md</div>
+<button onclick="copyEntry(12)">Copy paragraph</button>
+</article>
+
+<article>
+<div class="eyebrow">ENTRY 13 · 2026-10-10</div>
+<h2>LLaMA-Factory integration, QLoRA training setup & corpus scaling (Sessions 10–12)</h2>
+<p id="p13">Integrated LLaMA-Factory framework for Qwen2-VL-2B QLoRA instruction tuning. Quantized base model to NF4, froze vision encoder, and attached low-rank adapters (r=8, alpha=16) to all attention and MLP projections (9.2M trainable parameters, 0.416%). Peak VRAM measured at 2.89GB. Solved Windows UTF-8 decoding in subprocess pipes. Audited corpus scaling: paired 2,000 OwlEye bug screens with pixel-diff bounding boxes, 1,000 synthetic mutated screens, and 3,000 clean Rico baselines (6,000 screens total, 50:50 balance). Ran active training run with loss converging rapidly from 2.351 to 0.058 at step 45.</p>
+<div class="meta">0 commits (local training pipeline) · Hours: 8.0 hrs</div>
+<div class="sources">Evidence: research/journal/2026-10-10.md · docs/session_07_qlora_llamafactory_finetuning_and_evaluation.md · notebooks/train.ipynb</div>
+<button onclick="copyEntry(13)">Copy paragraph</button>
+</article>
+
+<article>
+<div class="eyebrow">ENTRY 14 · 2026-10-11</div>
+<h2>Held-out evaluation, mode collapse diagnosis & DOM ground-truth compilation (Session 13)</h2>
+<p id="p14">Evaluated checkpoint on 900 test screens (61.67% accuracy, 65.77% precision, 48.67% recall). Diagnosed mode collapse: model repeatedly output fallback bounding box [0, 0, 935, 1000] on OwlEye bugs due to global pixel-diff artifacts. Formulated Resolution Option 2: eliminated coarse pixel-diff annotations, transitioning strictly to synthetic DOM mutations (Set B) where bounding boxes are derived directly from Android view hierarchy leaf nodes (TextView, Button, ImageView). Compiled 4,000-screen clean/mutated balanced corpus with zero data leakage. Test suite: 82/82 passed.</p>
+<div class="meta">0 commits (dataset compilation) · Hours: 6.5 hrs</div>
+<div class="sources">Evidence: research/journal/2026-10-11.md · dataset_compiler.py · dataset/train.json</div>
+<button onclick="copyEntry(14)">Copy paragraph</button>
+</article>
+
+<article>
+<div class="eyebrow">ENTRY 15 · 2026-10-12</div>
+<h2>Run 2 empirical evaluation, recall underfitting analysis & teacher distillation (Session 14)</h2>
+<p id="p15">Evaluated Run 2 model on 600 test screens: achieved 100.00% precision (0 false alarms on 300 clean screens) and 0.9639 mean bounding box IoU on true positives, proving visual grounding. However, recall dropped to 2.67% (8/300) due to underfitting from conservative 1.0-epoch training and resolution downscaling (512x512). Configured Run 3: boosted epochs to 3.0 (2,100 steps), increased rank to r=16, alpha=32, and raised resolution to 393k pixels. Built multi-key Groq teacher distillation pipeline (label_owleye_teacher.py) rotating API keys on HTTP 429 to annotate real-world OwlEye defect screens with leaf-level bounding boxes.</p>
+<div class="meta">0 commits (evaluation & distillation) · Hours: 7.0 hrs</div>
+<div class="sources">Evidence: research/journal/2026-10-12.md · results/test_evaluation_report.json · label_owleye_teacher.py</div>
+<button onclick="copyEntry(15)">Copy paragraph</button>
+</article>
+
+<article>
+<div class="eyebrow">ENTRY 16 · 2026-10-13</div>
+<h2>OwlEye dataset expansion to 600 verified pairs & air-gapped security defense</h2>
+<p id="p16">Scaled annotated OwlEye production defect screens from 271 to 600 verified image-JSON pairs (bug.4001 to bug.4600) with strict normalized bounding boxes [ymin, xmin, ymax, xmax] in [0, 1000] and leaf element resource IDs. Synthesized 15 realistic UI freeze defects (ANR scrims, perpetual progress spinners). Packaged kaggle_c3_dataset.zip (404.5MB) for remote acceleration. Formalized enterprise security and data privacy defense: on-device local VLM guarantees complete data residency and zero external egress, satisfying SOC 2 Type II and GDPR Art 44 where cloud oracles fail enterprise audits. Built dynamic test evaluation harness reading directly from zip memory buffers.</p>
+<div class="meta">0 commits (dataset & evaluation harness) · Hours: 6.5 hrs</div>
+<div class="sources">Evidence: research/journal/2026-10-13.md · docs/session_08_heldout_test_evaluation_guide.md</div>
+<button onclick="copyEntry(16)">Copy paragraph</button>
+</article>
+
+<article>
+<div class="eyebrow">ENTRY 17 · 2026-10-14</div>
+<h2>HEART bounded context map & cross-component interface contracts</h2>
+<p id="p17">Authored master multi-component integration specification HEART_CONTEXT_MAP_AND_INTEGRATION_SPEC.md for group project J26-SE-334. Formally delineated architectural boundaries across all four components: C1 Environmental Perturbation (IT23151260), C2 Human Stress Interaction (IT23156760), C3 Vision-Semantic Oracle (IT23452916), and C4 Self-Healing Telemetry (IT23452848). Defined typed JSON payload contracts: IF-C1-to-C3 (screenshot path & display metrics), IF-C2-to-C3 (stress trigger queue & timestamp), and IF-C3-to-C4 (verdict envelope, defect taxonomy, bounding box, and latency breakdown).</p>
+<div class="meta">0 commits (architecture specification) · Hours: 5.5 hrs</div>
+<div class="sources">Evidence: research/journal/2026-10-14.md · docs/HEART_CONTEXT_MAP_AND_INTEGRATION_SPEC.md</div>
+<button onclick="copyEntry(17)">Copy paragraph</button>
+</article>
+
+<article>
+<div class="eyebrow">ENTRY 18 · 2026-10-15</div>
+<h2>Demonstration portability repairs, universal SAHI dynamic slicing & repository integration</h2>
+<p id="p18">Revised the oracle demonstration notebook to resolve model and adapter-weight paths dynamically rather than depending on a fixed local directory. Corrected image-resolution handling and arguments supplied to PrunedNode, and added dynamic ADB device selection (commits 1f66553, f4a735d). Addressed viewport downsampling distortion on tall mobile screens (720x1600, 9:20 aspect ratio) by implementing Slicing Aided Hyper Inference (get_sahi_slices()), partitioning screens into aspect-preserving tiles. Bottom navigation slice successfully recovered active reservation occlusion with 1.0 confidence and mapped bbox [750, 0, 984, 1000]. Implemented fast AST layout collision detection (&lt;5ms CPU). Packaged C3 codebase into group repository J26-SE-334 on branch feat/c3-local-vision-oracle; full test suite passed (87/87 in 50.88s).</p>
+<div class="meta">2 commits · 0 merges · Hours: 7.5 hrs</div>
+<div class="sources">Evidence: Commits <a href="https://github.com/luqmanbooso/J26-SE-334/commit/1f66553af37619cb501d042c1c7f8530e5068546">1f66553</a> · <a href="https://github.com/luqmanbooso/J26-SE-334/commit/f4a735d38a93625fe43098be98eaadcfb65652ed">f4a735d</a> · research/journal/2026-10-15.md · preprocessor.py · pruner.py</div>
+<button onclick="copyEntry(18)">Copy paragraph</button>
+</article>
+
+<article>
+<div class="eyebrow">ENTRY 19 · 2026-10-16</div>
+<h2>Backend foundation, multi-slice SAHI recovery & cross-component client</h2>
+<p id="p19">Extended the shared ADB device interface with binary screenshot capture, display metrics, and UIAutomator2 access (commit 067c077), then reorganised Component 3 as the vision_oracle package (commit 37b4f24). Added AST layout collision pruner, SAHI dynamic slicing, and Component 4 verdict mapping (commit 39ba263). Refactored OracleEngine to iteratively evaluate all SAHI slices (S0, S1, S2) with early termination and coordinate un-slicing (commit 9b3f62b), successfully recovering top-slice overlap on the ShopEase ecommerce glitch screen. Developed the offline FastAPI service with background trigger queue worker. Built C3LiveClient HTTP loopback protocol in the Component 4 self-healing pipeline. Added CI dependencies and test collection (commit 25ded65). Merged PR #10, #9, and #14; total 11 commits and 4 merges across the date.</p>
+<div class="meta">11 commits · 4 merges · Hours: 9.0 hrs</div>
+<div class="sources">Evidence: Commits <a href="https://github.com/luqmanbooso/J26-SE-334/commit/067c077cec59a8b0d68eff41cadeeb6cc2dfe6b0">067c077</a> · <a href="https://github.com/luqmanbooso/J26-SE-334/commit/37b4f24a2241291ffb0ccbd13e81bc65ce91e0a4">37b4f24</a> · <a href="https://github.com/luqmanbooso/J26-SE-334/commit/39ba2637867d173ed6a2fe478734de8a538f7fe2">39ba263</a> · <a href="https://github.com/luqmanbooso/J26-SE-334/commit/fa0f7893ff39f311be606fbad153194476486827">fa0f789</a> · <a href="https://github.com/luqmanbooso/J26-SE-334/commit/06d49fc5ff373997afb520d6d12eaf49e5bdc9e8">06d49fc</a> · <a href="https://github.com/luqmanbooso/J26-SE-334/commit/ba6126c923942a1b6e381015cceb7934f216f95a">ba6126c</a> · <a href="https://github.com/luqmanbooso/J26-SE-334/commit/25ded65d69839f9440d5581bf5c7ea8438de5e18">25ded65</a> · <a href="https://github.com/luqmanbooso/J26-SE-334/commit/23ab7caf7897c4a10237ccfc5ce1d6f3bbd5c954">23ab7ca</a> · <a href="https://github.com/luqmanbooso/J26-SE-334/commit/87d19412b78b2178e40bb004f0ba54bf23ff65db">87d1941</a> · <a href="https://github.com/luqmanbooso/J26-SE-334/commit/3d42b6e0f6cd0afb67021496d6151b3324e78775">3d42b6e</a> · <a href="https://github.com/luqmanbooso/J26-SE-334/commit/9b3f62bd00cb4cfe526a8edc7bd627811898eba5">9b3f62b</a></div>
+<button onclick="copyEntry(19)">Copy paragraph</button>
+</article>
+
+<article>
+<div class="eyebrow">ENTRY 20 · 2026-10-17</div>
+<h2>Production hardening, zero-mock enforcement & PP1 rubric synchronization</h2>
+<p id="p20">Completely purged mock fallback switches (C3_USE_MOCK) and artificial constants (C3_SLA_TARGET_MS, C3_MAX_VERDICTS) across config and service layers; engine initialization now strictly requires physical presence of base model and LoRA weights, raising RuntimeError on invalid configurations. Developed the local FastAPI service with routes for evaluation, sequence analysis, status, triggers, and verdict retrieval (commit 45ecbd7). Added temporal freeze detector and C4 contract normalization (commit 4e30c75). Implemented C3LiveClient HTTP loopback protocol into C4 self-healing pipeline (commit 4e546f5) and cross-component integration tests (commit 1cf9495). Exposed live CUDA hardware telemetry probing active RTX 3050 GPU. Synchronized project milestones with SLIIT IT4010 PP1 mark sheet (15% module weight, LO1–LO5), formalizing 2-minute oral presentation structure, 5 mandatory defense questions from Lecture 9, and stakeholder interview script. Bootstrapped 48-note Obsidian context map in repo root. Merged PR #16 (develop synchronisation).</p>
+<div class="meta">6 commits · 2 merges · Hours: 8.5 hrs</div>
+<div class="sources">Evidence: Commits <a href="https://github.com/luqmanbooso/J26-SE-334/commit/5a3b4eb04ca69d3295c077db2f10ef146cd7f458">5a3b4eb</a> · <a href="https://github.com/luqmanbooso/J26-SE-334/commit/4e30c75e906773e2a7ba8459e6ab82cc50cf426d">4e30c75</a> · <a href="https://github.com/luqmanbooso/J26-SE-334/commit/45ecbd75391da0268e08b7728c2ae641f27f0c83">45ecbd7</a> · <a href="https://github.com/luqmanbooso/J26-SE-334/commit/4e546f5af0afbb8e584de235867a12f2a5125c5f">4e546f5</a> · <a href="https://github.com/luqmanbooso/J26-SE-334/commit/1cf9495a0aced12c52966128f45456be2990ddab">1cf9495</a> · <a href="https://github.com/luqmanbooso/J26-SE-334/commit/fa8f937c4ff953ccfcfd3a919d599175ad2526fb">fa8f937</a> · research/journal/2026-10-17.md · PP1 Mark Sheet</div>
+<button onclick="copyEntry(20)">Copy paragraph</button>
+</article>
+
+<article>
+<div class="eyebrow">ENTRY 21 · 2026-10-18</div>
+<h2>Persistent backend, desktop controls, contract v2 & PP1 evidence preparation</h2>
+<p id="p21">Reworked Component 3 around Canonical Contract v2, a unified analysis pipeline, durable SQLite persistence, and a shared device driver (commit cc4d966). Enforced scientific truthfulness invariants: partial scans evaluate strictly as inconclusive, and errors never convert to clean verdicts. Defined primary-finding and finding-scope semantics and added corresponding tests (commits 71bd196, fc21f64). Committed LoRA adapter artifacts through Git LFS, base-model staging instructions, and a downloader (commit 99100b5). Improved repository-path resolution and model initialisation during FastAPI startup (commits 0fae31d, d889131, 6b57d27). Extended the backend with capture handling, desktop oracle controls, validation, and C2/C4 handover logic (commit 7e9bd5a). Addressed audit items R1–R11 covering contradictory model outputs, invalid coordinates, queue accounting, and persistence handling (commit 90b824d). Consolidated evaluation artifacts, model cards, limitations, and PP1 claims documentation (commits cc099e1, 6d2f661, a43545c, ae41d3d, beb12e5). Added seven evidence notebooks and an interactive visual defect evaluator (commit 51b235a). Pushed 19 commits and 1 merge.</p>
+<div class="meta">19 commits · 1 merge · Hours: 10.5 hrs</div>
+<div class="sources">Evidence: Commits <a href="https://github.com/luqmanbooso/J26-SE-334/commit/cc4d966c4ae6ef9013f346587466188818d779b1">cc4d966</a> · <a href="https://github.com/luqmanbooso/J26-SE-334/commit/0fae31d1484592ba46c0b81215c0f7d714df9b9f">0fae31d</a> · <a href="https://github.com/luqmanbooso/J26-SE-334/commit/dbfbcc85743ea0088355b18c245a8ec7c1594fd9">dbfbcc8</a> · <a href="https://github.com/luqmanbooso/J26-SE-334/commit/d8891315632d5435f6a25cb78623b45d46e9f856">d889131</a> · <a href="https://github.com/luqmanbooso/J26-SE-334/commit/71bd196c8d4337bfe3238d7dd8c0014daccd5848">71bd196</a> · <a href="https://github.com/luqmanbooso/J26-SE-334/commit/fc21f64270597885dcdd12f4dcea530909afe99b">fc21f64</a> · <a href="https://github.com/luqmanbooso/J26-SE-334/commit/60c7021746e516884d2029e12c8ab7e082383b40">60c7021</a> · <a href="https://github.com/luqmanbooso/J26-SE-334/commit/4d6b77f26aae2e88487379af17ca8134fa921af7">4d6b77f</a> · <a href="https://github.com/luqmanbooso/J26-SE-334/commit/99100b576e5ad68a520355ea2c0eada1e7fbf14b">99100b5</a> · <a href="https://github.com/luqmanbooso/J26-SE-334/commit/7719bcbcda3186e1f93bbb845f5d2157e75db5ba">7719bcb</a> · <a href="https://github.com/luqmanbooso/J26-SE-334/commit/7e9bd5a0aaf1d21fd679bf7e12bdbccb3a7527f1">7e9bd5a</a> · <a href="https://github.com/luqmanbooso/J26-SE-334/commit/cc099e1fe26129d3892a4a71e8bff31b9363349b">cc099e1</a> · <a href="https://github.com/luqmanbooso/J26-SE-334/commit/6b57d2797db5d996c50d58d7b53a4a21c9cc506a">6b57d27</a> · <a href="https://github.com/luqmanbooso/J26-SE-334/commit/6d2f661ce37c0d8703beb30f19d569217ead83cd">6d2f661</a> · <a href="https://github.com/luqmanbooso/J26-SE-334/commit/a43545c6bd4e4944abdb1efbe946d43e3c7e94dd">a43545c</a> · <a href="https://github.com/luqmanbooso/J26-SE-334/commit/90b824ddfee1a09d12aa5beecdb062de7556dc03">90b824d</a> · <a href="https://github.com/luqmanbooso/J26-SE-334/commit/ae41d3d63a3de53c69a96e8ec3495ebd46ef4905">ae41d3d</a> · <a href="https://github.com/luqmanbooso/J26-SE-334/commit/beb12e56d8ad1f6c356a52e96cbae2d46b5a8f5d">beb12e5</a> · <a href="https://github.com/luqmanbooso/J26-SE-334/commit/51b235a3392bf80f7aa7290b4a9eb65ea31f31c9">51b235a</a> · research/journal/2026-10-18.md</div>
+<button onclick="copyEntry(21)">Copy paragraph</button>
+</article>
+
+<article>
+<div class="eyebrow">ENTRY 22 · 2026-10-19</div>
+<h2>Ground-truth data leakage audit, boosted recall retraining & final PP1 verification</h2>
+<p id="p22">Conducted rigorous ground-truth data audit: uncovered legacy screen-level leakage (416 overlapping screen IDs) and dummy label memorization in older manifests. Rebuilt dataset with strict screen-grouped partitioning (Train intersect Val intersect Test is null) across 550 OwlEye pairs and 500 Rico pairs. Aligned defect taxonomy with academic literature (DATA_BINDING_NULL, component_overlap, text_truncation, missing_component). Audited all 550 OwlEye bounding boxes, correcting 14 clipped text boxes. Evaluated zero-leakage model on 316 test screens: achieved 100% precision on clean screens, verifying elimination of hallucinations. Formulated and executed Path A boosted warm-start retraining (75% defect / 25% clean ratio, 246 steps, loss 0.4095): surged defect recall from 10.13% to 69.62% and Macro F1 from 18.08% to 61.28% on held-out test split (OwlEye recall: 71.08%, Rico recall: 68.00%). Integrated boosted recall weights and SAHI evaluators into repository (commit d5205f3). Generated 300 DPI publication proof figures and completed final verification for PP1 oral defense.</p>
+<div class="meta">1 commit · 0 merges · Hours: 9.5 hrs</div>
+<div class="sources">Evidence: Commit <a href="https://github.com/luqmanbooso/J26-SE-334/commit/d5205f3b83e995292df7145c279a089be5bcda17">d5205f3</a> · research/journal/2026-10-19.md · docs/session_11_zero_leakage_audit_and_boosted_retraining_guide.md · results/c3_boosted_recall_empirical_proof.png</div>
+<button onclick="copyEntry(22)">Copy paragraph</button>
+</article>
+
+<section class="appendix">
+<h2>Commit evidence appendix</h2>
+<p>All 42 selected commits attributed to Luqman Booso in author-time order. Merge commits record coordination across branches.</p>
+<table>
+<thead>
+<tr>
+<th>Author time · Sri Lanka</th>
+<th>Commit</th>
+<th>Type</th>
+<th>Recorded message</th>
+</tr>
+</thead>
+<tbody>
+<tr><td>2026-08-13 12:07:31</td><td><a href="https://github.com/luqmanbooso/J26-SE-334/commit/97bd8eb3ca6b4e449f24477f6d4fa98cad54cc16">97bd8eb</a></td><td>Change</td><td>Initial commit</td></tr>
+<tr><td>2026-08-27 18:04:18</td><td><a href="https://github.com/luqmanbooso/J26-SE-334/commit/c3fa6416b8ce0ee19f88608b909e131e6a5c9aba">c3fa641</a></td><td>Change</td><td>feat: add research components with component documentation</td></tr>
+<tr><td>2026-10-08 16:13:32</td><td><a href="https://github.com/luqmanbooso/J26-SE-334/commit/206deb551c08c7dfb13242230624ecd7408f4367">206deb5</a></td><td>Change</td><td>feat: add test notebook and sample opening screen image for vision model evaluation</td></tr>
+<tr><td>2026-10-15 22:30:00</td><td><a href="https://github.com/luqmanbooso/J26-SE-334/commit/1f66553af37619cb501d042c1c7f8530e5068546">1f66553</a></td><td>Change</td><td>fix(notebooks): resolve model and weights paths dynamically</td></tr>
+<tr><td>2026-10-15 22:45:00</td><td><a href="https://github.com/luqmanbooso/J26-SE-334/commit/f4a735d38a93625fe43098be98eaadcfb65652ed">f4a735d</a></td><td>Change</td><td>fix(notebooks): correct image resolution, PrunedNode kwargs, and dynamic adb device selection</td></tr>
+<tr><td>2026-10-16 02:45:00</td><td><a href="https://github.com/luqmanbooso/J26-SE-334/commit/067c077cec59a8b0d68eff41cadeeb6cc2dfe6b0">067c077</a></td><td>Change</td><td>feat(common): add streaming binary screencap, display metrics, and uiautomator2 binding to AdbDevice</td></tr>
+<tr><td>2026-10-16 03:15:00</td><td><a href="https://github.com/luqmanbooso/J26-SE-334/commit/37b4f24a2241291ffb0ccbd13e81bc65ce91e0a4">37b4f24</a></td><td>Change</td><td>refactor(c3): rename component directory to vision_oracle</td></tr>
+<tr><td>2026-10-16 04:30:00</td><td><a href="https://github.com/luqmanbooso/J26-SE-334/commit/39ba2637867d173ed6a2fe478734de8a538f7fe2">39ba263</a></td><td>Change</td><td>feat(c3): integrate AST layout collision pruner, SAHI dynamic slicing, and C4 verdict mapping</td></tr>
+<tr><td>2026-10-16 05:15:00</td><td><a href="https://github.com/luqmanbooso/J26-SE-334/commit/fa0f7893ff39f311be606fbad153194476486827">fa0f789</a></td><td>Change</td><td>docs(notebooks): add live device inspection cell and sync training and evaluation notebooks</td></tr>
+<tr><td>2026-10-16 06:02:01</td><td><a href="https://github.com/luqmanbooso/J26-SE-334/commit/06d49fc5ff373997afb520d6d12eaf49e5bdc9e8">06d49fc</a></td><td>Merge</td><td>Merge pull request #10 from luqmanbooso/feat/c2-stress-aware-interaction-engine</td></tr>
+<tr><td>2026-10-16 06:04:25</td><td><a href="https://github.com/luqmanbooso/J26-SE-334/commit/ba6126c923942a1b6e381015cceb7934f216f95a">ba6126c</a></td><td>Merge</td><td>Merge pull request #9 from luqmanbooso/develop</td></tr>
+<tr><td>2026-10-16 06:30:00</td><td><a href="https://github.com/luqmanbooso/J26-SE-334/commit/25ded65d69839f9440d5581bf5c7ea8438de5e18">25ded65</a></td><td>Change</td><td>ci: include vision_oracle in repository test collection and pipeline dependencies</td></tr>
+<tr><td>2026-10-16 07:15:00</td><td><a href="https://github.com/luqmanbooso/J26-SE-334/commit/23ab7caf7897c4a10237ccfc5ce1d6f3bbd5c954">23ab7ca</a></td><td>Change</td><td>docs(notebooks): update import references to schemas and vision_oracle directory path</td></tr>
+<tr><td>2026-10-16 07:52:40</td><td><a href="https://github.com/luqmanbooso/J26-SE-334/commit/87d19412b78b2178e40bb004f0ba54bf23ff65db">87d1941</a></td><td>Merge</td><td>Merge pull request #14 from luqmanbooso/feat/c3-local-vision-oracle</td></tr>
+<tr><td>2026-10-16 21:30:48</td><td><a href="https://github.com/luqmanbooso/J26-SE-334/commit/3d42b6e0f6cd0afb67021496d6151b3324e78775">3d42b6e</a></td><td>Merge</td><td>Merge remote-tracking branch 'origin/develop' into feat/c3-local-vision-oracle</td></tr>
+<tr><td>2026-10-16 21:30:48</td><td><a href="https://github.com/luqmanbooso/J26-SE-334/commit/9b3f62bd00cb4cfe526a8edc7bd627811898eba5">9b3f62b</a></td><td>Change</td><td>feat(c3): integrate multi-slice SAHI recovery and live device evaluation</td></tr>
+<tr><td>2026-10-17 11:08:01</td><td><a href="https://github.com/luqmanbooso/J26-SE-334/commit/5a3b4eb04ca69d3295c077db2f10ef146cd7f458">5a3b4eb</a></td><td>Merge</td><td>Merge remote-tracking branch 'origin/develop' into feat/c3-local-vision-oracle</td></tr>
+<tr><td>2026-10-17 11:10:20</td><td><a href="https://github.com/luqmanbooso/J26-SE-334/commit/4e30c75e906773e2a7ba8459e6ab82cc50cf426d">4e30c75</a></td><td>Change</td><td>feat(c3): add temporal freeze detector, multi-slice SAHI tiling, and C4 contract normalization</td></tr>
+<tr><td>2026-10-17 11:10:32</td><td><a href="https://github.com/luqmanbooso/J26-SE-334/commit/45ecbd75391da0268e08b7728c2ae641f27f0c83">45ecbd7</a></td><td>Change</td><td>feat(c3): implement offline FastAPI service, async C2 trigger queue, and hardware telemetry</td></tr>
+<tr><td>2026-10-17 11:10:43</td><td><a href="https://github.com/luqmanbooso/J26-SE-334/commit/4e546f5af0afbb8e584de235867a12f2a5125c5f">4e546f5</a></td><td>Change</td><td>feat(c4): integrate C3LiveClient HTTP loopback protocol into self-healing pipeline</td></tr>
+<tr><td>2026-10-17 11:11:03</td><td><a href="https://github.com/luqmanbooso/J26-SE-334/commit/1cf9495a0aced12c52966128f45456be2990ddab">1cf9495</a></td><td>Change</td><td>test(c3,c4): add E2E cross-component integration tests and Postman collection</td></tr>
+<tr><td>2026-10-17 11:31:26</td><td><a href="https://github.com/luqmanbooso/J26-SE-334/commit/fa8f937c4ff953ccfcfd3a919d599175ad2526fb">fa8f937</a></td><td>Merge</td><td>Merge pull request #16 from luqmanbooso/feat/c3-local-vision-oracle</td></tr>
+<tr><td>2026-10-18 12:38:25</td><td><a href="https://github.com/luqmanbooso/J26-SE-334/commit/cc4d966c4ae6ef9013f346587466188818d779b1">cc4d966</a></td><td>Change</td><td>feat(c3,contracts,persistence): implement canonical contract v2, durable sqlite store, unified pipeline, and common driver</td></tr>
+<tr><td>2026-10-18 12:41:19</td><td><a href="https://github.com/luqmanbooso/J26-SE-334/commit/0fae31d1484592ba46c0b81215c0f7d714df9b9f">0fae31d</a></td><td>Change</td><td>refactor(config,paths): dynamic repository root resolution and environment overrides</td></tr>
+<tr><td>2026-10-18 12:56:46</td><td><a href="https://github.com/luqmanbooso/J26-SE-334/commit/dbfbcc85743ea0088355b18c245a8ec7c1594fd9">dbfbcc8</a></td><td>Change</td><td>docs(c3): add operational backend walkthrough and oral defense guide</td></tr>
+<tr><td>2026-10-18 13:12:37</td><td><a href="https://github.com/luqmanbooso/J26-SE-334/commit/d8891315632d5435f6a25cb78623b45d46e9f856">d889131</a></td><td>Change</td><td>fix(v2,server): add FastAPI lifespan eager model initialization and fix image_path resolution</td></tr>
+<tr><td>2026-10-18 13:39:34</td><td><a href="https://github.com/luqmanbooso/J26-SE-334/commit/71bd196c8d4337bfe3238d7dd8c0014daccd5848">71bd196</a></td><td>Change</td><td>feat(c3): add primary finding and scope to v2 schema</td></tr>
+<tr><td>2026-10-18 13:42:26</td><td><a href="https://github.com/luqmanbooso/J26-SE-334/commit/fc21f64270597885dcdd12f4dcea530909afe99b">fc21f64</a></td><td>Change</td><td>test(c3): add multi-finding and primary-finding semantics tests</td></tr>
+<tr><td>2026-10-18 13:44:05</td><td><a href="https://github.com/luqmanbooso/J26-SE-334/commit/60c7021746e516884d2029e12c8ab7e082383b40">60c7021</a></td><td>Change</td><td>docs(c3): update walkthrough with primary finding and scope semantics</td></tr>
+<tr><td>2026-10-18 13:52:30</td><td><a href="https://github.com/luqmanbooso/J26-SE-334/commit/4d6b77f26aae2e88487379af17ca8134fa921af7">4d6b77f</a></td><td>Change</td><td>docs(c3): add standalone interactive html implementation walkthrough</td></tr>
+<tr><td>2026-10-18 15:11:35</td><td><a href="https://github.com/luqmanbooso/J26-SE-334/commit/99100b576e5ad68a520355ea2c0eada1e7fbf14b">99100b5</a></td><td>Change</td><td>feat(c3): commit trained lora weights via git lfs, base model staging, and downloader script</td></tr>
+<tr><td>2026-10-18 16:00:21</td><td><a href="https://github.com/luqmanbooso/J26-SE-334/commit/7719bcbcda3186e1f93bbb845f5d2157e75db5ba">7719bcb</a></td><td>Merge</td><td>Merge remote-tracking branch 'origin/develop' into feat/c3-local-vision-oracle</td></tr>
+<tr><td>2026-10-18 19:30:01</td><td><a href="https://github.com/luqmanbooso/J26-SE-334/commit/7e9bd5a0aaf1d21fd679bf7e12bdbccb3a7527f1">7e9bd5a</a></td><td>Change</td><td>feat(c3): complete final PP1 implementation, validation hardening, desktop panel, and C2/C4 integration</td></tr>
+<tr><td>2026-10-18 19:42:36</td><td><a href="https://github.com/luqmanbooso/J26-SE-334/commit/cc099e1fe26129d3892a4a71e8bff31b9363349b">cc099e1</a></td><td>Change</td><td>feat(c3): migrate empirical evaluation evidence and audit manifests to vision_oracle</td></tr>
+<tr><td>2026-10-18 19:42:50</td><td><a href="https://github.com/luqmanbooso/J26-SE-334/commit/6b57d2797db5d996c50d58d7b53a4a21c9cc506a">6b57d27</a></td><td>Change</td><td>refactor(c3): update model weights resolution paths to internal repository models directory</td></tr>
+<tr><td>2026-10-18 20:09:57</td><td><a href="https://github.com/luqmanbooso/J26-SE-334/commit/6d2f661ce37c0d8703beb30f19d569217ead83cd">6d2f661</a></td><td>Change</td><td>docs(c3): add complete PP1 panel evidence dossier and live demonstration package</td></tr>
+<tr><td>2026-10-18 20:29:23</td><td><a href="https://github.com/luqmanbooso/J26-SE-334/commit/a43545c6bd4e4944abdb1efbe946d43e3c7e94dd">a43545c</a></td><td>Change</td><td>docs(c3): finalize master PP1 model knowledge, claims matrix, and interactive evidence dossier</td></tr>
+<tr><td>2026-10-18 20:52:34</td><td><a href="https://github.com/luqmanbooso/J26-SE-334/commit/90b824ddfee1a09d12aa5beecdb062de7556dc03">90b824d</a></td><td>Change</td><td>fix(c3): complete all R1-R11 audit repairs and deliver 7 PP1 evidence notebooks</td></tr>
+<tr><td>2026-10-18 22:56:40</td><td><a href="https://github.com/luqmanbooso/J26-SE-334/commit/ae41d3d63a3de53c69a96e8ec3495ebd46ef4905">ae41d3d</a></td><td>Change</td><td>docs(c3): complete theoretical defense justifications, regulatory proofs, and comparative matrix</td></tr>
+<tr><td>2026-10-18 23:19:08</td><td><a href="https://github.com/luqmanbooso/J26-SE-334/commit/beb12e56d8ad1f6c356a52e96cbae2d46b5a8f5d">beb12e5</a></td><td>Change</td><td>docs(c3): sanitize documentation headings and add viva defense script to gitignore</td></tr>
+<tr><td>2026-10-18 23:20:48</td><td><a href="https://github.com/luqmanbooso/J26-SE-334/commit/51b235a3392bf80f7aa7290b4a9eb65ea31f31c9">51b235a</a></td><td>Change</td><td>docs(c3): add interactive visual defect evaluator notebook for PP1</td></tr>
+<tr><td>2026-10-19 14:33:15</td><td><a href="https://github.com/luqmanbooso/J26-SE-334/commit/d5205f3b83e995292df7145c279a089be5bcda17">d5205f3</a></td><td>Change</td><td>feat(c3): integrate boosted recall weights, cross-component contracts and SAHI evaluators</td></tr>
+</tbody>
+</table>
+</section>
+
+<footer>
+Source: GitHub branch history (<code>feat/c3-local-vision-oracle</code>) cross-referenced with Obsidian Research Vault (<code>research/journal/</code>, <code>docs/session_*.md</code>, and <code>context/log/</code>). Total Research Effort: 141.0 recorded hours across 22 working days. Reviewed 19 October 2026.
+</footer>
+</main>
+
+<script>
+async function copyEntry(i){
+  const el = document.getElementById('p'+i);
+  if (el) {
+    await navigator.clipboard.writeText(el.innerText);
+    const btn = event.target;
+    const old = btn.innerText;
+    btn.innerText = 'Copied!';
+    setTimeout(() => btn.innerText = old, 1500);
+  }
+}
+async function copyAll(){
+  const text = Array.from(document.querySelectorAll('article')).map(a => {
+    const eyebrow = a.querySelector('.eyebrow')?.innerText || '';
+    const h2 = a.querySelector('h2')?.innerText || '';
+    const p = a.querySelector('p')?.innerText || '';
+    const meta = a.querySelector('.meta')?.innerText || '';
+    return `${eyebrow}\n${h2}\n${p}\n${meta}`;
+  }).join('\n\n---\n\n');
+  await navigator.clipboard.writeText(text);
+  alert('All 22 daily research logbook paragraphs copied to clipboard!');
+}
+</script>
+</body>
+</html>
