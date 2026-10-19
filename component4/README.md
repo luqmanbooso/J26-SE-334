@@ -41,7 +41,8 @@ explicit `--no-c3` mode is reserved for offline tests and ablation runs.
 flowchart TD
   A["Sentry / Crashlytics JSON or JSONL"] --> B["Ingestion: normalise events, drop malformed and duplicate records"]
   B --> C["Sessionization: one failure journey per crash"]
-  C --> D["Synthesis: local Qwen3 via Ollama writes steps, then an Appium script is generated"]
+  C --> JC["Journey creation: export a versioned journey seed"]
+  JC --> D["Synthesis: local Qwen3 via Ollama writes steps, then an Appium script is generated"]
   V["C3 verdict and evidence"] --> D
   D --> E["Execution: run on device through Appium, save run artifacts"]
   E -->|"pass"| F["Done"]
@@ -50,6 +51,7 @@ flowchart TD
   G --> H{"Confident, unique match?"}
   H -->|"no"| I["Refuse, script unchanged"]
   H -->|"yes"| J["Rewrite locator, re-run, store a new test version"]
+  JC -. "journey seed (exported by C4; consumed by C1 and C2)" .-> C1C2["C1 / C2"]
 ```
 
 ## Quick start
@@ -60,6 +62,30 @@ All commands run from the `component4/` folder.
 python -m c4 preflight --config target_app.json
 python -m c4 run --telemetry events.json --config target_app.json --runs-dir runs --dry-run --no-c3
 python -m c4 run --telemetry events.json --config target_app.json --runs-dir runs --heal --no-c3
+```
+
+## Journey creation
+
+Journey creation is an explicit offline stage between ingestion/sessionization
+and synthesis. It needs no LLM, device, or C3:
+
+```powershell
+python -m c4 journeys --telemetry events.json --source sentry `
+  --out journeys --print
+python -m c4 journeys --schema
+```
+
+The command writes one deterministic `JourneyDocument` per failure plus
+`journeys_index.json`. Seeds are an export contract for C1 and C2; C4 does
+not claim that either component consumes them. See
+[the contract](docs/journey-seed-contract.md).
+
+To synthesize from exported journeys instead of telemetry, pass exactly one
+input to `run`:
+
+```powershell
+python -m c4 run --journeys journeys --config target_app.json `
+  --runs-dir runs --dry-run --no-c3
 ```
 
 1. `preflight` checks ADB, the device, Appium and the app package.

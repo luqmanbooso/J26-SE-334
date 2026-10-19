@@ -20,3 +20,4 @@ updated: 2026-10-17
 - [[SynthesisService|SynthesisService]] — test synthesis coordinator driving S-BERT locator repair and Appium script healing
 - [[SessionizationService|SessionizationService]] — event stream aggregator grouping actions into coherent test user flows
 - [[IngestionService|IngestionService]] — telemetry loader parsing external crash and session logs (Crashlytics, Sentry)
+- [[JourneySeedExport|Journey seed export]] — versioned journey documents and deterministic C1/C2 seed files

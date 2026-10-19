@@ -2,7 +2,7 @@
 type: service
 path: component4/src/c4/sessionization/service.py
 depends_on: [[TelemetrySchema]], [[IngestionService]]
-used_by: [[SynthesisService]]
+used_by: [[SynthesisService]], [[JourneySeedExport]]
 updated: 2026-10-17
 ---
 # SessionizationService
