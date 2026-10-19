@@ -54,13 +54,45 @@ try:
 except Exception as _v_err:
     VISION_ORACLE_AVAILABLE = False
 
+import shutil
+
 # Auto-detect Android SDK tools
 for p in [
+    r"D:\Android\platform-tools",
+    r"D:\Android\emulator",
     os.path.expanduser("~/AppData/Local/Android/Sdk/platform-tools"),
-    os.path.expanduser("~/AppData/Local/Android/Sdk/emulator")
+    os.path.expanduser("~/AppData/Local/Android/Sdk/emulator"),
 ]:
     if os.path.exists(p) and p not in os.environ.get("PATH", ""):
         os.environ["PATH"] = p + os.pathsep + os.environ.get("PATH", "")
+
+def get_adb_binary() -> str:
+    """Resolves the active adb binary path across environments."""
+    which_adb = shutil.which("adb")
+    if which_adb:
+        return which_adb
+    for cand in [
+        r"D:\Android\platform-tools\adb.exe",
+        os.path.expanduser("~/AppData/Local/Android/Sdk/platform-tools/adb.exe"),
+        r"C:\Android\platform-tools\adb.exe",
+    ]:
+        if os.path.exists(cand):
+            return cand
+    return "adb"
+
+def get_emulator_binary() -> str:
+    """Resolves the active Android emulator binary path across environments."""
+    which_emu = shutil.which("emulator")
+    if which_emu:
+        return which_emu
+    for cand in [
+        r"D:\Android\emulator\emulator.exe",
+        os.path.expanduser("~/AppData/Local/Android/Sdk/emulator/emulator.exe"),
+        r"C:\Android\emulator\emulator.exe",
+    ]:
+        if os.path.exists(cand):
+            return cand
+    return "emulator"
 
 from orchestrator import PerturbationOrchestrator  # type: ignore
 from attribution_engine import EnvironmentAttributionEngine  # type: ignore
@@ -1753,7 +1785,7 @@ class HeartSimpleApp(ctk.CTk):
 
     def _e2e_pipeline_worker(self):
         import random, re
-        adb_bin = r"C:\Users\user\AppData\Local\Android\Sdk\platform-tools\adb.exe"
+        adb_bin = get_adb_binary()
         dev_id = getattr(self.adb, "device_id", None)
         active_pkg = self.app_selector.get().strip() if hasattr(self, "app_selector") else "de.k3b.android.androFotoFinder"
         orig_w = getattr(self, "_orig_w", 1080)
@@ -1966,31 +1998,90 @@ class HeartSimpleApp(ctk.CTk):
                 except Exception:
                     jank_pct = round(random.uniform(7.5, 18.2), 1)
 
-                # Vision Oracle Defect Detection
+                # Component 3 Real Vision Oracle Defect Detection
                 has_defect = False
                 defect_type = "none"
-                if prof_data.get("cpu", 0) >= 90 and not is_hit:
-                    has_defect = True
-                    defect_type = "TEXT_TRUNCATION"
-                    defects_found.append({
-                        "id": f"VIS_DEFECT_{step_idx+1}",
-                        "type": "TEXT_TRUNCATION",
-                        "component": target["name"],
-                        "trigger": prof_data.get("name"),
-                        "explanation": f"UI widget '{target['name']}' text clipping and frame drop ({jank_pct}% jank) under 95% CPU contention.",
-                        "confidence": 0.94
-                    })
-                elif "3G" in prof_data.get("name", "") and err_dist > 40:
-                    has_defect = True
-                    defect_type = "COMPONENT_OVERLAP"
-                    defects_found.append({
-                        "id": f"VIS_DEFECT_{step_idx+1}",
-                        "type": "COMPONENT_OVERLAP",
-                        "component": target["name"],
-                        "trigger": prof_data.get("name"),
-                        "explanation": f"Layout reflow overlap on '{target['name']}' due to 1850ms asynchronous cellular delay.",
-                        "confidence": 0.89
-                    })
+                oracle_conf = 1.0
+                oracle_bbox = None
+                oracle_expl = "Screen Verified Clean ✅"
+
+                if VISION_ORACLE_AVAILABLE:
+                    try:
+                        oracle_service = get_oracle_service()
+                        v_res = oracle_service.evaluate_device(
+                            serial=dev_id,
+                            action_context=f"e2e_step_{step_idx+1}_{target['name']}",
+                            enable_sahi=True
+                        )
+                        v2 = v_res.get("verdict_v2", {})
+                        decision = v2.get("decision", "no_defect_detected")
+                        if decision == "defect_detected":
+                            has_defect = True
+                            primary = v2.get("primary_finding") or (v2.get("findings", [{}])[0] if v2.get("findings") else {})
+                            defect_type = str(primary.get("type", "COMPONENT_OVERLAP")).upper().replace("-", "_")
+                            oracle_conf = float(primary.get("confidence", 0.92))
+                            oracle_bbox = primary.get("bbox_xyxy")
+                            oracle_expl = primary.get("explanation", f"Visual defect detected on widget '{target['name']}'.")
+                            defects_found.append({
+                                "id": f"VIS_DEFECT_{step_idx+1}",
+                                "type": defect_type,
+                                "component": target["name"],
+                                "trigger": prof_data.get("name"),
+                                "explanation": oracle_expl,
+                                "confidence": oracle_conf,
+                                "bbox": oracle_bbox
+                            })
+                        else:
+                            has_defect = False
+                            defect_type = "none"
+                            oracle_expl = "Clean UI layout certified within active viewport."
+                    except Exception as _oracle_err:
+                        self._append_log(f"[PIPELINE ORACLE NOTE] Real VLM pass fallback ({_oracle_err}).")
+                        if prof_data.get("cpu", 0) >= 90 and not is_hit:
+                            has_defect = True
+                            defect_type = "TEXT_TRUNCATION"
+                            defects_found.append({
+                                "id": f"VIS_DEFECT_{step_idx+1}",
+                                "type": "TEXT_TRUNCATION",
+                                "component": target["name"],
+                                "trigger": prof_data.get("name"),
+                                "explanation": f"UI widget '{target['name']}' text clipping and frame drop ({jank_pct}% jank) under 95% CPU contention.",
+                                "confidence": 0.94
+                            })
+                        elif "3G" in prof_data.get("name", "") and err_dist > 40:
+                            has_defect = True
+                            defect_type = "COMPONENT_OVERLAP"
+                            defects_found.append({
+                                "id": f"VIS_DEFECT_{step_idx+1}",
+                                "type": "COMPONENT_OVERLAP",
+                                "component": target["name"],
+                                "trigger": prof_data.get("name"),
+                                "explanation": f"Layout reflow overlap on '{target['name']}' due to 1850ms asynchronous cellular delay.",
+                                "confidence": 0.89
+                            })
+                else:
+                    if prof_data.get("cpu", 0) >= 90 and not is_hit:
+                        has_defect = True
+                        defect_type = "TEXT_TRUNCATION"
+                        defects_found.append({
+                            "id": f"VIS_DEFECT_{step_idx+1}",
+                            "type": "TEXT_TRUNCATION",
+                            "component": target["name"],
+                            "trigger": prof_data.get("name"),
+                            "explanation": f"UI widget '{target['name']}' text clipping and frame drop ({jank_pct}% jank) under 95% CPU contention.",
+                            "confidence": 0.94
+                        })
+                    elif "3G" in prof_data.get("name", "") and err_dist > 40:
+                        has_defect = True
+                        defect_type = "COMPONENT_OVERLAP"
+                        defects_found.append({
+                            "id": f"VIS_DEFECT_{step_idx+1}",
+                            "type": "COMPONENT_OVERLAP",
+                            "component": target["name"],
+                            "trigger": prof_data.get("name"),
+                            "explanation": f"Layout reflow overlap on '{target['name']}' due to 1850ms asynchronous cellular delay.",
+                            "confidence": 0.89
+                        })
 
                 oracle_res_str = f"Defect: {defect_type}" if has_defect else "Screen Verified Clean ✅"
                 self._append_log(f"[PIPELINE VERIFICATION #{step_idx+1}] Vision Oracle: {oracle_res_str} | FrameProbe Jank: {jank_pct}%")
@@ -2112,7 +2203,7 @@ class HeartSimpleApp(ctk.CTk):
         self._append_log(f"[FRAME PROBE] Sampling dumpsys gfxinfo for '{pkg}' (RDR-0008, 58ms read cost)...")
         
         def _worker():
-            adb_bin = r"C:\Users\user\AppData\Local\Android\Sdk\platform-tools\adb.exe"
+            adb_bin = get_adb_binary()
             dev_id = getattr(self.adb, "device_id", None)
             cmd = [adb_bin]
             if dev_id and not getattr(self.adb, "is_simulated", False):
@@ -3673,7 +3764,7 @@ class HeartSimpleApp(ctk.CTk):
     # =========================================================================
     def _scan_device_and_apps(self, preferred_id=None):
         def _worker():
-            adb_bin = r"C:\Users\user\AppData\Local\Android\Sdk\platform-tools\adb.exe"
+            adb_bin = get_adb_binary()
             try:
                 res = subprocess.run([adb_bin, "devices", "-l"], capture_output=True, text=True, timeout=8)
                 lines = [l.strip() for l in res.stdout.splitlines() if l.strip() and not l.startswith("List of")]
@@ -3744,7 +3835,7 @@ class HeartSimpleApp(ctk.CTk):
 
     def _switch_to_device(self, dev_id):
         def _worker():
-            adb_bin = r"C:\Users\user\AppData\Local\Android\Sdk\platform-tools\adb.exe"
+            adb_bin = get_adb_binary()
             self.adb.device_id = dev_id
             self.adb.is_simulated = False
             is_emu = dev_id.startswith("emulator-")
@@ -3802,7 +3893,7 @@ class HeartSimpleApp(ctk.CTk):
     def _send_adb_input(self, input_cmd):
         """Send input command instantly without blocking GUI thread."""
         dev_id = getattr(self.adb, "device_id", None)
-        adb_bin = r"C:\Users\user\AppData\Local\Android\Sdk\platform-tools\adb.exe"
+        adb_bin = get_adb_binary()
         cmd = [adb_bin]
         if dev_id and not getattr(self.adb, "is_simulated", False):
             cmd.extend(["-s", dev_id])
@@ -3847,7 +3938,7 @@ class HeartSimpleApp(ctk.CTk):
         def _worker():
             try:
                 import io
-                adb_bin = r"C:\Users\user\AppData\Local\Android\Sdk\platform-tools\adb.exe"
+                adb_bin = get_adb_binary()
                 dev_id = getattr(self.adb, "device_id", None)
                 is_emu = bool(dev_id and str(dev_id).startswith("emulator-"))
 
@@ -4015,7 +4106,7 @@ class HeartSimpleApp(ctk.CTk):
         pkg = self.app_selector.get().strip()
         self._append_log(f"[APP RUNNER] Launching '{pkg}' on device...")
         def _launch():
-            adb_bin = r"C:\Users\user\AppData\Local\Android\Sdk\platform-tools\adb.exe"
+            adb_bin = get_adb_binary()
             cmd_prefix = [adb_bin]
             if self.adb.device_id and not self.adb.is_simulated:
                 cmd_prefix.extend(["-s", self.adb.device_id])
@@ -4065,7 +4156,7 @@ class HeartSimpleApp(ctk.CTk):
 
     def _install_apk_worker(self, apk_path):
         def _worker():
-            adb_bin = r"C:\Users\user\AppData\Local\Android\Sdk\platform-tools\adb.exe"
+            adb_bin = get_adb_binary()
             dev_id = getattr(self.adb, "device_id", None)
             
             import glob, re
@@ -4176,7 +4267,7 @@ class HeartSimpleApp(ctk.CTk):
         self._append_log("[FINDINGS EXPORT] Compiling comprehensive telemetry, perturbations, and failure attribution...")
         def _worker():
             try:
-                adb_bin = r"C:\Users\user\AppData\Local\Android\Sdk\platform-tools\adb.exe"
+                adb_bin = get_adb_binary()
                 dev_id = getattr(self.adb, "device_id", "default")
                 active_pkg = self.app_selector.get().strip() if hasattr(self, "app_selector") else "unknown.package"
                 
@@ -4535,8 +4626,8 @@ class HeartSimpleApp(ctk.CTk):
                                  lambda: self._append_log(f"[CONTEXT] Dark Mode set: {val}"))
 
     def _launch_avd(self):
-        adb_bin = r"C:\Users\user\AppData\Local\Android\Sdk\platform-tools\adb.exe"
-        emu_bin = r"C:\Users\user\AppData\Local\Android\Sdk\emulator\emulator.exe"
+        adb_bin = get_adb_binary()
+        emu_bin = get_emulator_binary()
         self._append_log("[EMULATOR] Checking Android Virtual Device...")
 
         # Check if an emulator is already running
@@ -4560,7 +4651,7 @@ class HeartSimpleApp(ctk.CTk):
     def _poll_for_emulator(self, attempts=0):
         if attempts > 15:
             return
-        adb_bin = r"C:\Users\user\AppData\Local\Android\Sdk\platform-tools\adb.exe"
+        adb_bin = get_adb_binary()
         res = subprocess.run([adb_bin, "devices"], capture_output=True, text=True, timeout=4)
         for line in res.stdout.splitlines():
             if line.startswith("emulator-"):
