@@ -20,7 +20,8 @@ from c4.execution.models import ExecutionResult, FailureKind
 from c4.healing.baseline import BaselineStore
 from c4.healing.service import HealingOutcome, HealingService
 from c4.ingestion.loader import TelemetryIngestionService
-from c4.schemas import EventSource
+from c4.schemas import EventSource, FailureJourney, journey_to_document
+from c4.journeys.export import load_hint_rules
 from c4.sessionization.service import SessionizationService
 from c4.synthesis.service import SynthesisResult, SynthesisService
 
@@ -45,6 +46,7 @@ class PipelineRecord(BaseModel):
         "not_requested", "used", "unavailable", "invalid", "no_evidence"
     ] = "not_requested"
     c3_verdict: C3Verdict | None = None
+    journey_file: str | None = None
 
 
 class Pipeline:
@@ -94,14 +96,35 @@ class Pipeline:
         """Run all journeys from a provider telemetry file."""
         events = self.ingestion.parse_file(telemetry_path, source)
         journeys = self.sessionization.process(events)
+        return self.run_journeys(
+            journeys,
+            runs_dir,
+            dry_run=dry_run,
+            limit=limit,
+            capture_baseline=capture_baseline,
+        )
+
+    def run_journeys(
+        self,
+        journeys: list[FailureJourney],
+        runs_dir: str | Path,
+        *,
+        dry_run: bool = False,
+        limit: int | None = None,
+        capture_baseline: bool = False,
+    ) -> list[PipelineRecord]:
+        """Run already-created journeys without repeating ingestion."""
         if limit is not None:
             journeys = journeys[:limit]
         root = Path(runs_dir)
         root.mkdir(parents=True, exist_ok=True)
         records: list[PipelineRecord] = []
         for journey in journeys:
-            result = self.synthesis.synthesize(journey)
             safe_id = _safe_name(journey.journey_id)
+            journey_dir = root / safe_id
+            journey_dir.mkdir(parents=True, exist_ok=True)
+            journey_file = _write_journey_file(journey, journey_dir)
+            result = self.synthesis.synthesize(journey)
             if result.status == "skipped_not_reproducible":
                 records.append(
                     PipelineRecord(
@@ -110,6 +133,7 @@ class Pipeline:
                         synthesis=result,
                         c3_status=result.c3_status,
                         c3_verdict=result.c3_verdict,
+                        journey_file=journey_file,
                     )
                 )
                 continue
@@ -121,12 +145,11 @@ class Pipeline:
                         synthesis=result,
                         c3_status=result.c3_status,
                         c3_verdict=result.c3_verdict,
+                        journey_file=journey_file,
                     )
                 )
                 continue
             if dry_run:
-                journey_dir = root / safe_id
-                journey_dir.mkdir(parents=True, exist_ok=True)
                 (journey_dir / "synthesized_test.py").write_text(
                     result.script or "", encoding="utf-8"
                 )
@@ -137,6 +160,7 @@ class Pipeline:
                         synthesis=result,
                         c3_status=result.c3_status,
                         c3_verdict=result.c3_verdict,
+                        journey_file=journey_file,
                     )
                 )
                 continue
@@ -183,6 +207,7 @@ class Pipeline:
                     healing=healing,
                     c3_status=c3_status,
                     c3_verdict=c3_verdict,
+                    journey_file=journey_file,
                 )
             )
         (root / "pipeline_report.json").write_text(
@@ -234,6 +259,23 @@ class Pipeline:
 def _safe_name(value: str) -> str:
     sanitized = re.sub(r"[^A-Za-z0-9_.-]+", "_", value).strip("._")
     return sanitized or "journey"
+
+
+def _write_journey_file(journey: FailureJourney, run_dir: Path) -> str | None:
+    """Persist a versioned journey document for a real journey."""
+    if not isinstance(journey, FailureJourney):
+        return None
+    path = run_dir / "journey.json"
+    path.write_text(
+        json.dumps(
+            journey_to_document(journey, load_hint_rules()).model_dump(mode="json"),
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return str(path)
 
 
 def _png_dimensions(path: Path) -> tuple[int, int]:

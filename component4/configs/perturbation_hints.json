@@ -1,0 +1,22 @@
+[
+  {
+    "match": {"exception_type_contains": ["timeout", "SocketTimeout", "UnknownHost", "IOException", "ConnectException"]},
+    "stressor": "network",
+    "note": "The failure type suggests a network-related timeout or connection failure."
+  },
+  {
+    "match": {"exception_type_contains": ["OutOfMemory", "memory"]},
+    "stressor": "memory",
+    "note": "The failure type suggests memory pressure."
+  },
+  {
+    "match": {"exception_type_contains": ["ANR"], "message_contains": ["not responding"]},
+    "stressor": "cpu",
+    "note": "The failure suggests an application-not-responding condition."
+  },
+  {
+    "match": {"exception_type_contains": ["battery", "thermal"]},
+    "stressor": "battery_thermal",
+    "note": "The failure type suggests battery or thermal pressure."
+  }
+]
