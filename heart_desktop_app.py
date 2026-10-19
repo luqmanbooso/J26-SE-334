@@ -20,6 +20,9 @@ if ROOT_DIR not in sys.path:
 ENV_TESTING_DIR = os.path.join(ROOT_DIR, "env testing")
 if ENV_TESTING_DIR not in sys.path:
     sys.path.insert(0, ENV_TESTING_DIR)
+RESULTS_DIR = os.path.join(ROOT_DIR, "results")
+if RESULTS_DIR not in sys.path:
+    sys.path.insert(0, RESULTS_DIR)
 
 # Biometric User Mimic Simulator import
 BIOMETRY_DIR = os.path.join(ROOT_DIR, "biometry")
@@ -2008,7 +2011,10 @@ class HeartSimpleApp(ctk.CTk):
 
             # Generate Live Pipeline Timeline Chart & JSON Artifact
             try:
-                from generate_clean_timelines import plot_live_pipeline_timeline
+                try:
+                    from results.generate_clean_timelines import plot_live_pipeline_timeline  # type: ignore
+                except ImportError:
+                    from generate_clean_timelines import plot_live_pipeline_timeline  # type: ignore
                 plot_live_pipeline_timeline(
                     pipeline_records,
                     out_png="heart_pipeline_live_timeline.png",
