@@ -4639,11 +4639,26 @@ class HeartSimpleApp(ctk.CTk):
                 self._scan_device_and_apps(preferred_id=emu_id)
                 return
 
-        # Not running: launch emulator process
-        self._append_log("[EMULATOR] Launching 'Pixel_9_Pro' in background...")
+        # Dynamically discover installed AVD
+        target_avd = "Medium_Phone"
         try:
-            subprocess.Popen([emu_bin, "-avd", "Pixel_9_Pro"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            messagebox.showinfo("AVD Launching", "Android Emulator 'Pixel_9_Pro' starting in background.\n\nPlease allow 20-30 seconds for boot. It will connect automatically.")
+            avd_res = subprocess.run([emu_bin, "-list-avds"], capture_output=True, text=True, timeout=5)
+            avd_list = [l.strip() for l in avd_res.stdout.splitlines() if l.strip()]
+            if avd_list:
+                if "Medium_Phone" in avd_list:
+                    target_avd = "Medium_Phone"
+                elif "Pixel_9_Pro" in avd_list:
+                    target_avd = "Pixel_9_Pro"
+                else:
+                    target_avd = avd_list[0]
+        except Exception:
+            pass
+
+        # Not running: launch emulator process
+        self._append_log(f"[EMULATOR] Launching '{target_avd}' in background...")
+        try:
+            subprocess.Popen([emu_bin, "-avd", target_avd], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            messagebox.showinfo("AVD Launching", f"Android Emulator '{target_avd}' starting in background.\n\nPlease allow 20-30 seconds for boot. It will connect automatically.")
             self._poll_for_emulator()
         except Exception as e:
             messagebox.showerror("AVD Error", f"Failed to start emulator:\n{e}")

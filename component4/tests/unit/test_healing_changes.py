@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from c4.healing.changes import detect_changes
 from c4.healing.engine import HealingEngine
 from c4.healing.models import HealingConfig, HealingStatus
@@ -56,8 +58,13 @@ def test_r6_excludes_unchanged_rows_and_allows_modified_row_to_heal() -> None:
 def step_0(driver) -> None:
     driver.find_element(AppiumBy.ID, "android:id/title").click()
 """
-    old_xml = _hierarchy(["SIM cards", "Battery", "Storage"])
-    new_xml = _hierarchy(["SIMs", "Battery", "Storage"])
+    old_xml = """<hierarchy><node class="android.widget.LinearLayout" clickable="true"
+    enabled="true" bounds="[0,0][100,100]"><node class="android.widget.TextView"
+    resource-id="android:id/title" text="SIM cards" enabled="true"
+    bounds="[0,0][100,20]" /><node class="android.widget.TextView"
+    resource-id="android:id/title" text="Battery" enabled="true"
+    bounds="[0,20][100,40]" /></node></hierarchy>"""
+    new_xml = old_xml.replace("SIM cards", "SIMs")
     engine = HealingEngine(
         HealingConfig(embedder="lexical", confidence_threshold=0.0),
         embedder=FakeEmbedder(),
@@ -71,3 +78,26 @@ def step_0(driver) -> None:
     assert with_baseline.r6_applied is True
     assert with_baseline.candidates_after_narrowing < without_baseline.candidates_after_narrowing
     assert with_baseline.status is HealingStatus.HEALED
+
+
+def test_settings_target_beyond_first_fifteen_is_ranked_first() -> None:
+    script = """from appium.webdriver.common.appiumby import AppiumBy
+
+def step_0(driver) -> None:
+    driver.find_element(
+        AppiumBy.ANDROID_UIAUTOMATOR,
+        'new UiSelector().text("Network and internet")',
+    ).click()
+"""
+    xml = (
+        Path(__file__).parents[1] / "fixtures" / "healing" / "settings_home_real.xml"
+    ).read_text(encoding="utf-8")
+    decision = HealingEngine(
+        HealingConfig(embedder="lexical"),
+    ).heal(script, 0, xml)
+
+    assert decision.top_candidates
+    assert decision.top_candidates[0].descriptor.text == "Network & internet"
+    assert decision.top_candidates[0].node_index > 15
+    assert decision.candidates_ranked >= 20
+    assert set(decision.rule_counts) == {f"R{rule}" for rule in range(1, 8)}

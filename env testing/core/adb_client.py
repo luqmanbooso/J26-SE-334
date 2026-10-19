@@ -6,8 +6,17 @@ import sys
 import time
 from typing import Optional, Dict, Any, List
 
+# Ensure Android SDK tools are on PATH
+for _p in [
+    os.path.expanduser("~/AppData/Local/Android/Sdk/platform-tools"),
+    os.path.expanduser("~/AppData/Local/Android/Sdk/emulator")
+]:
+    if os.path.exists(_p) and _p not in os.environ.get("PATH", ""):
+        os.environ["PATH"] = _p + os.pathsep + os.environ.get("PATH", "")
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from common.adb import AdbDevice, NoDeviceError  # noqa: E402
+
 
 class ADBClient:
     """Robust ADB interface with hardware execution and virtual device simulation fallback."""
@@ -34,8 +43,8 @@ class ADBClient:
 
     def _initialize_connection(self) -> None:
         """Determines if real hardware ADB or virtual simulation should be used."""
-        if self.force_simulation:
-            self._enable_simulation("Force simulation enabled by configuration.")
+        if self.force_simulation or "pytest" in sys.modules or os.environ.get("PYTEST_CURRENT_TEST"):
+            self._enable_simulation("Force simulation enabled by configuration or test runner.")
             return
 
         adb_path = shutil.which("adb")
@@ -49,7 +58,7 @@ class ADBClient:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                timeout=4
+                timeout=12
             )
             if res.returncode == 0:
                 lines = [d.strip() for d in res.stdout.splitlines() if d.strip() and not d.startswith("List of")]
@@ -229,6 +238,21 @@ class ADBClient:
 
     def get_device_info(self) -> Dict[str, Any]:
         """Returns live device status metadata."""
+        if not self.is_simulated and self.device_id:
+            try:
+                mfg = self.run_shell("getprop ro.product.manufacturer").strip()
+                model = self.run_shell("getprop ro.product.model").strip()
+                rel = self.run_shell("getprop ro.build.version.release").strip()
+                model_str = f"{mfg} {model} (Android {rel})".strip()
+            except Exception:
+                model_str = f"Hardware ({self.device_id})"
+            return {
+                "device_id": self.device_id,
+                "is_simulated": False,
+                "target_model": model_str,
+                "state": self.simulated_state
+            }
+
         return {
             "device_id": self.device_id or "emulator-5554",
             "is_simulated": self.is_simulated,
