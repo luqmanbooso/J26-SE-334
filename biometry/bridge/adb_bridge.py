@@ -24,6 +24,9 @@ class ADBBridge:
     """
 
     def __init__(self, device_id=None, device=None, dump_max_age=0.0):
+        adb_std_path = os.path.expanduser(r"~\AppData\Local\Android\Sdk\platform-tools")
+        if os.path.exists(adb_std_path) and adb_std_path not in os.environ.get("PATH", ""):
+            os.environ["PATH"] = adb_std_path + os.pathsep + os.environ.get("PATH", "")
         self.device = device if device is not None else AdbDevice(serial=device_id)
         self.dump_max_age = dump_max_age
         print(f"[ADB] using device {self.device.serial}")
