@@ -20,7 +20,10 @@ Thumbs.db
 *.log
 /perturbation_event_log.json
 /environment_failure_attribution.json
-/results/
+/results/*
+!/results/*.py
+!/results/exp-02/
+scratch/
 
 # Vision Oracle Models
 # Base model (>4GB, download separately via scripts/download_base_model.py)

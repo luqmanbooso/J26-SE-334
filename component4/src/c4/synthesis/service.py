@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 
 from c4.c3_interface.client import C3Client
 from c4.c3_interface.contract import C3Verdict
+from c4.c3_interface.normalize import normalize_verdict
 from c4.config import TargetAppConfig
 from c4.schemas import FailureJourney, SynthStep
 from c4.synthesis.appium_generator import AppiumScriptGenerator
@@ -30,7 +31,7 @@ class SynthesisResult(BaseModel):
     """Final synthesis status and generated artifacts."""
 
     journey_id: str
-    status: Literal["generated", "skipped_not_reproducible", "failed"]
+    status: Literal["generated", "skipped_not_reproducible", "failed", "error"]
     steps: list[SynthStep]
     script: str | None
     attempts: list[SynthesisAttempt]
@@ -39,6 +40,10 @@ class SynthesisResult(BaseModel):
     model: str | None
     elapsed_seconds: float = Field(ge=0.0)
     reason: str | None = None
+    c3_status: Literal[
+        "not_requested", "used", "unavailable", "invalid", "no_evidence"
+    ] = "not_requested"
+    c3_verdict: C3Verdict | None = None
 
 
 class SynthesisService:
@@ -54,6 +59,7 @@ class SynthesisService:
         use_c3: bool = True,
         max_attempts: int = 3,
         target: TargetAppConfig | None = None,
+        c3_strict: bool = False,
     ) -> None:
         if max_attempts < 1:
             raise ValueError("max_attempts must be at least one")
@@ -65,6 +71,9 @@ class SynthesisService:
         self.use_c3 = use_c3
         self.max_attempts = max_attempts
         self.target = target
+        self.c3_strict = c3_strict
+        self.last_c3_verdict: C3Verdict | None = None
+        self.last_c3_status = "not_requested"
 
     def synthesize(self, journey: FailureJourney) -> SynthesisResult:
         """Synthesize one journey, skipping journeys known to be unreproducible."""
@@ -84,10 +93,34 @@ class SynthesisService:
                 model=model,
             )
         verdict: C3Verdict | None = None
+        c3_status = "not_requested"
         if self.use_c3 and self.c3_client is not None:
-            verdict = self.c3_client.get_verdict(
+            try:
+                verdict = self.c3_client.get_verdict(
                 journey.session_id, journey.failure, journey
-            )
+                )
+            except Exception as error:
+                c3_status = "invalid"
+                if self.c3_strict:
+                    return self._result(
+                        journey, "error", [], [], False, started,
+                        model=model, reason=f"C3 invalid response: {error}",
+                        c3_status=c3_status,
+                    )
+            else:
+                c3_status = getattr(self.c3_client, "last_status", "used")
+                verdict = normalize_verdict(verdict)
+                if self.c3_strict and c3_status in {"unavailable", "invalid"}:
+                    return self._result(
+                        journey, "error", [], [], False, started,
+                        model=model,
+                        reason=getattr(self.c3_client, "last_error", None)
+                        or f"C3 {c3_status}",
+                        c3_status=c3_status,
+                        c3_verdict=verdict,
+                    )
+        self.last_c3_verdict = verdict
+        self.last_c3_status = c3_status
         base_prompt = self.prompt_builder.build(journey, verdict)
         attempts: list[SynthesisAttempt] = []
         previous_response = ""
@@ -133,9 +166,11 @@ class SynthesisService:
                 "generated",
                 steps,
                 attempts,
-                verdict is not None,
+                c3_status == "used",
                 started,
                 script=script,
+                c3_status=c3_status,
+                c3_verdict=verdict,
                 model=model,
             )
         return self._result(
@@ -143,10 +178,12 @@ class SynthesisService:
             "failed",
             [],
             attempts,
-            verdict is not None,
+            c3_status == "used",
             started,
             model=model,
             reason=last_error,
+            c3_status=c3_status,
+            c3_verdict=verdict,
         )
 
     def synthesize_many(self, journeys: list[FailureJourney]) -> list[SynthesisResult]:
@@ -156,7 +193,7 @@ class SynthesisService:
     def _result(
         self,
         journey: FailureJourney,
-        status: Literal["generated", "skipped_not_reproducible", "failed"],
+        status: Literal["generated", "skipped_not_reproducible", "failed", "error"],
         steps: list[SynthStep],
         attempts: list[SynthesisAttempt],
         c3_used: bool,
@@ -165,6 +202,8 @@ class SynthesisService:
         script: str | None = None,
         model: str | None = None,
         reason: str | None = None,
+        c3_status: str = "not_requested",
+        c3_verdict: C3Verdict | None = None,
     ) -> SynthesisResult:
         return SynthesisResult(
             journey_id=journey.journey_id,
@@ -177,4 +216,6 @@ class SynthesisService:
             model=model,
             elapsed_seconds=time.perf_counter() - started,
             reason=reason,
+            c3_status=c3_status,
+            c3_verdict=c3_verdict,
         )

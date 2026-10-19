@@ -31,9 +31,11 @@ Unlike traditional mobile testing tools that only capture fatal app crashes, **H
 * **Non-Crash GUI Overlap Detection**: Locates hidden element collisions (`[OVERFLOW_Y_COLLISION]`) without requiring app source code access.
 * **Attention Spot Heatmaps**: Highlights model attention coordinates over defect zones.
 
-### 4. Self-Healing Telemetry & Regression Synthesizer (C4)
-* **Sentence-BERT Locator Remapping**: Automatically maps broken DOM/XPath selectors to active UI text nodes (e.g., `//android.widget.Button[@id='submit']` → `//android.widget.Button[@text='SUBMIT']`).
-* **Automated Test Repair**: Synthesizes updated Appium Python test scripts in real-time.
+### 4. Self-Healing Telemetry & Regression Synthesizer (C4 - MADUBASHINI H.N.)
+
+* **Telemetry to test**: Turns crash telemetry (Sentry, Crashlytics) into an executable Appium regression test using a local LLM.
+* **Self-healing**: Repairs broken locators after UI changes, accepting a replacement only when it is confident and unique, and versions every repair.
+* **Local and connected**: Runs fully offline and can use C3's defect verdicts as context. Details are in the [Component 4 README](component4/README.md).
 
 ---
 
