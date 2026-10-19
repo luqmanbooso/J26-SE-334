@@ -7,8 +7,9 @@ navigates away, those fixed coordinates land on whatever is now in front. This
 driver sits *above* the controller and supplies the missing *which / when* — a
 depth-first walk that taps every reachable target once, recognises navigation by
 a change in the screen's identity, and climbs back out with the Android Back
-control (an in-app "back" could be any element; the system Back always means
-back). Every real touch still goes through `controller.act`, so the biometrics,
+control — tried, then *verified* against the screen it should restore, and
+repaired by relaunch-and-replay when the app's Back is not LIFO (see below).
+Every real touch still goes through `controller.act`, so the biometrics,
 cognitive feedback and timeline are unchanged; this only chooses the order.
 
 Three things make the walk cover an app well rather than stall on one screen:
@@ -41,6 +42,11 @@ Documented limits (by design):
     (every content state is its own screen); --signature frame uses a coarse
     control-set identity instead.
   * A tap returning *up* to a screen on the path unwinds to it without a Back.
+  * Climbing back out is Back-first but verified: if the system Back does not
+    restore the screen it should (a non-LIFO Back that goes Home or exits the
+    app), the walk relaunches and replays that screen's recorded route to it
+    rather than trusting the back-stack. The DFS context is kept — the walk
+    carries on where it was, it does not restart from the root.
   * Replay assumes the recorded route is deterministic; a route gated behind a
     content state it can't reproduce is marked unreachable and skipped.
   * Off-screen targets are not scrolled into view.
@@ -264,18 +270,52 @@ class AppExplorer:
 
     # --- navigation control -------------------------------------------------
 
-    def _go_back(self):
+    def _back_to(self, frame):
+        """Climb back to `frame` after exploring below it.
+
+        Back-first, but never trusted: issue the system Back, then *verify* we
+        actually landed on `frame`. Many apps — single-activity Compose ones
+        especially — do not honour a LIFO back-stack: Back can jump Home, exit
+        the app, or land several screens away. When Back did not restore
+        `frame`, repair deterministically by relaunching and replaying the
+        recorded route to it (`_replay_back_to`), which assumes nothing about
+        the back-stack. Returns the dump we land on; raises `_LostPlace` only
+        when the repair itself is impossible, leaving the walk's relaunch logic
+        to handle the genuinely-lost case."""
         self.press_back()
         self.sleep(self.settle_s)
-        if self._left_the_app():
-            raise _LostPlace("Back left the app")
+        if not self._left_the_app():
+            root = self._stable_dump()
+            if self._identity(root) == frame:
+                return root                      # the app's Back was LIFO
+        return self._replay_back_to(frame)       # non-LIFO Back: repair by replay
 
-    def _ensure_on(self, expected_frame):
-        root = self._stable_dump()
-        actual = self._identity(root)
-        if actual != expected_frame:
-            raise _LostPlace("Back did not restore {} (now on {})".format(
-                self._name(expected_frame), self._name(actual)))
+    def _replay_back_to(self, frame):
+        """Back did not restore `frame` (a non-LIFO jump, or it left the app).
+        Relaunch and replay `frame`'s recorded route to stand on it again,
+        without unwinding the walk or re-exploring from the root. The DFS stack
+        is left untouched: logically we are still on `frame` with its ancestors
+        below it."""
+        if not (self.seen.get(frame, set()) - self.tried.get(frame, set())):
+            # Nothing left to do on `frame` itself — we were only climbing
+            # through it. Don't spend a relaunch standing back on a finished
+            # screen; let the walk decide (it stops if no work remains anywhere,
+            # or relaunch-recovers the specific screen that still has targets).
+            raise _LostPlace("Back did not restore {} (already done)".format(
+                self._name(frame)))
+        if self.relaunch is None or frame not in self.paths:
+            raise _LostPlace("Back did not restore {}; no replay route".format(
+                self._name(frame)))
+        if self.relaunches >= self.max_relaunches:
+            raise _LostPlace("Back did not restore {}; relaunch cap ({}) reached".format(
+                self._name(frame), self.max_relaunches))
+        self.relaunches += 1
+        self._line(0, "- Back missed {}; relaunch+replay to it [{}/{}]".format(
+            self._name(frame), self.relaunches, self.max_relaunches))
+        self.relaunch()
+        root = self._replay(list(self.paths[frame]), start=self._await_ready())
+        if root is None or self._identity(root) != frame:
+            raise _LostPlace("replay to {} failed".format(self._name(frame)))
         return root
 
     def _await_ready(self):
@@ -418,8 +458,7 @@ class AppExplorer:
                                "nav->{} (done, back)".format(self._name(new_frame)), record)
                     screen["edges"].append({"via": label, "to": self._sid(new_frame),
                                             "note": "already-exhausted"})
-                    self._go_back()
-                    root = self._ensure_on(frame)
+                    root = self._back_to(frame)
                     continue
 
                 if new_frame in self._stack:               # returned up to an ancestor
@@ -435,8 +474,7 @@ class AppExplorer:
                                "nav->{} (depth cap, back)".format(self._name(new_frame)), record)
                     screen["edges"].append({"via": label, "to": self._sid(new_frame),
                                             "note": "depth-capped"})
-                    self._go_back()
-                    root = self._ensure_on(frame)
+                    root = self._back_to(frame)
                     continue
 
                 # a genuinely new screen: descend, exhaust it, then climb back
@@ -450,8 +488,7 @@ class AppExplorer:
                         raise                 # a deeper tap returned above us: keep unwinding
                     root = self._stable_dump()   # the app is back on this screen; carry on
                     continue
-                self._go_back()
-                root = self._ensure_on(frame)
+                root = self._back_to(frame)
         finally:
             if self._stack and self._stack[-1] == frame:
                 self._stack.pop()

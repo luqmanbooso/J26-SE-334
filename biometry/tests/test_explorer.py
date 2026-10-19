@@ -412,6 +412,52 @@ def test_recovery_replays_to_finish_a_screen_left_by_an_early_exit():
     assert result.relaunches >= 1
 
 
+# --- non-LIFO Back: climb-back is verified and repaired by replay ------------
+
+class NonLifoBackApp(FakeAppGraph):
+    """A single-activity app whose system Back does NOT pop one screen — it
+    collapses straight to the root (the Compose 'Back goes Home' behaviour). So
+    climbing out of a deep screen by Back lands on the wrong screen, and a walk
+    that trusted the back-stack would be lost. The explorer must detect the
+    mismatch and repair by relaunch+replay, keeping its place."""
+
+    def press_back(self):
+        self.backs += 1
+        if self.exited:
+            return
+        if len(self.stack) > 1:
+            self.stack = [self.root]     # jump to root, not pop one level
+        else:
+            self.exited = True
+
+
+def test_non_lifo_back_is_repaired_by_replay_without_restarting():
+    graph = {
+        "A": [("A->B", "a1", _bounds(0), "B"),
+              ("A-leaf", "a2", _bounds(1), None)],
+        "B": [("B->C", "b1", _bounds(0), "C"),
+              ("B-leaf", "b2", _bounds(1), None)],
+        "C": [("C-leaf", "c1", _bounds(0), None)],
+    }
+    fake = NonLifoBackApp(graph, root="A")
+    result = _explorer(fake).run()
+    # Everything is still covered despite Back never restoring the parent.
+    assert result.stop_reason.startswith("exhausted")
+    assert result.screens_discovered == 3
+    assert result.screens_exhausted == 3
+    # Climbing C->B is the one non-LIFO climb needing repair: exactly one
+    # relaunch+replay. (Climbing B->root lands on A, which is correct.) A walk
+    # that restarted from the root on a lost Back, then recovered B separately,
+    # would relaunch twice.
+    assert result.relaunches == 1
+    tapped = [r.target_element_id for r in result.timeline.records]
+    # Local repair keeps the DFS context: B is finished (B-leaf) before the walk
+    # climbs on to tap A-leaf — not deferred to a separate recovery pass.
+    assert tapped.index("B-leaf") < tapped.index("A-leaf")
+    for label in ("A->B", "B->C", "C-leaf", "B-leaf", "A-leaf"):
+        assert label in tapped
+
+
 # --- the traversal log and screen graph --------------------------------------
 
 def test_traversal_log_and_graph_are_produced():
