@@ -12,11 +12,13 @@ import json
 import logging
 import urllib.request
 import urllib.error
+from pydantic import ValidationError
 from pathlib import Path
 from typing import Any, Literal, Mapping, Optional
 
 from c4.schemas import FailureJourney, NormalizedEvent
 from c4.c3_interface.contract import C3Verdict, DefectRegion, ScreenshotEvidence
+from c4.c3_interface.normalize import normalize_verdict
 
 logger = logging.getLogger("c4.c3_interface.live_client")
 
@@ -41,38 +43,69 @@ class C3LiveClient:
         self.timeout_s = timeout_s
         self.fallback_on_error = fallback_on_error
         self._engine = engine
+        self.last_status = "no_evidence"
+        self.last_error: str | None = None
 
     def get_verdict(
         self,
         session_id: str,
         failure: NormalizedEvent,
         journey: FailureJourney | None = None,
+        *,
+        hierarchy_xml: str | None = None,
+        screenshot_path: str | None = None,
+        screenshot_width: int | None = None,
+        screenshot_height: int | None = None,
     ) -> C3Verdict:
         """
         Obtains visual verdict for a failure event.
         Extracts screenshot references from event attributes or queries the local C3 ledger.
         """
         # 1. Check if a screenshot or hierarchy is directly attached
-        screenshot_path = self._extract_screenshot_path(failure, journey)
-        hierarchy_xml = self._extract_hierarchy_xml(failure, journey)
+        self.last_status = "no_evidence"
+        self.last_error = None
+        screenshot_path = screenshot_path or self._extract_screenshot_path(failure, journey)
+        hierarchy_xml = hierarchy_xml or self._extract_hierarchy_xml(failure, journey)
+        if not screenshot_path and not hierarchy_xml:
+            return self._build_default_verdict(session_id, failure)
 
         # 2. Dispatch evaluation based on configured mode
         try:
             if self.mode in ("auto", "in_process") and self._can_use_in_process():
-                return self._evaluate_in_process(
+                verdict = self._evaluate_in_process(
                     session_id=session_id,
                     screenshot_path=screenshot_path,
                     hierarchy_xml=hierarchy_xml,
                     failure=failure,
                 )
+                self.last_status = "used"
+                return normalize_verdict(verdict)
             elif self.mode in ("auto", "http"):
-                return self._evaluate_http(
+                verdict = self._evaluate_http(
                     session_id=session_id,
                     screenshot_path=screenshot_path,
                     hierarchy_xml=hierarchy_xml,
                     failure=failure,
+                    screenshot_width=screenshot_width,
+                    screenshot_height=screenshot_height,
                 )
+                self.last_status = "used"
+                return normalize_verdict(verdict)
+        except ValidationError as exc:
+            self.last_status = "invalid"
+            self.last_error = str(exc)
+            logger.warning("C3LiveClient returned invalid verdict: %s", exc)
+            if not self.fallback_on_error:
+                raise
+        except (OSError, TimeoutError, urllib.error.URLError, json.JSONDecodeError) as exc:
+            self.last_status = "unavailable"
+            self.last_error = str(exc)
+            logger.warning("C3LiveClient evaluation unavailable: %s", exc)
+            if not self.fallback_on_error:
+                raise
         except Exception as exc:
+            self.last_status = "unavailable"
+            self.last_error = str(exc)
             logger.warning("C3LiveClient evaluation failed: %s", exc)
             if not self.fallback_on_error:
                 raise
@@ -95,6 +128,8 @@ class C3LiveClient:
         screenshot_path: Optional[str],
         hierarchy_xml: Optional[str],
         failure: NormalizedEvent,
+        screenshot_width: int | None = None,
+        screenshot_height: int | None = None,
     ) -> C3Verdict:
         from vision_oracle.services.oracle_service import get_oracle_service
 
@@ -125,6 +160,8 @@ class C3LiveClient:
         screenshot_path: Optional[str],
         hierarchy_xml: Optional[str],
         failure: NormalizedEvent,
+        screenshot_width: int | None = None,
+        screenshot_height: int | None = None,
     ) -> C3Verdict:
         # If screenshot path exists, send evaluate request
         if screenshot_path and Path(screenshot_path).exists():
@@ -134,6 +171,8 @@ class C3LiveClient:
                 "screen_id": failure.screen or failure.name,
                 "session_id": session_id,
                 "action_context": f"Failure: {failure.name} ({failure.kind.value})",
+                "screenshot_width": screenshot_width,
+                "screenshot_height": screenshot_height,
             }
             url = f"{self.base_url}/api/oracle/evaluate"
             req = urllib.request.Request(
@@ -177,6 +216,8 @@ class C3LiveClient:
         return None
 
     def _build_default_verdict(self, session_id: str, failure: NormalizedEvent) -> C3Verdict:
+        if self.last_status not in {"invalid", "unavailable"}:
+            self.last_status = "no_evidence"
         return C3Verdict(
             schema_version="1.0.0",
             verdict_id=f"c3-live-{session_id}",
@@ -185,5 +226,9 @@ class C3LiveClient:
             defect_type=None,
             confidence=0.0,
             evidence={"note": "no_screenshot_attached_or_oracle_offline"},
-            metadata={"screen": failure.screen, "failure_name": failure.name},
+            metadata={
+                "screen": failure.screen,
+                "failure_name": failure.name,
+                "c3_status": self.last_status,
+            },
         )
