@@ -20,6 +20,10 @@ from simulation.simulator import BiometricSimulator
 
 APP_PKG = "com.fake.app"
 
+#: a target destination meaning "dismiss/pop back up to the parent" (a dialog's
+#: OK, an up control) rather than "open a child screen".
+POP = object()
+
 
 # --- a fake app: a graph of screens the walk discovers one dump at a time ----
 
@@ -84,8 +88,11 @@ class FakeAppGraph:
 
         _lbl, _rid, _b, dest = min(
             buttons, key=lambda bt: (centre(bt)[0] - x) ** 2 + (centre(bt)[1] - y) ** 2)
-        if dest is not None:
-            self.stack.append(dest)
+        if dest is POP:
+            if len(self.stack) > 1:          # dismiss up to the parent
+                self.stack.pop()
+        elif dest is not None:
+            self.stack.append(dest)          # open a child screen
 
     def press_back(self):
         self.backs += 1
@@ -211,17 +218,22 @@ def test_a_shared_child_screen_is_explored_only_once():
     assert tapped.count("X-1") == 1 and tapped.count("X-2") == 1   # ...but once
 
 
-def test_a_cycle_back_to_an_ancestor_does_not_loop():
+def test_a_tap_returning_to_an_ancestor_unwinds_without_backing_out():
+    # B's only control dismisses back up to A (a dialog's OK) — exactly the
+    # toolkit case. The walk must not loop, must NOT press Back (from root A that
+    # quits the app), and must carry on with A's remaining target.
     cycle = {
-        "A": [("A->B", "a1", _bounds(0), "B")],
-        "B": [("B->A", "b1", _bounds(0), "A"),
-              ("B-leaf", "b2", _bounds(1), None)],
+        "A": [("A->B", "a1", _bounds(0), "B"),
+              ("A-leaf", "a2", _bounds(1), None)],
+        "B": [("B-dismiss", "b1", _bounds(0), POP)],
     }
     fake = FakeAppGraph(cycle, root="A")
     result = _explorer(fake).run()
-    assert result.actions == 3             # A->B, B->A (cycle, back), B-leaf
-    assert result.screens_discovered == 2
     assert result.stop_reason.startswith("exhausted")
+    assert fake.exited is False            # never backed out of the app
+    assert result.relaunches == 0
+    tapped = [r.target_element_id for r in result.timeline.records]
+    assert tapped == ["A->B", "B-dismiss", "A-leaf"]   # unwound to A, then continued
 
 
 def test_action_budget_stops_the_walk_cleanly():

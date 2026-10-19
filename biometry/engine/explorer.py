@@ -35,9 +35,15 @@ relaunch cap, so the walk always terminates.
 Documented limits (by design, not defects):
   * Screen identity is the structural signature, so structurally-identical pages
     (a list-detail template) collapse to one screen on purpose.
-  * Back is assumed to return to the screen a tap left. If it does not, the walk
-    does not guess a recovery path — it reports losing its place and relaunches
-    (if work remains) or stops. Path-replay recovery is a possible later step.
+  * A tap that returns *up* to a screen already on the path (a dialog dismissing,
+    an up control) is treated as the app popping to that ancestor: the walk
+    unwinds to it and continues, without a Back. If instead such a tap pushed a
+    fresh copy of the ancestor, the current screen's remaining targets may be
+    left unexplored — the accepted cost of not tracking the real back-stack.
+  * Back (used to climb out of a genuinely new child) is assumed to return to the
+    parent. If it does not, the walk reports losing its place and relaunches (if
+    work remains) or stops; it does not guess a recovery path. Path-replay
+    recovery is a possible later step.
   * Off-screen targets are not scrolled into view in this version.
 """
 import time
@@ -58,6 +64,17 @@ class _LostPlace(Exception):
 
 class _BudgetSpent(Exception):
     """The action budget is used up: unwind and stop immediately."""
+
+
+class _UnwindTo(Exception):
+    """A tap returned *up* to a screen already on the DFS path (a dialog
+    dismissed, an in-app up/back control). The app is on that ancestor now, so
+    pressing Back would pop past it — often out of the app. Instead we unwind
+    the recursion to that ancestor's frame, without any Back, and carry on."""
+
+    def __init__(self, sig):
+        super().__init__(sig)
+        self.sig = sig
 
 
 @dataclass
@@ -233,6 +250,11 @@ class AppExplorer:
             except _BudgetSpent:
                 reason = "action budget ({}) reached".format(self.max_actions)
                 break
+            except _UnwindTo:
+                # Should always be caught inside _explore; escaping means the
+                # target frame was already gone. Stop cleanly rather than crash.
+                reason = "unwind target was no longer on the path"
+                break
             except _LostPlace as lost:
                 if not self._budget_left():
                     reason = "{}; budget reached".format(lost.reason)
@@ -251,7 +273,7 @@ class AppExplorer:
                 self._line(0, "- {}; relaunching app [{}/{}]".format(
                     lost.reason, self.relaunches, self.max_relaunches))
                 self.relaunch()
-                self.sleep(self.settle_s)
+                self.sleep(max(self.settle_s, 2.0))   # wait for the first screen, not a splash
                 self._stack = []
                 root = self.dump()
         return self._result(reason)
@@ -314,14 +336,17 @@ class AppExplorer:
                     root = self._ensure_on(sig)
                     continue
 
-                if new_sig in self._stack:               # a cycle back onto our path
+                if new_sig in self._stack:               # tapped back onto our own path
+                    # The app returned up to an ancestor (a dialog dismissed, an
+                    # up/back control). It is already there, so do NOT press Back
+                    # — that pops past it, usually out of the app. Unwind the
+                    # recursion to that ancestor's frame and carry on from it.
                     self._emit(depth, index, label,
-                               "nav->{} (cycle, back)".format(self._name(new_sig)), record)
+                               "nav->{} (returned to ancestor)".format(self._name(new_sig)),
+                               record)
                     screen["edges"].append({"via": label, "to": self._sid(new_sig),
                                             "note": "cycle"})
-                    self._go_back()
-                    root = self._ensure_on(sig)
-                    continue
+                    raise _UnwindTo(new_sig)
 
                 if depth + 1 > self.max_depth:           # too deep to descend
                     self._emit(depth, index, label,
@@ -336,7 +361,13 @@ class AppExplorer:
                 self._emit(depth, index, label,
                            "nav->{} (descend)".format(self._name(new_sig)), record)
                 screen["edges"].append({"via": label, "to": self._sid(new_sig)})
-                self._explore(new_root, depth + 1)
+                try:
+                    self._explore(new_root, depth + 1)
+                except _UnwindTo as unwind:
+                    if unwind.sig != sig:
+                        raise                 # a deeper tap returned above us: keep unwinding
+                    root = self.dump()        # the app is back on this screen; carry on
+                    continue
                 self._go_back()
                 root = self._ensure_on(sig)
         finally:

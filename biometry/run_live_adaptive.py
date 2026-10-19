@@ -13,6 +13,7 @@ first screen's targets in place (kept for parity with the ablation harness).
 """
 import argparse
 import json
+import time
 
 from bridge.adb_bridge import ADBBridge
 from bridge.oracle_client import OracleNotifier
@@ -55,6 +56,9 @@ def main():
                     help="screen identity for the visited/exhausted cache: "
                          "'structural' ignores volatile text (default), 'full' "
                          "hashes the whole dump")
+    ap.add_argument("--no-launch", action="store_true",
+                    help="do not bring --package to the foreground first; explore "
+                         "whatever is already on screen")
     ap.add_argument("--no-relaunch", action="store_true",
                     help="do not relaunch the app if Back leaves it; just stop")
     ap.add_argument("--max-relaunches", type=int, default=5,
@@ -83,6 +87,19 @@ def main():
     if not package:
         raise SystemExit("could not determine the foreground package; pass --package")
     print(f"[live] app under test: {package}")
+
+    # The traversal reads whatever screen is in front, so a named package has to
+    # be brought to the foreground first — otherwise the run explores the
+    # launcher (or whatever happened to be open) instead of the app asked for.
+    # An auto-detected run skips this: it means "explore what is already here".
+    if args.package and not args.no_launch:
+        print(f"[live] launching {package} to the foreground")
+        bridge.launch_package(package)
+        time.sleep(max(args.settle, 2.0))
+        landed = foreground_package(bridge.device)
+        if landed and landed != package:
+            print(f"[live] warning: foreground is {landed}, not {package} "
+                  f"(launch may have failed or the device is locked)")
 
     simulator, source = build_engine(args.profile, seed=args.seed, px_per_mm=px_per_mm)
     if args.static:
