@@ -11,6 +11,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 import customtkinter as ctk
 from PIL import Image, ImageTk, ImageDraw
+from typing import Optional, List, Dict, Any, Union
 
 # Ensure 'env testing' directory is in Python path for direct native engine access
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -1809,6 +1810,40 @@ class PerturbationStudioApp(ctk.CTk):
             with open(out_path, "w", encoding="utf-8") as f:
                 json.dump(self._latest_verdict_v2, f, indent=2)
             messagebox.showinfo("Export Evidence", f"Successfully exported canonical verdict evidence:\n{out_path}")
+
+    def _open_notebook(self, rel_path: str):
+        """Opens Jupyter notebook using system default application."""
+        full_path = os.path.join(ROOT_DIR, rel_path)
+        if not os.path.exists(full_path):
+            full_path = os.path.join(ROOT_DIR, "vision_oracle", rel_path)
+        if sys.platform == "win32" and os.path.exists(full_path):
+            try:
+                os.startfile(full_path)
+                return
+            except Exception:
+                pass
+        messagebox.showinfo("Notebook Launcher", f"Interactive notebook located at:\n{full_path}")
+
+    def _toggle_live_adb_stream(self):
+        """Toggles real-time ADB screen preview mirroring."""
+        if getattr(self, "_streaming_active", False):
+            self._streaming_active = False
+            if hasattr(self, "stream_toggle_btn"):
+                self.stream_toggle_btn.configure(text="▶ Start Live Mirror", fg_color="#059669", hover_color="#047857")
+            if hasattr(self, "vision_log_box"):
+                self.vision_log_box.insert("end", "[ADB Mirror] Stopped live streaming mirror.\n")
+                self.vision_log_box.see("end")
+        else:
+            self._streaming_active = True
+            if hasattr(self, "stream_toggle_btn"):
+                self.stream_toggle_btn.configure(text="⏹ Stop Live Mirror", fg_color="#e11d48", hover_color="#be123c")
+            if hasattr(self, "vision_log_box"):
+                self.vision_log_box.insert("end", "[ADB Mirror] Started live ADB screen mirroring stream.\n")
+                self.vision_log_box.see("end")
+
+    def _evaluate_live_stream_frame(self):
+        """Captures active device frame and runs SAHI inspection."""
+        self._run_vision_inspection()
 
     # =========================================================================
     # VIEW: TELEMETRY-DRIVEN SELF-HEALING ENGINE (COMPONENT 4: SELF HEAL)
