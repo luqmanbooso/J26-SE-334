@@ -24,9 +24,12 @@ flowchart LR
     USERS --> TEL
   end
   APP --> C3["C3: judges each screen for visual and non-crash defects"]
-  C3 -->|"verdicts"| C4["C4: builds an Appium test from the failure journey, runs it, repairs broken locators, versions each repair"]
+  C3 -->|"verdicts"| C4["C4: telemetry-driven test synthesis and self-healing"]
   TEL --> C4
-  C4 -->|"failure screen + UI hierarchy"| C3
+  C4 --> JC["Journey creation"]
+  JC --> SYN["Synthesis, execution and safe healing"]
+  SYN -->|"failure screen + UI hierarchy"| C3
+  C4 -->|"journey seed (exported by C4; consumed by C1 and C2)"| C1C2["C1 / C2"]
   APP -. "planned: failure logs, not implemented" .-> C4
 ```
 
@@ -41,7 +44,9 @@ explicit `--no-c3` mode is reserved for offline tests and ablation runs.
 flowchart TD
   A["Sentry / Crashlytics JSON or JSONL"] --> B["Ingestion: normalise events, drop malformed and duplicate records"]
   B --> C["Sessionization: one failure journey per crash"]
-  C --> D["Synthesis: local Qwen3 via Ollama writes steps, then an Appium script is generated"]
+  C --> C4["C4 journey creation: build and export a versioned journey seed"]
+  C4 --> JC["Journey seed available for C4 synthesis"]
+  JC --> D["Synthesis: local Qwen3 via Ollama writes steps, then an Appium script is generated"]
   V["C3 verdict and evidence"] --> D
   D --> E["Execution: run on device through Appium, save run artifacts"]
   E -->|"pass"| F["Done"]
@@ -50,6 +55,8 @@ flowchart TD
   G --> H{"Confident, unique match?"}
   H -->|"no"| I["Refuse, script unchanged"]
   H -->|"yes"| J["Rewrite locator, re-run, store a new test version"]
+  C4 -->|"journey seed (exported by C4; consumed by C1 and C2)"| SEED["C1 / C2 seed hand-off"]
+  SEED -. "consumed by C1 and C2" .-> C1C2["C1 / C2"]
 ```
 
 ## Quick start
@@ -60,6 +67,30 @@ All commands run from the `component4/` folder.
 python -m c4 preflight --config target_app.json
 python -m c4 run --telemetry events.json --config target_app.json --runs-dir runs --dry-run --no-c3
 python -m c4 run --telemetry events.json --config target_app.json --runs-dir runs --heal --no-c3
+```
+
+## Journey creation
+
+Journey creation is an explicit offline stage between ingestion/sessionization
+and synthesis. It needs no LLM, device, or C3:
+
+```powershell
+python -m c4 journeys --telemetry events.json --source sentry `
+  --out journeys --print
+python -m c4 journeys --schema
+```
+
+The command writes one deterministic `JourneyDocument` per failure plus
+`journeys_index.json`. Seeds are an export contract for C1 and C2; C4 does
+not claim that either component consumes them. See
+[the contract](docs/journey-seed-contract.md).
+
+To synthesize from exported journeys instead of telemetry, pass exactly one
+input to `run`:
+
+```powershell
+python -m c4 run --journeys journeys --config target_app.json `
+  --runs-dir runs --dry-run --no-c3
 ```
 
 1. `preflight` checks ADB, the device, Appium and the app package.
