@@ -2,60 +2,54 @@
 
 The adaptive loop (`AdaptiveFeedbackController`) decides *how* a touch is
 performed; it does not decide *which* element to touch next. Running it over a
-fixed list of one screen's targets therefore never leaves that screen: once a
-tap navigates away, those fixed coordinates land on whatever is now in front,
-and the run is stuck re-tapping a screen it has already left. This driver sits
-*above* the controller and supplies the missing *which / when*: a depth-first
-walk that taps every reachable target once, recognises navigation by a change
-in the screen's structural signature, and climbs back out with the Android Back
-control — because an in-app "back" could be any element, but the system Back
-always means back.
+fixed list of one screen's targets never leaves that screen: once a tap
+navigates away, those fixed coordinates land on whatever is now in front. This
+driver sits *above* the controller and supplies the missing *which / when* — a
+depth-first walk that taps every reachable target once, recognises navigation by
+a change in the screen's identity, and climbs back out with the Android Back
+control (an in-app "back" could be any element; the system Back always means
+back). Every real touch still goes through `controller.act`, so the biometrics,
+cognitive feedback and timeline are unchanged; this only chooses the order.
 
-Every real touch still goes through `controller.act`, so the biometric
-distortion, cognitive-state feedback, rage bursts and timeline all behave
-exactly as before; this only chooses the order. C2's contribution — adapting
-*how* a touch is performed — is untouched. Choosing *which* element is a
-coverage concern, not a scientific claim, which is why it lives here and not in
-the controller.
+Three things make the walk cover an app well rather than stall on one screen:
 
-Two caches make the walk finite and non-redundant, which is the entire point:
+  * **Frame identity.** A screen is identified by its *set of controls*
+    (`frame_signature`), not its exact layout, so a filter chip reselecting a
+    list or a tab swapping a fragment is the *same* screen — the explorer taps
+    all the chips/tabs in place instead of treating each content state as a new
+    screen to descend into and climb back out of.
+  * **Exits tapped last.** A control whose tap lands on an already-visited
+    screen is a back/up/home control; those are *learned* as it goes (and guessed
+    on first sight from label/position) and tapped **last**, so a screen finishes
+    its real content before any control that would leave it.
+  * **Replay recovery.** If a screen is still left with untried targets after the
+    main walk (a back control fired early, say), the app is relaunched and the
+    recorded route to that screen is replayed to go back and finish it.
 
-  * ``exhausted`` — screens whose every target has been tapped. Re-reaching one
-    triggers an immediate Back instead of re-exploring it, so two buttons that
-    lead to the same screen cost that screen once.
-  * ``tried``     — per screen signature, the element keys already tapped. A
-    screen's targets are tapped once *in total*, however often it is re-reached,
-    which is what stops a cycle (A→B→A) looping forever.
+Two caches keep it finite and non-redundant: `exhausted` screens trigger an
+immediate Back instead of re-exploration, and a per-screen `tried` set taps each
+target once in total, so cycles (A→B→A) cannot loop. `max_actions`/`max_depth`
+default to unlimited; termination comes from the caches (finite screens and
+targets), not the caps.
 
-When Back leaves the app with targets still unexhausted, the app is relaunched
-and the walk resumes (the caches persist, so nothing is re-done); when nothing
-is left to exhaust, it stops. Both are bounded by the action budget and a
-relaunch cap, so the walk always terminates.
-
-Documented limits (by design, not defects):
-  * Screen identity is the structural signature, so structurally-identical pages
-    (a list-detail template) collapse to one screen on purpose.
-  * A tap that returns *up* to a screen already on the path (a dialog dismissing,
-    an up control) is treated as the app popping to that ancestor: the walk
-    unwinds to it and continues, without a Back. If instead such a tap pushed a
-    fresh copy of the ancestor, the current screen's remaining targets may be
-    left unexplored — the accepted cost of not tracking the real back-stack.
-  * Back (used to climb out of a genuinely new child) is assumed to return to the
-    parent. If it does not, the walk reports losing its place and relaunches (if
-    work remains) or stops; it does not guess a recovery path. Path-replay
-    recovery is a possible later step.
-  * Off-screen targets are not scrolled into view in this version.
+Documented limits (by design):
+  * Frame identity collapses two screens whose *controls* are identical (same
+    list-item template and nav bar, nothing else) — use `structural_signature`
+    (--signature structural) when every content state should be its own screen.
+  * A tap returning *up* to a screen on the path unwinds to it without a Back.
+  * Replay assumes the recorded route is deterministic; a route gated behind a
+    content state it can't reproduce is marked unreachable and skipped.
+  * Off-screen targets are not scrolled into view.
 """
 import time
 from dataclasses import dataclass, field
 
-from bridge.hierarchy import parse_hierarchy, structural_signature, tappable_targets
+from bridge.hierarchy import frame_signature, parse_hierarchy, tappable_targets
 
 
 class _LostPlace(Exception):
-    """The walk no longer knows which screen it is on — Back left the app, or a
-    tap opened another app, or Back did not restore the expected screen. Caught
-    at the top, where it becomes a relaunch (work remains) or a clean stop."""
+    """The walk no longer knows which screen it is on — Back left the app, a tap
+    opened another app, or Back did not restore the expected screen."""
 
     def __init__(self, reason):
         super().__init__(reason)
@@ -67,10 +61,9 @@ class _BudgetSpent(Exception):
 
 
 class _UnwindTo(Exception):
-    """A tap returned *up* to a screen already on the DFS path (a dialog
-    dismissed, an in-app up/back control). The app is on that ancestor now, so
-    pressing Back would pop past it — often out of the app. Instead we unwind
-    the recursion to that ancestor's frame, without any Back, and carry on."""
+    """A tap returned *up* to a screen already on the DFS path. The app is on
+    that ancestor now, so pressing Back would pop past it; instead we unwind the
+    recursion to that ancestor's frame, without any Back, and carry on."""
 
     def __init__(self, sig):
         super().__init__(sig)
@@ -107,41 +100,55 @@ class ExplorationResult:
 
 
 def _element_key(element):
-    """A target's identity within a screen, stable across re-dumps.
-
-    Keyed on resource-id, label and (rounded) geometry so the same button is
-    recognised on a re-dump and is not tapped twice, while two genuinely
-    different controls stay distinct.
-    """
+    """A target's identity within a screen, stable across re-dumps."""
     return (element.resource_id, element.element_id,
             int(round(element.x)), int(round(element.y)),
             int(round(element.width)), int(round(element.height)))
 
 
+_EXIT_WORDS = ("back", "up", "home", "close", "cancel", "dismiss",
+               "navigate", "return", "previous", "arrow")
+
+
+def _looks_like_exit(element):
+    """A first-sight guess that a control leaves the screen (back/up/home).
+
+    Only a hint for the first visit — the real signal is learned (a tap that
+    lands on an already-visited screen). Matches a back-ish label/resource-id,
+    or a small icon parked in the top-left corner (the usual up affordance).
+    """
+    text = (element.element_id or "").lower()
+    rid = (element.resource_id or "").lower()
+    if any(w in text for w in _EXIT_WORDS) or any(w in rid for w in _EXIT_WORDS):
+        return True
+    return (element.width <= 160 and element.height <= 160
+            and element.x <= 160 and element.y <= 280)
+
+
 class AppExplorer:
     """Depth-first, cache-pruned traversal driver over the adaptive controller.
 
-    All collaborators are injected so the whole thing runs with no device:
-    ``dump`` returns the current hierarchy (an ElementTree root), ``press_back``
-    performs the system Back, ``signature_fn`` reduces a dump to a screen
-    identity, ``current_package`` (optional) reports the foreground app for the
-    "left the app" guard, and ``relaunch`` (optional) brings the app back.
+    All collaborators are injected so it runs with no device: ``dump`` returns
+    the current hierarchy (an ElementTree root), ``press_back`` performs the
+    system Back, ``identity_fn`` reduces a dump to a screen identity (default
+    `frame_signature`), ``current_package`` (optional) reports the foreground app
+    for the "left the app" guard, and ``relaunch`` (optional) brings the app back
+    and powers replay recovery.
     """
 
     def __init__(self, controller, dump, press_back,
-                 signature_fn=structural_signature, current_package=None,
+                 identity_fn=frame_signature, current_package=None,
                  app_package=None, relaunch=None, max_actions=None, max_depth=None,
                  max_relaunches=5, settle_s=0.4, sleep=time.sleep, reporter=None,
                  min_side=20.0, max_side=900.0):
-        # max_actions / max_depth default to None = unlimited: with no cap the
-        # walk runs until the reachable app is exhausted. Termination still holds
-        # on a finite app — every (screen, target) is tapped at most once and
-        # exhausted screens are never re-entered — so a cap is only a budget, not
-        # a safety net.
+        # max_actions / max_depth default to None = unlimited: the walk runs
+        # until the reachable app is exhausted. Termination holds on a finite
+        # app regardless — each (screen, target) is tapped once and exhausted
+        # screens are not re-entered — so a cap is only a budget.
         self.controller = controller
         self.dump = dump
         self.press_back = press_back
-        self.signature_fn = signature_fn
+        self.identity_fn = identity_fn
         self.current_package = current_package
         self.app_package = app_package
         self.relaunch = relaunch
@@ -154,37 +161,38 @@ class AppExplorer:
         self.min_side = min_side
         self.max_side = max_side
 
-        self.visited = set()          # screen sigs entered at least once
-        self.exhausted = set()        # screen sigs with every target tapped
-        self.tried = {}               # sig -> set(element keys tapped)
-        self.seen = {}                # sig -> set(element keys ever enumerated)
+        self.visited = set()          # frame ids entered at least once
+        self.exhausted = set()        # frame ids with every target tapped
+        self.tried = {}               # frame -> set(element keys tapped)
+        self.seen = {}                # frame -> set(element keys ever enumerated)
+        self.exits = set()            # (frame, key) learned to leave the screen
+        self.paths = {}               # frame -> route of keys from root (for replay)
         self.actions_used = 0
         self.navigations = 0
         self.relaunches = 0
         self.first_target = None
 
-        self._stack = []              # sigs on the current DFS path (cycle guard)
+        self._stack = []              # frames on the current DFS path (cycle guard)
         self._log = []
-        self._screen_no = {}          # sig -> small integer id, discovery order
-        self._screens = {}            # sig -> structured record for the graph
+        self._screen_no = {}          # frame -> small integer id, discovery order
+        self._screens = {}            # frame -> structured record for the graph
 
     # --- naming / logging ---------------------------------------------------
 
-    def _sid(self, sig):
-        """A stable small integer id for a screen, assigned in discovery order."""
-        if sig not in self._screen_no:
-            self._screen_no[sig] = len(self._screen_no) + 1
-        return self._screen_no[sig]
+    def _sid(self, frame):
+        if frame not in self._screen_no:
+            self._screen_no[frame] = len(self._screen_no) + 1
+        return self._screen_no[frame]
 
-    def _name(self, sig):
-        return "screen#{}".format(self._sid(sig))
+    def _name(self, frame):
+        return "screen#{}".format(self._sid(frame))
 
-    def _screen(self, sig, n_targets):
-        record = self._screens.get(sig)
+    def _screen(self, frame, n_targets):
+        record = self._screens.get(frame)
         if record is None:
-            record = {"id": self._sid(sig), "sig": sig[:10], "targets": n_targets,
+            record = {"id": self._sid(frame), "sig": frame[:10], "targets": n_targets,
                       "exhausted": False, "edges": []}
-            self._screens[sig] = record
+            self._screens[frame] = record
         else:
             record["targets"] = max(record["targets"], n_targets)
         return record
@@ -211,16 +219,26 @@ class AppExplorer:
     def _targets(self, root):
         return tappable_targets(parse_hierarchy(root), self.min_side, self.max_side)
 
-    def _work_remains(self):
-        """Is there a reached screen with a target we have seen but not tapped?
+    def _ordered_targets(self, root, frame):
+        """This screen's targets with likely *exit* controls moved to the end, so
+        a screen's real content is tapped before any control that would leave it.
+        `sorted` is stable, so document order is preserved within each rank."""
+        targets = self._targets(root)
 
-        This is the precise test the user's rule turns on: relaunch only if
-        screens or targets are still left to exhaust, otherwise stop.
-        """
-        for sig in self.visited:
-            if sig in self.exhausted:
+        def is_exit(element):
+            return ((frame, _element_key(element)) in self.exits
+                    or _looks_like_exit(element))
+
+        return sorted(targets, key=lambda e: 1 if is_exit(e) else 0)
+
+    def _tried_total(self):
+        return sum(len(v) for v in self.tried.values())
+
+    def _work_remains(self):
+        for frame in self.visited:
+            if frame in self.exhausted:
                 continue
-            if self.seen.get(sig, set()) - self.tried.get(sig, set()):
+            if self.seen.get(frame, set()) - self.tried.get(frame, set()):
                 return True
         return False
 
@@ -232,48 +250,44 @@ class AppExplorer:
         if self._left_the_app():
             raise _LostPlace("Back left the app")
 
-    def _ensure_on(self, expected_sig):
+    def _ensure_on(self, expected_frame):
         root = self.dump()
-        actual = self.signature_fn(root)
-        if actual != expected_sig:
+        actual = self.identity_fn(root)
+        if actual != expected_frame:
             raise _LostPlace("Back did not restore {} (now on {})".format(
-                self._name(expected_sig), self._name(actual)))
+                self._name(expected_frame), self._name(actual)))
         return root
 
     # --- the walk -----------------------------------------------------------
 
     def run(self):
-        """Explore until the reachable app is exhausted, the budget runs out, or
-        the walk loses its place with nothing left to do. Returns a result."""
+        """Explore the reachable app, then replay-recover any screen left with
+        untried targets. Returns a result."""
+        reason = self._walk()
+        reason = self._recover(reason)
+        return self._result(reason)
+
+    def _walk(self):
         reason = "completed"
         root = self.dump()
         while True:
             try:
-                self._explore(root, 0)
-                reason = "exhausted the reachable app"
-                break
+                self._explore(root, 0, [])
+                return "exhausted the reachable app"
             except _BudgetSpent:
-                reason = "action budget ({}) reached".format(self.max_actions)
-                break
+                return "action budget ({}) reached".format(self.max_actions)
             except _UnwindTo:
-                # Should always be caught inside _explore; escaping means the
-                # target frame was already gone. Stop cleanly rather than crash.
-                reason = "unwind target was no longer on the path"
-                break
+                return "unwind target was no longer on the path"
             except _LostPlace as lost:
                 if not self._budget_left():
-                    reason = "{}; budget reached".format(lost.reason)
-                    break
+                    return "{}; budget reached".format(lost.reason)
                 if not self._work_remains():
-                    reason = "{}; nothing left to exhaust".format(lost.reason)
-                    break
+                    return "{}; nothing left to exhaust".format(lost.reason)
                 if self.relaunch is None:
-                    reason = "{}; relaunch disabled".format(lost.reason)
-                    break
+                    return "{}; relaunch disabled".format(lost.reason)
                 if self.relaunches >= self.max_relaunches:
-                    reason = "{}; relaunch cap ({}) reached".format(
+                    return "{}; relaunch cap ({}) reached".format(
                         lost.reason, self.max_relaunches)
-                    break
                 self.relaunches += 1
                 self._line(0, "- {}; relaunching app [{}/{}]".format(
                     lost.reason, self.relaunches, self.max_relaunches))
@@ -281,37 +295,38 @@ class AppExplorer:
                 self.sleep(max(self.settle_s, 2.0))   # wait for the first screen, not a splash
                 self._stack = []
                 root = self.dump()
-        return self._result(reason)
 
-    def _explore(self, root, depth):
-        sig = self.signature_fn(root)
-        if sig in self.exhausted:
+    def _explore(self, root, depth, path):
+        frame = self.identity_fn(root)
+        if frame in self.exhausted:
             return                       # already fully done; caller backs out
-        self.visited.add(sig)
-        self.tried.setdefault(sig, set())
-        self.seen.setdefault(sig, set())
-        self._stack.append(sig)
-        self._line(depth, "enter {} [{}] depth={}".format(self._name(sig), sig[:8], depth))
+        self.visited.add(frame)
+        self.tried.setdefault(frame, set())
+        self.seen.setdefault(frame, set())
+        self.paths.setdefault(frame, list(path))   # first known route from root
+        self._stack.append(frame)
+        self._line(depth, "enter {} [{}] depth={}".format(self._name(frame), frame[:8], depth))
         try:
             while True:
                 if not self._budget_left():
                     raise _BudgetSpent
-                targets = self._targets(root)
-                self.seen[sig].update(_element_key(e) for e in targets)
-                screen = self._screen(sig, len(targets))
+                targets = self._ordered_targets(root, frame)
+                self.seen[frame].update(_element_key(e) for e in targets)
+                screen = self._screen(frame, len(targets))
                 if self.first_target is None and targets:
                     self.first_target = targets[0].as_target()
 
                 nxt = next((e for e in targets
-                            if _element_key(e) not in self.tried[sig]), None)
+                            if _element_key(e) not in self.tried[frame]), None)
                 if nxt is None:
-                    self.exhausted.add(sig)
+                    self.exhausted.add(frame)
                     screen["exhausted"] = True
                     self._line(depth, "{} exhausted ({} targets)".format(
-                        self._name(sig), len(targets)))
+                        self._name(frame), len(targets)))
                     return
 
-                self.tried[sig].add(_element_key(nxt))
+                key = _element_key(nxt)
+                self.tried[frame].add(key)
                 record = self.controller.act(nxt.as_target())
                 self.actions_used += 1
                 index = self.actions_used - 1
@@ -319,65 +334,128 @@ class AppExplorer:
                 self.sleep(self.settle_s)
 
                 new_root = self.dump()
-                new_sig = self.signature_fn(new_root)
+                new_frame = self.identity_fn(new_root)
 
-                if new_sig == sig:                       # nothing navigated
+                if new_frame == frame:          # chip/tab swap, toggle, or no-op
                     self._emit(depth, index, label, "stay", record)
                     root = new_root
                     continue
 
-                if self._left_the_app():                 # a tap opened another app
+                if self._left_the_app():        # a tap opened another app
                     self._emit(depth, index, label, "left-app", record)
                     screen["edges"].append({"via": label, "to": "left-app"})
                     raise _LostPlace("a tap opened another app")
 
                 self.navigations += 1
-                if new_sig in self.exhausted:            # been there, done it
+                if new_frame in self.visited:   # went to a screen we've seen: an exit control
+                    self.exits.add((frame, key))
+
+                if new_frame in self.exhausted:            # been there, done it
                     self._emit(depth, index, label,
-                               "nav->{} (done, back)".format(self._name(new_sig)), record)
-                    screen["edges"].append({"via": label, "to": self._sid(new_sig),
+                               "nav->{} (done, back)".format(self._name(new_frame)), record)
+                    screen["edges"].append({"via": label, "to": self._sid(new_frame),
                                             "note": "already-exhausted"})
                     self._go_back()
-                    root = self._ensure_on(sig)
+                    root = self._ensure_on(frame)
                     continue
 
-                if new_sig in self._stack:               # tapped back onto our own path
-                    # The app returned up to an ancestor (a dialog dismissed, an
-                    # up/back control). It is already there, so do NOT press Back
-                    # — that pops past it, usually out of the app. Unwind the
-                    # recursion to that ancestor's frame and carry on from it.
+                if new_frame in self._stack:               # returned up to an ancestor
                     self._emit(depth, index, label,
-                               "nav->{} (returned to ancestor)".format(self._name(new_sig)),
+                               "nav->{} (returned to ancestor)".format(self._name(new_frame)),
                                record)
-                    screen["edges"].append({"via": label, "to": self._sid(new_sig),
+                    screen["edges"].append({"via": label, "to": self._sid(new_frame),
                                             "note": "cycle"})
-                    raise _UnwindTo(new_sig)
+                    raise _UnwindTo(new_frame)
 
                 if self.max_depth is not None and depth + 1 > self.max_depth:  # too deep
                     self._emit(depth, index, label,
-                               "nav->{} (depth cap, back)".format(self._name(new_sig)), record)
-                    screen["edges"].append({"via": label, "to": self._sid(new_sig),
+                               "nav->{} (depth cap, back)".format(self._name(new_frame)), record)
+                    screen["edges"].append({"via": label, "to": self._sid(new_frame),
                                             "note": "depth-capped"})
                     self._go_back()
-                    root = self._ensure_on(sig)
+                    root = self._ensure_on(frame)
                     continue
 
                 # a genuinely new screen: descend, exhaust it, then climb back
                 self._emit(depth, index, label,
-                           "nav->{} (descend)".format(self._name(new_sig)), record)
-                screen["edges"].append({"via": label, "to": self._sid(new_sig)})
+                           "nav->{} (descend)".format(self._name(new_frame)), record)
+                screen["edges"].append({"via": label, "to": self._sid(new_frame)})
                 try:
-                    self._explore(new_root, depth + 1)
+                    self._explore(new_root, depth + 1, path + [key])
                 except _UnwindTo as unwind:
-                    if unwind.sig != sig:
+                    if unwind.sig != frame:
                         raise                 # a deeper tap returned above us: keep unwinding
                     root = self.dump()        # the app is back on this screen; carry on
                     continue
                 self._go_back()
-                root = self._ensure_on(sig)
+                root = self._ensure_on(frame)
         finally:
-            if self._stack and self._stack[-1] == sig:
+            if self._stack and self._stack[-1] == frame:
                 self._stack.pop()
+
+    # --- replay recovery ----------------------------------------------------
+
+    def _replay(self, path):
+        """Relaunch leaves us at the root; re-tap `path`'s keys to reach a screen
+        again. Returns the root we land on, or None if a key is no longer there."""
+        root = self.dump()
+        for key in path:
+            if not self._budget_left():
+                return None
+            element = next((e for e in self._targets(root)
+                            if _element_key(e) == key), None)
+            if element is None:
+                return None
+            self.controller.act(element.as_target())
+            self.actions_used += 1
+            self.sleep(self.settle_s)
+            root = self.dump()
+        return root
+
+    def _recover(self, reason):
+        """Go back and finish any screen the main walk left with untried targets,
+        by relaunching and replaying its recorded route. Each pass finishes a
+        screen, makes some progress, or marks the screen unreachable, so it
+        terminates. Needs `relaunch` to get a clean route from the root."""
+        if self.relaunch is None:
+            return reason
+        unreachable = set()
+        passes = 0
+        while self._budget_left() and passes < 2 * len(self.visited) + 20:
+            frame = next((f for f in sorted(self.visited, key=self._sid)
+                          if f not in self.exhausted and f not in unreachable
+                          and f in self.paths
+                          and (self.seen.get(f, set()) - self.tried.get(f, set()))),
+                         None)
+            if frame is None:
+                break
+            passes += 1
+            before = self._tried_total()
+            untried = len(self.seen[frame] - self.tried[frame])
+            self._line(0, "- recovery: replay to {} ({} untried target(s))".format(
+                self._name(frame), untried))
+            self.relaunches += 1
+            self.relaunch()
+            self.sleep(max(self.settle_s, 2.0))
+            self._stack = []
+            root = self._replay(list(self.paths[frame]))
+            if root is None or self.identity_fn(root) != frame:
+                unreachable.add(frame)
+                self._line(0, "  recovery: route to {} no longer valid; skipping".format(
+                    self._name(frame)))
+                continue
+            try:
+                self._explore(root, len(self.paths[frame]), list(self.paths[frame]))
+            except _BudgetSpent:
+                return "{}; recovery hit the action budget".format(reason)
+            except (_LostPlace, _UnwindTo):
+                pass
+            if self._tried_total() == before:
+                unreachable.add(frame)       # no progress — give up on this one
+        if self.relaunches or passes:
+            return "{} (+{} recovery pass{})".format(
+                reason, passes, "" if passes == 1 else "es")
+        return reason
 
     def _result(self, reason):
         self._line(0, "=== summary: {} screens discovered, {} exhausted, {} taps, "

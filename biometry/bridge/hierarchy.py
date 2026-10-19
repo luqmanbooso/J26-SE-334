@@ -116,6 +116,34 @@ def full_signature(source):
     return hashlib.sha1(ET.tostring(root, encoding="unicode").encode("utf-8")).hexdigest()
 
 
+def frame_signature(source, drop_packages=("com.android.systemui",)):
+    """A screen's *frame* identity: its set of interactive controls, ignoring
+    content and layout.
+
+    Hashes the distinct `(class, resource-id)` of every clickable node, dropping
+    system chrome. Two states of one screen that differ only in content — a
+    filter chip reselecting a list, a tab swapping a fragment — carry the same
+    controls, so they share a frame and the explorer taps all the chips/tabs in
+    place instead of descending into each as a "new screen". A genuinely
+    different screen, with a different control set, gets a different frame.
+
+    The trade-off is deliberate and the opposite of `structural_signature`: this
+    collapses content states of one screen into one identity (what you want to
+    exhaust an app's *controls*), at the risk of collapsing two screens whose
+    interactive controls happen to be identical. Use `structural_signature` (via
+    --signature structural) when every content state should be its own screen.
+    """
+    root = _as_root(source)
+    controls = set()
+    for node in root.iter("node"):
+        if node.get("package", "") in drop_packages:
+            continue
+        if node.get("clickable") == "true":
+            controls.add((node.get("class", ""), node.get("resource-id", "")))
+    rows = sorted("{}|{}".format(cls, rid) for cls, rid in controls)
+    return hashlib.sha1("\n".join(rows).encode("utf-8")).hexdigest()
+
+
 def parse_hierarchy(source):
     """Parse a dump — a path, raw XML, or an ElementTree root — into UiElements."""
     root = _as_root(source)

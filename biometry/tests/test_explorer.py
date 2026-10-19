@@ -307,6 +307,107 @@ def test_relaunch_can_be_disabled():
     assert "relaunch disabled" in result.stop_reason
 
 
+# --- C: filter chips / tabs are one screen (frame identity) ------------------
+
+def test_frame_signature_is_stable_across_content_but_separates_controls():
+    from bridge.hierarchy import frame_signature
+    # Same controls (two chips + a content slot), different content label.
+    alice = _screen_xml([("All", "chip_all", _bounds(0), None),
+                         ("Biz", "chip_biz", _bounds(1), None),
+                         ("Alice", "content_item", _bounds(2), None)])
+    bob = _screen_xml([("All", "chip_all", _bounds(0), None),
+                       ("Biz", "chip_biz", _bounds(1), None),
+                       ("Bob", "content_item", _bounds(2), None)])
+    assert frame_signature(alice) == frame_signature(bob)   # content differs -> same frame
+    # A different control set -> a different frame.
+    other = _screen_xml([("All", "chip_all", _bounds(0), None),
+                         ("Biz", "chip_biz", _bounds(1), None),
+                         ("Settings", "btn_settings", _bounds(2), None)])
+    assert frame_signature(alice) != frame_signature(other)
+
+
+class _ChipScreen:
+    """One screen with four persistent filter chips. Selecting a chip swaps the
+    content (a single item whose resource-id is fixed), so the control set — and
+    thus the frame identity — is unchanged across filters."""
+
+    def __init__(self):
+        self.selected = 0
+        self.tapped = []
+
+    def dump(self):
+        chips = "".join(_node("chip{}".format(i), "chip{}".format(i), _bounds(i))
+                        for i in range(4))
+        content = _node("item{}".format(self.selected), "content_item", _bounds(4))
+        return ET.fromstring(
+            '<hierarchy><node class="android.widget.FrameLayout" package="{p}" '
+            'bounds="[0,0][1080,2400]">{c}</node></hierarchy>'.format(
+                p=APP_PKG, c=chips + content))
+
+    def tap(self, x, y, pre_delay=0.0):
+        spots = [(500.0, 260.0 + i * 300.0, i) for i in range(4)]
+        spots.append((500.0, 260.0 + 4 * 300.0, "content"))
+        _cx, _cy, which = min(spots, key=lambda s: (s[0] - x) ** 2 + (s[1] - y) ** 2)
+        if which == "content":
+            self.tapped.append("content")
+        else:
+            self.selected = which
+            self.tapped.append("chip{}".format(which))
+
+    def press_back(self):
+        pass
+
+
+def test_filter_chips_are_one_screen_and_every_chip_gets_pressed():
+    fake = _ChipScreen()
+    explorer = AppExplorer(
+        _controller(fake), dump=fake.dump, press_back=fake.press_back,
+        app_package=None, relaunch=None, settle_s=0.0, sleep=lambda s: None)
+    result = explorer.run()
+    # The four filters are one screen, not four — and all four chips are pressed.
+    assert result.screens_discovered == 1
+    for i in range(4):
+        assert "chip{}".format(i) in fake.tapped
+    assert result.stop_reason.startswith("exhausted")
+
+
+# --- B: controls that leave the screen are tapped last -----------------------
+
+def test_a_back_control_is_tapped_after_the_screen_content():
+    graph = {
+        "A": [("open", "a1", _bounds(0), "B")],
+        "B": [("Back", "b_back", _bounds(0), POP),    # document-first, looks like an exit
+              ("Item1", "b1", _bounds(1), None),
+              ("Item2", "b2", _bounds(2), None)],
+    }
+    fake = FakeAppGraph(graph, root="A")
+    result = _explorer(fake).run()
+    tapped = [r.target_element_id for r in result.timeline.records]
+    # Despite being first in the tree, Back is tapped after both content items.
+    assert tapped.index("Item1") < tapped.index("Back")
+    assert tapped.index("Item2") < tapped.index("Back")
+
+
+# --- A: replay recovery finishes a screen abandoned by an early exit ----------
+
+def test_recovery_replays_to_finish_a_screen_left_by_an_early_exit():
+    graph = {
+        "A": [("open", "a1", _bounds(0), "B"),
+              ("A-leaf", "a2", _bounds(1), None)],
+        # 'Next' is first in document order and silently returns to Home — it is
+        # NOT a heuristic back control (no back-ish label/position), so the first
+        # visit taps it early and abandons B's content. Recovery must go back.
+        "B": [("Next", "bnext", _bounds(0), "A"),
+              ("Item1", "b1", _bounds(1), None),
+              ("Item2", "b2", _bounds(2), None)],
+    }
+    fake = FakeAppGraph(graph, root="A")
+    result = _explorer(fake).run()
+    tapped = [r.target_element_id for r in result.timeline.records]
+    assert "Item1" in tapped and "Item2" in tapped   # reached only via recovery
+    assert result.relaunches >= 1
+
+
 # --- the traversal log and screen graph --------------------------------------
 
 def test_traversal_log_and_graph_are_produced():

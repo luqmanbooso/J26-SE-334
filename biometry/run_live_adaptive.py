@@ -19,7 +19,7 @@ from bridge.adb_bridge import ADBBridge
 from bridge.oracle_client import OracleNotifier
 from bridge.device import AdbDispatcher, foreground_package
 from bridge.frame_probe import FrameProbe
-from bridge.hierarchy import (full_signature, parse_hierarchy,
+from bridge.hierarchy import (frame_signature, full_signature, parse_hierarchy,
                               structural_signature, tappable_targets)
 from engine.controller import AdaptiveFeedbackController
 from engine.explorer import AppExplorer
@@ -53,11 +53,12 @@ def main():
                          "place instead of exploring (parity with run_exp02)")
     ap.add_argument("--max-depth", type=int, default=None,
                     help="deepest screen to descend to; omit for unlimited (default)")
-    ap.add_argument("--signature", choices=["structural", "full"],
-                    default="structural",
-                    help="screen identity for the visited/exhausted cache: "
-                         "'structural' ignores volatile text (default), 'full' "
-                         "hashes the whole dump")
+    ap.add_argument("--signature", choices=["frame", "structural", "full"],
+                    default="frame",
+                    help="screen identity for the cache: 'frame' treats a screen "
+                         "by its control set so chips/tabs are one screen "
+                         "(default), 'structural' makes every content state its "
+                         "own screen, 'full' hashes the whole dump")
     ap.add_argument("--no-launch", action="store_true",
                     help="do not bring --package to the foreground first; explore "
                          "whatever is already on screen")
@@ -150,7 +151,8 @@ def main():
         ref_target = targets[0].as_target()
         title = "Live adaptive run"
     else:
-        signature_fn = structural_signature if args.signature == "structural" else full_signature
+        identity_fn = {"frame": frame_signature, "structural": structural_signature,
+                       "full": full_signature}[args.signature]
 
         def reporter(index, label, record, event, depth):
             _row(index, record.cognitive_state, record.stress_s, record.ui_delay_ms,
@@ -160,7 +162,7 @@ def main():
             controller=controller,
             dump=bridge.dump_ui_hierarchy,
             press_back=bridge.press_back,
-            signature_fn=signature_fn,
+            identity_fn=identity_fn,
             current_package=lambda: foreground_package(bridge.device),
             app_package=package,
             relaunch=(None if args.no_relaunch
