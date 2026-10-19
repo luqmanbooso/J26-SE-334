@@ -464,6 +464,7 @@ def test_press_back_and_launch_issue_the_right_adb_commands():
     bridge.press_back()
     assert ("shell", "input", "keyevent", "KEYCODE_BACK") in device.calls
     bridge.launch_package("com.foo.bar")
+    assert ("shell", "am", "force-stop", "com.foo.bar") in device.calls   # cold start
     assert any(call[:3] == ("shell", "monkey", "-p") and "com.foo.bar" in call
                for call in device.calls)
 

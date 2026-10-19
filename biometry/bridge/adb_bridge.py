@@ -90,11 +90,15 @@ class ADBBridge:
         self.device.run("shell", "input", "keyevent", "KEYCODE_BACK")
 
     def launch_package(self, package):
-        """(Re)launch an app through its launcher intent (via `monkey`).
+        """Cold-launch an app: force-stop it, then start it via the launcher
+        intent (`monkey` needs only the package, no activity name).
 
-        Used to recover a traversal after Back has left the app while targets
-        remain to exhaust. `monkey` needs no activity name — only the package.
+        The force-stop matters: a plain launcher intent *resumes* an existing
+        task, so without it a run — and every recovery relaunch — would begin
+        wherever the app was last left, not at its real start screen, and a
+        replayed route recorded from the start would no longer be valid.
         """
+        self.device.run("shell", "am", "force-stop", package)
         self.device.run("shell", "monkey", "-p", package,
                         "-c", "android.intent.category.LAUNCHER", "1")
 
