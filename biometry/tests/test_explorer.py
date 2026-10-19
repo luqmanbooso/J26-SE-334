@@ -251,6 +251,18 @@ def test_max_depth_bounds_the_descent():
     assert result.actions == 6              # 3 on A + 3 on B; C/D never entered
 
 
+def test_unlimited_actions_and_depth_still_terminate_by_exhaustion():
+    # The defaults are now unlimited (None): with no budget or depth cap the walk
+    # must still terminate — the caches, not a cap, are what bound it — and cover
+    # the whole tree.
+    fake = FakeAppGraph(TREE, root="A")
+    result = _explorer(fake, max_actions=None, max_depth=None).run()
+    assert result.actions == 10
+    assert result.screens_discovered == 4
+    assert result.screens_exhausted == 4
+    assert result.stop_reason.startswith("exhausted")
+
+
 # --- leaving the app: relaunch only if work remains, else stop ---------------
 
 def test_relaunch_continues_when_targets_remain():

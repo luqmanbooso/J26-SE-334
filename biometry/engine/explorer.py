@@ -130,9 +130,14 @@ class AppExplorer:
 
     def __init__(self, controller, dump, press_back,
                  signature_fn=structural_signature, current_package=None,
-                 app_package=None, relaunch=None, max_actions=30, max_depth=16,
+                 app_package=None, relaunch=None, max_actions=None, max_depth=None,
                  max_relaunches=5, settle_s=0.4, sleep=time.sleep, reporter=None,
                  min_side=20.0, max_side=900.0):
+        # max_actions / max_depth default to None = unlimited: with no cap the
+        # walk runs until the reachable app is exhausted. Termination still holds
+        # on a finite app — every (screen, target) is tapped at most once and
+        # exhausted screens are never re-entered — so a cap is only a budget, not
+        # a safety net.
         self.controller = controller
         self.dump = dump
         self.press_back = press_back
@@ -195,7 +200,7 @@ class AppExplorer:
     # --- guards -------------------------------------------------------------
 
     def _budget_left(self):
-        return self.actions_used < self.max_actions
+        return self.max_actions is None or self.actions_used < self.max_actions
 
     def _left_the_app(self):
         if self.app_package is None or self.current_package is None:
@@ -348,7 +353,7 @@ class AppExplorer:
                                             "note": "cycle"})
                     raise _UnwindTo(new_sig)
 
-                if depth + 1 > self.max_depth:           # too deep to descend
+                if self.max_depth is not None and depth + 1 > self.max_depth:  # too deep
                     self._emit(depth, index, label,
                                "nav->{} (depth cap, back)".format(self._name(new_sig)), record)
                     screen["edges"].append({"via": label, "to": self._sid(new_sig),

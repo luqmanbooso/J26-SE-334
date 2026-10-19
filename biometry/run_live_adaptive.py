@@ -30,7 +30,9 @@ from models.profiles import PROFILES, build_engine
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--actions", type=int, default=60)
+    ap.add_argument("--actions", type=int, default=None,
+                    help="number of taps; omit for unlimited — explore until the "
+                         "whole reachable app is exhausted (default)")
     ap.add_argument("--seed", type=int, default=2026)
     ap.add_argument("--device", default=None, help="adb device serial")
     ap.add_argument("--static", action="store_true",
@@ -49,8 +51,8 @@ def main():
     ap.add_argument("--sequential", action="store_true",
                     help="legacy mode: cycle the initial screen's targets in "
                          "place instead of exploring (parity with run_exp02)")
-    ap.add_argument("--max-depth", type=int, default=16,
-                    help="deepest screen the explorer descends to")
+    ap.add_argument("--max-depth", type=int, default=None,
+                    help="deepest screen to descend to; omit for unlimited (default)")
     ap.add_argument("--signature", choices=["structural", "full"],
                     default="structural",
                     help="screen identity for the visited/exhausted cache: "
@@ -135,8 +137,12 @@ def main():
         targets = tappable_targets(parse_hierarchy(bridge.dump_ui_hierarchy()))
         if not targets:
             raise SystemExit("no tappable elements on the current screen")
-        print(f"[live] sequential over {len(targets)} targets on screen")
-        for i in range(args.actions):
+        # Cycling a fixed list "unlimited" times is meaningless, so legacy mode
+        # keeps a concrete count (the historical default when --actions is omitted).
+        seq_actions = args.actions if args.actions is not None else 60
+        print(f"[live] sequential over {len(targets)} targets on screen "
+              f"({seq_actions} taps)")
+        for i in range(seq_actions):
             target = targets[i % len(targets)]
             record = controller.act(target.as_target())
             _row(i, record.cognitive_state, record.stress_s, record.ui_delay_ms,
@@ -165,8 +171,10 @@ def main():
             settle_s=args.settle,
             reporter=reporter,
         )
-        print(f"[live] exploring (signature={args.signature}, "
-              f"max-depth={args.max_depth}, "
+        print("[live] exploring "
+              f"(actions={'unlimited' if args.actions is None else args.actions}, "
+              f"max-depth={'unlimited' if args.max_depth is None else args.max_depth}, "
+              f"signature={args.signature}, "
               f"relaunch={'off' if args.no_relaunch else 'on'})")
         result = explorer.run()
         ref_target = result.first_target
