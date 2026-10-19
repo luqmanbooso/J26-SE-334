@@ -6,56 +6,56 @@ Localized Multimodal Vision-Semantic Test Oracle for Android Mobile Applications
 __version__ = "0.1.0"
 __author__ = "M.L. Booso"
 
-from local_vision_oracle.schemas import (
+from .schemas import (
     DefectType,
     Verdict,
     LatencyBreakdown,
     C3OracleResult,
 )
-from local_vision_oracle.pruner import (
+from .pruner import (
     HierarchyPruner,
     PrunedNode,
 )
-from local_vision_oracle.preprocessor import (
+from .preprocessor import (
     ImagePreprocessor,
     PreprocessedImage,
 )
-from local_vision_oracle.prompt import (
+from .prompt import (
     PromptBuilder,
     VerdictParser,
     ORACLE_SYSTEM_PROMPT,
 )
-from local_vision_oracle.engine import (
+from .engine import (
     InferenceBackend,
     MockInferenceBackend,
     TransformersInferenceBackend,
     OracleEngine,
 )
-from local_vision_oracle.evaluation import (
+from .evaluation import (
     EvaluationItem,
     EvaluationMetrics,
     Evaluator,
     compute_bbox_iou,
     mcnemar_test,
 )
-from local_vision_oracle.dataset_scanner import (
+from .dataset_scanner import (
     DatasetScanner,
     OwlEyeAuditResult,
     RicoAuditResult,
     CompleteAuditReport,
 )
-from local_vision_oracle.dataset_splitter import (
+from .dataset_splitter import (
     DatasetSplitter,
     SplitStats,
     ManifestExportSummary,
 )
-from local_vision_oracle.calibration import (
+from .calibration import (
     AWQConfig,
     MemoryProfile,
     AWQCalibrationSummary,
     AWQCalibrator,
 )
-from local_vision_oracle.confusion_matrix import (
+from .confusion_matrix import (
     BinaryConfusionMatrix,
     ConfusionMatrixCalculator,
 )
