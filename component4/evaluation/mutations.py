@@ -8,8 +8,6 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from typing import Callable
 
-from c4.healing.hierarchy import parse_hierarchy
-
 
 @dataclass(frozen=True)
 class Mutation:
@@ -39,22 +37,6 @@ def _render(root: ET.Element) -> str:
     return ET.tostring(root, encoding="unicode")
 
 
-def _index_for(root: ET.Element, target: ET.Element) -> int | None:
-    _, nodes = _tree(_render(root))
-    target_attrs = target.attrib
-    target_class = target_attrs.get("class")
-    target_text = target_attrs.get("text")
-    for index, node in enumerate(nodes):
-        if (
-            node.attrib.get("class") == target_class
-            and node.attrib.get("text") == target_text
-            and node.attrib.get("resource-id") == target_attrs.get("resource-id")
-            and node.attrib.get("content-desc") == target_attrs.get("content-desc")
-        ):
-            return index
-    return None
-
-
 def _target(xml_text: str, index: int) -> tuple[ET.Element, list[ET.Element]]:
     root, nodes = _tree(xml_text)
     if index < 0 or index >= len(nodes):
@@ -62,9 +44,67 @@ def _target(xml_text: str, index: int) -> tuple[ET.Element, list[ET.Element]]:
     return root, nodes
 
 
-def _mutation(
+def _parent_map(root: ET.Element) -> dict[ET.Element, ET.Element]:
+    parents: dict[ET.Element, ET.Element] = {}
+
+    def visit(parent: ET.Element) -> None:
+        for child in parent:
+            parents[child] = parent
+            visit(child)
+
+    visit(root)
+    return parents
+
+
+def _bounds(value: str | None) -> tuple[int, int, int, int] | None:
+    if not value:
+        return None
+    try:
+        left_top, right_bottom = value.split("][")
+        left, top = left_top.removeprefix("[").split(",")
+        right, bottom = right_bottom.removesuffix("]").split(",")
+        return int(left), int(top), int(right), int(bottom)
+    except (ValueError, AttributeError):
+        return None
+
+
+def _set_bounds(element: ET.Element, offset: int) -> None:
+    current = _bounds(element.attrib.get("bounds"))
+    if current is None:
+        return
+    left, top, right, bottom = current
+    element.set("bounds", f"[{left + offset},{top + offset}][{right + offset},{bottom + offset}]")
+
+
+def _shift_target_and_siblings(
     root: ET.Element,
     target: ET.Element,
+    offset: int,
+    *,
+    include_target: bool = True,
+) -> None:
+    parents = _parent_map(root)
+    parent = parents.get(target)
+    siblings = list(parent) if parent is not None else []
+    if include_target and target not in siblings:
+        siblings.append(target)
+    for sibling in siblings:
+        _set_bounds(sibling, offset)
+
+
+def _index_for(root: ET.Element, target: ET.Element) -> int | None:
+    _, nodes = _tree(_render(root))
+    for index, node in enumerate(nodes):
+        if node is target:
+            return index
+        if node.attrib == target.attrib and node.tag == target.tag:
+            return index
+    return None
+
+
+def _mutation(
+    root: ET.Element,
+    target: ET.Element | None,
     change_class: str,
     in_scope: bool,
     expected_status: str,
@@ -75,26 +115,34 @@ def _mutation(
         change_class,
         in_scope,
         expected_status,
-        expected_index if expected_index is not None else _index_for(root, target),
+        expected_index if expected_index is not None else (
+            _index_for(root, target) if target is not None else None
+        ),
     )
 
 
-def rename_id(xml_text: str, target_node_index: int, rng: random.Random) -> Mutation:
-    """Append ``_v2`` to the target resource-id, leaving all other attributes."""
+def _offset(rng: random.Random) -> int:
+    return rng.randint(20, 120)
+
+
+def rename_id(xml_text: str, target_node_index: int, rng: random.Random) -> Mutation | None:
+    """Append ``_v2`` to a target resource-id and shift its sibling row."""
     root, nodes = _target(xml_text, target_node_index)
     target = nodes[target_node_index]
-    value = target.attrib.get("resource-id")
-    if not value:
-        raise ValueError("rename_id requires a resource-id")
-    target.set("resource-id", value + ("_v2" if rng.random() >= 0 else "_v2"))
+    if not target.attrib.get("resource-id"):
+        return None
+    target.set("resource-id", target.attrib["resource-id"] + "_v2")
+    _shift_target_and_siblings(root, target, _offset(rng))
     return _mutation(root, target, "rename_id", True, "heal")
 
 
-def change_text(xml_text: str, target_node_index: int, rng: random.Random) -> Mutation:
-    """Apply a deterministic common text rewrite or add/remove one word."""
+def change_text(xml_text: str, target_node_index: int, rng: random.Random) -> Mutation | None:
+    """Rewrite a target text value using a deterministic replacement table."""
     root, nodes = _target(xml_text, target_node_index)
     target = nodes[target_node_index]
-    old = target.attrib.get("text", "")
+    old = target.attrib.get("text")
+    if not old:
+        return None
     table = {"SIM cards": "SIMs", "Wi-Fi": "WiFi", "Bluetooth": "Bluetooth settings"}
     if old in table:
         new = table[old]
@@ -104,100 +152,126 @@ def change_text(xml_text: str, target_node_index: int, rng: random.Random) -> Mu
     else:
         new = old + " item"
     target.set("text", new)
+    _shift_target_and_siblings(root, target, _offset(rng))
     return _mutation(root, target, "change_text", True, "heal")
 
 
-def change_content_desc(xml_text: str, target_node_index: int, rng: random.Random) -> Mutation:
-    """Change the target content description while preserving its node."""
+def change_content_desc(xml_text: str, target_node_index: int, rng: random.Random) -> Mutation | None:
+    """Change a target content description while preserving its node."""
     root, nodes = _target(xml_text, target_node_index)
     target = nodes[target_node_index]
-    old = target.attrib.get("content-desc") or target.attrib.get("text") or "element"
-    target.set("content-desc", old + (" button" if rng.random() >= 0 else " button"))
+    old = target.attrib.get("content-desc")
+    if not old:
+        return None
+    target.set("content-desc", old + " button")
+    _shift_target_and_siblings(root, target, _offset(rng))
     return _mutation(root, target, "change_content_desc", True, "heal")
 
 
-def move_node(xml_text: str, target_node_index: int, rng: random.Random) -> Mutation:
-    """Move the target under another container without changing its attributes."""
+def move_node(xml_text: str, target_node_index: int, rng: random.Random) -> Mutation | None:
+    """Move a target to another layout parent and shift the affected rows."""
     root, nodes = _target(xml_text, target_node_index)
     target = nodes[target_node_index]
-    parents: dict[ET.Element, ET.Element] = {}
-
-    def collect(parent: ET.Element) -> None:
-        for child in parent:
-            parents[child] = parent
-            collect(child)
-
-    collect(root)
+    parents = _parent_map(root)
     old_parent = parents.get(target)
+    if old_parent is None:
+        return None
     containers = [
         node for node in nodes
-        if node is not target and node is not old_parent and len(node) >= 0
-        and ("Layout" in node.attrib.get("class", "") or node.tag == "hierarchy")
+        if node is not target
+        and node is not old_parent
+        and "Layout" in node.attrib.get("class", "")
     ]
-    if old_parent is None or not containers:
-        raise ValueError("move_node requires a re-parentable target and container")
-    new_parent = containers[rng.randrange(len(containers))]
+    if not containers:
+        return None
     old_parent.remove(target)
+    new_parent = containers[rng.randrange(len(containers))]
     new_parent.append(target)
+    _shift_target_and_siblings(root, target, _offset(rng))
     return _mutation(root, target, "move_node", True, "heal")
 
 
-def remove_id_keep_text(xml_text: str, target_node_index: int, rng: random.Random) -> Mutation:
-    """Clear only the target resource-id and preserve visible text."""
+def remove_id_keep_text(xml_text: str, target_node_index: int, rng: random.Random) -> Mutation | None:
+    """Clear only a target resource-id and preserve its visible text."""
     root, nodes = _target(xml_text, target_node_index)
     target = nodes[target_node_index]
-    target.attrib.pop("resource-id", None)
+    if not target.attrib.get("resource-id"):
+        return None
+    target.attrib.pop("resource-id")
+    _shift_target_and_siblings(root, target, _offset(rng))
     return _mutation(root, target, "remove_id_keep_text", True, "heal")
 
 
-def class_change_within_family(xml_text: str, target_node_index: int, rng: random.Random) -> Mutation:
-    """Swap Button and ImageButton, preserving the button family."""
+def class_change_within_family(
+    xml_text: str,
+    target_node_index: int,
+    rng: random.Random,
+) -> Mutation | None:
+    """Swap Button/ImageButton or EditText/AutoCompleteTextView only."""
     root, nodes = _target(xml_text, target_node_index)
     target = nodes[target_node_index]
-    target.set(
-        "class",
-        "android.widget.ImageButton"
-        if target.attrib.get("class", "").endswith("Button")
-        and not target.attrib.get("class", "").endswith("ImageButton")
-        else "android.widget.Button",
-    )
+    class_name = target.attrib.get("class", "")
+    pairs = {
+        "android.widget.Button": "android.widget.ImageButton",
+        "android.widget.ImageButton": "android.widget.Button",
+        "android.widget.EditText": "android.widget.AutoCompleteTextView",
+        "android.widget.AutoCompleteTextView": "android.widget.EditText",
+    }
+    if class_name not in pairs:
+        return None
+    target.set("class", pairs[class_name])
+    _shift_target_and_siblings(root, target, _offset(rng))
     return _mutation(root, target, "class_change_within_family", True, "heal")
 
 
-def remove_node(xml_text: str, target_node_index: int, rng: random.Random) -> Mutation:
-    """Delete the target node from its parent; this is out of scope."""
+def remove_node(xml_text: str, target_node_index: int, rng: random.Random) -> Mutation | None:
+    """Delete a target node; this is an out-of-scope mutation."""
     root, nodes = _target(xml_text, target_node_index)
     target = nodes[target_node_index]
-    parent = next((item for item in nodes if target in list(item)), None)
+    parents = _parent_map(root)
+    parent = parents.get(target)
     if parent is None:
-        raise ValueError("cannot remove the hierarchy root")
+        return None
     parent.remove(target)
-    return _mutation(root, target, "remove_node", False, "refuse", None)
+    offset = _offset(rng)
+    for sibling in list(parent):
+        _set_bounds(sibling, offset)
+    return _mutation(root, None, "remove_node", False, "refuse", None)
 
 
-def ambiguous_lookalike(xml_text: str, target_node_index: int, rng: random.Random) -> Mutation:
-    """Rename the target id and add a same-text near-duplicate sibling."""
+def ambiguous_lookalike(xml_text: str, target_node_index: int, rng: random.Random) -> Mutation | None:
+    """Rename a target id and add a near-identical same-text sibling."""
     root, nodes = _target(xml_text, target_node_index)
     target = nodes[target_node_index]
-    target.attrib["resource-id"] = (target.attrib.get("resource-id") or "target") + "_v2"
-    parent = next((item for item in nodes if target in list(item)), None)
+    parents = _parent_map(root)
+    parent = parents.get(target)
     if parent is None:
-        raise ValueError("target must have a parent")
+        return None
+    target.set("resource-id", (target.attrib.get("resource-id") or "target") + "_v2")
     duplicate = copy.deepcopy(target)
     duplicate.attrib.pop("resource-id", None)
     parent.append(duplicate)
+    _shift_target_and_siblings(root, target, _offset(rng))
+    _set_bounds(duplicate, _offset(rng))
     return _mutation(root, target, "ambiguous_lookalike", False, "refuse")
 
 
-def class_change_cross_family(xml_text: str, target_node_index: int, rng: random.Random) -> Mutation:
-    """Change a Button target into a TextView, crossing the widget family."""
+def class_change_cross_family(
+    xml_text: str,
+    target_node_index: int,
+    rng: random.Random,
+) -> Mutation | None:
+    """Change a Button to TextView; other target classes are skipped."""
     root, nodes = _target(xml_text, target_node_index)
     target = nodes[target_node_index]
+    if target.attrib.get("class") != "android.widget.Button":
+        return None
     target.set("class", "android.widget.TextView")
+    _shift_target_and_siblings(root, target, _offset(rng))
     return _mutation(root, target, "class_change_cross_family", False, "refuse")
 
 
-MUTATIONS: tuple[Callable[[str, int, random.Random], Mutation], ...] = (
+MUTATIONS: tuple[Callable[[str, int, random.Random], Mutation | None], ...] = (
     rename_id,
     change_text,
     change_content_desc,
@@ -208,4 +282,3 @@ MUTATIONS: tuple[Callable[[str, int, random.Random], Mutation], ...] = (
     ambiguous_lookalike,
     class_change_cross_family,
 )
-

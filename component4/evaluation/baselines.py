@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import time
 from dataclasses import dataclass
 
 from c4.healing.engine import HealingEngine
@@ -36,7 +35,7 @@ class Baseline:
         raise NotImplementedError
 
 
-def _outcome(started: float, status: str, node: int | None, total: int, narrowed: int, embedder: str) -> Outcome:
+def _outcome(status: str, node: int | None, total: int, narrowed: int, embedder: str) -> Outcome:
     # Evaluation artifacts must be byte-identical for the same seed. Runtime
     # timing is therefore intentionally represented as a deterministic zero
     # for offline comparisons; live performance measurements belong elsewhere.
@@ -57,22 +56,29 @@ class StructureOnly(Baseline):
         self.config = config
 
     def solve(self, scenario, old_xml, new_xml):
-        started = time.perf_counter()
         old = parse_hierarchy(old_xml)
         new = parse_hierarchy(new_xml)
         step = extract_step(scenario.script, scenario.step_index)
         old_nodes = old.find_by_locator(_strategy(step.by), step.value)
         if not old_nodes:
-            return _outcome(started, "refused", None, len(new.nodes), 0, "none")
+            return _outcome("refused", None, len(new.nodes), 0, "none")
         descriptor = node_to_descriptor(old_nodes[0], old)
         from c4.healing.changes import detect_changes
         changes = detect_changes(old, new)
         candidates, _ = StructuralNarrower(self.config).narrow(
             new, descriptor, step.action, changes.unchanged
         )
-        if len(candidates) != 1:
-            return _outcome(started, "refused", None, len(new.nodes), len(candidates), "none")
-        return _outcome(started, "healed", candidates[0].index, len(new.nodes), 1, "none")
+        if not candidates:
+            return _outcome("refused", None, len(new.nodes), 0, "none")
+        ranked = sorted(
+            candidates,
+            key=lambda node: _structure_key(old_nodes[0], node, old, new),
+        )
+        if len(ranked) > 1 and _structure_score(old_nodes[0], ranked[0], old, new) == _structure_score(
+            old_nodes[0], ranked[1], old, new
+        ):
+            return _outcome("refused", None, len(new.nodes), len(candidates), "none")
+        return _outcome("healed", ranked[0].index, len(new.nodes), len(candidates), "none")
 
 
 class SemanticOnly(Baseline):
@@ -82,13 +88,12 @@ class SemanticOnly(Baseline):
         self.config, self.embedder = config, embedder
 
     def solve(self, scenario, old_xml, new_xml):
-        started = time.perf_counter()
         old = parse_hierarchy(old_xml)
         new = parse_hierarchy(new_xml)
         step = extract_step(scenario.script, scenario.step_index)
         old_nodes = old.find_by_locator(_strategy(step.by), step.value)
         if not old_nodes:
-            return _outcome(started, "refused", None, len(new.nodes), len(new.nodes), self.embedder.name)
+            return _outcome("refused", None, len(new.nodes), len(new.nodes), self.embedder.name)
         descriptor = node_to_descriptor(old_nodes[0], old)
         candidates = [
             node for node in new.nodes
@@ -100,7 +105,7 @@ class SemanticOnly(Baseline):
             self.embedder,
         )
         policy, _, _ = decide(ranked, self.config)
-        return _outcome(started, "healed" if policy == "accept" else "refused",
+        return _outcome("healed" if policy == "accept" else "refused",
                         ranked[0][0] if policy == "accept" else None,
                         len(new.nodes), len(candidates), self.embedder.name)
 
@@ -111,7 +116,6 @@ class Proposed(Baseline):
         self.name = "B3_proposed_with_baseline" if baseline else "B4_proposed_telemetry_only"
 
     def solve(self, scenario, old_xml, new_xml):
-        started = time.perf_counter()
         decision = HealingEngine(self.config, self.embedder).heal(
             scenario.script, scenario.step_index, new_xml,
             baseline_hierarchy_xml=old_xml if self.baseline else None,
@@ -122,7 +126,7 @@ class Proposed(Baseline):
             by = _strategy(decision.healed_locator["by"])
             matches = hierarchy.find_by_locator(by, decision.healed_locator["value"])
             node = matches[0].index if len(matches) == 1 else None
-        return _outcome(started, "healed" if node is not None else "refused", node,
+        return _outcome("healed" if node is not None else "refused", node,
                         decision.candidates_total, decision.candidates_after_narrowing,
                         self.embedder.name)
 
@@ -132,6 +136,51 @@ def _strategy(by: str) -> str:
         "ID": "id", "ACCESSIBILITY_ID": "accessibility id",
         "ANDROID_UIAUTOMATOR": "-android uiautomator", "XPATH": "xpath",
     }.get(by, by)
+
+
+def _structure_key(old_node, new_node, old_hierarchy, new_hierarchy) -> tuple[int, int, int]:
+    """Score structure using ancestor similarity and sibling position only."""
+    old_ancestors = tuple(old_node.ancestors)
+    new_ancestors = tuple(new_node.ancestors)
+    common = 0
+    for left, right in zip(old_ancestors, new_ancestors):
+        if left != right:
+            break
+        common += 1
+    old_parent = old_node.parent_index
+    new_parent = new_node.parent_index
+    old_siblings = [
+        node.index for node in old_hierarchy.nodes
+        if node.parent_index == old_parent
+    ]
+    new_siblings = [
+        node.index for node in new_hierarchy.nodes
+        if node.parent_index == new_parent
+    ]
+    old_position = old_siblings.index(old_node.index) if old_node.index in old_siblings else 0
+    new_position = new_siblings.index(new_node.index) if new_node.index in new_siblings else 0
+    return (*_structure_score(old_node, new_node, old_hierarchy, new_hierarchy), new_node.index)
+
+
+def _structure_score(old_node, new_node, old_hierarchy, new_hierarchy) -> tuple[int, int]:
+    old_ancestors = tuple(old_node.ancestors)
+    new_ancestors = tuple(new_node.ancestors)
+    common = 0
+    for left, right in zip(old_ancestors, new_ancestors):
+        if left != right:
+            break
+        common += 1
+    old_siblings = [
+        node.index for node in old_hierarchy.nodes
+        if node.parent_index == old_node.parent_index
+    ]
+    new_siblings = [
+        node.index for node in new_hierarchy.nodes
+        if node.parent_index == new_node.parent_index
+    ]
+    old_position = old_siblings.index(old_node.index) if old_node.index in old_siblings else 0
+    new_position = new_siblings.index(new_node.index) if new_node.index in new_siblings else 0
+    return (-common, abs(old_position - new_position))
 
 
 # Descriptive aliases kept public for experiment notebooks and test fixtures.

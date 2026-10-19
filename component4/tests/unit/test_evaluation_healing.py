@@ -4,6 +4,7 @@ import json
 import random
 
 from c4.healing.models import HealingConfig
+from c4.healing.hierarchy import parse_hierarchy
 from c4.healing.semantic import LexicalEmbedder
 from evaluation.baselines import ExactLocatorOnly, Proposed, SemanticOnly, StructureOnly
 from evaluation.metrics import aggregate, bootstrap_ci, classify, mcnemar_exact
@@ -20,6 +21,7 @@ from evaluation.scenario_builder import build_scenarios
 SAMPLE = """<hierarchy>
 <node class="android.widget.LinearLayout" enabled="true" bounds="[0,0][500,500]">
 <node class="android.widget.Button" resource-id="app:id/pay" text="Pay" clickable="true" enabled="true" bounds="[0,0][100,80]" />
+<node class="android.widget.LinearLayout" enabled="true" bounds="[0,100][500,500]" />
 </node></hierarchy>"""
 
 
@@ -31,10 +33,43 @@ def test_mutations_are_seeded_and_out_of_scope_classes_refuse() -> None:
         except ValueError:
             continue
         assert first == second
-        assert first.new_xml != SAMPLE
+        if first is not None:
+            assert first.new_xml != SAMPLE
     assert remove_node(SAMPLE, 2, random.Random(1)).expected_status == "refuse"
     assert ambiguous_lookalike(SAMPLE, 2, random.Random(1)).expected_status == "refuse"
     assert class_change_cross_family(SAMPLE, 2, random.Random(1)).expected_status == "refuse"
+
+
+def test_mutation_preconditions_skip_inapplicable_targets() -> None:
+    no_id = SAMPLE.replace(' resource-id="app:id/pay"', "")
+    no_text = SAMPLE.replace(' text="Pay"', "")
+    no_content_desc = SAMPLE
+    assert next(MUTATIONS[0](no_id, 2, random.Random(1)) for _ in [0]) is None
+    assert next(MUTATIONS[1](no_text, 2, random.Random(1)) for _ in [0]) is None
+    assert next(MUTATIONS[2](no_content_desc, 2, random.Random(1)) for _ in [0]) is None
+    text_view = SAMPLE.replace("android.widget.Button", "android.widget.TextView")
+    assert MUTATIONS[5](text_view, 2, random.Random(1)) is None
+    assert MUTATIONS[8](text_view, 2, random.Random(1)) is None
+
+
+def test_mutation_shifts_bounds_and_preserves_ground_truth_index() -> None:
+    mutation = MUTATIONS[0](SAMPLE, 2, random.Random(42))
+    assert mutation is not None
+    old = parse_hierarchy(SAMPLE)
+    new = parse_hierarchy(mutation.new_xml)
+    assert new.nodes[2].bounds != old.nodes[2].bounds
+    assert mutation.expected_node_index_in_new == 2
+
+
+def test_scenarios_use_mutation_specific_locators_and_report_drops() -> None:
+    skipped: dict[str, dict[str, int]] = {}
+    scenarios = build_scenarios([("sample.xml", SAMPLE)], 42, 1, skipped)
+    by_class = {item.change_class: item for item in scenarios}
+    assert by_class["rename_id"].locator_by == "id"
+    assert by_class["remove_id_keep_text"].locator_by == "id"
+    assert by_class["change_text"].locator_by == "-android uiautomator"
+    assert "move_node" in skipped
+    assert skipped["move_node"]["skipped_non_breaking"] == 1
 
 
 def test_metrics_and_statistics_are_deterministic() -> None:

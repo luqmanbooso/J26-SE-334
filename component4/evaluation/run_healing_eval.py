@@ -47,7 +47,13 @@ def run(
         else SentenceBertEmbedder(HealingConfig().sbert_model)
     )
     config = HealingConfig(embedder=embedder_name)
-    scenarios = build_scenarios(load_hierarchies(hierarchies), seed, targets_per_screen)
+    skipped: dict[str, dict[str, int]] = {}
+    scenarios = build_scenarios(
+        load_hierarchies(hierarchies),
+        seed,
+        targets_per_screen,
+        skip_report=skipped,
+    )
     output = Path(out)
     output.mkdir(parents=True, exist_ok=True)
     write_scenarios(output / "scenarios.jsonl", scenarios)
@@ -65,10 +71,21 @@ def run(
     _write_results(output / "results.csv", scenarios, results)
     summary = aggregate(scenarios, results, seed)
     (output / "summary.json").write_text(
-        json.dumps({"methods": summary, "change_classes": _change_class_summary(scenarios, results)}, indent=2, sort_keys=True) + "\n",
+        json.dumps(
+            {
+                "methods": summary,
+                "change_classes": _change_class_summary(scenarios, results),
+                "skipped": skipped,
+            },
+            indent=2,
+            sort_keys=True,
+        ) + "\n",
         encoding="utf-8",
     )
-    (output / "summary.md").write_text(_markdown_summary(summary, scenarios, results), encoding="utf-8")
+    (output / "summary.md").write_text(
+        _markdown_summary(summary, scenarios, results, skipped),
+        encoding="utf-8",
+    )
     run_threshold_sweep(scenarios, embedder, output / "threshold_sweep.csv", seed=seed)
     info = {
         "seed": seed,
@@ -82,6 +99,7 @@ def run(
         "scenario_count": len(scenarios),
         "in_scope_count": sum(item.in_scope for item in scenarios),
         "out_of_scope_count": sum(not item.in_scope for item in scenarios),
+        "skipped": skipped,
     }
     (output / "run_info.json").write_text(json.dumps(info, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     if release_manifest:
@@ -156,15 +174,26 @@ def _change_class_summary(scenarios, results):
     return output
 
 
-def _markdown_summary(summary, scenarios, results) -> str:
+def _markdown_summary(summary, scenarios, results, skipped=None) -> str:
     lines = ["# Healing evaluation summary", "", "## Methods", "",
              "| Method | Accuracy | False repair | Safe refusal | Missed heal |",
              "|---|---:|---:|---:|---:|"]
     for method, values in summary.items():
+        if method == "B0_exact_locator_only":
+            lines.append(
+                f"| {method} | n/a (never attempts to heal) | 0.0000 | "
+                f"n/a (never attempts to heal) | n/a (never attempts to heal) |"
+            )
+            continue
         lines.append(
             f"| {method} | {values['healing_accuracy']:.4f} | {values['false_repair_rate']:.4f} | "
             f"{values['safe_refusal_rate']:.4f} | {values['missed_heal_rate']:.4f} |"
         )
+    if skipped:
+        lines.extend(["", "## Skipped scenarios", "", "| Change class | Reason | Count |", "|---|---|---:|"])
+        for change_class in sorted(skipped):
+            for reason, count in sorted(skipped[change_class].items()):
+                lines.append(f"| {change_class} | {reason} | {count} |")
     lines.extend([
         "", "## Change classes", "",
         "| Change class | Method | Correct heal | False repair | Safe refusal | Missed heal |",

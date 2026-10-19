@@ -33,14 +33,27 @@ class Scenario:
         return asdict(self)
 
 
-def _locator(node: UiNode) -> tuple[str, str]:
+def _locator(node: UiNode, change_class: str) -> tuple[str, str]:
+    if change_class in {"rename_id", "remove_id_keep_text"}:
+        if not node.resource_id:
+            raise ValueError("id mutation requires a resource-id")
+        return "id", node.resource_id
+    if change_class == "change_text":
+        if not node.text:
+            raise ValueError("text mutation requires text")
+        escaped = node.text.replace("\\", "\\\\").replace('"', '\\"')
+        return "-android uiautomator", f'new UiSelector().text("{escaped}")'
+    if change_class == "change_content_desc":
+        if not node.content_desc:
+            raise ValueError("content-description mutation requires content-desc")
+        return "accessibility id", node.content_desc
     if node.resource_id:
         return "id", node.resource_id
-    if node.content_desc:
-        return "accessibility id", node.content_desc
     if node.text:
         escaped = node.text.replace("\\", "\\\\").replace('"', '\\"')
         return "-android uiautomator", f'new UiSelector().text("{escaped}")'
+    if node.content_desc:
+        return "accessibility id", node.content_desc
     raise ValueError("node has no supported locator")
 
 
@@ -61,6 +74,7 @@ def build_scenarios(
     hierarchies: list[tuple[str, str]],
     seed: int,
     targets_per_screen: int,
+    skip_report: dict[str, dict[str, int]] | None = None,
 ) -> list[Scenario]:
     """Select eligible nodes and apply every mutation deterministically."""
     if targets_per_screen < 1:
@@ -76,16 +90,22 @@ def build_scenarios(
         ]
         rng.shuffle(eligible)
         for target in sorted(eligible[:targets_per_screen], key=lambda item: item.index):
-            by, value = _locator(target)
-            script = _script(by, value)
             for mutation in MUTATIONS:
                 local_rng = random.Random(rng.randrange(2**32))
-                try:
-                    result: Mutation = mutation(old_xml, target.index, local_rng)
-                except ValueError:
-                    # Some operators require an attribute absent from this
-                    # target; retain the deterministic applicable mutations.
+                result: Mutation | None = mutation(old_xml, target.index, local_rng)
+                if result is None:
+                    _skip(skip_report, mutation.__name__, "skipped_precondition")
                     continue
+                try:
+                    by, value = _locator(target, result.change_class)
+                except ValueError:
+                    _skip(skip_report, result.change_class, "skipped_precondition")
+                    continue
+                new_hierarchy = parse_hierarchy(result.new_xml)
+                if new_hierarchy.count_matches(_hierarchy_by(by), value) != 0:
+                    _skip(skip_report, result.change_class, "skipped_non_breaking")
+                    continue
+                script = _script(by, value)
                 scenario_id = f"{Path(screen_name).stem}-{target.index:04d}-{result.change_class}"
                 scenarios.append(
                     Scenario(
@@ -115,3 +135,22 @@ def _clickable_parent(hierarchy, node: UiNode) -> bool:
             return True
         parent = current.parent_index
     return False
+
+
+def _hierarchy_by(by: str) -> str:
+    return {
+        "id": "id",
+        "accessibility id": "accessibility id",
+        "-android uiautomator": "-android uiautomator",
+    }[by]
+
+
+def _skip(
+    report: dict[str, dict[str, int]] | None,
+    change_class: str,
+    reason: str,
+) -> None:
+    if report is None:
+        return
+    report.setdefault(change_class, {})
+    report[change_class][reason] = report[change_class].get(reason, 0) + 1
