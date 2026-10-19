@@ -60,6 +60,11 @@ class HierarchyPruner:
     and produces a compact semantic DOM representation.
     """
 
+    @staticmethod
+    def to_prompt_string(nodes: List[PrunedNode]) -> str:
+        """Serializes pruned nodes into token-dense string for prompt injection."""
+        return "\n".join(node.to_prompt_string() for node in nodes)
+
     STRUCTURAL_CONTAINERS = {
         "android.widget.FrameLayout",
         "android.widget.LinearLayout",
@@ -120,10 +125,20 @@ class HierarchyPruner:
             or y2 <= 0
         )
 
-    def prune_xml(self, xml_source: Union[str, Path, ET.Element]) -> List[PrunedNode]:
+    def prune_xml(
+        self,
+        xml_source: Union[str, Path, ET.Element],
+        screen_width: Optional[int] = None,
+        screen_height: Optional[int] = None,
+        **kwargs
+    ) -> List[PrunedNode]:
         """
         Parses Android Accessibility / UIAutomator XML string or file path.
         """
+        if screen_width is not None:
+            self.screen_width = screen_width
+        if screen_height is not None:
+            self.screen_height = screen_height
         self.raw_node_count = 0
         pruned_nodes: List[PrunedNode] = []
 
