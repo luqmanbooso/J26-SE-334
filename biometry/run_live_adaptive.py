@@ -53,12 +53,13 @@ def main():
                          "place instead of exploring (parity with run_exp02)")
     ap.add_argument("--max-depth", type=int, default=None,
                     help="deepest screen to descend to; omit for unlimited (default)")
-    ap.add_argument("--signature", choices=["frame", "structural", "full"],
-                    default="frame",
-                    help="screen identity for the cache: 'frame' treats a screen "
-                         "by its control set so chips/tabs are one screen "
+    ap.add_argument("--signature", choices=["auto", "structural", "frame", "full"],
+                    default="auto",
+                    help="screen identity for the cache: 'auto' tells screens "
+                         "apart by layout and merges in-place chip/tab swaps "
                          "(default), 'structural' makes every content state its "
-                         "own screen, 'full' hashes the whole dump")
+                         "own screen, 'frame' uses the control set, 'full' hashes "
+                         "the whole dump")
     ap.add_argument("--no-launch", action="store_true",
                     help="do not bring --package to the foreground first; explore "
                          "whatever is already on screen")
@@ -156,8 +157,10 @@ def main():
         ref_target = targets[0].as_target()
         title = "Live adaptive run"
     else:
-        identity_fn = {"frame": frame_signature, "structural": structural_signature,
-                       "full": full_signature}[args.signature]
+        base_signature = {"auto": structural_signature,
+                          "structural": structural_signature,
+                          "frame": frame_signature, "full": full_signature}[args.signature]
+        merge_swaps = args.signature == "auto"
 
         def reporter(index, label, record, event, depth):
             _row(index, record.cognitive_state, record.stress_s, record.ui_delay_ms,
@@ -167,7 +170,8 @@ def main():
             controller=controller,
             dump=bridge.dump_ui_hierarchy,
             press_back=bridge.press_back,
-            identity_fn=identity_fn,
+            base_signature=base_signature,
+            merge_swaps=merge_swaps,
             current_package=lambda: foreground_package(bridge.device),
             app_package=package,
             relaunch=(None if args.no_relaunch

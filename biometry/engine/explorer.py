@@ -13,11 +13,13 @@ cognitive feedback and timeline are unchanged; this only chooses the order.
 
 Three things make the walk cover an app well rather than stall on one screen:
 
-  * **Frame identity.** A screen is identified by its *set of controls*
-    (`frame_signature`), not its exact layout, so a filter chip reselecting a
-    list or a tab swapping a fragment is the *same* screen — the explorer taps
-    all the chips/tabs in place instead of treating each content state as a new
-    screen to descend into and climb back out of.
+  * **Screen identity with swap-merging.** A screen is identified by its layout
+    signature (which tells screens apart by position even in a Compose app whose
+    controls carry no resource-ids), and a tap is recognised as an in-place
+    content swap — a filter chip, a tab — when the tapped control is *still on
+    screen* afterward (chips and tabs persist; navigation controls and dialog
+    buttons vanish). Swap states are merged onto one screen, so the explorer taps
+    all the chips/tabs in place instead of treating each as a new screen.
   * **Exits tapped last.** A control whose tap lands on an already-visited
     screen is a back/up/home control; those are *learned* as it goes (and guessed
     on first sight from label/position) and tapped **last**, so a screen finishes
@@ -33,9 +35,11 @@ default to unlimited; termination comes from the caches (finite screens and
 targets), not the caps.
 
 Documented limits (by design):
-  * Frame identity collapses two screens whose *controls* are identical (same
-    list-item template and nav bar, nothing else) — use `structural_signature`
-    (--signature structural) when every content state should be its own screen.
+  * Swap-merging assumes a control that stays on screen after the content changed
+    belongs to that screen; a different screen reached by a control that happens
+    to persist would be merged too. --signature structural turns merging off
+    (every content state is its own screen); --signature frame uses a coarse
+    control-set identity instead.
   * A tap returning *up* to a screen on the path unwinds to it without a Back.
   * Replay assumes the recorded route is deterministic; a route gated behind a
     content state it can't reproduce is marked unreachable and skipped.
@@ -44,7 +48,7 @@ Documented limits (by design):
 import time
 from dataclasses import dataclass, field
 
-from bridge.hierarchy import frame_signature, parse_hierarchy, tappable_targets
+from bridge.hierarchy import parse_hierarchy, structural_signature, tappable_targets
 
 
 class _LostPlace(Exception):
@@ -137,7 +141,8 @@ class AppExplorer:
     """
 
     def __init__(self, controller, dump, press_back,
-                 identity_fn=frame_signature, current_package=None,
+                 base_signature=structural_signature, merge_swaps=True,
+                 current_package=None,
                  app_package=None, relaunch=None, max_actions=None, max_depth=None,
                  max_relaunches=5, settle_s=0.4, sleep=time.sleep, reporter=None,
                  min_side=20.0, max_side=900.0, ready_tries=12, ready_interval=1.0):
@@ -148,7 +153,8 @@ class AppExplorer:
         self.controller = controller
         self.dump = dump
         self.press_back = press_back
-        self.identity_fn = identity_fn
+        self.base_signature = base_signature
+        self.merge_swaps = merge_swaps
         self.current_package = current_package
         self.app_package = app_package
         self.relaunch = relaunch
@@ -163,6 +169,7 @@ class AppExplorer:
         self.ready_tries = ready_tries
         self.ready_interval = ready_interval
 
+        self._canon = {}              # base signature -> canonical frame id (swap merging)
         self.visited = set()          # frame ids entered at least once
         self.exhausted = set()        # frame ids with every target tapped
         self.tried = {}               # frame -> set(element keys tapped)
@@ -221,6 +228,14 @@ class AppExplorer:
     def _targets(self, root):
         return tappable_targets(parse_hierarchy(root), self.min_side, self.max_side)
 
+    def _identity(self, root):
+        """The screen a dump belongs to. Starts from the base signature (which
+        distinguishes screens — by bounds even when there are no resource-ids),
+        then maps any state that was learned to be a content-swap of a screen
+        (`_canon`) back onto that screen, so chips/tabs don't split it apart."""
+        base = self.base_signature(root)
+        return self._canon.get(base, base)
+
     def _ordered_targets(self, root, frame):
         """This screen's targets with likely *exit* controls moved to the end, so
         a screen's real content is tapped before any control that would leave it.
@@ -254,7 +269,7 @@ class AppExplorer:
 
     def _ensure_on(self, expected_frame):
         root = self.dump()
-        actual = self.identity_fn(root)
+        actual = self._identity(root)
         if actual != expected_frame:
             raise _LostPlace("Back did not restore {} (now on {})".format(
                 self._name(expected_frame), self._name(actual)))
@@ -310,7 +325,7 @@ class AppExplorer:
                 root = self._await_ready()   # poll past the cold-start splash
 
     def _explore(self, root, depth, path):
-        frame = self.identity_fn(root)
+        frame = self._identity(root)
         if frame in self.exhausted:
             return                       # already fully done; caller backs out
         self.visited.add(frame)
@@ -347,10 +362,22 @@ class AppExplorer:
                 self.sleep(self.settle_s)
 
                 new_root = self.dump()
-                new_frame = self.identity_fn(new_root)
+                new_base = self.base_signature(new_root)
+                new_frame = self._canon.get(new_base, new_base)
 
-                if new_frame == frame:          # chip/tab swap, toggle, or no-op
+                if new_frame == frame:          # no-op, or a swap state already merged
                     self._emit(depth, index, label, "stay", record)
+                    root = new_root
+                    continue
+
+                # The screen changed. If the tapped control is still on screen, it
+                # was a chip/tab that swapped the content in place — persisting
+                # controls stay, navigation controls and dialog buttons vanish —
+                # so fold this new state into the current screen and carry on.
+                if (self.merge_swaps and new_base not in self._canon
+                        and any(_element_key(e) == key for e in self._targets(new_root))):
+                    self._canon[new_base] = frame
+                    self._emit(depth, index, label, "swap (same screen)", record)
                     root = new_root
                     continue
 
@@ -451,7 +478,7 @@ class AppExplorer:
             self.relaunch()
             self._stack = []
             root = self._replay(list(self.paths[frame]), start=self._await_ready())
-            if root is None or self.identity_fn(root) != frame:
+            if root is None or self._identity(root) != frame:
                 unreachable.add(frame)
                 self._line(0, "  recovery: route to {} no longer valid; skipping".format(
                     self._name(frame)))

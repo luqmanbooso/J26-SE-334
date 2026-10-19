@@ -328,8 +328,9 @@ def test_frame_signature_is_stable_across_content_but_separates_controls():
 
 class _ChipScreen:
     """One screen with four persistent filter chips. Selecting a chip swaps the
-    content (a single item whose resource-id is fixed), so the control set — and
-    thus the frame identity — is unchanged across filters."""
+    content (a different number of rows, so the *layout* signature changes), but
+    the chips stay on screen — so each selection is recognised as a content swap
+    of the same screen, not a new screen."""
 
     def __init__(self):
         self.selected = 0
@@ -338,21 +339,24 @@ class _ChipScreen:
     def dump(self):
         chips = "".join(_node("chip{}".format(i), "chip{}".format(i), _bounds(i))
                         for i in range(4))
-        content = _node("item{}".format(self.selected), "content_item", _bounds(4))
+        rows = "".join(_node("item{}".format(j), "", _bounds(4 + j))
+                       for j in range(self.selected + 1))
         return ET.fromstring(
             '<hierarchy><node class="android.widget.FrameLayout" package="{p}" '
             'bounds="[0,0][1080,2400]">{c}</node></hierarchy>'.format(
-                p=APP_PKG, c=chips + content))
+                p=APP_PKG, c=chips + rows))
 
     def tap(self, x, y, pre_delay=0.0):
-        spots = [(500.0, 260.0 + i * 300.0, i) for i in range(4)]
-        spots.append((500.0, 260.0 + 4 * 300.0, "content"))
-        _cx, _cy, which = min(spots, key=lambda s: (s[0] - x) ** 2 + (s[1] - y) ** 2)
-        if which == "content":
-            self.tapped.append("content")
+        spots = [(500.0, 260.0 + i * 300.0, ("chip", i)) for i in range(4)]
+        spots += [(500.0, 260.0 + (4 + j) * 300.0, ("content", j))
+                  for j in range(self.selected + 1)]
+        _cx, _cy, (kind, idx) = min(
+            spots, key=lambda s: (s[0] - x) ** 2 + (s[1] - y) ** 2)
+        if kind == "chip":
+            self.selected = idx
+            self.tapped.append("chip{}".format(idx))
         else:
-            self.selected = which
-            self.tapped.append("chip{}".format(which))
+            self.tapped.append("content")
 
     def press_back(self):
         pass
