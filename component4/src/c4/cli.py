@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -14,6 +15,8 @@ from c4.healing import HealingConfig, HealingEngine, HealingService
 from c4.healing.baseline import BaselineStore
 from c4.healing.semantic import LexicalEmbedder
 from c4.schemas import EventSource
+from c4.schemas import JourneyDocument
+from c4.journeys.export import load_hint_rules, load_journeys, write_journeys
 from c4.store.repository import TestRepository
 
 
@@ -24,7 +27,9 @@ def build_parser() -> argparse.ArgumentParser:
     preflight = subparsers.add_parser("preflight")
     preflight.add_argument("--config", required=True)
     run = subparsers.add_parser("run")
-    run.add_argument("--telemetry", required=True)
+    inputs = run.add_mutually_exclusive_group(required=True)
+    inputs.add_argument("--telemetry")
+    inputs.add_argument("--journeys")
     run.add_argument("--source", choices=("sentry", "crashlytics"), default="sentry")
     run.add_argument("--config", required=True)
     run.add_argument("--runs-dir", required=True)
@@ -41,6 +46,12 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--embedder", choices=("sbert", "lexical"), default="sbert")
     run.add_argument("--heal-threshold", type=float, default=0.5)
     run.add_argument("--max-heal-rounds", type=int, default=3)
+    journeys = subparsers.add_parser("journeys")
+    journeys.add_argument("--telemetry")
+    journeys.add_argument("--source", choices=("sentry", "crashlytics"), default="sentry")
+    journeys.add_argument("--out")
+    journeys.add_argument("--print", action="store_true", dest="print_journeys")
+    journeys.add_argument("--schema", action="store_true")
     heal = subparsers.add_parser("heal")
     heal.add_argument("--script", required=True)
     heal.add_argument("--step", required=True, type=int)
@@ -56,6 +67,37 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     try:
         args = parser.parse_args(argv)
+        if args.command == "journeys":
+            if args.schema:
+                if args.telemetry or args.out:
+                    parser.error("--schema cannot be combined with --telemetry or --out")
+                print(json.dumps(JourneyDocument.model_json_schema(), indent=2, sort_keys=True))
+                return 0
+            if not args.telemetry or not args.out:
+                parser.error("journeys requires --telemetry and --out unless --schema is used")
+            from c4.ingestion.loader import TelemetryIngestionService
+            from c4.sessionization.service import SessionizationService
+
+            events = TelemetryIngestionService().parse_file(
+                args.telemetry, EventSource(args.source)
+            )
+            journeys = SessionizationService().process(events)
+            write_journeys(journeys, args.out, load_hint_rules())
+            if args.print_journeys:
+                for journey in journeys:
+                    document = JourneyDocument.model_validate(
+                        json.loads(
+                            (Path(args.out) / f"{_safe_name(journey.journey_id)}.json").read_text(
+                                encoding="utf-8"
+                            )
+                        )
+                    )
+                    print(
+                        f"{document.journey_id}: screen={document.failing_screen!r}, "
+                        f"steps={len(document.steps)}, reproducible={document.reproducible}, "
+                        f"hints={[hint.stressor for hint in document.seed.perturbation_hints]}"
+                    )
+            return 0
         if args.command == "heal":
             script = Path(args.script).read_text(encoding="utf-8")
             new_hierarchy = Path(args.new_hierarchy).read_text(encoding="utf-8")
@@ -103,20 +145,30 @@ def main(argv: list[str] | None = None) -> int:
                 heal_config,
             )
         llm = OllamaQwenClient(base_url=args.ollama_url, model=args.model)
-        records = Pipeline(
+        pipeline = Pipeline(
             llm,
             target,
             use_c3=not args.no_c3,
             healer=healer,
             c3_strict=args.c3_strict,
-        ).run(
-            args.telemetry,
-            args.runs_dir,
-            source=EventSource(args.source),
-            dry_run=args.dry_run,
-            limit=args.limit,
-            capture_baseline=args.capture_baseline,
         )
+        if args.journeys:
+            records = pipeline.run_journeys(
+                load_journeys(args.journeys),
+                args.runs_dir,
+                dry_run=args.dry_run,
+                limit=args.limit,
+                capture_baseline=args.capture_baseline,
+            )
+        else:
+            records = pipeline.run(
+                args.telemetry,
+                args.runs_dir,
+                source=EventSource(args.source),
+                dry_run=args.dry_run,
+                limit=args.limit,
+                capture_baseline=args.capture_baseline,
+            )
         failed = any(_record_failed(record) for record in records)
         return 1 if failed else 0
     except (OSError, ValueError, TypeError, ImportError) as error:
@@ -136,3 +188,9 @@ def _record_failed(record: object) -> bool:
         execution = getattr(record, "execution", None)
         return getattr(execution, "status", None) != "passed"
     return False
+
+
+def _safe_name(value: str) -> str:
+    import re
+
+    return re.sub(r"[^A-Za-z0-9_.-]+", "_", value).strip("._") or "journey"
