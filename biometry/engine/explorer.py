@@ -140,7 +140,7 @@ class AppExplorer:
                  identity_fn=frame_signature, current_package=None,
                  app_package=None, relaunch=None, max_actions=None, max_depth=None,
                  max_relaunches=5, settle_s=0.4, sleep=time.sleep, reporter=None,
-                 min_side=20.0, max_side=900.0):
+                 min_side=20.0, max_side=900.0, ready_tries=12, ready_interval=1.0):
         # max_actions / max_depth default to None = unlimited: the walk runs
         # until the reachable app is exhausted. Termination holds on a finite
         # app regardless — each (screen, target) is tapped once and exhausted
@@ -160,6 +160,8 @@ class AppExplorer:
         self.reporter = reporter
         self.min_side = min_side
         self.max_side = max_side
+        self.ready_tries = ready_tries
+        self.ready_interval = ready_interval
 
         self.visited = set()          # frame ids entered at least once
         self.exhausted = set()        # frame ids with every target tapped
@@ -258,6 +260,18 @@ class AppExplorer:
                 self._name(expected_frame), self._name(actual)))
         return root
 
+    def _await_ready(self):
+        """After a (cold) launch, the app shows a splash before its first real
+        screen. Poll the dump until it has tappable targets, or give up after
+        `ready_tries`, so the walk does not read an empty splash as a dead end."""
+        root = self.dump()
+        for _ in range(self.ready_tries):
+            if self._targets(root):
+                return root
+            self.sleep(self.ready_interval)
+            root = self.dump()
+        return root
+
     # --- the walk -----------------------------------------------------------
 
     def run(self):
@@ -269,7 +283,7 @@ class AppExplorer:
 
     def _walk(self):
         reason = "completed"
-        root = self.dump()
+        root = self._await_ready()
         while True:
             try:
                 self._explore(root, 0, [])
@@ -292,9 +306,8 @@ class AppExplorer:
                 self._line(0, "- {}; relaunching app [{}/{}]".format(
                     lost.reason, self.relaunches, self.max_relaunches))
                 self.relaunch()
-                self.sleep(max(self.settle_s, 2.0))   # wait for the first screen, not a splash
                 self._stack = []
-                root = self.dump()
+                root = self._await_ready()   # poll past the cold-start splash
 
     def _explore(self, root, depth, path):
         frame = self.identity_fn(root)
@@ -395,10 +408,10 @@ class AppExplorer:
 
     # --- replay recovery ----------------------------------------------------
 
-    def _replay(self, path):
+    def _replay(self, path, start=None):
         """Relaunch leaves us at the root; re-tap `path`'s keys to reach a screen
         again. Returns the root we land on, or None if a key is no longer there."""
-        root = self.dump()
+        root = start if start is not None else self.dump()
         for key in path:
             if not self._budget_left():
                 return None
@@ -436,9 +449,8 @@ class AppExplorer:
                 self._name(frame), untried))
             self.relaunches += 1
             self.relaunch()
-            self.sleep(max(self.settle_s, 2.0))
             self._stack = []
-            root = self._replay(list(self.paths[frame]))
+            root = self._replay(list(self.paths[frame]), start=self._await_ready())
             if root is None or self.identity_fn(root) != frame:
                 unreachable.add(frame)
                 self._line(0, "  recovery: route to {} no longer valid; skipping".format(

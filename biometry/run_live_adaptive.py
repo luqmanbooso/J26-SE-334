@@ -96,9 +96,14 @@ def main():
     # launcher (or whatever happened to be open) instead of the app asked for.
     # An auto-detected run skips this: it means "explore what is already here".
     if args.package and not args.no_launch:
-        print(f"[live] launching {package} to the foreground")
+        print(f"[live] launching {package} to the foreground (cold start)")
         bridge.launch_package(package)
-        time.sleep(max(args.settle, 2.0))
+        # A cold start shows a splash before the first real screen; wait until
+        # there are tappable targets rather than reading the splash as empty.
+        for _ in range(12):
+            if tappable_targets(parse_hierarchy(bridge.dump_ui_hierarchy())):
+                break
+            time.sleep(1.0)
         landed = foreground_package(bridge.device)
         if landed and landed != package:
             print(f"[live] warning: foreground is {landed}, not {package} "

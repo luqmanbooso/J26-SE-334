@@ -442,6 +442,29 @@ def test_structural_signature_ignores_volatile_text_but_separates_layouts():
     assert full_signature(clock_1200) != full_signature(clock_0945)
 
 
+def test_await_ready_waits_for_the_cold_start_splash_to_resolve():
+    # The first two dumps are an empty splash; then the real screen appears. The
+    # walk must not read the splash as a dead end.
+    empty = ('<hierarchy><node class="x" package="{p}" bounds="[0,0][1080,2400]"/>'
+             '</hierarchy>').format(p=APP_PKG)
+    real = _screen_xml([("Go", "go", _bounds(0), None)])
+    dumps = [empty, empty, real, real, real]
+    state = {"i": 0}
+
+    def dump():
+        xml = dumps[min(state["i"], len(dumps) - 1)]
+        state["i"] += 1
+        return ET.fromstring(xml)
+
+    placeholder = FakeAppGraph({"A": [("x", "x", _bounds(0), None)]}, root="A")
+    explorer = AppExplorer(_controller(placeholder), dump=dump, press_back=lambda: None,
+                           app_package=None, relaunch=None, settle_s=0.0,
+                           sleep=lambda s: None, ready_tries=5, ready_interval=0.0)
+    root = explorer._await_ready()
+    assert explorer._targets(root)     # waited until the real screen had targets
+    assert state["i"] >= 3             # polled past the two empty splashes
+
+
 # --- the device seams the explorer depends on --------------------------------
 
 class _RecordingDevice:
