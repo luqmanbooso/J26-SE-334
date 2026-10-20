@@ -15,10 +15,11 @@ if C4_SRC.exists() and str(C4_SRC) not in sys.path:
     sys.path.insert(0, str(C4_SRC))
 
 NOTEBOOK_DIR = C3_DIR / "notebooks"
-RESEARCH_ROOT = Path(r"D:/university/Resesarch")
+RESEARCH_ROOT = Path(os.getenv("RESEARCH_ROOT", str(REPO_ROOT.parent)))
 
-VERDICTS_DIR = REPO_ROOT / "results" / "verdicts"
+VERDICTS_DIR = C3_DIR / "results" / "verdicts"
 VERDICTS_DIR.mkdir(parents=True, exist_ok=True)
+
 
 
 
@@ -39,6 +40,9 @@ def resolve_path(rel_candidate: Union[str, Path]) -> Optional[Path]:
         NOTEBOOK_DIR,
         C3_DIR,
         REPO_ROOT,
+        REPO_ROOT / "models",
+        C3_DIR / "results" / "weights",
+        C3_DIR / "results",
         RESEARCH_ROOT,
         RESEARCH_ROOT / "RD" / "models",
         RESEARCH_ROOT / "results",
@@ -57,8 +61,14 @@ def resolve_path(rel_candidate: Union[str, Path]) -> Optional[Path]:
     return None
 
 
-BASE_MODEL_PATH = resolve_path("RD/models/Qwen2-VL-2B-Instruct")
-LORA_WEIGHTS_PATH = resolve_path("results/c3_lora_final")
+BASE_MODEL_PATH = resolve_path("models/Qwen2-VL-2B-Instruct") or resolve_path("RD/models/Qwen2-VL-2B-Instruct")
+LORA_WEIGHTS_PATH = (
+    resolve_path("models/c3_qwen2vl_2b_lora_step246")
+    or resolve_path("models/c3_lora_final")
+    or resolve_path("results/c3_qwen2vl_2b_lora_step246")
+    or resolve_path("results/weights/c3_lora_final")
+    or resolve_path("results/c3_lora_final")
+)
 
 SERVICE_PORT = int(os.getenv("C3_PORT", "8003"))
 SERVICE_TITLE = "HEART Component 3 - Localized Vision-Semantic Oracle API"

@@ -16,3 +16,4 @@ __all__ = [
     "normalize_defect_type",
     "normalize_verdict",
 ]
+

@@ -6,6 +6,7 @@ import subprocess
 import threading
 import shutil
 import webbrowser
+import queue
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 import customtkinter as ctk
@@ -19,9 +20,15 @@ from pathlib import Path
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
+C3_DIR = os.path.join(ROOT_DIR, "vision_oracle")
+if C3_DIR not in sys.path:
+    sys.path.insert(0, C3_DIR)
 ENV_TESTING_DIR = os.path.join(ROOT_DIR, "env testing")
 if ENV_TESTING_DIR not in sys.path:
     sys.path.insert(0, ENV_TESTING_DIR)
+RESULTS_DIR = os.path.join(ROOT_DIR, "results")
+if RESULTS_DIR not in sys.path:
+    sys.path.insert(0, RESULTS_DIR)
 
 # Biometric User Mimic Simulator import
 BIOMETRY_DIR = os.path.join(ROOT_DIR, "biometry")
@@ -42,8 +49,34 @@ except Exception:
     FrameStats = None
     FRAME_PROBE_AVAILABLE = False
 
+from typing import Optional, List, Dict, Any, Union
+
+# C3 Local Vision-Semantic Oracle Integration
+try:
+    from vision_oracle.services.oracle_service import get_oracle_service
+    from vision_oracle.contracts.v2 import AnalysisDecision, AnalysisStatus
+    from common.adb import AdbDevice, NoDeviceError
+    VISION_ORACLE_AVAILABLE = True
+except Exception as _v_err:
+    VISION_ORACLE_AVAILABLE = False
+
+# C4 Self-Healing UI integration
+C4_SRC_DIR = os.path.join(ROOT_DIR, "component4", "src")
+if C4_SRC_DIR not in sys.path:
+    sys.path.insert(0, C4_SRC_DIR)
+try:
+    from c4.ui.panel import build_c4_view
+    C4_UI_AVAILABLE = True
+    C4_UI_ERROR = ""
+except Exception as _c4_err:
+    C4_UI_AVAILABLE = False
+    C4_UI_ERROR = str(_c4_err)
+import shutil
+
 # Auto-detect Android SDK tools
 for p in [
+    r"D:\Android\platform-tools",
+    r"D:\Android\emulator",
     os.path.expanduser("~/AppData/Local/Android/Sdk/platform-tools"),
     os.path.expanduser("~/AppData/Local/Android/Sdk/emulator"),
     os.path.expanduser("~/Android/Sdk/platform-tools"),
@@ -52,22 +85,15 @@ for p in [
     if os.path.exists(p) and p not in os.environ.get("PATH", ""):
         os.environ["PATH"] = p + os.pathsep + os.environ.get("PATH", "")
 
-
-def _resolve_adb_bin():
-    """Locate the adb binary cross-platform.
-
-    The app was authored against a hard-coded Windows SDK path; on Linux/macOS
-    that file does not exist, so every adb call failed and the device scan,
-    app listing and screen stream all silently fell back to simulation. Prefer
-    whatever is on PATH, then the common per-OS install locations, then plain
-    'adb' so a correctly configured PATH still works.
-    """
-    found = shutil.which("adb")
-    if found:
-        return found
+def get_adb_binary() -> str:
+    """Resolves the active adb binary path across environments."""
+    which_adb = shutil.which("adb")
+    if which_adb:
+        return which_adb
     for cand in [
-        r"C:\Users\user\AppData\Local\Android\Sdk\platform-tools\adb.exe",
+        r"D:\Android\platform-tools\adb.exe",
         os.path.expanduser("~/AppData/Local/Android/Sdk/platform-tools/adb.exe"),
+        r"C:\Android\platform-tools\adb.exe",
         os.path.expanduser("~/Android/Sdk/platform-tools/adb"),
         "/usr/bin/adb", "/usr/local/bin/adb", "/usr/lib/android-sdk/platform-tools/adb",
     ]:
@@ -75,8 +101,24 @@ def _resolve_adb_bin():
             return cand
     return "adb"
 
+def get_emulator_binary() -> str:
+    """Resolves the active Android emulator binary path across environments."""
+    which_emu = shutil.which("emulator")
+    if which_emu:
+        return which_emu
+    for cand in [
+        r"D:\Android\emulator\emulator.exe",
+        os.path.expanduser("~/AppData/Local/Android/Sdk/emulator/emulator.exe"),
+        r"C:\Android\emulator\emulator.exe",
+    ]:
+        if os.path.exists(cand):
+            return cand
+    return "emulator"
 
-ADB_BIN = _resolve_adb_bin()
+
+# C2 code (device scan, screencap, C2 tab) references ADB_BIN; alias it to C1's
+# cross-platform resolver so both naming conventions work after the merge.
+ADB_BIN = get_adb_binary()
 
 from orchestrator import PerturbationOrchestrator  # type: ignore
 from attribution_engine import EnvironmentAttributionEngine  # type: ignore
@@ -455,7 +497,7 @@ class HeartSimpleApp(ctk.CTk):
 
         self.nav_tabs = ctk.CTkSegmentedButton(
             nav_box,
-            values=["Environmental Stressors", "User Touch & Biometrics", "Empirical Findings & KPI"],
+            values=["Environmental Stressors", "User Touch & Biometrics", "👁️ Vision Oracle", "🔧 Self-Healing (C4)", "Empirical Findings & KPI"],
             command=self._on_nav_tab_changed,
             height=30,
             font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
@@ -483,7 +525,15 @@ class HeartSimpleApp(ctk.CTk):
         self.bio_scroll = ctk.CTkScrollableFrame(left_col, fg_color="transparent", corner_radius=0)
         self._build_biometry_view(self.bio_scroll)
 
-        # View 3: Live Findings & Dashboard
+        # View 3: Localized Multimodal Vision Oracle (Component 3)
+        self.vision_scroll = ctk.CTkScrollableFrame(left_col, fg_color="transparent", corner_radius=0)
+        self._build_vision_view(self.vision_scroll)
+
+        # View: Self-Healing Test Synthesis (Component 4)
+        self.c4_scroll = ctk.CTkScrollableFrame(left_col, fg_color="transparent", corner_radius=0)
+        self._build_c4_view(self.c4_scroll)
+
+        # View 4: Live Findings & Dashboard
         self.kpi_scroll = ctk.CTkScrollableFrame(left_col, fg_color="transparent", corner_radius=0)
         self._build_kpi_dashboard_view(self.kpi_scroll)
 
@@ -507,12 +557,20 @@ class HeartSimpleApp(ctk.CTk):
         self.env_scroll.grid_forget()
         self.bio_scroll.grid_forget()
         self.kpi_scroll.grid_forget()
+        if hasattr(self, "vision_scroll"):
+            self.vision_scroll.grid_forget()
+        if hasattr(self, "c4_scroll"):
+            self.c4_scroll.grid_forget()
 
         if "Environmental" in value:
             self.env_scroll.grid(row=1, column=0, sticky="nsew")
         elif "Biometric" in value or "Touch" in value:
             self.bio_scroll.grid(row=1, column=0, sticky="nsew")
             self._redraw_biometry_canvas()
+        elif "Vision" in value or "Oracle" in value:
+            self.vision_scroll.grid(row=1, column=0, sticky="nsew")
+        elif "Self-Healing" in value:
+            self.c4_scroll.grid(row=1, column=0, sticky="nsew")
         elif "Findings" in value or "KPI" in value:
             self.kpi_scroll.grid(row=1, column=0, sticky="nsew")
             self._refresh_dashboard_view()
@@ -2307,7 +2365,7 @@ class HeartSimpleApp(ctk.CTk):
 
     def _e2e_pipeline_worker(self):
         import random, re
-        adb_bin = ADB_BIN
+        adb_bin = get_adb_binary()
         dev_id = getattr(self.adb, "device_id", None)
         active_pkg = self.app_selector.get().strip() if hasattr(self, "app_selector") else "de.k3b.android.androFotoFinder"
         orig_w = getattr(self, "_orig_w", 1080)
@@ -2520,31 +2578,90 @@ class HeartSimpleApp(ctk.CTk):
                 except Exception:
                     jank_pct = round(random.uniform(7.5, 18.2), 1)
 
-                # Vision Oracle Defect Detection
+                # Component 3 Real Vision Oracle Defect Detection
                 has_defect = False
                 defect_type = "none"
-                if prof_data.get("cpu", 0) >= 90 and not is_hit:
-                    has_defect = True
-                    defect_type = "TEXT_TRUNCATION"
-                    defects_found.append({
-                        "id": f"VIS_DEFECT_{step_idx+1}",
-                        "type": "TEXT_TRUNCATION",
-                        "component": target["name"],
-                        "trigger": prof_data.get("name"),
-                        "explanation": f"UI widget '{target['name']}' text clipping and frame drop ({jank_pct}% jank) under 95% CPU contention.",
-                        "confidence": 0.94
-                    })
-                elif "3G" in prof_data.get("name", "") and err_dist > 40:
-                    has_defect = True
-                    defect_type = "COMPONENT_OVERLAP"
-                    defects_found.append({
-                        "id": f"VIS_DEFECT_{step_idx+1}",
-                        "type": "COMPONENT_OVERLAP",
-                        "component": target["name"],
-                        "trigger": prof_data.get("name"),
-                        "explanation": f"Layout reflow overlap on '{target['name']}' due to 1850ms asynchronous cellular delay.",
-                        "confidence": 0.89
-                    })
+                oracle_conf = 1.0
+                oracle_bbox = None
+                oracle_expl = "Screen Verified Clean ✅"
+
+                if VISION_ORACLE_AVAILABLE:
+                    try:
+                        oracle_service = get_oracle_service()
+                        v_res = oracle_service.evaluate_device(
+                            serial=dev_id,
+                            action_context=f"e2e_step_{step_idx+1}_{target['name']}",
+                            enable_sahi=True
+                        )
+                        v2 = v_res.get("verdict_v2", {})
+                        decision = v2.get("decision", "no_defect_detected")
+                        if decision == "defect_detected":
+                            has_defect = True
+                            primary = v2.get("primary_finding") or (v2.get("findings", [{}])[0] if v2.get("findings") else {})
+                            defect_type = str(primary.get("type", "COMPONENT_OVERLAP")).upper().replace("-", "_")
+                            oracle_conf = float(primary.get("confidence", 0.92))
+                            oracle_bbox = primary.get("bbox_xyxy")
+                            oracle_expl = primary.get("explanation", f"Visual defect detected on widget '{target['name']}'.")
+                            defects_found.append({
+                                "id": f"VIS_DEFECT_{step_idx+1}",
+                                "type": defect_type,
+                                "component": target["name"],
+                                "trigger": prof_data.get("name"),
+                                "explanation": oracle_expl,
+                                "confidence": oracle_conf,
+                                "bbox": oracle_bbox
+                            })
+                        else:
+                            has_defect = False
+                            defect_type = "none"
+                            oracle_expl = "Clean UI layout certified within active viewport."
+                    except Exception as _oracle_err:
+                        self._append_log(f"[PIPELINE ORACLE NOTE] Real VLM pass fallback ({_oracle_err}).")
+                        if prof_data.get("cpu", 0) >= 90 and not is_hit:
+                            has_defect = True
+                            defect_type = "TEXT_TRUNCATION"
+                            defects_found.append({
+                                "id": f"VIS_DEFECT_{step_idx+1}",
+                                "type": "TEXT_TRUNCATION",
+                                "component": target["name"],
+                                "trigger": prof_data.get("name"),
+                                "explanation": f"UI widget '{target['name']}' text clipping and frame drop ({jank_pct}% jank) under 95% CPU contention.",
+                                "confidence": 0.94
+                            })
+                        elif "3G" in prof_data.get("name", "") and err_dist > 40:
+                            has_defect = True
+                            defect_type = "COMPONENT_OVERLAP"
+                            defects_found.append({
+                                "id": f"VIS_DEFECT_{step_idx+1}",
+                                "type": "COMPONENT_OVERLAP",
+                                "component": target["name"],
+                                "trigger": prof_data.get("name"),
+                                "explanation": f"Layout reflow overlap on '{target['name']}' due to 1850ms asynchronous cellular delay.",
+                                "confidence": 0.89
+                            })
+                else:
+                    if prof_data.get("cpu", 0) >= 90 and not is_hit:
+                        has_defect = True
+                        defect_type = "TEXT_TRUNCATION"
+                        defects_found.append({
+                            "id": f"VIS_DEFECT_{step_idx+1}",
+                            "type": "TEXT_TRUNCATION",
+                            "component": target["name"],
+                            "trigger": prof_data.get("name"),
+                            "explanation": f"UI widget '{target['name']}' text clipping and frame drop ({jank_pct}% jank) under 95% CPU contention.",
+                            "confidence": 0.94
+                        })
+                    elif "3G" in prof_data.get("name", "") and err_dist > 40:
+                        has_defect = True
+                        defect_type = "COMPONENT_OVERLAP"
+                        defects_found.append({
+                            "id": f"VIS_DEFECT_{step_idx+1}",
+                            "type": "COMPONENT_OVERLAP",
+                            "component": target["name"],
+                            "trigger": prof_data.get("name"),
+                            "explanation": f"Layout reflow overlap on '{target['name']}' due to 1850ms asynchronous cellular delay.",
+                            "confidence": 0.89
+                        })
 
                 oracle_res_str = f"Defect: {defect_type}" if has_defect else "Screen Verified Clean ✅"
                 self._append_log(f"[PIPELINE VERIFICATION #{step_idx+1}] Vision Oracle: {oracle_res_str} | FrameProbe Jank: {jank_pct}%")
@@ -2584,7 +2701,10 @@ class HeartSimpleApp(ctk.CTk):
 
             # Generate Live Pipeline Timeline Chart & JSON Artifact
             try:
-                from generate_clean_timelines import plot_live_pipeline_timeline
+                try:
+                    from results.generate_clean_timelines import plot_live_pipeline_timeline  # type: ignore
+                except ImportError:
+                    from generate_clean_timelines import plot_live_pipeline_timeline  # type: ignore
                 plot_live_pipeline_timeline(
                     pipeline_records,
                     out_png="heart_pipeline_live_timeline.png",
@@ -2663,7 +2783,7 @@ class HeartSimpleApp(ctk.CTk):
         self._append_log(f"[FRAME PROBE] Sampling dumpsys gfxinfo for '{pkg}' (RDR-0008, 58ms read cost)...")
         
         def _worker():
-            adb_bin = ADB_BIN
+            adb_bin = get_adb_binary()
             dev_id = getattr(self.adb, "device_id", None)
             cmd = [adb_bin]
             if dev_id and not getattr(self.adb, "is_simulated", False):
@@ -2704,6 +2824,65 @@ class HeartSimpleApp(ctk.CTk):
             self.after(0, _update)
 
         threading.Thread(target=_worker, daemon=True).start()
+
+    # =========================================================================
+    # TAB: COMPONENT 4 - TELEMETRY-DRIVEN SELF-HEALING TEST SYNTHESIS
+    # =========================================================================
+    def _build_c4_view(self, parent):
+        """Builds the Component 4 tab. The panel lives in component4/src/c4/ui."""
+        if not C4_UI_AVAILABLE:
+            ctk.CTkLabel(
+                parent,
+                text=f"C4 UI unavailable: {C4_UI_ERROR}",
+                font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
+                text_color=THEME["danger"],
+                wraplength=520,
+                justify="left"
+            ).pack(anchor="w", padx=14, pady=20)
+            return
+        try:
+            build_c4_view(parent, THEME, log=self._append_log, root=self)
+        except Exception as exc:
+            ctk.CTkLabel(
+                parent,
+                text=f"C4 UI failed to load: {exc}",
+                font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
+                text_color=THEME["danger"],
+                wraplength=520,
+                justify="left"
+            ).pack(anchor="w", padx=14, pady=20)
+
+    # =========================================================================
+    # TAB: COMPONENT 3 - LOCALIZED MULTIMODAL VISION ORACLE (PP1 VERIFIED)
+    # =========================================================================
+    def _build_vision_view(self, parent):
+        from vision_oracle.frontend.workspace import C3Workspace
+        self.c3_workspace = C3Workspace(parent, handover_callback=self._receive_inspection)
+        self.c3_workspace.pack(fill="both", expand=True)
+
+    def _receive_inspection(self, payload):
+        receiver = getattr(self, 'c4_receive_inspection', None)
+        if receiver is None:
+            raise RuntimeError('Test workspace is unavailable. The inspection is still saved locally.')
+        return receiver(payload)
+
+    def _eval_active_mirror_screen(self):
+        # Capture fresh hardware evidence; never submit simulated/stale mirror frames.
+        self.nav_tabs.set("👁️ Vision Oracle")
+        self._on_nav_tab_changed("👁️ Vision Oracle")
+        self.c3_workspace.run('device')
+
+    def _open_notebook(self, rel_path: str):
+        full_path = os.path.join(ROOT_DIR, rel_path)
+        if not os.path.exists(full_path):
+            full_path = os.path.join(ROOT_DIR, "vision_oracle", rel_path)
+        if sys.platform == "win32" and os.path.exists(full_path):
+            try:
+                os.startfile(full_path)
+                return
+            except Exception:
+                pass
+        messagebox.showinfo("Notebook Launcher", f"Interactive notebook located at:\n{full_path}")
 
     # =========================================================================
     # TAB 3: LIVE FINDINGS & DASHBOARD
@@ -2786,8 +2965,8 @@ class HeartSimpleApp(ctk.CTk):
             },
             "Environmental Stressor Chaos & Impact Report": {
                 "path": os.path.join(ROOT_DIR, "env testing", "results", "heart_findings_chart_report.png"),
-                "kpis": [("RQ1 Latency", "24.6 ms", "PASS (<100ms SLA)", THEME["success"]),
-                         ("RQ2 Isolation", "100%", "Zero Crosstalk", THEME["primary"]),
+                "kpis": [("Pipeline Latency", "24.6 ms", "Optimal (<100ms)", THEME["success"]),
+                         ("Process Isolation", "100%", "Zero Crosstalk", THEME["primary"]),
                          ("Attributed Triggers", "20 / 20", "100% Causality", THEME["success"]),
                          ("Active Factors", "4 Stressors", "Perturbations Active", THEME["warning"])],
                 "desc": "Environmental Stressor Evaluation: Multi-panel report covering fault isolation, injection SLA, and causality attribution.",
@@ -3516,6 +3695,19 @@ class HeartSimpleApp(ctk.CTk):
             command=self._refresh_screen_async
         ).pack(side="right", padx=2)
 
+        ctk.CTkButton(
+            toolstrip,
+            text="👁️ Eval Screen",
+            width=80,
+            height=26,
+            fg_color="#2563eb",
+            hover_color="#1d4ed8",
+            text_color="#ffffff",
+            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+            corner_radius=6,
+            command=self._eval_active_mirror_screen
+        ).pack(side="right", padx=2)
+
         # Real-time E2E Pipeline Status HUD
         self.pipeline_hud = ctk.CTkFrame(
             parent,
@@ -3653,9 +3845,9 @@ class HeartSimpleApp(ctk.CTk):
         strip.pack(fill="x")
         strip.pack_propagate(False)
 
-        ctk.CTkLabel(strip, text="LIVE ADB TELEMETRY & EXECUTION STREAM", font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"), text_color=THEME["text_heading"]).pack(side="left", padx=12)
+        ctk.CTkLabel(strip, text="ACTIVITY LOG", font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"), text_color=THEME["text_heading"]).pack(side="left", padx=12)
 
-        self.kpi_latency = ctk.CTkLabel(strip, text="Latency: — (awaiting probe)", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color=THEME["text_muted"])
+        self.kpi_latency = ctk.CTkLabel(strip, text="Latency: not measured", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color=THEME["success"])
         self.kpi_latency.pack(side="left", padx=12)
 
         self.kpi_event_count = ctk.CTkLabel(strip, text="Recorded: 0 events", font=ctk.CTkFont(family="Segoe UI", size=9), text_color=THEME["text_muted"])
@@ -3687,22 +3879,25 @@ class HeartSimpleApp(ctk.CTk):
         ).pack(side="right", padx=4)
 
         # Monospace execution log text
-        self.log_textbox = ctk.CTkTextbox(
+        self.activity_log_textbox = ctk.CTkTextbox(
             dock,
             font=ctk.CTkFont(family="Consolas", size=9),
             fg_color="#090d16",
             text_color="#38bdf8",
             corner_radius=0
         )
-        self.log_textbox.pack(fill="both", expand=True, padx=4, pady=4)
-        self._append_log("[HEART INIT] Platform initialized. Ready for mobile environmental testing.")
+        self.activity_log_textbox.pack(fill="both", expand=True, padx=4, pady=4)
+        self.activity_log_textbox.configure(state="disabled")
+        self._activity_events = queue.Queue()
+        self._append_log("[HEART INIT] Interface initialized. Device connection and model readiness are checked separately.")
+        self.after(100, self._drain_activity_log)
 
     # =========================================================================
     # CORE LOGIC: MULTI-DEVICE DETECTION (XIAOMI & AVD) AND SWITCHER
     # =========================================================================
     def _scan_device_and_apps(self, preferred_id=None):
         def _worker():
-            adb_bin = ADB_BIN
+            adb_bin = get_adb_binary()
             try:
                 res = subprocess.run([adb_bin, "devices", "-l"], capture_output=True, text=True, timeout=8)
                 lines = [l.strip() for l in res.stdout.splitlines() if l.strip() and not l.startswith("List of")]
@@ -3775,7 +3970,7 @@ class HeartSimpleApp(ctk.CTk):
 
     def _switch_to_device(self, dev_id):
         def _worker():
-            adb_bin = ADB_BIN
+            adb_bin = get_adb_binary()
             self.adb.device_id = dev_id
             self.adb.is_simulated = False
             is_emu = dev_id.startswith("emulator-")
@@ -3863,7 +4058,7 @@ class HeartSimpleApp(ctk.CTk):
     def _send_adb_input(self, input_cmd):
         """Send input command instantly without blocking GUI thread."""
         dev_id = getattr(self.adb, "device_id", None)
-        adb_bin = ADB_BIN
+        adb_bin = get_adb_binary()
         cmd = [adb_bin]
         if dev_id and not getattr(self.adb, "is_simulated", False):
             cmd.extend(["-s", dev_id])
@@ -3908,7 +4103,7 @@ class HeartSimpleApp(ctk.CTk):
         def _worker():
             try:
                 import io
-                adb_bin = ADB_BIN
+                adb_bin = get_adb_binary()
                 dev_id = getattr(self.adb, "device_id", None)
                 is_emu = bool(dev_id and str(dev_id).startswith("emulator-"))
 
@@ -4076,7 +4271,7 @@ class HeartSimpleApp(ctk.CTk):
         pkg = self.app_selector.get().strip()
         self._append_log(f"[APP RUNNER] Launching '{pkg}' on device...")
         def _launch():
-            adb_bin = ADB_BIN
+            adb_bin = get_adb_binary()
             cmd_prefix = [adb_bin]
             if self.adb.device_id and not self.adb.is_simulated:
                 cmd_prefix.extend(["-s", self.adb.device_id])
@@ -4126,7 +4321,7 @@ class HeartSimpleApp(ctk.CTk):
 
     def _install_apk_worker(self, apk_path):
         def _worker():
-            adb_bin = ADB_BIN
+            adb_bin = get_adb_binary()
             dev_id = getattr(self.adb, "device_id", None)
             
             import glob, re
@@ -4237,7 +4432,7 @@ class HeartSimpleApp(ctk.CTk):
         self._append_log("[FINDINGS EXPORT] Compiling comprehensive telemetry, perturbations, and failure attribution...")
         def _worker():
             try:
-                adb_bin = ADB_BIN
+                adb_bin = get_adb_binary()
                 dev_id = getattr(self.adb, "device_id", "default")
                 active_pkg = self.app_selector.get().strip() if hasattr(self, "app_selector") else "unknown.package"
                 
@@ -4436,10 +4631,10 @@ class HeartSimpleApp(ctk.CTk):
         md.append(f"**Target Package:** `{dev.get('active_package', 'N/A')}`  ")
         md.append(f"**Target Device:** {dev.get('model', 'N/A')} (`{dev.get('device_id', 'N/A')}`) — {dev.get('type', 'N/A')}\n")
         
-        md.append("## 1. Executive Summary & RQ1 Latency Benchmarks\n")
+        md.append("## 1. Executive Summary & Pipeline Latency Benchmarks\n")
         md.append(f"- **Total Perturbation Events Injected:** {kpi.get('total_perturbations_recorded', 0)}")
         md.append(f"- **Last Action Latency:** {kpi.get('last_measured_latency_ms', 0)} ms")
-        md.append(f"- **RQ1 Latency Compliance (<100ms):** {'✅ PASS' if kpi.get('rq1_compliant') else '⚠️ WARN'}")
+        md.append(f"- **Pipeline Latency Compliance (<100ms):** {'✅ PASS' if kpi.get('rq1_compliant') else '⚠️ WARN'}")
         md.append(f"- **Total Failures Analyzed:** {attr.get('total_failures_analyzed', 0)}")
         md.append(f"- **High-Confidence Attributions:** {attr.get('attributed_failures_count', 0)}\n")
         
@@ -4611,8 +4806,8 @@ class HeartSimpleApp(ctk.CTk):
                                  lambda: self._append_log(f"[CONTEXT] Dark Mode set: {val}"))
 
     def _launch_avd(self):
-        adb_bin = ADB_BIN
-        emu_bin = r"C:\Users\user\AppData\Local\Android\Sdk\emulator\emulator.exe"
+        adb_bin = get_adb_binary()
+        emu_bin = get_emulator_binary()
         self._append_log("[EMULATOR] Checking Android Virtual Device...")
 
         # Check if an emulator is already running
@@ -4624,11 +4819,26 @@ class HeartSimpleApp(ctk.CTk):
                 self._scan_device_and_apps(preferred_id=emu_id)
                 return
 
-        # Not running: launch emulator process
-        self._append_log("[EMULATOR] Launching 'Pixel_9_Pro' in background...")
+        # Dynamically discover installed AVD
+        target_avd = "Medium_Phone"
         try:
-            subprocess.Popen([emu_bin, "-avd", "Pixel_9_Pro"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            messagebox.showinfo("AVD Launching", "Android Emulator 'Pixel_9_Pro' starting in background.\n\nPlease allow 20-30 seconds for boot. It will connect automatically.")
+            avd_res = subprocess.run([emu_bin, "-list-avds"], capture_output=True, text=True, timeout=5)
+            avd_list = [l.strip() for l in avd_res.stdout.splitlines() if l.strip()]
+            if avd_list:
+                if "Medium_Phone" in avd_list:
+                    target_avd = "Medium_Phone"
+                elif "Pixel_9_Pro" in avd_list:
+                    target_avd = "Pixel_9_Pro"
+                else:
+                    target_avd = avd_list[0]
+        except Exception:
+            pass
+
+        # Not running: launch emulator process
+        self._append_log(f"[EMULATOR] Launching '{target_avd}' in background...")
+        try:
+            subprocess.Popen([emu_bin, "-avd", target_avd], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            messagebox.showinfo("AVD Launching", f"Android Emulator '{target_avd}' starting in background.\n\nPlease allow 20-30 seconds for boot. It will connect automatically.")
             self._poll_for_emulator()
         except Exception as e:
             messagebox.showerror("AVD Error", f"Failed to start emulator:\n{e}")
@@ -4636,7 +4846,7 @@ class HeartSimpleApp(ctk.CTk):
     def _poll_for_emulator(self, attempts=0):
         if attempts > 15:
             return
-        adb_bin = ADB_BIN
+        adb_bin = get_adb_binary()
         res = subprocess.run([adb_bin, "devices"], capture_output=True, text=True, timeout=4)
         for line in res.stdout.splitlines():
             if line.startswith("emulator-"):
@@ -4683,15 +4893,35 @@ class HeartSimpleApp(ctk.CTk):
         self.kpi_event_count.configure(text=f"Recorded: {ev_count} events")
 
     def _append_log(self, msg):
-        ts = time.strftime("%H:%M:%S")
-        entry = f"[{ts}] {msg}\n"
-        if hasattr(self, "log_textbox"):
-            self.log_textbox.insert("end", entry)
-            self.log_textbox.see("end")
+        # Workers enqueue text; only the UI thread touches the widget.
+        if hasattr(self, "_activity_events"):
+            self._activity_events.put(f"[{time.strftime('%H:%M:%S')}] {msg}\n")
+
+    def _drain_activity_log(self):
+        widget = self.activity_log_textbox
+        widget.configure(state="normal")
+        try:
+            for _ in range(200):
+                widget.insert("end", self._activity_events.get_nowait())
+        except queue.Empty:
+            pass
+        finally:
+            lines = int(widget.index("end-1c").split(".")[0])
+            if lines > 2000:
+                widget.delete("1.0", f"{lines - 2000}.0")
+            widget.see("end")
+            widget.configure(state="disabled")
+            self.after(100, self._drain_activity_log)
 
     def _clear_log(self):
-        if hasattr(self, "log_textbox"):
-            self.log_textbox.delete("1.0", "end")
+        while not self._activity_events.empty():
+            try:
+                self._activity_events.get_nowait()
+            except queue.Empty:
+                break
+        self.activity_log_textbox.configure(state="normal")
+        self.activity_log_textbox.delete("1.0", "end")
+        self.activity_log_textbox.configure(state="disabled")
 
 
 if __name__ == "__main__":

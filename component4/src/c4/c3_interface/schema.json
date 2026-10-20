@@ -29,7 +29,7 @@
       "type": ["string", "null"]
     },
     "has_gui_defect": {
-      "type": "boolean"
+      "type": ["boolean", "null"]
     },
     "defect_type": {
       "type": ["string", "null"]

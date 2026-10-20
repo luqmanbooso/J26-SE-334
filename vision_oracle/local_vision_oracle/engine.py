@@ -22,7 +22,7 @@ from local_vision_oracle.schemas import (
 from local_vision_oracle.pruner import HierarchyPruner, PrunedNode
 from local_vision_oracle.preprocessor import ImagePreprocessor, PreprocessedImage
 from local_vision_oracle.prompt import PromptBuilder, VerdictParser, ORACLE_SYSTEM_PROMPT
-from local_vision_oracle.freeze_detector import TemporalFreezeDetector, FreezeDetectionResult
+from local_vision_oracle.freeze_detector import TemporalFreezeDetector
 
 
 class InferenceBackend(ABC):
@@ -121,7 +121,7 @@ class TransformersInferenceBackend(InferenceBackend):
 
         resolved_device = self.device or ("cuda" if torch.cuda.is_available() else "cpu")
 
-        self.processor = AutoProcessor.from_pretrained(self.model_name_or_path)
+        self.processor = AutoProcessor.from_pretrained(self.model_name_or_path, local_files_only=True)
 
         if self.quantization_bit == 4 and resolved_device == "cuda":
             from transformers import BitsAndBytesConfig
@@ -136,12 +136,14 @@ class TransformersInferenceBackend(InferenceBackend):
             )
             self.model = Qwen2VLForConditionalGeneration.from_pretrained(
                 self.model_name_or_path,
+                local_files_only=True,
                 quantization_config=bnb_config,
                 device_map="auto",
             )
         else:
             self.model = Qwen2VLForConditionalGeneration.from_pretrained(
                 self.model_name_or_path,
+                local_files_only=True,
                 torch_dtype=self.torch_dtype,
                 device_map="auto" if resolved_device == "cuda" else None,
             )
@@ -150,7 +152,7 @@ class TransformersInferenceBackend(InferenceBackend):
 
         if self.adapter_dir:
             from peft import PeftModel
-            self.model = PeftModel.from_pretrained(self.model, self.adapter_dir)
+            self.model = PeftModel.from_pretrained(self.model, self.adapter_dir, local_files_only=True)
             self.model.eval()
 
     def generate(
@@ -281,42 +283,48 @@ class OracleEngine:
         if action_context:
             run_metadata["action_context"] = action_context
 
-        # Stage 0: Temporal Freeze Check (FR3, Appendix F)
-        if previous_image is not None and (action_dispatched or time_delta_s > 0):
+        # Stage 0: Temporal Freeze Detection
+        if previous_image is not None:
             t_freeze_start = time.perf_counter()
-            prev_xml = previous_hierarchy if isinstance(previous_hierarchy, str) else ""
-            curr_xml = raw_hierarchy if isinstance(raw_hierarchy, str) else ""
             freeze_res = self.freeze_detector.detect_freeze(
-                previous_image=previous_image,
                 current_image=image_input,
-                previous_hierarchy=prev_xml,
-                current_hierarchy=curr_xml,
+                previous_image=previous_image,
+                current_hierarchy=raw_hierarchy if isinstance(raw_hierarchy, str) else None,
+                previous_hierarchy=previous_hierarchy if isinstance(previous_hierarchy, str) else None,
                 time_delta_s=time_delta_s,
                 action_dispatched=action_dispatched,
                 action_context=action_context,
             )
-            t_freeze_end = time.perf_counter()
-            freeze_ms = round((t_freeze_end - t_freeze_start) * 1000.0, 2)
             if freeze_res.is_frozen:
-                run_metadata["detected_by"] = "temporal_freeze_detector"
-                run_metadata["freeze_details"] = {
-                    "stalled_duration_s": freeze_res.stalled_duration_s,
-                    "pixel_difference_ratio": freeze_res.pixel_difference_ratio,
-                }
+                t_freeze_end = time.perf_counter()
+                freeze_verdict = freeze_res.to_verdict()
                 latency = LatencyBreakdown(
-                    capture_ms=0.0,
-                    preprocess_ms=0.0,
-                    prune_ms=freeze_ms,
-                    inference_ms=0.0,
+                    hierarchy_pruning_ms=0.0,
+                    image_preprocessing_ms=0.0,
+                    prompt_construction_ms=0.0,
+                    inference_ms=round((t_freeze_end - t_freeze_start) * 1000, 2),
+                    total_pipeline_ms=round((t_freeze_end - t_freeze_start) * 1000, 2),
+                    sla_breached=False,
                 )
-                latency.compute_total()
+                res_meta = dict(metadata or {})
+                res_meta.update({
+                    "screen_id": resolved_screen_id,
+                    "action_context": action_context or "",
+                    "detected_by": "temporal_freeze_detector",
+                    "freeze_details": {
+                        "stalled_duration_s": freeze_res.stalled_duration_s,
+                        "pixel_diff": freeze_res.pixel_difference_ratio,
+                    },
+                    "stalled_duration_s": freeze_res.stalled_duration_s,
+                    "pixel_diff": freeze_res.pixel_difference_ratio,
+                })
                 return C3OracleResult(
                     screen_id=resolved_screen_id,
-                    verdict=freeze_res.to_verdict(),
-                    latency_breakdown=latency,
                     timestamp=current_time,
-                    engine_used=self.engine_descriptor,
-                    metadata=run_metadata,
+                    model_version=self.engine_descriptor,
+                    verdict=freeze_verdict,
+                    latency_breakdown=latency,
+                    metadata=res_meta,
                 )
 
         # Stage 1: AST Pruning & Collision Check (CLAIM-01)
@@ -490,43 +498,7 @@ class OracleEngine:
         result.metadata["viewport_density"] = metrics["density"]
         return result
 
-    def evaluate_sequence(
-        self,
-        screens: List[Union[str, Path, bytes, Image.Image]],
-        hierarchies: Optional[List[Optional[Union[str, Path, Dict[str, Any], List[Any]]]]] = None,
-        screen_ids: Optional[List[str]] = None,
-        time_delta_s: float = 2.5,
-        action_dispatched: bool = True,
-        action_context: Optional[str] = None,
-        enable_sahi: bool = True,
-    ) -> C3OracleResult:
-        """
-        Evaluates a sequence of 2 or more consecutive screen frames to detect temporal
-        freezes (FR3) or evaluate the final post-action state.
-        """
-        if not screens or len(screens) < 2:
-            raise ValueError("evaluate_sequence requires at least 2 screen frames for temporal analysis.")
-
-        prev_img = screens[-2]
-        curr_img = screens[-1]
-        prev_hier = hierarchies[-2] if (hierarchies and len(hierarchies) >= 2) else None
-        curr_hier = hierarchies[-1] if (hierarchies and len(hierarchies) >= 1) else None
-        curr_id = screen_ids[-1] if (screen_ids and len(screen_ids) >= 1) else None
-
-        return self.evaluate(
-            image_input=curr_img,
-            raw_hierarchy=curr_hier,
-            screen_id=curr_id,
-            action_context=action_context,
-            enable_sahi=enable_sahi,
-            previous_image=prev_img,
-            previous_hierarchy=prev_hier,
-            time_delta_s=time_delta_s,
-            action_dispatched=action_dispatched,
-        )
-
     @staticmethod
-
     def to_c4_verdict(result: C3OracleResult, screenshot_path: Optional[str] = None, session_id: Optional[str] = None) -> Any:
         """
         Directly maps C3 Oracle evaluation result to Component 4's C3Verdict contract.
@@ -540,7 +512,7 @@ class OracleEngine:
             from pathlib import Path
             search_paths = [
                 Path(r"D:/university/Resesarch/J26-SE-334/component4/src"),
-                Path(__file__).resolve().parent.parent.parent / "component4" / "src",
+                Path(__file__).resolve().parent.parent.parent / "J26-SE-334" / "component4" / "src",
             ]
             for p in search_paths:
                 if p.exists() and str(p) not in sys.path:
@@ -548,8 +520,8 @@ class OracleEngine:
             from c4.c3_interface.contract import C3Verdict, ScreenshotEvidence, DefectRegion
 
         verdict = result.verdict
-
         resolution = result.metadata.get("viewport_resolution", [720, 1600])
+
         width = int(resolution[0]) if len(resolution) > 0 else 720
         height = int(resolution[1]) if len(resolution) > 1 else 1600
 
@@ -618,6 +590,38 @@ class OracleEngine:
                 "engine_used": result.engine_used,
             },
             metadata=result.metadata,
+        )
+
+    def evaluate_sequence(
+        self,
+        screens: List[Union[str, Path, bytes, Image.Image]],
+        hierarchies: Optional[List[str]] = None,
+        time_delta_s: float = 2.5,
+        action_dispatched: bool = True,
+        action_context: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> C3OracleResult:
+        """
+        Evaluates a sequence of screen frames to detect temporal freezes or verify UI progression.
+        """
+        if not screens or len(screens) < 2:
+            raise ValueError("Temporal freeze analysis requires at least 2 screen frames.")
+
+        curr_img = screens[-1]
+        prev_img = screens[-2]
+        curr_hier = hierarchies[-1] if (hierarchies and len(hierarchies) >= len(screens)) else None
+        prev_hier = hierarchies[-2] if (hierarchies and len(hierarchies) >= len(screens)) else None
+
+        return self.evaluate(
+            image_input=curr_img,
+            raw_hierarchy=curr_hier,
+            screen_id=None,
+            action_context=action_context,
+            metadata=metadata,
+            previous_image=prev_img,
+            previous_hierarchy=prev_hier,
+            time_delta_s=time_delta_s,
+            action_dispatched=action_dispatched,
         )
 
 

@@ -18,6 +18,7 @@ class DefectType(str, Enum):
     TEXT_TRUNCATION = "text_truncation"
     MISSING_COMPONENT = "missing_component"
     UNRENDERED_ASSET = "unrendered_asset"
+    DATA_BINDING_NULL = "data_binding_null"
     FUNCTIONAL_INCONGRUENCE = "functional_incongruence"
     FROZEN_STATE = "frozen_state"
     OTHER = "other_defect"

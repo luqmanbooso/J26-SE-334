@@ -20,6 +20,10 @@ dev = [
 semantic = [
     "sentence-transformers",
 ]
+ui = [
+    "customtkinter",
+    "pillow",
+]
 
 [project.scripts]
 c4 = "c4.cli:main"
