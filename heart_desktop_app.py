@@ -2,6 +2,7 @@ import os
 import sys
 import time
 import json
+import re
 import subprocess
 import threading
 import shutil
@@ -1169,7 +1170,7 @@ class HeartSimpleApp(ctk.CTk):
                     net_type = raw_net if raw_net else "LTE/WiFi"
                     ping_res = subprocess.run([adb_bin, "-s", actual_dev, "shell", "ping", "-c", "1", "-W", "1", "8.8.8.8"], capture_output=True, text=True, timeout=3)
                     if ping_res.returncode == 0:
-                        m_time = re.search(r"time=([\d\.]+)\s*ms", ping_res.stdout)
+                        m_time = re.search(r"time=([\d.]+)\s*ms", ping_res.stdout)
                         if m_time:
                             net_lat = int(float(m_time.group(1)))
                     net_str = f"{net_type} ({net_lat}ms, 0% drop)"
