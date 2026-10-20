@@ -54,6 +54,17 @@ try:
 except Exception as _v_err:
     VISION_ORACLE_AVAILABLE = False
 
+# C4 Self-Healing UI integration
+C4_SRC_DIR = os.path.join(ROOT_DIR, "component4", "src")
+if C4_SRC_DIR not in sys.path:
+    sys.path.insert(0, C4_SRC_DIR)
+try:
+    from c4.ui.panel import build_c4_view
+    C4_UI_AVAILABLE = True
+    C4_UI_ERROR = ""
+except Exception as _c4_err:
+    C4_UI_AVAILABLE = False
+    C4_UI_ERROR = str(_c4_err)
 import shutil
 
 # Auto-detect Android SDK tools
@@ -465,7 +476,7 @@ class HeartSimpleApp(ctk.CTk):
 
         self.nav_tabs = ctk.CTkSegmentedButton(
             nav_box,
-            values=["Environmental Stressors", "User Touch & Biometrics", "👁️ Vision Oracle", "Empirical Findings & KPI"],
+            values=["Environmental Stressors", "User Touch & Biometrics", "👁️ Vision Oracle", "🔧 Self-Healing (C4)", "Empirical Findings & KPI"],
             command=self._on_nav_tab_changed,
             height=30,
             font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
@@ -497,6 +508,10 @@ class HeartSimpleApp(ctk.CTk):
         self.vision_scroll = ctk.CTkScrollableFrame(left_col, fg_color="transparent", corner_radius=0)
         self._build_vision_view(self.vision_scroll)
 
+        # View: Self-Healing Test Synthesis (Component 4)
+        self.c4_scroll = ctk.CTkScrollableFrame(left_col, fg_color="transparent", corner_radius=0)
+        self._build_c4_view(self.c4_scroll)
+
         # View 4: Live Findings & Dashboard
         self.kpi_scroll = ctk.CTkScrollableFrame(left_col, fg_color="transparent", corner_radius=0)
         self._build_kpi_dashboard_view(self.kpi_scroll)
@@ -523,6 +538,8 @@ class HeartSimpleApp(ctk.CTk):
         self.kpi_scroll.grid_forget()
         if hasattr(self, "vision_scroll"):
             self.vision_scroll.grid_forget()
+        if hasattr(self, "c4_scroll"):
+            self.c4_scroll.grid_forget()
 
         if "Environmental" in value:
             self.env_scroll.grid(row=1, column=0, sticky="nsew")
@@ -531,6 +548,8 @@ class HeartSimpleApp(ctk.CTk):
             self._redraw_biometry_canvas()
         elif "Vision" in value or "Oracle" in value:
             self.vision_scroll.grid(row=1, column=0, sticky="nsew")
+        elif "Self-Healing" in value:
+            self.c4_scroll.grid(row=1, column=0, sticky="nsew")
         elif "Findings" in value or "KPI" in value:
             self.kpi_scroll.grid(row=1, column=0, sticky="nsew")
             self._refresh_dashboard_view()
@@ -2244,6 +2263,33 @@ class HeartSimpleApp(ctk.CTk):
             self.after(0, _update)
 
         threading.Thread(target=_worker, daemon=True).start()
+
+    # =========================================================================
+    # TAB: COMPONENT 4 - TELEMETRY-DRIVEN SELF-HEALING TEST SYNTHESIS
+    # =========================================================================
+    def _build_c4_view(self, parent):
+        """Builds the Component 4 tab. The panel lives in component4/src/c4/ui."""
+        if not C4_UI_AVAILABLE:
+            ctk.CTkLabel(
+                parent,
+                text=f"C4 UI unavailable: {C4_UI_ERROR}",
+                font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
+                text_color=THEME["danger"],
+                wraplength=520,
+                justify="left"
+            ).pack(anchor="w", padx=14, pady=20)
+            return
+        try:
+            build_c4_view(parent, THEME, log=self._append_log, root=self)
+        except Exception as exc:
+            ctk.CTkLabel(
+                parent,
+                text=f"C4 UI failed to load: {exc}",
+                font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
+                text_color=THEME["danger"],
+                wraplength=520,
+                justify="left"
+            ).pack(anchor="w", padx=14, pady=20)
 
     # =========================================================================
     # TAB: COMPONENT 3 - LOCALIZED MULTIMODAL VISION ORACLE (PP1 VERIFIED)
