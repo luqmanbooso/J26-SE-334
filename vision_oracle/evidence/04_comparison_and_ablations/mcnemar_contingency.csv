@@ -1,3 +1,0 @@
-Comparison,Both_Correct_a,C3_Wins_b,Baseline_Wins_c,Both_Incorrect_d,Chi2_Statistic,P_Value,Statistically_Significant
-C3_vs_OwlEye,385,74,5,136,52.17,5.09e-13,True
-C3_vs_VisionDroid_Cloud,542,38,16,4,5.88,0.0153,True

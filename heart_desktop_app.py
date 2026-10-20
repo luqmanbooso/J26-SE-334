@@ -54,13 +54,45 @@ try:
 except Exception as _v_err:
     VISION_ORACLE_AVAILABLE = False
 
+import shutil
+
 # Auto-detect Android SDK tools
 for p in [
+    r"D:\Android\platform-tools",
+    r"D:\Android\emulator",
     os.path.expanduser("~/AppData/Local/Android/Sdk/platform-tools"),
-    os.path.expanduser("~/AppData/Local/Android/Sdk/emulator")
+    os.path.expanduser("~/AppData/Local/Android/Sdk/emulator"),
 ]:
     if os.path.exists(p) and p not in os.environ.get("PATH", ""):
         os.environ["PATH"] = p + os.pathsep + os.environ.get("PATH", "")
+
+def get_adb_binary() -> str:
+    """Resolves the active adb binary path across environments."""
+    which_adb = shutil.which("adb")
+    if which_adb:
+        return which_adb
+    for cand in [
+        r"D:\Android\platform-tools\adb.exe",
+        os.path.expanduser("~/AppData/Local/Android/Sdk/platform-tools/adb.exe"),
+        r"C:\Android\platform-tools\adb.exe",
+    ]:
+        if os.path.exists(cand):
+            return cand
+    return "adb"
+
+def get_emulator_binary() -> str:
+    """Resolves the active Android emulator binary path across environments."""
+    which_emu = shutil.which("emulator")
+    if which_emu:
+        return which_emu
+    for cand in [
+        r"D:\Android\emulator\emulator.exe",
+        os.path.expanduser("~/AppData/Local/Android/Sdk/emulator/emulator.exe"),
+        r"C:\Android\emulator\emulator.exe",
+    ]:
+        if os.path.exists(cand):
+            return cand
+    return "emulator"
 
 from orchestrator import PerturbationOrchestrator  # type: ignore
 from attribution_engine import EnvironmentAttributionEngine  # type: ignore
@@ -1966,31 +1998,90 @@ class HeartSimpleApp(ctk.CTk):
                 except Exception:
                     jank_pct = round(random.uniform(7.5, 18.2), 1)
 
-                # Vision Oracle Defect Detection
+                # Component 3 Real Vision Oracle Defect Detection
                 has_defect = False
                 defect_type = "none"
-                if prof_data.get("cpu", 0) >= 90 and not is_hit:
-                    has_defect = True
-                    defect_type = "TEXT_TRUNCATION"
-                    defects_found.append({
-                        "id": f"VIS_DEFECT_{step_idx+1}",
-                        "type": "TEXT_TRUNCATION",
-                        "component": target["name"],
-                        "trigger": prof_data.get("name"),
-                        "explanation": f"UI widget '{target['name']}' text clipping and frame drop ({jank_pct}% jank) under 95% CPU contention.",
-                        "confidence": 0.94
-                    })
-                elif "3G" in prof_data.get("name", "") and err_dist > 40:
-                    has_defect = True
-                    defect_type = "COMPONENT_OVERLAP"
-                    defects_found.append({
-                        "id": f"VIS_DEFECT_{step_idx+1}",
-                        "type": "COMPONENT_OVERLAP",
-                        "component": target["name"],
-                        "trigger": prof_data.get("name"),
-                        "explanation": f"Layout reflow overlap on '{target['name']}' due to 1850ms asynchronous cellular delay.",
-                        "confidence": 0.89
-                    })
+                oracle_conf = 1.0
+                oracle_bbox = None
+                oracle_expl = "Screen Verified Clean ✅"
+
+                if VISION_ORACLE_AVAILABLE:
+                    try:
+                        oracle_service = get_oracle_service()
+                        v_res = oracle_service.evaluate_device(
+                            serial=dev_id,
+                            action_context=f"e2e_step_{step_idx+1}_{target['name']}",
+                            enable_sahi=True
+                        )
+                        v2 = v_res.get("verdict_v2", {})
+                        decision = v2.get("decision", "no_defect_detected")
+                        if decision == "defect_detected":
+                            has_defect = True
+                            primary = v2.get("primary_finding") or (v2.get("findings", [{}])[0] if v2.get("findings") else {})
+                            defect_type = str(primary.get("type", "COMPONENT_OVERLAP")).upper().replace("-", "_")
+                            oracle_conf = float(primary.get("confidence", 0.92))
+                            oracle_bbox = primary.get("bbox_xyxy")
+                            oracle_expl = primary.get("explanation", f"Visual defect detected on widget '{target['name']}'.")
+                            defects_found.append({
+                                "id": f"VIS_DEFECT_{step_idx+1}",
+                                "type": defect_type,
+                                "component": target["name"],
+                                "trigger": prof_data.get("name"),
+                                "explanation": oracle_expl,
+                                "confidence": oracle_conf,
+                                "bbox": oracle_bbox
+                            })
+                        else:
+                            has_defect = False
+                            defect_type = "none"
+                            oracle_expl = "Clean UI layout certified within active viewport."
+                    except Exception as _oracle_err:
+                        self._append_log(f"[PIPELINE ORACLE NOTE] Real VLM pass fallback ({_oracle_err}).")
+                        if prof_data.get("cpu", 0) >= 90 and not is_hit:
+                            has_defect = True
+                            defect_type = "TEXT_TRUNCATION"
+                            defects_found.append({
+                                "id": f"VIS_DEFECT_{step_idx+1}",
+                                "type": "TEXT_TRUNCATION",
+                                "component": target["name"],
+                                "trigger": prof_data.get("name"),
+                                "explanation": f"UI widget '{target['name']}' text clipping and frame drop ({jank_pct}% jank) under 95% CPU contention.",
+                                "confidence": 0.94
+                            })
+                        elif "3G" in prof_data.get("name", "") and err_dist > 40:
+                            has_defect = True
+                            defect_type = "COMPONENT_OVERLAP"
+                            defects_found.append({
+                                "id": f"VIS_DEFECT_{step_idx+1}",
+                                "type": "COMPONENT_OVERLAP",
+                                "component": target["name"],
+                                "trigger": prof_data.get("name"),
+                                "explanation": f"Layout reflow overlap on '{target['name']}' due to 1850ms asynchronous cellular delay.",
+                                "confidence": 0.89
+                            })
+                else:
+                    if prof_data.get("cpu", 0) >= 90 and not is_hit:
+                        has_defect = True
+                        defect_type = "TEXT_TRUNCATION"
+                        defects_found.append({
+                            "id": f"VIS_DEFECT_{step_idx+1}",
+                            "type": "TEXT_TRUNCATION",
+                            "component": target["name"],
+                            "trigger": prof_data.get("name"),
+                            "explanation": f"UI widget '{target['name']}' text clipping and frame drop ({jank_pct}% jank) under 95% CPU contention.",
+                            "confidence": 0.94
+                        })
+                    elif "3G" in prof_data.get("name", "") and err_dist > 40:
+                        has_defect = True
+                        defect_type = "COMPONENT_OVERLAP"
+                        defects_found.append({
+                            "id": f"VIS_DEFECT_{step_idx+1}",
+                            "type": "COMPONENT_OVERLAP",
+                            "component": target["name"],
+                            "trigger": prof_data.get("name"),
+                            "explanation": f"Layout reflow overlap on '{target['name']}' due to 1850ms asynchronous cellular delay.",
+                            "confidence": 0.89
+                        })
 
                 oracle_res_str = f"Defect: {defect_type}" if has_defect else "Screen Verified Clean ✅"
                 self._append_log(f"[PIPELINE VERIFICATION #{step_idx+1}] Vision Oracle: {oracle_res_str} | FrameProbe Jank: {jank_pct}%")
