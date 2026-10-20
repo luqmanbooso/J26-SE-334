@@ -383,7 +383,7 @@ class AdbDevice:
         Falls back gracefully with descriptive error if uiautomator2 is not installed.
         """
         try:
-            import uiautomator2 as u2
+            import uiautomator2 as u2  # type: ignore
             return u2.connect(self.serial)
         except ImportError as exc:
             raise ImportError(

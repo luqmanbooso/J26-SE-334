@@ -65,7 +65,7 @@ C4_SRC_DIR = os.path.join(ROOT_DIR, "component4", "src")
 if C4_SRC_DIR not in sys.path:
     sys.path.insert(0, C4_SRC_DIR)
 try:
-    from c4.ui.panel import build_c4_view
+    from c4.ui.panel import build_c4_view  # type: ignore
     C4_UI_AVAILABLE = True
     C4_UI_ERROR = ""
 except Exception as _c4_err:
@@ -1936,7 +1936,7 @@ class HeartSimpleApp(ctk.CTk):
             self.c2_png_btn.configure(state="normal")
         if os.path.exists(self._c2_json):
             try:
-                from engine.interactive_report import build_report
+                from engine.interactive_report import build_report  # type: ignore
                 self._c2_report = build_report(self._c2_json)
                 self.c2_report_btn.configure(state="normal")
                 self._append_log(f"[C2 ENGINE] interactive report ready: {self._c2_report}")
