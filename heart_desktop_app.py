@@ -326,17 +326,23 @@ class HeartSimpleApp(ctk.CTk):
         # Telemetry State Tracking for Before vs After Diff
         self._baseline_state = {
             "cpu": 0,
+            "cpu_str": "0% (Idle)",
             "battery": 100,
             "battery_charging": True,
+            "battery_str": "100% (Charging)",
             "thermal": "Nominal",
             "thermal_temp": "30.0°C",
+            "thermal_temp_num": 30.0,
+            "thermal_str": "Nominal (30.0°C)",
             "bandwidth": "Normal (4G/5G)",
             "latency_ms": 0,
             "packet_loss": 0,
+            "network_str": "Normal (4G/5G, 0ms)",
             "orientation": "Portrait (0°)",
             "dark_mode": False
         }
         self._active_state = dict(self._baseline_state)
+        self._stressors_active = False
 
         # Quick button references for active state highlighting
         self.cpu_buttons = {}
@@ -352,6 +358,7 @@ class HeartSimpleApp(ctk.CTk):
 
         # Initial device scan & app package discovery
         self.after(300, self._scan_device_and_apps)
+        self.after(600, self._sample_live_hardware_baseline)
         self.after(4000, self._periodic_device_check)
 
     # =========================================================================
@@ -825,6 +832,8 @@ class HeartSimpleApp(ctk.CTk):
         if not p:
             return
 
+        self._stressors_active = (choice != "🔄 Nominal Baseline (Clean Reset)")
+
         # 1. Update all UI knobs and labels immediately
         cpu = p["cpu"]
         self.cpu_slider.set(cpu)
@@ -973,7 +982,41 @@ class HeartSimpleApp(ctk.CTk):
     # Card 0: Live Telemetry & Perturbation Diff (Before vs After)
     # -------------------------------------------------------------------------
     def _build_card_telemetry_diff(self, parent):
-        card = self._create_card(parent, "Live Telemetry & Perturbation Diff", subtitle="Baseline (Before) ➔ Active Injection (After)")
+        card = ctk.CTkFrame(parent, fg_color=THEME["bg_card"], corner_radius=10, border_width=1, border_color=THEME["border"])
+        card.pack(fill="x", pady=(0, 10))
+
+        head = ctk.CTkFrame(card, fg_color=THEME["bg_box"], height=32, corner_radius=8)
+        head.pack(fill="x", padx=6, pady=(6, 8))
+        head.pack_propagate(False)
+
+        ctk.CTkLabel(
+            head,
+            text="Live Telemetry & Perturbation Diff",
+            font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
+            text_color=THEME["text_heading"]
+        ).pack(side="left", padx=10)
+
+        self.btn_sample_telemetry = ctk.CTkButton(
+            head,
+            text="🔄 Sample Live Device",
+            width=135,
+            height=22,
+            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+            fg_color=THEME["primary_light"],
+            hover_color="#e0e7ff",
+            text_color=THEME["primary"],
+            corner_radius=6,
+            command=self._sample_live_hardware_baseline
+        )
+        self.btn_sample_telemetry.pack(side="right", padx=6)
+
+        self.telemetry_target_lbl = ctk.CTkLabel(
+            head,
+            text="Live: Auto-Sampling...",
+            font=ctk.CTkFont(family="Segoe UI", size=9),
+            text_color=THEME["text_muted"]
+        )
+        self.telemetry_target_lbl.pack(side="right", padx=6)
 
         diff_box = ctk.CTkFrame(card, fg_color="transparent")
         diff_box.pack(fill="x", padx=12, pady=(2, 10))
@@ -990,11 +1033,11 @@ class HeartSimpleApp(ctk.CTk):
 
         self.diff_rows = {}
         metrics_def = [
-            ("cpu", "⚙️ CPU Load", "0% (Nominal)"),
-            ("battery", "🔋 Battery", "100% (Charging)"),
-            ("thermal", "🌡️ Thermal", "Nominal (30.0°C)"),
-            ("network", "📶 Network", "Normal (4G/5G, 0ms)"),
-            ("orientation", "🔄 Orientation", "Portrait (0°)")
+            ("cpu", "⚙️ CPU Load", self._baseline_state.get("cpu_str", "0% (Idle)")),
+            ("battery", "🔋 Battery", self._baseline_state.get("battery_str", "100% (Charging)")),
+            ("thermal", "🌡️ Thermal", self._baseline_state.get("thermal_str", "Nominal (30.0°C)")),
+            ("network", "📶 Network", self._baseline_state.get("network_str", "Normal (4G/5G, 0ms)")),
+            ("orientation", "🔄 Orientation", self._baseline_state.get("orientation", "Portrait (0°)"))
         ]
 
         for key, name, base_val in metrics_def:
@@ -1018,6 +1061,163 @@ class HeartSimpleApp(ctk.CTk):
                 "after": lbl_after,
                 "badge": badge
             }
+
+    def _sample_live_hardware_baseline(self, dev_id=None):
+        """Samples authentic live hardware telemetry (battery, cpu, thermal, network, orientation) from connected device."""
+        target_dev = dev_id or getattr(self.adb, "device_id", None)
+        if hasattr(self, "telemetry_target_lbl"):
+            self.telemetry_target_lbl.configure(text=f"Sampling {target_dev or 'device'}...")
+
+        def _worker():
+            adb_bin = get_adb_binary()
+            actual_dev = target_dev
+            if not actual_dev:
+                try:
+                    res = subprocess.run([adb_bin, "devices"], capture_output=True, text=True, timeout=3)
+                    for line in res.stdout.splitlines()[1:]:
+                        parts = line.strip().split()
+                        if len(parts) >= 2 and parts[1] == "device":
+                            actual_dev = parts[0]
+                            break
+                except Exception:
+                    pass
+
+            base_cpu = 0
+            cpu_str = "0% (Idle)"
+            base_bat = 100
+            is_charging = True
+            bat_str = "100% (Charging)"
+            base_temp_c = 30.0
+            thermal_state = "Nominal"
+            thermal_str = "Nominal (30.0°C)"
+            net_type = "Normal (4G/5G)"
+            net_lat = 0
+            net_loss = 0
+            net_str = "Normal (4G/5G, 0ms)"
+            orient_val = 0
+            orient_str = "Portrait (0°)"
+
+            if actual_dev:
+                # 1. Query Battery & Thermal from dumpsys battery
+                try:
+                    bat_res = subprocess.run([adb_bin, "-s", actual_dev, "shell", "dumpsys", "battery"], capture_output=True, text=True, timeout=4)
+                    if bat_res.returncode == 0:
+                        lines = bat_res.stdout.splitlines()
+                        for line in lines:
+                            line_s = line.strip()
+                            if line_s.startswith("level:"):
+                                base_bat = int(line_s.split(":")[-1].strip())
+                            elif line_s.startswith("status:"):
+                                stat_code = line_s.split(":")[-1].strip()
+                                is_charging = (stat_code in ("2", "5"))
+                            elif line_s.startswith("USB powered:") and "true" in line_s.lower():
+                                is_charging = True
+                            elif line_s.startswith("AC powered:") and "true" in line_s.lower():
+                                is_charging = True
+                            elif line_s.startswith("temperature:"):
+                                try:
+                                    raw_t = int(line_s.split(":")[-1].strip())
+                                    base_temp_c = raw_t / 10.0
+                                except ValueError:
+                                    pass
+                        chg_label = "Charging" if is_charging else "Unplugged"
+                        bat_str = f"{base_bat}% ({chg_label})"
+                        if base_temp_c < 42.0:
+                            thermal_state = "Nominal"
+                        elif base_temp_c < 48.0:
+                            thermal_state = "Warm"
+                        else:
+                            thermal_state = "Hot"
+                        thermal_str = f"{thermal_state} ({base_temp_c:.1f}°C)"
+                except Exception:
+                    pass
+
+                # 2. Query CPU load from dumpsys cpuinfo
+                try:
+                    cpu_res = subprocess.run([adb_bin, "-s", actual_dev, "shell", "dumpsys", "cpuinfo"], capture_output=True, text=True, timeout=4)
+                    if cpu_res.returncode == 0:
+                        m = re.search(r"(\d+(?:\.\d+)?)%\s*TOTAL", cpu_res.stdout)
+                        if m:
+                            base_cpu = int(float(m.group(1)))
+                            cpu_str = f"{base_cpu}% (Idle)"
+                except Exception:
+                    pass
+
+                # 3. Query Orientation from dumpsys window
+                try:
+                    win_res = subprocess.run([adb_bin, "-s", actual_dev, "shell", "dumpsys", "window"], capture_output=True, text=True, timeout=4)
+                    if win_res.returncode == 0:
+                        if "ROTATION_90" in win_res.stdout:
+                            orient_val = 1
+                            orient_str = "Landscape (90°)"
+                        elif "ROTATION_270" in win_res.stdout:
+                            orient_val = 3
+                            orient_str = "Landscape (270°)"
+                        elif "ROTATION_180" in win_res.stdout:
+                            orient_val = 2
+                            orient_str = "Reverse Portrait (180°)"
+                        else:
+                            orient_val = 0
+                            orient_str = "Portrait (0°)"
+                except Exception:
+                    pass
+
+                # 4. Query Network type & live RTT
+                try:
+                    prop_res = subprocess.run([adb_bin, "-s", actual_dev, "shell", "getprop", "gsm.network.type"], capture_output=True, text=True, timeout=2)
+                    raw_net = prop_res.stdout.strip().split(",")[0] if prop_res.returncode == 0 else ""
+                    net_type = raw_net if raw_net else "LTE/WiFi"
+                    ping_res = subprocess.run([adb_bin, "-s", actual_dev, "shell", "ping", "-c", "1", "-W", "1", "8.8.8.8"], capture_output=True, text=True, timeout=3)
+                    if ping_res.returncode == 0:
+                        m_time = re.search(r"time=([\d\.]+)\s*ms", ping_res.stdout)
+                        if m_time:
+                            net_lat = int(float(m_time.group(1)))
+                    net_str = f"{net_type} ({net_lat}ms, 0% drop)"
+                except Exception:
+                    pass
+
+            def _apply():
+                self._baseline_state = {
+                    "cpu": base_cpu,
+                    "cpu_str": cpu_str,
+                    "battery": base_bat,
+                    "battery_charging": is_charging,
+                    "battery_str": bat_str,
+                    "thermal": thermal_state,
+                    "thermal_temp": f"{base_temp_c:.1f}°C",
+                    "thermal_temp_num": base_temp_c,
+                    "thermal_str": thermal_str,
+                    "bandwidth": net_type,
+                    "latency_ms": net_lat,
+                    "packet_loss": net_loss,
+                    "network_str": net_str,
+                    "orientation": orient_str,
+                    "orientation_val": orient_val
+                }
+                if hasattr(self, "diff_rows"):
+                    self.diff_rows["cpu"]["before"].configure(text=cpu_str)
+                    self.diff_rows["battery"]["before"].configure(text=bat_str)
+                    self.diff_rows["thermal"]["before"].configure(text=thermal_str)
+                    self.diff_rows["network"]["before"].configure(text=net_str)
+                    self.diff_rows["orientation"]["before"].configure(text=orient_str)
+
+                # Sync active state if no stressor is currently injected
+                if not getattr(self, "_stressors_active", False):
+                    self._active_state = dict(self._baseline_state)
+                    if hasattr(self, "bat_slider"):
+                        self.bat_slider.set(base_bat)
+                        self.bat_val_lbl.configure(text=f"{base_bat}%")
+
+                if hasattr(self, "telemetry_target_lbl"):
+                    tag = "AVD" if (actual_dev and actual_dev.startswith("emulator-")) else "Hardware"
+                    self.telemetry_target_lbl.configure(text=f"Live: {actual_dev or 'Simulated'} ({tag})")
+
+                self._update_telemetry_diff()
+                self._append_log(f"[TELEMETRY BASELINE] Real hardware baseline: CPU={cpu_str}, Bat={bat_str}, Temp={thermal_str}, Net={net_str}, Orient={orient_str}")
+
+            self.after(0, _apply)
+
+        threading.Thread(target=_worker, daemon=True).start()
 
     def _highlight_cpu_button(self, active_pct):
         for pct, btn in self.cpu_buttons.items():
@@ -1062,68 +1262,87 @@ class HeartSimpleApp(ctk.CTk):
         if not hasattr(self, "diff_rows"):
             return
 
+        base = getattr(self, "_baseline_state", {})
+
         # 1. CPU
+        base_cpu = int(base.get("cpu", 0))
         cpu = int(self._active_state.get("cpu", 0))
         row_cpu = self.diff_rows.get("cpu")
         if row_cpu:
             if cpu == 0:
-                row_cpu["after"].configure(text="0% (Nominal)", text_color=THEME["text_body"])
-                row_cpu["badge"].configure(text="NOMINAL (0%)", fg_color=THEME["success_bg"], text_color=THEME["success"])
+                row_cpu["after"].configure(text=base.get("cpu_str", f"{base_cpu}% (Idle)"), text_color=THEME["text_body"])
+                row_cpu["badge"].configure(text=f"NOMINAL ({base_cpu}%)", fg_color=THEME["success_bg"], text_color=THEME["success"])
             elif cpu < 70:
+                delta = max(0, cpu - base_cpu)
                 row_cpu["after"].configure(text=f"{cpu}% (Throttled)", text_color=THEME["warning"])
-                row_cpu["badge"].configure(text=f"MODERATE (+{cpu}%)", fg_color=THEME["warning_bg"], text_color=THEME["warning"])
+                row_cpu["badge"].configure(text=f"MODERATE (+{delta}%)", fg_color=THEME["warning_bg"], text_color=THEME["warning"])
             else:
+                delta = max(0, cpu - base_cpu)
                 row_cpu["after"].configure(text=f"{cpu}% (Starvation)", text_color=THEME["danger"])
-                row_cpu["badge"].configure(text=f"HIGH STRESS (+{cpu}%)", fg_color=THEME["danger_light"], text_color=THEME["danger"])
+                row_cpu["badge"].configure(text=f"HIGH STRESS (+{delta}%)", fg_color=THEME["danger_light"], text_color=THEME["danger"])
 
         # 2. Battery
-        bat = int(self._active_state.get("battery", 100))
-        is_charging = self._active_state.get("battery_charging", True)
+        base_bat = int(base.get("battery", 100))
+        base_chg = base.get("battery_charging", True)
+        bat = int(self._active_state.get("battery", base_bat))
+        is_charging = self._active_state.get("battery_charging", base_chg)
         row_bat = self.diff_rows.get("battery")
         if row_bat:
-            if bat > 20 and is_charging:
-                row_bat["after"].configure(text=f"{bat}% (Charging)", text_color=THEME["text_body"])
+            if bat == base_bat and is_charging == base_chg:
+                row_bat["after"].configure(text=base.get("battery_str", f"{base_bat}%"), text_color=THEME["text_body"])
                 row_bat["badge"].configure(text="NOMINAL", fg_color=THEME["success_bg"], text_color=THEME["success"])
+            elif bat > 20 and is_charging:
+                delta = bat - base_bat
+                row_bat["after"].configure(text=f"{bat}% (Charging)", text_color=THEME["text_body"])
+                row_bat["badge"].configure(text=f"CHARGING ({delta:+d}%)", fg_color=THEME["success_bg"], text_color=THEME["success"])
             elif bat > 20:
+                delta = bat - base_bat
                 row_bat["after"].configure(text=f"{bat}% (Unplugged)", text_color=THEME["warning"])
-                row_bat["badge"].configure(text=f"DISCHARGING ({bat}%)", fg_color=THEME["warning_bg"], text_color=THEME["warning"])
+                row_bat["badge"].configure(text=f"DISCHARGING ({delta:+d}%)", fg_color=THEME["warning_bg"], text_color=THEME["warning"])
             elif bat > 5:
+                delta = bat - base_bat
                 row_bat["after"].configure(text=f"{bat}% (Low Power)", text_color="#ea580c")
-                row_bat["badge"].configure(text=f"LOW POWER ({bat}%)", fg_color="#fff7ed", text_color="#ea580c")
+                row_bat["badge"].configure(text=f"LOW POWER ({delta:+d}%)", fg_color="#fff7ed", text_color="#ea580c")
             else:
+                delta = bat - base_bat
                 row_bat["after"].configure(text=f"{bat}% (CRITICAL DROP)", text_color=THEME["danger"])
-                row_bat["badge"].configure(text=f"CRITICAL (-{100-bat}%)", fg_color=THEME["danger_light"], text_color=THEME["danger"])
+                row_bat["badge"].configure(text=f"CRITICAL ({delta:+d}%)", fg_color=THEME["danger_light"], text_color=THEME["danger"])
 
         # 3. Thermal
         th = self._active_state.get("thermal", "Nominal")
         temp = self._active_state.get("thermal_temp", "30.0°C")
+        base_temp_num = float(base.get("thermal_temp_num", 30.0))
         row_th = self.diff_rows.get("thermal")
         if row_th:
             if th == "Nominal":
-                row_th["after"].configure(text=f"Nominal ({temp})", text_color=THEME["text_body"])
+                row_th["after"].configure(text=base.get("thermal_str", f"Nominal ({base_temp_num:.1f}°C)"), text_color=THEME["text_body"])
                 row_th["badge"].configure(text="OPTIMAL", fg_color=THEME["success_bg"], text_color=THEME["success"])
             elif th == "Fair":
+                d_c = max(0.0, 45.0 - base_temp_num)
                 row_th["after"].configure(text=f"Fair ({temp})", text_color=THEME["warning"])
-                row_th["badge"].configure(text="WARMING (+15°C)", fg_color=THEME["warning_bg"], text_color=THEME["warning"])
+                row_th["badge"].configure(text=f"WARMING (+{d_c:.1f}°C)", fg_color=THEME["warning_bg"], text_color=THEME["warning"])
             elif th == "Serious":
+                d_c = max(0.0, 50.0 - base_temp_num)
                 row_th["after"].configure(text=f"Serious ({temp})", text_color="#ea580c")
-                row_th["badge"].configure(text="THROTTLING (+25°C)", fg_color="#fff7ed", text_color="#ea580c")
+                row_th["badge"].configure(text=f"THROTTLING (+{d_c:.1f}°C)", fg_color="#fff7ed", text_color="#ea580c")
             else:
+                d_c = max(0.0, 55.0 - base_temp_num)
                 row_th["after"].configure(text=f"Critical ({temp})", text_color=THEME["danger"])
-                row_th["badge"].configure(text="OVERHEAT (55°C)", fg_color=THEME["danger_light"], text_color=THEME["danger"])
+                row_th["badge"].configure(text=f"OVERHEAT (+{d_c:.1f}°C)", fg_color=THEME["danger_light"], text_color=THEME["danger"])
 
         # 4. Network
         net = self._active_state.get("bandwidth", "Normal (4G/5G)")
         lat = int(self._active_state.get("latency_ms", 0))
         loss = int(self._active_state.get("packet_loss", 0))
+        base_net_str = base.get("network_str", "Normal (4G/5G, 0ms)")
         row_net = self.diff_rows.get("network")
         if row_net:
             if net == "offline":
                 row_net["after"].configure(text="Offline (Airplane Mode)", text_color=THEME["danger"])
                 row_net["badge"].configure(text="DISCONNECTED", fg_color=THEME["danger_light"], text_color=THEME["danger"])
-            elif lat == 0 and loss == 0 and net in ("lte", "Normal (4G/5G)", "normal"):
-                row_net["after"].configure(text="Normal 4G/5G (0 ms)", text_color=THEME["text_body"])
-                row_net["badge"].configure(text="UNTHROTTLED", fg_color=THEME["success_bg"], text_color=THEME["success"])
+            elif lat == 0 and loss == 0 and net in ("lte", "Normal (4G/5G)", "normal", base.get("bandwidth")):
+                row_net["after"].configure(text=base_net_str, text_color=THEME["text_body"])
+                row_net["badge"].configure(text="NOMINAL LINK", fg_color=THEME["success_bg"], text_color=THEME["success"])
             else:
                 extra = []
                 if lat > 0:
@@ -1137,13 +1356,15 @@ class HeartSimpleApp(ctk.CTk):
 
         # 5. Orientation
         orient = self._active_state.get("orientation", "Portrait (0°)")
+        base_orient = base.get("orientation", "Portrait (0°)")
         row_o = self.diff_rows.get("orientation")
         if row_o:
-            if "Portrait" in str(orient) or str(orient) in ("0", "portrait"):
-                row_o["after"].configure(text="Portrait (0°)", text_color=THEME["text_body"])
+            if orient == base_orient or (str(orient) in ("0", "portrait") and "Portrait (0°)" in base_orient):
+                row_o["after"].configure(text=base_orient, text_color=THEME["text_body"])
                 row_o["badge"].configure(text="STANDARD", fg_color=THEME["success_bg"], text_color=THEME["success"])
             else:
-                row_o["after"].configure(text="Landscape (90°)", text_color=THEME["primary"])
+                rot_lbl = "Landscape (90°)" if str(orient) in ("1", "landscape") else ("Reverse Landscape (270°)" if str(orient) in ("3", "270") else "Landscape (90°)")
+                row_o["after"].configure(text=rot_lbl, text_color=THEME["primary"])
                 row_o["badge"].configure(text="REORIENTED (90°)", fg_color=THEME["primary_light"], text_color=THEME["primary"])
 
     # -------------------------------------------------------------------------
@@ -4309,6 +4530,7 @@ class HeartSimpleApp(ctk.CTk):
                 self._refresh_screen_async()
                 if not self.live_stream_active:
                     self._toggle_stream()
+                self._sample_live_hardware_baseline(dev_id)
 
             self.after(0, _update_ui)
 
@@ -4941,6 +5163,7 @@ class HeartSimpleApp(ctk.CTk):
         self._update_telemetry_diff()
 
     def _set_cpu(self, val):
+        self._stressors_active = (val > 0)
         self.cpu_slider.set(val)
         self.cpu_val_lbl.configure(text=f"{val}%")
         self._active_state["cpu"] = val
@@ -4957,6 +5180,7 @@ class HeartSimpleApp(ctk.CTk):
         self.bat_val_lbl.configure(text=f"{int(val)}%")
 
     def _set_battery(self, level, unplugged=True):
+        self._stressors_active = True
         self.bat_slider.set(level)
         self.bat_val_lbl.configure(text=f"{level}%")
         self._active_state["battery"] = level
@@ -4973,18 +5197,22 @@ class HeartSimpleApp(ctk.CTk):
         self._set_battery(level, True)
 
     def _reset_battery(self):
-        self.bat_slider.set(100)
-        self.bat_val_lbl.configure(text="100%")
-        self._active_state["battery"] = 100
-        self._active_state["battery_charging"] = True
+        base_bat = int(self._baseline_state.get("battery", 100))
+        is_chg = self._baseline_state.get("battery_charging", True)
+        self.bat_slider.set(base_bat)
+        self.bat_val_lbl.configure(text=f"{base_bat}%")
+        self._active_state["battery"] = base_bat
+        self._active_state["battery_charging"] = is_chg
         self._update_telemetry_diff()
         dev_id = getattr(self.adb, "device_id", None)
         tag = "AVD" if (dev_id and dev_id.startswith("emulator-")) else "USB"
-        self.dev_battery_lbl.configure(text=f"🔋 100% (Charging) • {tag}")
+        bat_str = self._baseline_state.get("battery_str", f"{base_bat}%")
+        self.dev_battery_lbl.configure(text=f"🔋 {bat_str} • {tag}")
         self._run_async_stressor("STRESSOR", lambda: self.orchestrator.system.revert(),
-                                 lambda: self._append_log("[STRESSOR] Battery state reset to nominal baseline"))
+                                 lambda: (self._append_log("[STRESSOR] Battery state reset to nominal baseline"), self.after(400, self._sample_live_hardware_baseline)))
 
     def _set_thermal(self, state):
+        self._stressors_active = (state != "Nominal")
         self._active_state["thermal"] = state
         temp_c = {"Nominal": "32.0°C", "Fair": "45.0°C", "Serious": "55.0°C", "Critical": "55.0°C"}.get(state, "38.0°C")
         self._active_state["thermal_temp"] = temp_c
@@ -4998,6 +5226,7 @@ class HeartSimpleApp(ctk.CTk):
                                  lambda: self._append_log(f"[STRESSOR] Thermal profile applied: {state}"))
 
     def _set_network_profile(self, key):
+        self._stressors_active = (key not in ("lte", "Normal (4G/5G)", "normal"))
         self._active_state["bandwidth"] = key
         self._highlight_bandwidth_button(key)
         self._update_telemetry_diff()
@@ -5099,6 +5328,7 @@ class HeartSimpleApp(ctk.CTk):
                                  lambda: self._append_log(f"[INTERRUPTION] SMS notification banner posted: '{msg}'"))
 
     def _set_rotation(self, rot):
+        self._stressors_active = True
         lbl = 'Portrait (0°)' if str(rot) in ('0', 'portrait') else 'Landscape (90°)'
         self._active_state["orientation"] = lbl
         self._highlight_orientation_button(rot)
@@ -5174,10 +5404,13 @@ class HeartSimpleApp(ctk.CTk):
         self.after(2500, lambda: self._poll_for_emulator(attempts + 1))
 
     def _reset_all_stressors(self):
+        self._stressors_active = False
+        base = getattr(self, "_baseline_state", {})
+        base_bat = int(base.get("battery", 100))
         self.cpu_slider.set(0)
         self.cpu_val_lbl.configure(text="0%")
-        self.bat_slider.set(100)
-        self.bat_val_lbl.configure(text="100%")
+        self.bat_slider.set(base_bat)
+        self.bat_val_lbl.configure(text=f"{base_bat}%")
         self.lat_slider.set(0)
         self.lat_val_lbl.configure(text="0 ms")
         self.loss_slider.set(0)
@@ -5198,10 +5431,12 @@ class HeartSimpleApp(ctk.CTk):
             self.prof_status_lbl.configure(text="Baseline Nominal", text_color=THEME["success"])
         dev_id = getattr(self.adb, "device_id", None)
         tag = "AVD" if (dev_id and dev_id.startswith("emulator-")) else "USB"
+        bat_str = base.get("battery_str", f"{base_bat}%")
+        temp_str = base.get("thermal_str", "Nominal (32.0°C)")
         if hasattr(self, "dev_battery_lbl"):
-            self.dev_battery_lbl.configure(text=f"🔋 100% (Charging) • 🌡️ 32.0°C [Nominal] • {tag}")
+            self.dev_battery_lbl.configure(text=f"🔋 {bat_str} • 🌡️ {temp_str} • {tag}")
         self._run_async_stressor("SYSTEM RESET", lambda: self.orchestrator.reset_all(),
-                                 lambda: self._append_log("[SYSTEM RESET] All stressors restored to baseline."))
+                                 lambda: (self._append_log("[SYSTEM RESET] All stressors restored to baseline."), self.after(500, self._sample_live_hardware_baseline)))
 
 
     # =========================================================================
