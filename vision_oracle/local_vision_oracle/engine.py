@@ -121,7 +121,7 @@ class TransformersInferenceBackend(InferenceBackend):
 
         resolved_device = self.device or ("cuda" if torch.cuda.is_available() else "cpu")
 
-        self.processor = AutoProcessor.from_pretrained(self.model_name_or_path)
+        self.processor = AutoProcessor.from_pretrained(self.model_name_or_path, local_files_only=True)
 
         if self.quantization_bit == 4 and resolved_device == "cuda":
             from transformers import BitsAndBytesConfig
@@ -136,12 +136,14 @@ class TransformersInferenceBackend(InferenceBackend):
             )
             self.model = Qwen2VLForConditionalGeneration.from_pretrained(
                 self.model_name_or_path,
+                local_files_only=True,
                 quantization_config=bnb_config,
                 device_map="auto",
             )
         else:
             self.model = Qwen2VLForConditionalGeneration.from_pretrained(
                 self.model_name_or_path,
+                local_files_only=True,
                 torch_dtype=self.torch_dtype,
                 device_map="auto" if resolved_device == "cuda" else None,
             )
@@ -150,7 +152,7 @@ class TransformersInferenceBackend(InferenceBackend):
 
         if self.adapter_dir:
             from peft import PeftModel
-            self.model = PeftModel.from_pretrained(self.model, self.adapter_dir)
+            self.model = PeftModel.from_pretrained(self.model, self.adapter_dir, local_files_only=True)
             self.model.eval()
 
     def generate(

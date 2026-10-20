@@ -315,7 +315,7 @@ class OracleService:
                     record = {
                         "verdict_id": verdict_v2.verdict_id,
                         "session_id": verdict_v2.session_id or "default_session",
-                        "timestamp": verdict_v2.screenshot.artifact_id,
+                        "timestamp": bundle.timestamp_utc,
                         "verdict_v2": verdict_v2.model_dump(),
                         "c4_verdict": c4_dict,
                     }
@@ -406,6 +406,9 @@ class OracleService:
         action_context: Optional[str] = None,
         enable_sahi: bool = True,
         session_id: Optional[str] = None,
+        action_id: Optional[str] = None,
+        capture_ms: float = 0.0,
+        device_serial: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Synchronously evaluates screen image and hierarchy via canonical AnalysisPipeline."""
         if isinstance(image_input, str):
@@ -428,7 +431,8 @@ class OracleService:
         bundle = CaptureBundle(
             capture_id=capture_id,
             session_id=session_id or "default_session",
-            action_id=action_context if (action_context and action_context.startswith("act_")) else None,
+            action_id=action_id or (action_context if (action_context and action_context.startswith("act_")) else None),
+            device_serial=device_serial,
             width=width,
             height=height,
             image_sha256=sha256_hex,
@@ -447,6 +451,8 @@ class OracleService:
                 policy=policy,
             )
 
+        verdict_v2.timings_ms["capture_ms"] = capture_ms
+        verdict_v2.timings_ms["total_pipeline_ms"] = round(verdict_v2.timings_ms.get("total_pipeline_ms", 0.0) + capture_ms, 2)
         self._repo.save_verdict(verdict_v2)
 
         c4_envelope = verdict_v2.to_c4_verdict(schema_version="1.0.0").model_dump(mode="json")
@@ -490,6 +496,7 @@ class OracleService:
             screen_id=screen_id or bundle.capture_id,
             verdict=verdict,
             latency_breakdown=LatencyBreakdown(
+                capture_ms=capture_ms,
                 preprocess_ms=verdict_v2.timings_ms.get("preprocess_ms", 0.0),
                 inference_ms=verdict_v2.timings_ms.get("inference_ms", 0.0),
                 total_pipeline_ms=verdict_v2.timings_ms.get("total_pipeline_ms", 0.0),
@@ -503,7 +510,7 @@ class OracleService:
         record = {
             "verdict_id": verdict_v2.verdict_id,
             "session_id": verdict_v2.session_id or "default_session",
-            "timestamp": verdict_v2.screenshot.artifact_id,
+            "timestamp": bundle.timestamp_utc,
             "oracle_result": oracle_result.to_dict(),
             "c4_verdict": c4_envelope,
             "verdict_v2": verdict_v2.model_dump(),
@@ -530,6 +537,7 @@ class OracleService:
         session_id: Optional[str] = "live_device_session",
         device: Optional[Any] = None,
         enable_sahi: bool = True,
+        action_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Captures and evaluates screen from Android device via canonical AnalysisPipeline."""
         if device is None:
@@ -554,11 +562,9 @@ class OracleService:
             action_context=action_context or f"Direct device evaluation on {getattr(device, 'serial', 'unknown')}",
             enable_sahi=enable_sahi,
             session_id=session_id,
-        )
-
-        eval_res["oracle_result"]["latency_breakdown"]["capture_ms"] = capture_ms
-        eval_res["oracle_result"]["latency_breakdown"]["total_pipeline_ms"] = round(
-            eval_res["oracle_result"]["latency_breakdown"]["inference_ms"] + capture_ms, 2
+            action_id=action_id,
+            capture_ms=capture_ms,
+            device_serial=getattr(device, "serial", None),
         )
         eval_res["oracle_result"]["metadata"]["device_serial"] = getattr(device, "serial", "unknown")
         eval_res["oracle_result"]["metadata"]["viewport_resolution"] = [
@@ -604,12 +610,14 @@ class OracleService:
 
 # Singleton service instance
 _ORACLE_SERVICE: Optional[OracleService] = None
+_SERVICE_INIT_LOCK = threading.Lock()
 
 
 def get_oracle_service() -> OracleService:
     global _ORACLE_SERVICE
-    if _ORACLE_SERVICE is None:
-        _ORACLE_SERVICE = OracleService()
+    with _SERVICE_INIT_LOCK:
+        if _ORACLE_SERVICE is None:
+            _ORACLE_SERVICE = OracleService()
     return _ORACLE_SERVICE
 
 
