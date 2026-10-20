@@ -57,6 +57,7 @@ build/
 # Private Defense & Viva Preparation (Local Only)
 *viva_defense_script*
 
+.venv-ui/
 # Local documentation, evidence, and agent context maps (Local Only)
 context/
 .agents/
