@@ -76,11 +76,17 @@ class AdaptiveFeedbackController:
     """
 
     def __init__(self, simulator, cognitive, probe, dispatch, notify=None,
-                 clock=time.monotonic, run_id="run", persona_id="default"):
+                 clock=time.monotonic, run_id="run", persona_id="default",
+                 land_taps=False):
         self.simulator = simulator
         self.cognitive = cognitive
         self.probe = probe
         self.dispatch = dispatch
+        # When True, the *dispatched* point is snapped to the target centre so the
+        # tap always lands (reliable navigation during a plan replay), while the
+        # record still holds the persona's distorted point/timing. Off for a live
+        # run, where the imperfect landing is the whole experiment.
+        self.land_taps = land_taps
         # IF-C2-to-C3: called once per completed action, after observation.
         # Optional - the loop is whole without an oracle attached.
         self.notify = notify
@@ -102,11 +108,16 @@ class AdaptiveFeedbackController:
         )
 
         before = self.probe.read_signature()
-        self.dispatch(tap["actual"]["x"], tap["actual"]["y"], tap["delay"])
+        # The recorded point is always the persona's distorted aim; only the
+        # *dispatched* point is snapped to the target when landing is required.
+        disp_x, disp_y = tap["actual"]["x"], tap["actual"]["y"]
+        if self.land_taps:
+            disp_x, disp_y = target["x"], target["y"]
+        self.dispatch(disp_x, disp_y, tap["delay"])
         # A rage burst pounds the same point again before looking at the
         # screen — which is exactly how the behaviour presents in a human.
         for gap in tap.get("rage_gaps", []):
-            self.dispatch(tap["actual"]["x"], tap["actual"]["y"], gap)
+            self.dispatch(disp_x, disp_y, gap)
         observation = self.probe.observe(before=before)
         provocation = self.probe.provocation(observation)
 
