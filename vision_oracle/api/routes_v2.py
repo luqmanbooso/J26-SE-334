@@ -9,7 +9,7 @@ import time
 import base64
 import uuid
 from pathlib import Path
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Literal
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, HTTPException, status, Query
 from PIL import Image
@@ -44,14 +44,14 @@ class JobSubmitRequest(BaseModel):
     """Payload to submit an asynchronous analysis job."""
     capture_id: str = Field(..., description="ID of previously registered capture")
     session_id: Optional[str] = Field(default=None)
-    policy: str = Field(default=CoveragePolicy.GLOBAL_PLUS_TILES_V1.value)
+    policy: CoveragePolicy = Field(default=CoveragePolicy.GLOBAL_PLUS_TILES_V1)
 
 
 class ReviewSubmitRequest(BaseModel):
     """Payload to record human QA review feedback."""
     verdict_id: str = Field(...)
     finding_id: Optional[str] = Field(default=None)
-    review_status: str = Field(..., description="accepted, rejected, edited")
+    review_status: Literal["accepted", "rejected", "edited"] = Field(...)
     reviewer_notes: Optional[str] = Field(default=None)
 
 
@@ -70,8 +70,11 @@ def get_liveness():
 @router.get("/health/ready")
 def get_readiness():
     """Truthful operational readiness check. Probes model worker, database, and ADB state."""
-    service = get_oracle_service()
-    report = service.check_readiness()
+    try:
+        service = get_oracle_service()
+        report = service.check_readiness()
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail={"status": "not_ready", "ready": False, "model_error": str(exc)}) from exc
     if not report["ready"]:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -96,7 +99,7 @@ def register_capture(payload: CaptureRegisterRequest):
 
     if payload.image_base64:
         try:
-            image_bytes = base64.b64decode(payload.image_base64)
+            image_bytes = base64.b64decode(payload.image_base64, validate=True)
             img = Image.open(io.BytesIO(image_bytes))
             img.load()
             width, height = img.size
@@ -138,7 +141,7 @@ def register_capture(payload: CaptureRegisterRequest):
         image_sha256=sha256_hex,
         artifact_path=str(artifact_path),
         raw_hierarchy=payload.raw_hierarchy,
-        hierarchy_status=payload.hierarchy_status,
+        hierarchy_status=payload.hierarchy_status if payload.raw_hierarchy else "missing",
         inter_modality_skew_ms=payload.inter_modality_skew_ms,
     )
     repo.save_capture(bundle)

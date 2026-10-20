@@ -113,6 +113,20 @@ class C4DemoController:
         self.journeys: dict[str, FailureJourney] = {}
         self.syntheses: dict[str, SynthesisResult] = {}
 
+    def receive_inspection(self, payload: dict, inbox: Path) -> dict:
+        """Validate and persist a real inspection without fabricating a journey."""
+        from c4.c3_interface.contract import C3Verdict
+        import hashlib
+        import os
+        verdict = C3Verdict.model_validate(payload)
+        inbox.mkdir(parents=True, exist_ok=True)
+        key = hashlib.sha256(verdict.verdict_id.encode()).hexdigest()
+        target = inbox / (key + '.json')
+        temporary = inbox / (key + '.tmp')
+        temporary.write_text(verdict.model_dump_json(indent=2), encoding='utf-8')
+        os.replace(temporary, target)
+        return {'verdict_id': verdict.verdict_id, 'path': str(target), 'status': 'received'}
+
     def preflight(self, config_path: str) -> PreflightView:
         try:
             target = load_target_config(config_path)

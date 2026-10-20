@@ -244,4 +244,22 @@ def build_c4_view(parent, theme: dict, log: Callable[[str], None] = print, root=
         for problem in result.problems:
             write_log(f"[C4] {problem}")
 
+    inbox_card = card('Inspection inbox', 'Visual findings received from screen inspection')
+    inbox_status = ctk.CTkLabel(inbox_card, text='No inspection received in this session.', wraplength=520, justify='left')
+    inbox_status.pack(anchor='w', pady=6)
+    inbox_preview = ctk.CTkTextbox(inbox_card, height=150)
+    inbox_preview.pack(fill='x')
+    inbox_preview.configure(state='disabled')
+    def receive_inspection(payload):
+        import json
+        from vision_oracle.core.config import C3_DIR
+        receipt = controller.receive_inspection(payload, C3_DIR / 'results' / 'c4_inbox')
+        inbox_status.configure(text='Received: ' + receipt['verdict_id'] + '\nEvidence saved. Select a recorded journey above to generate a reproducible test.')
+        inbox_preview.configure(state='normal')
+        inbox_preview.delete('1.0', 'end')
+        inbox_preview.insert('1.0', json.dumps(payload, indent=2))
+        inbox_preview.configure(state='disabled')
+        return receipt
+    root.c4_receive_inspection = receive_inspection
+
     return parent

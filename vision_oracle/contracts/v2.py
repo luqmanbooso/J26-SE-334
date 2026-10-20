@@ -134,6 +134,21 @@ class Finding(BaseModel):
                 raise ValueError(f"Negative coordinates are invalid: x1={x1}, y1={y1}")
         return self
 
+    @property
+    def defect_type(self) -> str:
+        return self.type
+
+    @property
+    def bounding_box_physical(self) -> Optional[List[int]]:
+        return self.bbox_xyxy
+
+    @property
+    def bounding_box_normalized(self) -> Optional[List[int]]:
+        if self.bbox_xyxy:
+            return [int(c * 1000 / 2400) for c in self.bbox_xyxy]
+        return None
+
+
 
 class CaptureBundle(BaseModel):
     """Complete multimodal input bundle captured from device or test harness."""
@@ -184,8 +199,13 @@ class VerdictEnvelopeV2(BaseModel):
     errors: List[str] = Field(default_factory=list)
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
+    @property
+    def status(self) -> AnalysisStatus:
+        return self.analysis_status
+
     @model_validator(mode="after")
     def enforce_scientific_invariants(self) -> VerdictEnvelopeV2:
+
         """
         Enforce strict scientific truthfulness rules:
         - Populate primary_finding from findings if present

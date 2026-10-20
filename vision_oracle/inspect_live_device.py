@@ -31,10 +31,10 @@ def main():
     try:
         from vision_oracle.core.config import BASE_MODEL_PATH, LORA_WEIGHTS_PATH
         default_base = str(BASE_MODEL_PATH) if BASE_MODEL_PATH else r"D:\university\Resesarch\RD\models\Qwen2-VL-2B-Instruct"
-        default_lora = str(LORA_WEIGHTS_PATH) if LORA_WEIGHTS_PATH else r"D:\university\Resesarch\J26-SE-334\models\c3_lora_final"
+        default_lora = str(LORA_WEIGHTS_PATH) if LORA_WEIGHTS_PATH else r"D:\university\Resesarch\J26-SE-334\vision_oracle\models\c3_qwen2vl_2b_lora_step246"
     except Exception:
         default_base = r"D:\university\Resesarch\RD\models\Qwen2-VL-2B-Instruct"
-        default_lora = r"D:\university\Resesarch\J26-SE-334\models\c3_lora_final"
+        default_lora = r"D:\university\Resesarch\J26-SE-334\vision_oracle\models\c3_qwen2vl_2b_lora_step246"
     parser.add_argument("--base-model", type=str, default=default_base)
     parser.add_argument("--weights", type=str, default=default_lora)
     parser.add_argument("--output", type=str, default=None, help="Save C4 JSON verdict to file")

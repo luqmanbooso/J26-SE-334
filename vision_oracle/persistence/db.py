@@ -8,7 +8,7 @@ import threading
 from pathlib import Path
 from typing import Optional
 
-DB_FILE_PATH = Path("results/oracle_store.db")
+DB_FILE_PATH = Path(__file__).resolve().parents[1] / "results" / "oracle_store.db"
 
 
 class DatabaseManager:
@@ -32,7 +32,15 @@ class DatabaseManager:
             self._local.conn = conn
         return self._local.conn
 
+    def is_wal_mode(self) -> bool:
+        """Verifies if SQLite database is operating in WAL journal mode."""
+        conn = self.get_connection()
+        cur = conn.execute("PRAGMA journal_mode;")
+        row = cur.fetchone()
+        return (row[0].upper() == "WAL") if row else False
+
     def init_schema(self) -> None:
+
         """Applies initial schema migrations idempotently."""
         with self._lock:
             conn = sqlite3.connect(str(self.db_path), timeout=30.0)

@@ -33,7 +33,7 @@ def find_default_weights_dir(preferred_path: Optional[str] = None) -> Path:
 
     candidates = [
         Path(r"D:\university\Resesarch\results\c3_lora_final"),
-        Path(r"D:\university\Resesarch\J26-SE-334\models\c3_lora_final"),
+        Path(r"D:\university\Resesarch\J26-SE-334\vision_oracle\models\c3_qwen2vl_2b_lora_step246"),
         Path(r"C:\Users\hp\Downloads\Downloads\c3_lora_run3_weights"),
         Path(r"C:\Users\hp\Downloads\c3_lora_run3_weights"),
         Path(r"D:\university\Resesarch\results\llama_factory_lora"),

@@ -24,7 +24,7 @@ from vision_oracle.contracts.v2 import (
 )
 from vision_oracle.persistence.db import DatabaseManager, get_database
 
-ARTIFACTS_DIR = Path("results/artifacts")
+ARTIFACTS_DIR = Path(__file__).resolve().parents[1] / "results" / "artifacts"
 
 
 class OracleRepository:
@@ -268,6 +268,13 @@ class OracleRepository:
         cur = conn.execute("SELECT * FROM jobs WHERE capture_id = ? ORDER BY created_at ASC;", (capture_id,))
         rows = cur.fetchall()
         return [dict(r) for r in rows]
+
+    def list_recent_jobs(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """Retrieves most recent jobs ordered by creation timestamp."""
+        conn = self.db.get_connection()
+        cur = conn.execute("SELECT * FROM jobs ORDER BY created_at DESC LIMIT ?;", (limit,))
+        return [dict(r) for r in cur.fetchall()]
+
 
     def update_job_c4_delivery(self, job_id: str, status: str) -> None:
         """Updates C4 delivery dispatch status for a job."""

@@ -17,7 +17,7 @@ if C4_SRC.exists() and str(C4_SRC) not in sys.path:
 NOTEBOOK_DIR = C3_DIR / "notebooks"
 RESEARCH_ROOT = Path(os.getenv("RESEARCH_ROOT", str(REPO_ROOT.parent)))
 
-VERDICTS_DIR = REPO_ROOT / "results" / "verdicts"
+VERDICTS_DIR = C3_DIR / "results" / "verdicts"
 VERDICTS_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -63,9 +63,9 @@ def resolve_path(rel_candidate: Union[str, Path]) -> Optional[Path]:
 
 BASE_MODEL_PATH = resolve_path("models/Qwen2-VL-2B-Instruct") or resolve_path("RD/models/Qwen2-VL-2B-Instruct")
 LORA_WEIGHTS_PATH = (
-    resolve_path("models/c3_lora_boosted_recall")
+    resolve_path("models/c3_qwen2vl_2b_lora_step246")
     or resolve_path("models/c3_lora_final")
-    or resolve_path("results/c3_lora_boosted_recall")
+    or resolve_path("results/c3_qwen2vl_2b_lora_step246")
     or resolve_path("results/weights/c3_lora_final")
     or resolve_path("results/c3_lora_final")
 )
