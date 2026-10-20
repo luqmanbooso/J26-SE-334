@@ -2304,20 +2304,17 @@ class HeartSimpleApp(ctk.CTk):
 
         col3 = ctk.CTkFrame(row2, fg_color="transparent")
         col3.pack(side="left", fill="x", expand=True, padx=(0, 6))
-        ctk.CTkLabel(col3, text="SAHI Multi-View Slicing Policy:", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color=THEME["text_muted"]).pack(anchor="w")
+        ctk.CTkLabel(col3, text="Viewport Inspection Mode:", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color=THEME["text_muted"]).pack(anchor="w")
         self.vision_sahi_opt = ctk.CTkOptionMenu(
             col3,
             values=[
-                "Global + Tiles (SAHI 4-View Pyramid)",
-                "Global View Only (512x512)",
-                "Top Slice Focus (0% - 40%)",
-                "Mid Slice Focus (30% - 70%)",
-                "Bottom Slice Focus (60% - 100%)",
+                "Adaptive Slicing (SAHI Multi-View)",
+                "Raw Viewport (Full Native Resolution)",
             ],
             height=28,
             font=ctk.CTkFont(family="Segoe UI", size=9)
         )
-        self.vision_sahi_opt.set("Global + Tiles (SAHI 4-View Pyramid)")
+        self.vision_sahi_opt.set("Adaptive Slicing (SAHI Multi-View)")
         self.vision_sahi_opt.pack(fill="x", pady=(2, 0))
 
         col4 = ctk.CTkFrame(row2, fg_color="transparent")
@@ -2388,52 +2385,42 @@ class HeartSimpleApp(ctk.CTk):
             command=self._export_vision_evidence
         ).pack(side="right", fill="x", expand=True, padx=(3, 0))
 
-        nb_row = ctk.CTkFrame(c_inner, fg_color="transparent")
-        nb_row.pack(fill="x", pady=(2, 0))
-        ctk.CTkButton(
-            nb_row,
-            text="📓 Open Visual Evaluator Notebook",
-            fg_color="#eff6ff",
-            hover_color="#dbeafe",
-            text_color="#1d4ed8",
-            border_width=1,
-            border_color="#bfdbfe",
-            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
-            height=26,
-            corner_radius=6,
-            command=lambda: self._open_notebook("notebooks/visual_evaluator.ipynb")
-        ).pack(side="left", fill="x", expand=True, padx=(0, 3))
-        ctk.CTkButton(
-            nb_row,
-            text="🔬 Open SAHI Multi-Slice Notebook",
-            fg_color="#eff6ff",
-            hover_color="#dbeafe",
-            text_color="#1d4ed8",
-            border_width=1,
-            border_color="#bfdbfe",
-            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
-            height=26,
-            corner_radius=6,
-            command=lambda: self._open_notebook("notebooks/c3_sahi_multimodal_evaluator.ipynb")
-        ).pack(side="right", fill="x", expand=True, padx=(3, 0))
-
-        # 4. Architecture Specs Card
-        specs_card = self._create_card(parent, "Grounded Model Architecture & Benchmarks", subtitle="RTX 3050 Laptop GPU (4GB VRAM)")
+        # 4. Architecture Specs & Live Edge Telemetry Card
+        specs_card = self._create_card(parent, "Grounded Model Architecture & Live Edge Telemetry", subtitle="RTX 3050 Laptop GPU / Edge Telemetry")
         sp_inner = ctk.CTkFrame(specs_card, fg_color="transparent")
         sp_inner.pack(fill="x", padx=14, pady=(4, 10))
 
-        for k, v in [
+        def _get_vram_telemetry_str():
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    alloc_gb = torch.cuda.memory_allocated() / (1024**3)
+                    tot_gb = torch.cuda.get_device_properties(0).total_memory / (1024**3)
+                    dev_name = torch.cuda.get_device_name(0)
+                    return f"{alloc_gb:.2f} GB / {tot_gb:.1f} GB ({dev_name})"
+            except Exception:
+                pass
+            return "Host CPU (FP32 Fallback)"
+
+        self._specs_vram_val = ctk.StringVar(value=_get_vram_telemetry_str())
+        self._specs_latency_val = ctk.StringVar(value="Standby (< 1500ms SLA Target)")
+
+        for k, v_widget in [
             ("Base VLM Architecture", "Qwen2-VL-2B-Instruct (4-bit NF4 Quantized)"),
             ("Active Domain Adapter", "c3_lora_boosted_recall (LoRA r=16, alpha=32)"),
             ("Empirical Recall Rate", "69.62% (OwlEye 71.08% | Rico 68.00%)"),
-            ("Macro F1-Score & IoU", "61.28% F1 (Peak BBox IoU: 0.6517)"),
-            ("High-Res View Planning", "Global + SAHI 3-Slice Pyramid (Aspect-Preserved)"),
-            ("Offline Air-Gap SLA", "100% Localhost Execution (0 Cloud API Egress)"),
+            ("High-Res View Planning", "Global + SAHI Adaptive Slicing (Peak IoU: 0.6517)"),
+            ("Hardware VRAM Budget", self._specs_vram_val),
+            ("Live Pipeline SLA", self._specs_latency_val),
+            ("Offline Air-Gap SLA", "🟢 100% Localhost Execution (0 Cloud API Egress)"),
         ]:
             r = ctk.CTkFrame(sp_inner, fg_color="transparent")
             r.pack(fill="x", pady=1)
             ctk.CTkLabel(r, text=f"{k}:", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color=THEME["text_muted"]).pack(side="left")
-            ctk.CTkLabel(r, text=v, font=ctk.CTkFont(family="Segoe UI", size=9), text_color=THEME["text_heading"]).pack(side="right")
+            if isinstance(v_widget, ctk.StringVar):
+                ctk.CTkLabel(r, textvariable=v_widget, font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color="#2563eb").pack(side="right")
+            else:
+                ctk.CTkLabel(r, text=v_widget, font=ctk.CTkFont(family="Segoe UI", size=9), text_color=THEME["text_heading"]).pack(side="right")
 
         # 5. Multimodal Decision Deck Card
         deck_card = self._create_card(parent, "Multimodal Decision Deck & Visual Evidence", subtitle="Contract V2 Output")
@@ -2535,6 +2522,8 @@ class HeartSimpleApp(ctk.CTk):
             self.vision_log_box.insert("end", f"\n[C3 Oracle] Evaluating local screenshot: {file_path}\n")
             self.vision_log_box.see("end")
 
+        enable_sahi = "Raw" not in self.vision_sahi_opt.get() if hasattr(self, "vision_sahi_opt") else True
+
         def _worker():
             try:
                 service = get_oracle_service()
@@ -2542,7 +2531,7 @@ class HeartSimpleApp(ctk.CTk):
                 res = service.evaluate(
                     image_input=file_path,
                     action_context=action_ctx or "local_image_eval",
-                    enable_sahi=True,
+                    enable_sahi=enable_sahi,
                 )
                 self.after(0, lambda: self._update_vision_ui_results(res, file_path))
             except Exception as exc:
@@ -2563,6 +2552,8 @@ class HeartSimpleApp(ctk.CTk):
         if serial is None and hasattr(self, "adb") and getattr(self.adb, "device_id", None):
             serial = self.adb.device_id
 
+        enable_sahi = "Raw" not in self.vision_sahi_opt.get() if hasattr(self, "vision_sahi_opt") else True
+
         def _worker():
             try:
                 service = get_oracle_service()
@@ -2570,6 +2561,7 @@ class HeartSimpleApp(ctk.CTk):
                 res = service.evaluate_device(
                     serial=serial,
                     action_context=action_ctx or "live_device_eval",
+                    enable_sahi=enable_sahi,
                 )
                 art_path = res.get("verdict_v2", {}).get("screenshot", {}).get("storage_path")
                 self.after(0, lambda: self._update_vision_ui_results(res, art_path))
@@ -2664,13 +2656,18 @@ class HeartSimpleApp(ctk.CTk):
                 draw_img = base_img.copy()
                 draw = ImageDraw.Draw(draw_img)
 
-                if decision == "defect_detected" and primary_finding and primary_finding.get("bbox_xyxy"):
-                    bbox = primary_finding["bbox_xyxy"]
-                    for off in range(3):
-                        draw.rectangle(
-                            [bbox[0] - off, bbox[1] - off, bbox[2] + off, bbox[3] + off],
-                            outline="#dc2626"
-                        )
+                if decision == "defect_detected":
+                    findings = v2.get("findings", [])
+                    if not findings and primary_finding:
+                        findings = [primary_finding]
+                    for f_item in findings:
+                        bbox = f_item.get("bbox_xyxy")
+                        if bbox and len(bbox) == 4:
+                            for off in range(3):
+                                draw.rectangle(
+                                    [bbox[0] - off, bbox[1] - off, bbox[2] + off, bbox[3] + off],
+                                    outline="#dc2626"
+                                )
                 elif decision == "no_defect_detected":
                     draw.rectangle([0, 0, orig_w - 1, orig_h - 1], outline="#059669", width=4)
 
@@ -2694,6 +2691,19 @@ class HeartSimpleApp(ctk.CTk):
                 self.vision_log_box.insert("end", f"[Primary Finding] {primary_finding.get('type')} (Confidence: {conf_str})\n")
             self.vision_log_box.insert("end", f"[C4 Dispatch] Handover outcome: {handover_outcome}\n---\n")
             self.vision_log_box.see("end")
+
+        if hasattr(self, "_specs_vram_val"):
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    alloc_gb = torch.cuda.memory_allocated() / (1024**3)
+                    tot_gb = torch.cuda.get_device_properties(0).total_memory / (1024**3)
+                    self._specs_vram_val.set(f"{alloc_gb:.2f} GB / {tot_gb:.1f} GB (GPU allocated)")
+            except Exception:
+                pass
+        if hasattr(self, "_specs_latency_val"):
+            sla_tag = "PASS (<= 1500ms)" if total_time <= 1500.0 else "EXCEEDED"
+            self._specs_latency_val.set(f"{total_time:.1f}ms (Infer: {infer_time:.1f}ms • {sla_tag})")
 
     def _export_vision_evidence(self):
         if not hasattr(self, "_latest_verdict_v2") or not self._latest_verdict_v2:
@@ -2802,8 +2812,8 @@ class HeartSimpleApp(ctk.CTk):
             },
             "Environmental Stressor Chaos & Impact Report": {
                 "path": os.path.join(ROOT_DIR, "env testing", "results", "heart_findings_chart_report.png"),
-                "kpis": [("RQ1 Latency", "24.6 ms", "PASS (<100ms SLA)", THEME["success"]),
-                         ("RQ2 Isolation", "100%", "Zero Crosstalk", THEME["primary"]),
+                "kpis": [("Pipeline Latency", "24.6 ms", "Optimal (<100ms)", THEME["success"]),
+                         ("Process Isolation", "100%", "Zero Crosstalk", THEME["primary"]),
                          ("Attributed Triggers", "20 / 20", "100% Causality", THEME["success"]),
                          ("Active Factors", "4 Stressors", "Perturbations Active", THEME["warning"])],
                 "desc": "Environmental Stressor Evaluation: Multi-panel report covering fault isolation, injection SLA, and causality attribution.",
@@ -3717,7 +3727,7 @@ class HeartSimpleApp(ctk.CTk):
 
         ctk.CTkLabel(strip, text="LIVE ADB TELEMETRY & EXECUTION STREAM", font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"), text_color=THEME["text_heading"]).pack(side="left", padx=12)
 
-        self.kpi_latency = ctk.CTkLabel(strip, text="Latency: 24.6ms (RQ1 PASS)", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color=THEME["success"])
+        self.kpi_latency = ctk.CTkLabel(strip, text="Latency: 24.6ms (Optimal SLA)", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color=THEME["success"])
         self.kpi_latency.pack(side="left", padx=12)
 
         self.kpi_event_count = ctk.CTkLabel(strip, text="Recorded: 0 events", font=ctk.CTkFont(family="Segoe UI", size=9), text_color=THEME["text_muted"])
@@ -4451,10 +4461,10 @@ class HeartSimpleApp(ctk.CTk):
         md.append(f"**Target Package:** `{dev.get('active_package', 'N/A')}`  ")
         md.append(f"**Target Device:** {dev.get('model', 'N/A')} (`{dev.get('device_id', 'N/A')}`) — {dev.get('type', 'N/A')}\n")
         
-        md.append("## 1. Executive Summary & RQ1 Latency Benchmarks\n")
+        md.append("## 1. Executive Summary & Pipeline Latency Benchmarks\n")
         md.append(f"- **Total Perturbation Events Injected:** {kpi.get('total_perturbations_recorded', 0)}")
         md.append(f"- **Last Action Latency:** {kpi.get('last_measured_latency_ms', 0)} ms")
-        md.append(f"- **RQ1 Latency Compliance (<100ms):** {'✅ PASS' if kpi.get('rq1_compliant') else '⚠️ WARN'}")
+        md.append(f"- **Pipeline Latency Compliance (<100ms):** {'✅ PASS' if kpi.get('rq1_compliant') else '⚠️ WARN'}")
         md.append(f"- **Total Failures Analyzed:** {attr.get('total_failures_analyzed', 0)}")
         md.append(f"- **High-Confidence Attributions:** {attr.get('attributed_failures_count', 0)}\n")
         
