@@ -58,3 +58,9 @@ build/
 *viva_defense_script*
 
 .venv-ui/
+# Local documentation, evidence, and agent context maps (Local Only)
+context/
+.agents/
+docs/
+vision_oracle/evidence/
+evidence/
