@@ -1,0 +1,22 @@
+{
+  "event_id": "c4-demo-1",
+  "timestamp": "2026-10-18T10:00:05Z",
+  "release": "1.0",
+  "exception": {
+    "values": [
+      {
+        "type": "IllegalStateException",
+        "value": "crash after opening network settings"
+      }
+    ]
+  },
+  "breadcrumbs": [
+    {
+      "timestamp": "2026-10-18T10:00:01Z",
+      "category": "ui.click",
+      "data": {
+        "text": "Network and internet"
+      }
+    }
+  ]
+}

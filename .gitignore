@@ -57,3 +57,4 @@ build/
 # Private Defense & Viva Preparation (Local Only)
 *viva_defense_script*
 
+.venv-ui/
