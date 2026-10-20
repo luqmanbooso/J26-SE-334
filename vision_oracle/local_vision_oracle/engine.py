@@ -153,14 +153,14 @@ class TransformersInferenceBackend(InferenceBackend):
         if self.adapter_dir:
             from peft import PeftModel
             self.model = PeftModel.from_pretrained(self.model, self.adapter_dir, local_files_only=True)
-            self.model.eval()
+        self.model.eval()
 
     def generate(
         self,
         messages: List[Dict[str, Any]],
         image: Image.Image,
-        max_new_tokens: int = 96,
-        temperature: float = 0.01,
+        max_new_tokens: int = 256,
+        temperature: float = 0.0,
         **kwargs: Any,
     ) -> str:
         self._load_model()
@@ -170,40 +170,33 @@ class TransformersInferenceBackend(InferenceBackend):
         img_eval = image.copy()
         img_eval.thumbnail((720, 1280), Image.Resampling.LANCZOS)
 
-        if self.adapter_dir:
-            clean_prompt = (
-                "<|im_start|>user\n"
-                "<|vision_start|><|image_pad|><|vision_end|>"
-                "Analyze this mobile screen for non-crash visual and semantic defects.\n\n"
-                "Return the verdict in the specified JSON format.<|im_end|>\n"
-                "<|im_start|>assistant\n"
-            )
-            inputs = self.processor(
-                text=[clean_prompt],
-                images=[img_eval],
-                return_tensors="pt",
-            )
-        else:
-            text_prompt = self.processor.apply_chat_template(
-                messages, tokenize=False, add_generation_prompt=True
-            )
-            inputs = self.processor(
-                text=[text_prompt],
-                images=[img_eval],
-                padding=True,
-                return_tensors="pt",
-            )
+        # Adapters change weights, not the caller's prompt contract. Keep system
+        # instructions, hierarchy context and image tokens on both model paths.
+        text_prompt = self.processor.apply_chat_template(
+            messages, tokenize=False, add_generation_prompt=True
+        )
+        inputs = self.processor(
+            text=[text_prompt],
+            images=[img_eval],
+            padding=True,
+            return_tensors="pt",
+        )
 
         if hasattr(self.model, "device"):
             inputs = inputs.to(self.model.device)
 
 
+        generation_options = {
+            "max_new_tokens": max_new_tokens,
+            "do_sample": temperature > 0.0,
+        }
+        if temperature > 0.0:
+            generation_options["temperature"] = temperature
+
         with torch.no_grad():
             generated_ids = self.model.generate(
                 **inputs,
-                max_new_tokens=max_new_tokens,
-                do_sample=(temperature > 0.0),
-                temperature=temperature if temperature > 0.0 else None,
+                **generation_options,
             )
 
         trimmed_ids = [
