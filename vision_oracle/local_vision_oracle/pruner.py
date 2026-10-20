@@ -8,7 +8,7 @@ import re
 import json
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, asdict
-from typing import List, Optional, Dict, Any, Union
+from typing import List, Optional, Dict, Any, Union, Tuple
 from pathlib import Path
 
 
@@ -17,14 +17,22 @@ class PrunedNode:
     """
     Compact representation of an interactive or textual UI element.
     """
-    element_id: str
-    class_name: str
-    text: str
-    content_desc: str
-    bounds: List[int]  # [ymin, xmin, ymax, xmax] normalized to [0, 1000]
-    clickable: bool
-    scrollable: bool
+    element_id: str = ""
+    class_name: str = ""
+    text: str = ""
+    content_desc: str = ""
+    bounds: Optional[List[int]] = None  # [ymin, xmin, ymax, xmax] normalized to [0, 1000]
+    clickable: bool = False
+    scrollable: bool = False
     raw_bounds: Optional[List[int]] = None  # [x1, y1, x2, y2]
+    bbox: Optional[List[int]] = None
+    depth: int = 0
+
+    def __post_init__(self):
+        if self.bounds is None and self.bbox is not None:
+            self.bounds = self.bbox
+        elif self.bounds is None:
+            self.bounds = [0, 0, 0, 0]
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -61,9 +69,41 @@ class HierarchyPruner:
     """
 
     @staticmethod
+    def detect_overlap_collision(nodes: List[PrunedNode]) -> Tuple[bool, Dict[str, Any]]:
+        """
+        Detects bounding box layout collisions between interactive/textual AST nodes.
+        Calculates intersection area and colliding element identifiers.
+        """
+        for i in range(len(nodes)):
+            for j in range(i + 1, len(nodes)):
+                n1, n2 = nodes[i], nodes[j]
+                b1 = n1.raw_bounds or n1.bbox or n1.bounds
+                b2 = n2.raw_bounds or n2.bbox or n2.bounds
+                if not b1 or not b2 or len(b1) != 4 or len(b2) != 4:
+                    continue
+                y1_a, x1_a, y2_a, x2_a = b1[0], b1[1], b1[2], b1[3]
+                y1_b, x1_b, y2_b, x2_b = b2[0], b2[1], b2[2], b2[3]
+
+                ix1 = max(x1_a, x1_b)
+                iy1 = max(y1_a, y1_b)
+                ix2 = min(x2_a, x2_b)
+                iy2 = min(y2_a, y2_b)
+
+                if ix2 > ix1 and iy2 > iy1:
+                    area = (ix2 - ix1) * (iy2 - iy1)
+                    return True, {
+                        "element_a": n1.element_id,
+                        "element_b": n2.element_id,
+                        "intersection_area_px": area,
+                        "intersection_box": [iy1, ix1, iy2, ix2],
+                    }
+        return False, {}
+
+    @staticmethod
     def to_prompt_string(nodes: List[PrunedNode]) -> str:
         """Serializes pruned nodes into token-dense string for prompt injection."""
         return "\n".join(node.to_prompt_string() for node in nodes)
+
 
     STRUCTURAL_CONTAINERS = {
         "android.widget.FrameLayout",

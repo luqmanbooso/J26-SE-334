@@ -529,6 +529,7 @@ class OracleService:
         action_context: Optional[str] = None,
         session_id: Optional[str] = "live_device_session",
         device: Optional[Any] = None,
+        enable_sahi: bool = True,
     ) -> Dict[str, Any]:
         """Captures and evaluates screen from Android device via canonical AnalysisPipeline."""
         if device is None:
@@ -551,7 +552,7 @@ class OracleService:
             raw_hierarchy=xml_text,
             screen_id=f"live_{getattr(device, 'serial', 'unknown')}",
             action_context=action_context or f"Direct device evaluation on {getattr(device, 'serial', 'unknown')}",
-            enable_sahi=True,
+            enable_sahi=enable_sahi,
             session_id=session_id,
         )
 

@@ -518,16 +518,45 @@ class AnalysisPipeline:
 
     def analyze(
         self,
-        bundle: CaptureBundle,
-        image: Image.Image,
-        policy: CoveragePolicy = CoveragePolicy.GLOBAL_PLUS_TILES_V1,
+        bundle: Optional[CaptureBundle] = None,
+        image: Optional[Image.Image] = None,
+        policy: Any = CoveragePolicy.GLOBAL_PLUS_TILES_V1,
         job_id: Optional[str] = None,
         pruned_hierarchy_text: Optional[str] = None,
         messages_builder_fn: Optional[Any] = None,
+        screen_id: Optional[str] = None,
+        action_context: Optional[str] = None,
+        coverage_policy: Optional[str] = None,
     ) -> VerdictEnvelopeV2:
         """
         Executes end-to-end multi-view analysis across planned views.
         """
+        if image is None:
+            raise ValueError("image argument cannot be None")
+
+        pol_val = coverage_policy or policy
+        if isinstance(pol_val, str):
+            if pol_val in ("primary_only", "global_only"):
+                policy = CoveragePolicy.GLOBAL_ONLY
+            else:
+                try:
+                    policy = CoveragePolicy(pol_val)
+                except Exception:
+                    policy = CoveragePolicy.GLOBAL_ONLY
+
+        if bundle is None:
+            w, h = image.size
+            bundle = CaptureBundle(
+                capture_id=screen_id or f"cap_{uuid.uuid4().hex[:12]}",
+                session_id="interactive_session",
+                action_id=action_context if (action_context and action_context.startswith("act_")) else None,
+                width=w,
+                height=h,
+                image_sha256="sha256_mock_or_calc",
+                artifact_path="interactive_test.png",
+                hierarchy_status="missing",
+            )
+
         t0 = time.perf_counter()
         orig_w, orig_h = image.size
         # Update bundle width/height if needed
@@ -535,6 +564,7 @@ class AnalysisPipeline:
         bundle.height = orig_h
 
         planned_views = ViewPlanner.plan_views(orig_w, orig_h, policy=policy)
+
         raw_findings: List[Finding] = []
         errors: List[str] = []
         warnings: List[str] = []

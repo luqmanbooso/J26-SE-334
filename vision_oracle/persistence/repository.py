@@ -269,6 +269,13 @@ class OracleRepository:
         rows = cur.fetchall()
         return [dict(r) for r in rows]
 
+    def list_recent_jobs(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """Retrieves most recent jobs ordered by creation timestamp."""
+        conn = self.db.get_connection()
+        cur = conn.execute("SELECT * FROM jobs ORDER BY created_at DESC LIMIT ?;", (limit,))
+        return [dict(r) for r in cur.fetchall()]
+
+
     def update_job_c4_delivery(self, job_id: str, status: str) -> None:
         """Updates C4 delivery dispatch status for a job."""
         conn = self.db.get_connection()

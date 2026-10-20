@@ -164,3 +164,42 @@ def log_model_configuration(service_logger: Optional[logging.Logger] = None) -> 
         log.warning("Could not persist manifest file: %s", exc)
 
     return manifest
+
+
+class ModelManifest:
+    """Wrapper class providing object-oriented access to manifest properties."""
+
+    def __init__(self, data: Dict[str, Any]):
+        self._data = data
+        self.architecture = data.get("model", {}).get("base_model_identifier", "Qwen2-VL-2B-Instruct")
+        self.base_model_id = self.architecture
+        self.base_model_path = data.get("model", {}).get("base_model_path", "")
+        self.adapter_path = data.get("model", {}).get("adapter_path", "")
+        self.adapter_sha256 = data.get("model", {}).get("adapter_sha256", "")
+        self.quantization_config = {
+            "load_in_4bit": True,
+            "bnb_4bit_quant_type": data.get("quantization", {}).get("quant_type", "nf4"),
+            "bnb_4bit_compute_dtype": data.get("quantization", {}).get("compute_dtype", "float16"),
+        }
+        self.prompt_config = data.get("generation", {})
+        self.supported_defects = [
+            "component_overlap",
+            "text_truncation",
+            "missing_component",
+            "misalignment",
+        ]
+        self.zero_cloud_egress = True
+
+    def to_dict(self) -> Dict[str, Any]:
+        return self._data
+
+
+def build_manifest() -> ModelManifest:
+    """Constructs and returns ModelManifest object for interactive audits."""
+    return ModelManifest(get_model_manifest())
+
+
+def get_model_manifest_dict() -> Dict[str, Any]:
+    """Returns canonical manifest as raw dictionary."""
+    return get_model_manifest()
+
