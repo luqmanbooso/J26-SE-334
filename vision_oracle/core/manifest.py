@@ -17,9 +17,11 @@ from typing import Dict, Any, Optional
 logger = logging.getLogger("vision_oracle.manifest")
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-BASE_MODEL_DIR = REPO_ROOT / "models" / "Qwen2-VL-2B-Instruct"
-LORA_ADAPTER_DIR = REPO_ROOT / "models" / "c3_lora_final"
-MANIFEST_FILE = REPO_ROOT / "models" / "c3_model_manifest.json"
+from vision_oracle.core.config import BASE_MODEL_PATH, LORA_WEIGHTS_PATH, C3_DIR
+
+BASE_MODEL_DIR = BASE_MODEL_PATH or C3_DIR / "models" / "Qwen2-VL-2B-Instruct"
+LORA_ADAPTER_DIR = LORA_WEIGHTS_PATH or C3_DIR / "models" / "c3_qwen2vl_2b_lora_step246"
+MANIFEST_FILE = C3_DIR / "models" / "c3_model_manifest.json"
 
 
 def compute_file_sha256(path: Path) -> Optional[str]:

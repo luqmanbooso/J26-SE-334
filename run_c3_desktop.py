@@ -240,7 +240,7 @@ class VisionOracleStandaloneApp(ctk.CTk):
 
         specs_items = [
             ("Base VLM Architecture", "Qwen2-VL-2B-Instruct (4-Bit NF4)"),
-            ("Active Domain Adapter", "c3_lora_boosted_recall (LoRA r=16, α=32)"),
+            ("Active Domain Adapter", "c3_qwen2vl_2b_lora_step246 (LoRA r=16, α=32)"),
             ("Empirical Recall Rate", "69.62% (OwlEye 71.08% | Rico 68.00%)"),
             ("Empirical Macro F1", "61.28% F1 (Peak BBox IoU: 0.6517)"),
             ("Hardware VRAM Budget", self.lbl_vram_dyn),
@@ -341,7 +341,7 @@ class VisionOracleStandaloneApp(ctk.CTk):
             border_color=THEME["border"],
         )
         self.txt_findings_summary.pack(fill="x", padx=14, pady=(4, 10))
-        self.txt_findings_summary.insert("1.0", "System initialized. Grounded in Qwen2-VL-2B-Instruct + c3_lora_boosted_recall.\nAwaiting trigger.")
+        self.txt_findings_summary.insert("1.0", "System initialized. Grounded in Qwen2-VL-2B-Instruct + c3_qwen2vl_2b_lora_step246.\nAwaiting trigger.")
 
         # Pipeline Log & Contract V2 Terminal Card
         card_log = self._create_card(right_details, "Pipeline Terminal & Contract v2 Envelope", "Live Step Timings & Downstream C4 Handover Payload")

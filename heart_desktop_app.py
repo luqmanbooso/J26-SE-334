@@ -2407,7 +2407,7 @@ class HeartSimpleApp(ctk.CTk):
 
         for k, v_widget in [
             ("Base VLM Architecture", "Qwen2-VL-2B-Instruct (4-bit NF4 Quantized)"),
-            ("Active Domain Adapter", "c3_lora_boosted_recall (LoRA r=16, alpha=32)"),
+            ("Active Domain Adapter", "c3_qwen2vl_2b_lora_step246 (LoRA r=16, alpha=32)"),
             ("Empirical Recall Rate", "69.62% (OwlEye 71.08% | Rico 68.00%)"),
             ("High-Res View Planning", "Global + SAHI Adaptive Slicing (Peak IoU: 0.6517)"),
             ("Hardware VRAM Budget", self._specs_vram_val),
@@ -2485,7 +2485,7 @@ class HeartSimpleApp(ctk.CTk):
         ctk.CTkLabel(log_card, text="Inference Log & Contract Handover:", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color=THEME["text_muted"]).pack(anchor="w", pady=(0, 2))
         self.vision_log_box = ctk.CTkTextbox(log_card, height=195, font=ctk.CTkFont(family="Consolas", size=9), fg_color="#0f172a", text_color="#f8fafc")
         self.vision_log_box.pack(fill="both", expand=True)
-        self.vision_log_box.insert("end", "[C3 Oracle] System ready. Grounded in Qwen2-VL-2B + c3_lora_boosted_recall.\n[C3 Oracle] Awaiting trigger or manual inspection request.\n")
+        self.vision_log_box.insert("end", "[C3 Oracle] System ready. Grounded in Qwen2-VL-2B + c3_qwen2vl_2b_lora_step246.\n[C3 Oracle] Awaiting trigger or manual inspection request.\n")
 
     def _inspect_local_screenshot(self):
         file_path = filedialog.askopenfilename(

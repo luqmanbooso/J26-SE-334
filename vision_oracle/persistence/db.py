@@ -8,7 +8,7 @@ import threading
 from pathlib import Path
 from typing import Optional
 
-DB_FILE_PATH = Path("results/oracle_store.db")
+DB_FILE_PATH = Path(__file__).resolve().parents[1] / "results" / "oracle_store.db"
 
 
 class DatabaseManager:

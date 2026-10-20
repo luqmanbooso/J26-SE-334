@@ -24,7 +24,7 @@ from vision_oracle.contracts.v2 import (
 )
 from vision_oracle.persistence.db import DatabaseManager, get_database
 
-ARTIFACTS_DIR = Path("results/artifacts")
+ARTIFACTS_DIR = Path(__file__).resolve().parents[1] / "results" / "artifacts"
 
 
 class OracleRepository:
