@@ -1,7 +1,7 @@
 {
   "manifest_version": "1.0",
   "timestamp_utc": "2026-10-18T10:00:00Z",
-  "repository_commit": "6d942411681c1d63c4984a67a98802173cdd82dd",
+  "repository_commit": "c97e5376637fc8d3d29b9e5e07c442b2573992df",
   "model": {
     "base_model_identifier": "Qwen/Qwen2-VL-2B-Instruct",
     "base_model_path": "D:\\university\\Resesarch\\J26-SE-334\\models\\Qwen2-VL-2B-Instruct",
