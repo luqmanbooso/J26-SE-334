@@ -37,33 +37,6 @@ Unlike traditional mobile testing tools that only capture fatal app crashes, **H
 * **Self-healing**: Repairs broken locators after UI changes, accepting a replacement only when it is confident and unique, and versions every repair.
 * **Local and connected**: Runs fully offline and can use C3's defect verdicts as context. Details are in the [Component 4 README](component4/README.md).
 
-## Desktop demo
-
-Install the C4 UI extra and launch the existing HEART desktop console:
-
-```powershell
-pip install -e "component4[ui]"
-python heart_desktop_app.py
-```
-
-Choose **Self-Healing (C4)** in the tab strip. The cards are arranged as a
-short workflow:
-
-* **Setup** validates the target JSON, ADB/device/Appium/package readiness,
-  Ollama, and optional C3 context.
-* **Journeys** loads Sentry or Crashlytics telemetry, shows reproducible
-  failing flows and perturbation hints, and exports a C1/C2 seed.
-* **Test** generates a read-only Appium script, runs it, and optionally starts
-  healing after a locator failure.
-* **Healing result** shows the accepted or refused locator decision, confidence
-  threshold, narrowing counts, top candidates, rule counts, diff, and versions.
-* **Offline healing demo** uses the bundled script and UIAutomator XML sample,
-  so it works without a device or local LLM.
-* **Log** mirrors C4 messages into the shared HEART log.
-
-The complete five-minute click path is documented in
-[docs/demo-script.md](docs/demo-script.md).
-
 ---
 
 ## 🛠️ Project Structure
