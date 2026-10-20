@@ -319,6 +319,7 @@ class HeartSimpleApp(ctk.CTk):
 
         # Initial device scan & app package discovery
         self.after(300, self._scan_device_and_apps)
+        self.after(4000, self._periodic_device_check)
 
     # =========================================================================
     # 1. TOP HEADER (Real Device Status & Master Actions)
@@ -3437,6 +3438,23 @@ class HeartSimpleApp(ctk.CTk):
 
         threading.Thread(target=_worker, daemon=True).start()
 
+    def _periodic_device_check(self):
+        """Auto-discovers newly connected USB devices or booted AVDs in the background."""
+        def _check():
+            try:
+                adb_bin = get_adb_binary()
+                res = subprocess.run([adb_bin, "devices"], capture_output=True, text=True, timeout=4)
+                devs = [l.split()[0] for l in res.stdout.splitlines()[1:] if "\tdevice" in l]
+                curr_dev = getattr(self.adb, "device_id", None)
+                is_sim = getattr(self.adb, "is_simulated", True)
+                known_devs = list(getattr(self, "_devices_map", {}).values())
+                if devs and (is_sim or set(devs) != set(known_devs)):
+                    self.after(0, lambda: self._scan_device_and_apps(preferred_id=devs[0]))
+            except Exception:
+                pass
+        threading.Thread(target=_check, daemon=True).start()
+        self.after(4000, self._periodic_device_check)
+
     def _on_device_dropdown_change(self, choice):
         did = getattr(self, "_devices_map", {}).get(choice)
         if did:
@@ -3445,8 +3463,11 @@ class HeartSimpleApp(ctk.CTk):
     def _switch_to_device(self, dev_id):
         def _worker():
             adb_bin = get_adb_binary()
-            self.adb.device_id = dev_id
-            self.adb.is_simulated = False
+            if hasattr(self.adb, "connect"):
+                self.adb.connect(dev_id)
+            else:
+                self.adb.device_id = dev_id
+                self.adb.is_simulated = False
             is_emu = dev_id.startswith("emulator-")
             tag = "AVD Emulator" if is_emu else "USB Hardware"
 
@@ -4273,17 +4294,28 @@ class HeartSimpleApp(ctk.CTk):
             messagebox.showerror("AVD Error", f"Failed to start emulator:\n{e}")
 
     def _poll_for_emulator(self, attempts=0):
-        if attempts > 15:
+        if attempts > 30:
+            self._append_log("[EMULATOR] AVD launch wait completed.")
             return
         adb_bin = get_adb_binary()
-        res = subprocess.run([adb_bin, "devices"], capture_output=True, text=True, timeout=4)
-        for line in res.stdout.splitlines():
-            if line.startswith("emulator-"):
-                emu_id = line.split()[0]
-                self._append_log(f"[EMULATOR] AVD detected ({emu_id}). Switching active mirror to AVD.")
-                self._scan_device_and_apps(preferred_id=emu_id)
+        try:
+            res = subprocess.run([adb_bin, "devices"], capture_output=True, text=True, timeout=4)
+            found_emu = None
+            for line in res.stdout.splitlines():
+                parts = line.split()
+                if len(parts) >= 2 and parts[0].startswith("emulator-") and parts[1] == "device":
+                    # Verify boot is finished
+                    boot_res = subprocess.run([adb_bin, "-s", parts[0], "shell", "getprop", "sys.boot_completed"], capture_output=True, text=True, timeout=3)
+                    if boot_res.stdout.strip() == "1":
+                        found_emu = parts[0]
+                        break
+            if found_emu:
+                self._append_log(f"[EMULATOR] AVD online and ready ({found_emu}). Switching active mirror to AVD.")
+                self._scan_device_and_apps(preferred_id=found_emu)
                 return
-        self.after(3000, lambda: self._poll_for_emulator(attempts + 1))
+        except Exception:
+            pass
+        self.after(2500, lambda: self._poll_for_emulator(attempts + 1))
 
     def _reset_all_stressors(self):
         self.cpu_slider.set(0)
