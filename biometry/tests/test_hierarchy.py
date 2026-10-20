@@ -53,6 +53,18 @@ def test_only_clickable_elements_of_a_plausible_size_are_targets():
     assert labels == {"Submit"}  # label not clickable, screen too big, speck too small
 
 
+def test_a_full_width_button_is_kept_but_a_full_screen_container_is_dropped():
+    """A wide-but-short CTA (large on one axis only) is a target; a node large
+    on BOTH axes is a container. Regression for the 956x135 'Get Started' button
+    that the old max(w, h) <= 900 cap wrongly discarded."""
+    dump = """<hierarchy rotation="0">
+      <node bounds="[0,0][1080,2408]" clickable="true" text="container"/>
+      <node bounds="[62,2062][1018,2197]" clickable="true" text="Get Started"/>
+    </hierarchy>"""
+    labels = {t.element_id for t in tappable_targets(parse_hierarchy(dump))}
+    assert labels == {"Get Started"}
+
+
 def test_a_target_is_shaped_the_way_the_simulator_expects():
     target = tappable_targets(parse_hierarchy(DUMP))[0].as_target()
     assert set(target) == {"id", "x", "y", "width", "height"}
@@ -80,7 +92,10 @@ def test_a_corpus_is_keyed_by_screen_name(tmp_path):
 
 def test_the_real_saved_dump_yields_usable_targets():
     """The dump committed with the component parses and gives real element sizes."""
-    targets = tappable_targets(parse_hierarchy("biometry/window_dump.xml"))
-    assert len(targets) > 10
-    sides = [min(t.width, t.height) for t in targets]
-    assert min(sides) >= 20 and max(sides) <= 900
+    elements = parse_hierarchy("biometry/window_dump.xml")
+    targets = tappable_targets(elements)
+    assert len(targets) == 20  # full-width bars kept; dialpad_view panel + editable field dropped
+    assert min(min(t.width, t.height) for t in targets) >= 20
+    screen_area = (max(e.x + e.width / 2.0 for e in elements)
+                   * max(e.y + e.height / 2.0 for e in elements))
+    assert all(t.area < 0.45 * screen_area for t in targets)  # no containers

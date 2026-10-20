@@ -6,6 +6,7 @@ more importantly, the real spread of element sizes, which is what exercises the
 FFitts width dependence. A synthetic rectangle does not.
 """
 import glob
+import hashlib
 import os
 import re
 import xml.etree.ElementTree as ET
@@ -34,6 +35,7 @@ class UiElement:
     text: str
     resource_id: str
     clickable: bool
+    editable: bool = False
 
     @property
     def area(self):
@@ -52,6 +54,7 @@ def _element(node):
     desc = (node.get("content-desc") or "").strip()
     resource_id = node.get("resource-id") or ""
     label = text or desc or resource_id.rsplit("/", 1)[-1] or "unnamed"
+    cls = node.get("class") or ""
     return UiElement(
         element_id=label,
         x=x1 + width / 2.0,
@@ -61,17 +64,92 @@ def _element(node):
         text=text,
         resource_id=resource_id,
         clickable=node.get("clickable") == "true",
+        editable="EditText" in cls or node.get("editable") == "true",
     )
+
+
+def _as_root(source):
+    """A dump — path, raw XML, or an ElementTree root — as a root Element."""
+    if isinstance(source, ET.Element):
+        return source
+    if isinstance(source, (str, os.PathLike)) and os.path.exists(source):
+        return ET.parse(source).getroot()
+    return ET.fromstring(source)
+
+
+def structural_signature(source, grid=8, drop_packages=("com.android.systemui",)):
+    """A digest of a screen's *structure*, stable across volatile content.
+
+    Keys each node by class, resource-id, clickability and grid-snapped bounds,
+    and deliberately ignores text / content-desc (a clock, a counter, the
+    selected row) so the same logical screen hashes the same on every visit.
+    System chrome (status/navigation bars) is dropped so it cannot perturb the
+    identity. This is the identity the explorer's visited/exhausted cache is
+    keyed on: the coarser it is, the more aggressively structurally-identical
+    screens (a list-detail page template) collapse to one — which, for
+    exhausting an app rather than its data, is the point. For strict,
+    every-pixel change detection use `full_signature` instead.
+    """
+    root = _as_root(source)
+    g = grid if grid and grid > 0 else 1
+    rows = []
+    for node in root.iter("node"):
+        if node.get("package", "") in drop_packages:
+            continue
+        try:
+            x1, y1, x2, y2 = parse_bounds(node.get("bounds"))
+        except ValueError:
+            x1 = y1 = x2 = y2 = 0
+        rows.append("{}|{}|{}|{},{},{},{}".format(
+            node.get("class", ""), node.get("resource-id", ""),
+            node.get("clickable", ""), x1 // g, y1 // g, x2 // g, y2 // g))
+    rows.sort()   # order-independent: a reflow that only reorders is the same screen
+    return hashlib.sha1("\n".join(rows).encode("utf-8")).hexdigest()
+
+
+def full_signature(source):
+    """A digest of the *entire* screen XML — strict change detection.
+
+    Any moved pixel of text or a blinking cursor changes it, so as a screen
+    *identity* it over-counts and makes every revisit look new; that is why
+    `structural_signature` is the explorer's default. Kept for `--signature
+    full` and parity with `latency_probe.hierarchy_signature`.
+    """
+    root = _as_root(source)
+    return hashlib.sha1(ET.tostring(root, encoding="unicode").encode("utf-8")).hexdigest()
+
+
+def frame_signature(source, drop_packages=("com.android.systemui",)):
+    """A screen's *frame* identity: its set of interactive controls, ignoring
+    content and layout.
+
+    Hashes the distinct `(class, resource-id)` of every clickable node, dropping
+    system chrome. Two states of one screen that differ only in content — a
+    filter chip reselecting a list, a tab swapping a fragment — carry the same
+    controls, so they share a frame and the explorer taps all the chips/tabs in
+    place instead of descending into each as a "new screen". A genuinely
+    different screen, with a different control set, gets a different frame.
+
+    The trade-off is deliberate and the opposite of `structural_signature`: this
+    collapses content states of one screen into one identity (what you want to
+    exhaust an app's *controls*), at the risk of collapsing two screens whose
+    interactive controls happen to be identical. Use `structural_signature` (via
+    --signature structural) when every content state should be its own screen.
+    """
+    root = _as_root(source)
+    controls = set()
+    for node in root.iter("node"):
+        if node.get("package", "") in drop_packages:
+            continue
+        if node.get("clickable") == "true":
+            controls.add((node.get("class", ""), node.get("resource-id", "")))
+    rows = sorted("{}|{}".format(cls, rid) for cls, rid in controls)
+    return hashlib.sha1("\n".join(rows).encode("utf-8")).hexdigest()
 
 
 def parse_hierarchy(source):
     """Parse a dump — a path, raw XML, or an ElementTree root — into UiElements."""
-    if isinstance(source, ET.Element):
-        root = source
-    elif isinstance(source, (str, os.PathLike)) and os.path.exists(source):
-        root = ET.parse(source).getroot()
-    else:
-        root = ET.fromstring(source)
+    root = _as_root(source)
     out = []
     for node in root.iter("node"):
         try:
@@ -81,16 +159,52 @@ def parse_hierarchy(source):
     return out
 
 
-def tappable_targets(elements, min_side=20.0, max_side=900.0):
+def tappable_targets(elements, min_side=20.0, max_frac=0.95, max_area_frac=0.45):
     """Clickable elements of a plausible size to aim at.
 
-    Containers spanning most of the screen are clickable but are not what a user
-    aims at, and zero-area nodes cannot be hit at all.
+    A node must be clickable and at least `min_side` px on its shorter side —
+    zero-area / sliver nodes cannot be hit. Clickable *containers* are excluded
+    two ways: a node spanning at least `max_frac` of the screen in BOTH axes
+    (a full-screen backdrop), and a node whose area is at least `max_area_frac`
+    of the screen (a large panel such as a dialpad, full-width and roughly
+    half-height). A full-width button is large on one axis only (e.g. 956x135 on
+    a 1080px screen) with a small area, so it is kept — the earlier
+    `max(w, h) <= 900` cap wrongly dropped such buttons. The screen extent is
+    taken from the dump itself (the bounding box of all elements), so no device
+    size need be threaded in.
     """
+    if not elements:
+        return []
+    screen_w = max(e.x + e.width / 2.0 for e in elements)
+    screen_h = max(e.y + e.height / 2.0 for e in elements)
+    screen_area = screen_w * screen_h
     return [e for e in elements
             if e.clickable
+            and not e.editable          # text inputs are filled, not tapped-to-navigate
             and min_side <= min(e.width, e.height)
-            and max(e.width, e.height) <= max_side]
+            and not (e.width >= max_frac * screen_w
+                     and e.height >= max_frac * screen_h)
+            and e.area < max_area_frac * screen_area]
+
+
+def text_fields(elements, min_side=20.0):
+    """Editable text inputs (EditText) a user would type into — in reading
+    order (top-to-bottom), so a form fills name/email/password sensibly."""
+    fields = [e for e in elements
+              if e.editable and min_side <= min(e.width, e.height)]
+    return sorted(fields, key=lambda e: (round(e.y), round(e.x)))
+
+
+def placeholder_for(element):
+    """A non-empty value to type into a field. Login forms here don't validate
+    real credentials — they only need the boxes filled — so an email-shaped
+    hint gets an email and everything else a generic alphanumeric string."""
+    hint = f"{element.text} {element.resource_id}".lower()
+    if "@" in element.text or "mail" in hint or "email" in hint:
+        return "test@example.com"
+    if "phone" in hint or "mobile" in hint or "number" in hint:
+        return "0712345678"
+    return "Test1234"
 
 
 def load_corpus(directory, pattern="*.xml"):
