@@ -323,6 +323,28 @@ class HeartSimpleApp(ctk.CTk):
             }
         }
 
+        # Telemetry State Tracking for Before vs After Diff
+        self._baseline_state = {
+            "cpu": 0,
+            "battery": 100,
+            "battery_charging": True,
+            "thermal": "Nominal",
+            "thermal_temp": "30.0°C",
+            "bandwidth": "Normal (4G/5G)",
+            "latency_ms": 0,
+            "packet_loss": 0,
+            "orientation": "Portrait (0°)",
+            "dark_mode": False
+        }
+        self._active_state = dict(self._baseline_state)
+
+        # Quick button references for active state highlighting
+        self.cpu_buttons = {}
+        self.thermal_buttons = {}
+        self.bandwidth_buttons = {}
+        self.latency_buttons = {}
+        self.orientation_buttons = {}
+
         # Build UI layout
         self._build_header()
         self._build_bottom_telemetry()
@@ -517,6 +539,7 @@ class HeartSimpleApp(ctk.CTk):
         self.env_scroll.grid(row=1, column=0, sticky="nsew")
 
         self._build_card_env_profiles(self.env_scroll)
+        self._build_card_telemetry_diff(self.env_scroll)
         self._build_card_hardware(self.env_scroll)
         self._build_card_network(self.env_scroll)
         self._build_card_interruption(self.env_scroll)
@@ -826,6 +849,20 @@ class HeartSimpleApp(ctk.CTk):
         if hasattr(self, "dev_battery_lbl"):
             self.dev_battery_lbl.configure(text=f"🔋 {bat}% ({plug_tag}) • 🌡️ {temp_c} [{p['thermal']}] • {tag}")
 
+        self._active_state["cpu"] = cpu
+        self._active_state["battery"] = bat
+        self._active_state["battery_charging"] = (bat >= 100)
+        self._active_state["thermal"] = p["thermal"]
+        self._active_state["thermal_temp"] = temp_c
+        self._active_state["bandwidth"] = p["network"]
+        self._active_state["latency_ms"] = lat
+        self._active_state["packet_loss"] = loss
+        self._highlight_cpu_button(cpu)
+        self._highlight_thermal_button(p["thermal"])
+        self._highlight_bandwidth_button(p["network"])
+        self._highlight_latency_button(lat)
+        self._update_telemetry_diff()
+
         if hasattr(self, "prof_status_lbl"):
             self.prof_status_lbl.configure(text="● Active on Device", text_color=THEME["danger"] if p["severity"] > 50 else THEME["success"])
 
@@ -933,6 +970,183 @@ class HeartSimpleApp(ctk.CTk):
         threading.Thread(target=_revert, daemon=True).start()
 
     # -------------------------------------------------------------------------
+    # Card 0: Live Telemetry & Perturbation Diff (Before vs After)
+    # -------------------------------------------------------------------------
+    def _build_card_telemetry_diff(self, parent):
+        card = self._create_card(parent, "Live Telemetry & Perturbation Diff", subtitle="Baseline (Before) ➔ Active Injection (After)")
+
+        diff_box = ctk.CTkFrame(card, fg_color="transparent")
+        diff_box.pack(fill="x", padx=12, pady=(2, 10))
+
+        # Header Row
+        hdr = ctk.CTkFrame(diff_box, fg_color=THEME["bg_box"], height=26, corner_radius=6)
+        hdr.pack(fill="x", pady=(0, 4))
+        hdr.pack_propagate(False)
+        ctk.CTkLabel(hdr, text="METRIC", width=100, anchor="w", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color=THEME["text_muted"]).pack(side="left", padx=(8, 0))
+        ctk.CTkLabel(hdr, text="BASELINE (BEFORE)", width=130, anchor="w", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color=THEME["text_muted"]).pack(side="left", padx=4)
+        ctk.CTkLabel(hdr, text="", width=20, font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color=THEME["text_muted"]).pack(side="left")
+        ctk.CTkLabel(hdr, text="ACTIVE INJECTION (AFTER)", width=175, anchor="w", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color=THEME["text_muted"]).pack(side="left", padx=4)
+        ctk.CTkLabel(hdr, text="IMPACT STATUS", width=125, anchor="e", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color=THEME["text_muted"]).pack(side="right", padx=(0, 8))
+
+        self.diff_rows = {}
+        metrics_def = [
+            ("cpu", "⚙️ CPU Load", "0% (Nominal)"),
+            ("battery", "🔋 Battery", "100% (Charging)"),
+            ("thermal", "🌡️ Thermal", "Nominal (30.0°C)"),
+            ("network", "📶 Network", "Normal (4G/5G, 0ms)"),
+            ("orientation", "🔄 Orientation", "Portrait (0°)")
+        ]
+
+        for key, name, base_val in metrics_def:
+            row = ctk.CTkFrame(diff_box, fg_color="transparent", height=24)
+            row.pack(fill="x", pady=1)
+            ctk.CTkLabel(row, text=name, width=100, anchor="w", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color=THEME["text_body"]).pack(side="left", padx=(8, 0))
+
+            lbl_before = ctk.CTkLabel(row, text=base_val, width=130, anchor="w", font=ctk.CTkFont(family="Segoe UI", size=9), text_color=THEME["text_muted"])
+            lbl_before.pack(side="left", padx=4)
+
+            ctk.CTkLabel(row, text="➔", width=20, font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color="#94a3b8").pack(side="left")
+
+            lbl_after = ctk.CTkLabel(row, text=base_val, width=175, anchor="w", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color=THEME["text_heading"])
+            lbl_after.pack(side="left", padx=4)
+
+            badge = ctk.CTkLabel(row, text="NOMINAL", width=125, font=ctk.CTkFont(family="Segoe UI", size=8, weight="bold"), fg_color=THEME["success_bg"], text_color=THEME["success"], corner_radius=4, padx=6, pady=1)
+            badge.pack(side="right", padx=(0, 8))
+
+            self.diff_rows[key] = {
+                "before": lbl_before,
+                "after": lbl_after,
+                "badge": badge
+            }
+
+    def _highlight_cpu_button(self, active_pct):
+        for pct, btn in self.cpu_buttons.items():
+            if pct == active_pct:
+                btn.configure(fg_color=THEME["primary"], text_color="#ffffff", border_color=THEME["primary"])
+            else:
+                btn.configure(fg_color=THEME["bg_box"], text_color=THEME["text_body"], border_color=THEME["border"])
+
+    def _highlight_thermal_button(self, active_state):
+        colors = {"Nominal": THEME["success"], "Fair": THEME["warning"], "Serious": "#ea580c", "Critical": THEME["danger"]}
+        for s, btn in self.thermal_buttons.items():
+            if s == active_state:
+                c = colors.get(s, THEME["primary"])
+                btn.configure(fg_color=c, text_color="#ffffff", border_color=c)
+            else:
+                btn.configure(fg_color=THEME["bg_box"], text_color=THEME["text_body"], border_color=THEME["border"])
+
+    def _highlight_bandwidth_button(self, active_key):
+        for k, btn in self.bandwidth_buttons.items():
+            if k == active_key:
+                c = THEME["danger"] if k == "offline" else THEME["primary"]
+                btn.configure(fg_color=c, text_color="#ffffff", border_color=c)
+            else:
+                btn.configure(fg_color=THEME["bg_box"], text_color=THEME["text_body"], border_color=THEME["border"])
+
+    def _highlight_latency_button(self, active_ms):
+        for ms, btn in self.latency_buttons.items():
+            if ms == active_ms:
+                btn.configure(fg_color=THEME["primary"], text_color="#ffffff", border_color=THEME["primary"])
+            else:
+                btn.configure(fg_color=THEME["bg_box"], text_color=THEME["text_body"], border_color=THEME["border"])
+
+    def _highlight_orientation_button(self, active_rot):
+        val = 1 if str(active_rot) in ("1", "landscape") else 0
+        for rot, btn in self.orientation_buttons.items():
+            if rot == val:
+                btn.configure(fg_color=THEME["primary"], text_color="#ffffff", border_color=THEME["primary"])
+            else:
+                btn.configure(fg_color=THEME["bg_box"], text_color=THEME["text_body"], border_color=THEME["border"])
+
+    def _update_telemetry_diff(self):
+        if not hasattr(self, "diff_rows"):
+            return
+
+        # 1. CPU
+        cpu = int(self._active_state.get("cpu", 0))
+        row_cpu = self.diff_rows.get("cpu")
+        if row_cpu:
+            if cpu == 0:
+                row_cpu["after"].configure(text="0% (Nominal)", text_color=THEME["text_body"])
+                row_cpu["badge"].configure(text="NOMINAL (0%)", fg_color=THEME["success_bg"], text_color=THEME["success"])
+            elif cpu < 70:
+                row_cpu["after"].configure(text=f"{cpu}% (Throttled)", text_color=THEME["warning"])
+                row_cpu["badge"].configure(text=f"MODERATE (+{cpu}%)", fg_color=THEME["warning_bg"], text_color=THEME["warning"])
+            else:
+                row_cpu["after"].configure(text=f"{cpu}% (Starvation)", text_color=THEME["danger"])
+                row_cpu["badge"].configure(text=f"HIGH STRESS (+{cpu}%)", fg_color=THEME["danger_light"], text_color=THEME["danger"])
+
+        # 2. Battery
+        bat = int(self._active_state.get("battery", 100))
+        is_charging = self._active_state.get("battery_charging", True)
+        row_bat = self.diff_rows.get("battery")
+        if row_bat:
+            if bat > 20 and is_charging:
+                row_bat["after"].configure(text=f"{bat}% (Charging)", text_color=THEME["text_body"])
+                row_bat["badge"].configure(text="NOMINAL", fg_color=THEME["success_bg"], text_color=THEME["success"])
+            elif bat > 20:
+                row_bat["after"].configure(text=f"{bat}% (Unplugged)", text_color=THEME["warning"])
+                row_bat["badge"].configure(text=f"DISCHARGING ({bat}%)", fg_color=THEME["warning_bg"], text_color=THEME["warning"])
+            elif bat > 5:
+                row_bat["after"].configure(text=f"{bat}% (Low Power)", text_color="#ea580c")
+                row_bat["badge"].configure(text=f"LOW POWER ({bat}%)", fg_color="#fff7ed", text_color="#ea580c")
+            else:
+                row_bat["after"].configure(text=f"{bat}% (CRITICAL DROP)", text_color=THEME["danger"])
+                row_bat["badge"].configure(text=f"CRITICAL (-{100-bat}%)", fg_color=THEME["danger_light"], text_color=THEME["danger"])
+
+        # 3. Thermal
+        th = self._active_state.get("thermal", "Nominal")
+        temp = self._active_state.get("thermal_temp", "30.0°C")
+        row_th = self.diff_rows.get("thermal")
+        if row_th:
+            if th == "Nominal":
+                row_th["after"].configure(text=f"Nominal ({temp})", text_color=THEME["text_body"])
+                row_th["badge"].configure(text="OPTIMAL", fg_color=THEME["success_bg"], text_color=THEME["success"])
+            elif th == "Fair":
+                row_th["after"].configure(text=f"Fair ({temp})", text_color=THEME["warning"])
+                row_th["badge"].configure(text="WARMING (+15°C)", fg_color=THEME["warning_bg"], text_color=THEME["warning"])
+            elif th == "Serious":
+                row_th["after"].configure(text=f"Serious ({temp})", text_color="#ea580c")
+                row_th["badge"].configure(text="THROTTLING (+25°C)", fg_color="#fff7ed", text_color="#ea580c")
+            else:
+                row_th["after"].configure(text=f"Critical ({temp})", text_color=THEME["danger"])
+                row_th["badge"].configure(text="OVERHEAT (55°C)", fg_color=THEME["danger_light"], text_color=THEME["danger"])
+
+        # 4. Network
+        net = self._active_state.get("bandwidth", "Normal (4G/5G)")
+        lat = int(self._active_state.get("latency_ms", 0))
+        loss = int(self._active_state.get("packet_loss", 0))
+        row_net = self.diff_rows.get("network")
+        if row_net:
+            if net == "offline":
+                row_net["after"].configure(text="Offline (Airplane Mode)", text_color=THEME["danger"])
+                row_net["badge"].configure(text="DISCONNECTED", fg_color=THEME["danger_light"], text_color=THEME["danger"])
+            elif lat == 0 and loss == 0 and net in ("lte", "Normal (4G/5G)", "normal"):
+                row_net["after"].configure(text="Normal 4G/5G (0 ms)", text_color=THEME["text_body"])
+                row_net["badge"].configure(text="UNTHROTTLED", fg_color=THEME["success_bg"], text_color=THEME["success"])
+            else:
+                extra = []
+                if lat > 0:
+                    extra.append(f"+{lat}ms")
+                if loss > 0:
+                    extra.append(f"{loss}% drop")
+                prof_tag = {"3g": "3G HSPA", "edge": "2G Edge"}.get(net, str(net))
+                detail = f"{prof_tag} ({', '.join(extra)})" if extra else prof_tag
+                row_net["after"].configure(text=detail, text_color="#ea580c")
+                row_net["badge"].configure(text="DEGRADED LINK", fg_color="#fff7ed", text_color="#ea580c")
+
+        # 5. Orientation
+        orient = self._active_state.get("orientation", "Portrait (0°)")
+        row_o = self.diff_rows.get("orientation")
+        if row_o:
+            if "Portrait" in str(orient) or str(orient) in ("0", "portrait"):
+                row_o["after"].configure(text="Portrait (0°)", text_color=THEME["text_body"])
+                row_o["badge"].configure(text="STANDARD", fg_color=THEME["success_bg"], text_color=THEME["success"])
+            else:
+                row_o["after"].configure(text="Landscape (90°)", text_color=THEME["primary"])
+                row_o["badge"].configure(text="REORIENTED (90°)", fg_color=THEME["primary_light"], text_color=THEME["primary"])
+
+    # -------------------------------------------------------------------------
     # Card 1: Hardware & Power
     # -------------------------------------------------------------------------
     def _build_card_hardware(self, parent):
@@ -952,20 +1166,23 @@ class HeartSimpleApp(ctk.CTk):
         quick_cpu = ctk.CTkFrame(card, fg_color="transparent")
         quick_cpu.pack(fill="x", padx=14, pady=(0, 10))
         for pct in [0, 50, 75, 95]:
-            ctk.CTkButton(
+            is_active = (pct == 0)
+            btn = ctk.CTkButton(
                 quick_cpu,
                 text=f"{pct}% CPU" if pct > 0 else "Nominal (0%)",
                 height=24,
                 width=72,
-                fg_color=THEME["bg_box"],
+                fg_color=THEME["primary"] if is_active else THEME["bg_box"],
                 hover_color=THEME["primary_light"],
-                text_color=THEME["text_body"],
+                text_color="#ffffff" if is_active else THEME["text_body"],
                 border_width=1,
-                border_color=THEME["border"],
+                border_color=THEME["primary"] if is_active else THEME["border"],
                 corner_radius=6,
                 font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
                 command=lambda p=pct: self._set_cpu(p)
-            ).pack(side="left", padx=2)
+            )
+            btn.pack(side="left", padx=2)
+            self.cpu_buttons[pct] = btn
 
         # Battery Level & Unplug
         r2 = ctk.CTkFrame(card, fg_color="transparent")
@@ -990,20 +1207,23 @@ class HeartSimpleApp(ctk.CTk):
         r3.pack(fill="x", padx=14, pady=(4, 8))
         ctk.CTkLabel(r3, text="Thermal State:", font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"), text_color=THEME["text_body"]).pack(side="left", padx=(0, 8))
         for state in ["Nominal", "Fair", "Serious", "Critical"]:
-            ctk.CTkButton(
+            is_active = (state == "Nominal")
+            btn = ctk.CTkButton(
                 r3,
                 text=state,
                 height=24,
                 width=72,
-                fg_color=THEME["bg_box"],
+                fg_color=THEME["success"] if is_active else THEME["bg_box"],
                 hover_color=THEME["primary_light"],
-                text_color=THEME["text_body"],
+                text_color="#ffffff" if is_active else THEME["text_body"],
                 border_width=1,
-                border_color=THEME["border"],
+                border_color=THEME["success"] if is_active else THEME["border"],
                 corner_radius=6,
                 font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
                 command=lambda s=state: self._set_thermal(s)
-            ).pack(side="left", padx=2)
+            )
+            btn.pack(side="left", padx=2)
+            self.thermal_buttons[state] = btn
 
     # -------------------------------------------------------------------------
     # Card 2: Network & Latency
@@ -1017,19 +1237,22 @@ class HeartSimpleApp(ctk.CTk):
         ctk.CTkLabel(r_profiles, text="Bandwidth:", font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"), text_color=THEME["text_body"]).pack(side="left", padx=(0, 6))
 
         for prof_name, key in [("Normal (4G/5G)", "lte"), ("3G HSPA", "3g"), ("Edge (2G)", "edge"), ("Offline Mode", "offline")]:
-            ctk.CTkButton(
+            is_active = (key == "lte")
+            btn = ctk.CTkButton(
                 r_profiles,
                 text=prof_name,
                 height=24,
-                fg_color=THEME["bg_box"],
+                fg_color=THEME["primary"] if is_active else THEME["bg_box"],
                 hover_color=THEME["primary_light"],
-                text_color=THEME["text_body"],
+                text_color="#ffffff" if is_active else THEME["text_body"],
                 border_width=1,
-                border_color=THEME["border"],
+                border_color=THEME["primary"] if is_active else THEME["border"],
                 corner_radius=6,
                 font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
                 command=lambda k=key: self._set_network_profile(k)
-            ).pack(side="left", padx=2)
+            )
+            btn.pack(side="left", padx=2)
+            self.bandwidth_buttons[key] = btn
 
         # Latency Injection
         r_lat = ctk.CTkFrame(card, fg_color="transparent")
@@ -1046,7 +1269,7 @@ class HeartSimpleApp(ctk.CTk):
         quick_lat.pack(fill="x", padx=14, pady=(0, 10))
         ctk.CTkButton(quick_lat, text="Apply Latency", width=95, height=24, font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), corner_radius=6, fg_color=THEME["primary"], hover_color=THEME["primary_hover"], command=self._apply_latency).pack(side="left", padx=2)
         for ms in [250, 800, 1500, 3000]:
-            ctk.CTkButton(
+            btn = ctk.CTkButton(
                 quick_lat,
                 text=f"+{ms}ms",
                 height=24,
@@ -1059,7 +1282,9 @@ class HeartSimpleApp(ctk.CTk):
                 corner_radius=6,
                 font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
                 command=lambda m=ms: self._set_latency_val(m)
-            ).pack(side="left", padx=2)
+            )
+            btn.pack(side="left", padx=2)
+            self.latency_buttons[ms] = btn
 
         # Packet Loss
         r_loss = ctk.CTkFrame(card, fg_color="transparent")
@@ -1150,8 +1375,24 @@ class HeartSimpleApp(ctk.CTk):
         r.pack(fill="x", padx=14, pady=(6, 10))
 
         ctk.CTkLabel(r, text="Orientation:", font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"), text_color=THEME["text_body"]).pack(side="left", padx=(0, 6))
-        ctk.CTkButton(r, text="Portrait (0°)", width=95, height=24, font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), corner_radius=6, fg_color=THEME["bg_box"], text_color=THEME["text_body"], border_width=1, border_color=THEME["border"], hover_color=THEME["border"], command=lambda: self._set_rotation(0)).pack(side="left", padx=2)
-        ctk.CTkButton(r, text="Landscape (90°)", width=105, height=24, font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), corner_radius=6, fg_color=THEME["bg_box"], text_color=THEME["text_body"], border_width=1, border_color=THEME["border"], hover_color=THEME["border"], command=lambda: self._set_rotation(1)).pack(side="left", padx=2)
+        for rot_val, rot_lbl in [(0, "Portrait (0°)"), (1, "Landscape (90°)")]:
+            is_active = (rot_val == 0)
+            btn = ctk.CTkButton(
+                r,
+                text=rot_lbl,
+                width=105,
+                height=24,
+                font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+                corner_radius=6,
+                fg_color=THEME["primary"] if is_active else THEME["bg_box"],
+                text_color="#ffffff" if is_active else THEME["text_body"],
+                border_width=1,
+                border_color=THEME["primary"] if is_active else THEME["border"],
+                hover_color=THEME["primary_light"],
+                command=lambda rv=rot_val: self._set_rotation(rv)
+            )
+            btn.pack(side="left", padx=2)
+            self.orientation_buttons[rot_val] = btn
 
         self.dark_mode_switch = ctk.CTkSwitch(r, text="Dark Mode", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), progress_color=THEME["primary"], command=self._on_dark_mode_switch)
         self.dark_mode_switch.pack(side="right", padx=6)
@@ -4693,11 +4934,18 @@ class HeartSimpleApp(ctk.CTk):
     # ENVIRONMENTAL STRESSOR ACTIONS
     # =========================================================================
     def _on_cpu_slider(self, val):
-        self.cpu_val_lbl.configure(text=f"{int(val)}%")
+        pct = int(val)
+        self.cpu_val_lbl.configure(text=f"{pct}%")
+        self._active_state["cpu"] = pct
+        self._highlight_cpu_button(pct)
+        self._update_telemetry_diff()
 
     def _set_cpu(self, val):
         self.cpu_slider.set(val)
         self.cpu_val_lbl.configure(text=f"{val}%")
+        self._active_state["cpu"] = val
+        self._highlight_cpu_button(val)
+        self._update_telemetry_diff()
         self._apply_cpu(val)
 
     def _apply_cpu(self, val=None):
@@ -4711,6 +4959,9 @@ class HeartSimpleApp(ctk.CTk):
     def _set_battery(self, level, unplugged=True):
         self.bat_slider.set(level)
         self.bat_val_lbl.configure(text=f"{level}%")
+        self._active_state["battery"] = level
+        self._active_state["battery_charging"] = not unplugged
+        self._update_telemetry_diff()
         dev_id = getattr(self.adb, "device_id", None)
         tag = "AVD" if (dev_id and dev_id.startswith("emulator-")) else "USB"
         self.dev_battery_lbl.configure(text=f"🔋 {level}% (Unplugged) • {tag}")
@@ -4724,6 +4975,9 @@ class HeartSimpleApp(ctk.CTk):
     def _reset_battery(self):
         self.bat_slider.set(100)
         self.bat_val_lbl.configure(text="100%")
+        self._active_state["battery"] = 100
+        self._active_state["battery_charging"] = True
+        self._update_telemetry_diff()
         dev_id = getattr(self.adb, "device_id", None)
         tag = "AVD" if (dev_id and dev_id.startswith("emulator-")) else "USB"
         self.dev_battery_lbl.configure(text=f"🔋 100% (Charging) • {tag}")
@@ -4731,15 +4985,22 @@ class HeartSimpleApp(ctk.CTk):
                                  lambda: self._append_log("[STRESSOR] Battery state reset to nominal baseline"))
 
     def _set_thermal(self, state):
+        self._active_state["thermal"] = state
+        temp_c = {"Nominal": "32.0°C", "Fair": "45.0°C", "Serious": "55.0°C", "Critical": "55.0°C"}.get(state, "38.0°C")
+        self._active_state["thermal_temp"] = temp_c
+        self._highlight_thermal_button(state)
+        self._update_telemetry_diff()
         dev_id = getattr(self.adb, "device_id", None)
         tag = "AVD" if (dev_id and dev_id.startswith("emulator-")) else "USB"
-        temp_c = {"Nominal": "32.0°C", "Fair": "45.0°C", "Serious": "55.0°C", "Critical": "55.0°C"}.get(state, "38.0°C")
         bat = int(self.bat_slider.get())
         self.dev_battery_lbl.configure(text=f"🔋 {bat}% • 🌡️ {temp_c} [{state}] • {tag}")
         self._run_async_stressor("STRESSOR", lambda: self.orchestrator.system.set_thermal_state(state),
                                  lambda: self._append_log(f"[STRESSOR] Thermal profile applied: {state}"))
 
     def _set_network_profile(self, key):
+        self._active_state["bandwidth"] = key
+        self._highlight_bandwidth_button(key)
+        self._update_telemetry_diff()
         if key == "offline":
             fn = lambda: self.orchestrator.network.set_mode("offline")
             label = "Offline Mode (Airplane Mode Enabled, WiFi & Data Off)"
@@ -4759,23 +5020,38 @@ class HeartSimpleApp(ctk.CTk):
                                  lambda: self._append_log(f"[STRESSOR] Network bandwidth set to: '{label}'"))
 
     def _on_lat_slider(self, val):
-        self.lat_val_lbl.configure(text=f"{int(val)} ms")
+        ms = int(val)
+        self.lat_val_lbl.configure(text=f"{ms} ms")
+        self._active_state["latency_ms"] = ms
+        self._highlight_latency_button(ms)
+        self._update_telemetry_diff()
 
     def _set_latency_val(self, ms):
         self.lat_slider.set(ms)
         self.lat_val_lbl.configure(text=f"{ms} ms")
+        self._active_state["latency_ms"] = ms
+        self._highlight_latency_button(ms)
+        self._update_telemetry_diff()
         self._apply_latency()
 
     def _apply_latency(self):
         ms = int(self.lat_slider.get())
+        self._active_state["latency_ms"] = ms
+        self._highlight_latency_button(ms)
+        self._update_telemetry_diff()
         self._run_async_stressor("STRESSOR", lambda: self.orchestrator.network.inject_latency(ms),
                                  lambda: self._append_log(f"[STRESSOR] Network RTT latency injected: {ms}ms"))
 
     def _on_loss_slider(self, val):
-        self.loss_val_lbl.configure(text=f"{int(val)}%")
+        pct = int(val)
+        self.loss_val_lbl.configure(text=f"{pct}%")
+        self._active_state["packet_loss"] = pct
+        self._update_telemetry_diff()
 
     def _apply_loss(self):
         pct = int(self.loss_slider.get())
+        self._active_state["packet_loss"] = pct
+        self._update_telemetry_diff()
         self._run_async_stressor("STRESSOR", lambda: self.orchestrator.network.inject_packet_loss(pct),
                                  lambda: self._append_log(f"[STRESSOR] Packet loss rate injected: {pct}%"))
 
@@ -4784,6 +5060,12 @@ class HeartSimpleApp(ctk.CTk):
         self.lat_val_lbl.configure(text="0 ms")
         self.loss_slider.set(0)
         self.loss_val_lbl.configure(text="0%")
+        self._active_state["latency_ms"] = 0
+        self._active_state["packet_loss"] = 0
+        self._active_state["bandwidth"] = "lte"
+        self._highlight_bandwidth_button("lte")
+        self._highlight_latency_button(0)
+        self._update_telemetry_diff()
         self._run_async_stressor("STRESSOR", lambda: self.orchestrator.network.revert(),
                                  lambda: self._append_log("[STRESSOR] Network reset to nominal baseline (Full Speed, 0ms delay, 0% drop)"))
 
@@ -4817,7 +5099,10 @@ class HeartSimpleApp(ctk.CTk):
                                  lambda: self._append_log(f"[INTERRUPTION] SMS notification banner posted: '{msg}'"))
 
     def _set_rotation(self, rot):
-        lbl = 'Portrait (0°)' if rot == 0 else 'Landscape (90°)'
+        lbl = 'Portrait (0°)' if str(rot) in ('0', 'portrait') else 'Landscape (90°)'
+        self._active_state["orientation"] = lbl
+        self._highlight_orientation_button(rot)
+        self._update_telemetry_diff()
         self._run_async_stressor("CONTEXT", lambda: self.orchestrator.context.set_orientation(rot),
                                  lambda: self._append_log(f"[CONTEXT] Display orientation set: {lbl}"))
 
@@ -4897,6 +5182,13 @@ class HeartSimpleApp(ctk.CTk):
         self.lat_val_lbl.configure(text="0 ms")
         self.loss_slider.set(0)
         self.loss_val_lbl.configure(text="0%")
+        self._active_state = dict(self._baseline_state)
+        self._highlight_cpu_button(0)
+        self._highlight_thermal_button("Nominal")
+        self._highlight_bandwidth_button("lte")
+        self._highlight_latency_button(0)
+        self._highlight_orientation_button(0)
+        self._update_telemetry_diff()
         if hasattr(self, "env_profile_selector"):
             nominal_key = "🔄 Nominal Baseline (Clean Reset)"
             if nominal_key in self.ENV_PROFILES:
