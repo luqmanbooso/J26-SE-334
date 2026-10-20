@@ -18,7 +18,7 @@ from c4.healing.engine import HealingEngine
 from c4.healing.models import HealingConfig
 from c4.healing.semantic import Embedder, LexicalEmbedder, SentenceBertEmbedder
 from c4.ingestion import TelemetryIngestionService
-from c4.journeys.export import journey_to_document, load_journeys, write_journeys
+from c4.journeys.export import journey_to_document, load_hint_rules, load_journeys, write_journeys
 from c4.schemas import EventSource, FailureJourney
 from c4.sessionization import SessionizationService
 from c4.synthesis.qwen_client import OllamaQwenClient
@@ -139,7 +139,7 @@ class C4DemoController:
         try:
             events = TelemetryIngestionService().parse_file(telemetry_path, EventSource(source))
             journeys = SessionizationService().process(events)
-            write_journeys(journeys, out_dir)
+            write_journeys(journeys, out_dir, load_hint_rules())
             self.journeys = {journey.journey_id: journey for journey in journeys}
             return [self._journey_view(journey) for journey in journeys]
         except Exception as error:
@@ -162,10 +162,10 @@ class C4DemoController:
             target = Path(out_path)
             if target.suffix.lower() == ".json":
                 target.parent.mkdir(parents=True, exist_ok=True)
-                document = journey_to_document(journey)
+                document = journey_to_document(journey, load_hint_rules())
                 target.write_text(json.dumps(document.model_dump(mode="json"), indent=2) + "\n", encoding="utf-8")
                 return str(target)
-            written = write_journeys([journey], target)
+            written = write_journeys([journey], target, load_hint_rules())
             return str(next(written.glob("*.json")))
         except Exception as error:
             return f"ERROR: {error}"
@@ -256,7 +256,7 @@ class C4DemoController:
         return JourneyView(
             journey.journey_id, journey.metadata.get("failing_screen") or journey.failure.screen,
             len(journey.events), bool(journey.metadata.get("reproducible")),
-            [hint.reason for hint in journey_to_document(journey).seed.perturbation_hints],
+            [hint.reason for hint in journey_to_document(journey, load_hint_rules()).seed.perturbation_hints],
         )
 
     def _embedder(self, value: Embedder | str | None) -> Embedder:

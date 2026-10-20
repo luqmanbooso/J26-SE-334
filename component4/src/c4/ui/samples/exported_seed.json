@@ -1,0 +1,50 @@
+{
+  "schema_version": "c4.journey/1",
+  "journey_id": "auto-sentry-c4-demo-1-0:c4-demo-1:error",
+  "session_id": "auto-sentry-c4-demo-1-0",
+  "source": "sentry",
+  "app_version": "1.0",
+  "failing_screen": null,
+  "exception_type": "IllegalStateException",
+  "reproducible": true,
+  "not_reproducible_reason": null,
+  "truncated": false,
+  "action_count": 1,
+  "steps": [
+    {
+      "index": 0,
+      "action": "tap",
+      "name": "ui.click",
+      "screen": null,
+      "locator": {
+        "text": "Network and internet"
+      },
+      "value": null,
+      "event_id": "c4-demo-1:breadcrumb:0",
+      "timestamp": "2026-10-18T10:00:01Z"
+    }
+  ],
+  "failure": {
+    "name": "IllegalStateException",
+    "type": "IllegalStateException",
+    "message": "crash after opening network settings",
+    "timestamp": "2026-10-18T10:00:05Z"
+  },
+  "seed": {
+    "targets": [
+      {
+        "index": 0,
+        "action": "tap",
+        "label": "Network and internet",
+        "locator": {
+          "text": "Network and internet"
+        },
+        "screen": null
+      }
+    ],
+    "failing_step_index": 0,
+    "failing_screen": null,
+    "exception_type": "IllegalStateException",
+    "perturbation_hints": []
+  }
+}
