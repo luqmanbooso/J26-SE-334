@@ -26,6 +26,8 @@ class ContextStressor(BaseStressor):
         """Modes: 'portrait' (0), 'landscape' (1), 'reverse_landscape' (3)."""
         rot_val = "1" if mode == "landscape" else ("3" if mode == "reverse_landscape" else "0")
         self.current_state["orientation"] = mode
+        # Grant shell permission to mutate system settings on physical hardware
+        self.adb.run_shell("appops set com.android.shell WRITE_SETTINGS allow")
         self.adb.run_shell("settings put system accelerometer_rotation 0")
         self.adb.run_shell(f"settings put system user_rotation {rot_val}")
         self.logger.record("CONTEXT_ORIENTATION", "ORIENTATION_CHANGED", {"mode": mode, "rotation_val": rot_val})
@@ -51,6 +53,7 @@ class ContextStressor(BaseStressor):
 
     def revert(self) -> bool:
         """Restores context settings back to standard system defaults."""
+        self.adb.run_shell("appops set com.android.shell WRITE_SETTINGS allow")
         self.adb.run_shell("settings put system user_rotation 0")
         self.adb.run_shell("settings put system accelerometer_rotation 1")
         self.adb.run_shell("cmd uimode night no")
