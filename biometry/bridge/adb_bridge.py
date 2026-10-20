@@ -89,6 +89,15 @@ class ADBBridge:
         """
         self.device.run("shell", "input", "keyevent", "KEYCODE_BACK")
 
+    def set_text(self, x, y, text):
+        """Tap a text field and type into it — used by the explorer's optional
+        form-filling so a login/sign-up screen that only needs its boxes
+        non-empty can be passed. `input text` treats spaces specially, so they
+        are sent as %s.
+        """
+        self.device.run("shell", "input", "tap", str(int(x)), str(int(y)))
+        self.device.run("shell", "input", "text", str(text).replace(" ", "%s"))
+
     def launch_package(self, package):
         """Cold-launch an app: force-stop it, then start it via the launcher
         intent (`monkey` needs only the package, no activity name).

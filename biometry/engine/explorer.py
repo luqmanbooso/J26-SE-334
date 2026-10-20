@@ -54,7 +54,8 @@ Documented limits (by design):
 import time
 from dataclasses import dataclass, field
 
-from bridge.hierarchy import parse_hierarchy, structural_signature, tappable_targets
+from bridge.hierarchy import (parse_hierarchy, placeholder_for, structural_signature,
+                              tappable_targets, text_fields)
 
 
 class _LostPlace(Exception):
@@ -94,6 +95,8 @@ class ExplorationResult:
     first_target: dict = None
     log_lines: list = field(default_factory=list)
     screens: list = field(default_factory=list)   # structured screen graph
+    plan: list = field(default_factory=list)       # ordered device-action stream (for replay)
+    fingerprints: dict = field(default_factory=dict)  # frame sig -> screen fingerprint
 
     def to_dict(self):
         return {
@@ -151,8 +154,10 @@ class AppExplorer:
                  current_package=None,
                  app_package=None, relaunch=None, max_actions=None, max_depth=None,
                  max_relaunches=5, settle_s=0.4, sleep=time.sleep, reporter=None,
-                 min_side=20.0, max_side=900.0, ready_tries=12, ready_interval=1.0,
-                 stable_tries=3, stable_interval=0.4):
+                 min_side=20.0, max_frac=0.95, ready_tries=12, ready_interval=1.0,
+                 stable_tries=3, stable_interval=0.4, dump_retries=3,
+                 type_text=None, fill_forms=False,
+                 confirm_stay=False, stay_grace_s=None, fingerprint=None):
         # max_actions / max_depth default to None = unlimited: the walk runs
         # until the reachable app is exhausted. Termination holds on a finite
         # app regardless — each (screen, target) is tapped once and exhausted
@@ -172,11 +177,25 @@ class AppExplorer:
         self.sleep = sleep
         self.reporter = reporter
         self.min_side = min_side
-        self.max_side = max_side
+        self.max_frac = max_frac
+        self.type_text = type_text          # callable(x, y, text) or None
+        self.fill_forms = fill_forms
+        self._filled = set()                # frames whose text fields we filled
+        # A slow / async screen (e.g. a Jetpack Compose app that renders content
+        # seconds after the tap) can still be showing the *old* screen when the
+        # post-tap dump samples, so a real navigation reads as a no-op "stay".
+        # That branch is then pruned and the app looks "exhausted" after only a
+        # few taps (the Business/Learn tabs get dropped). With confirm_stay on,
+        # an apparent stay is re-sampled after `stay_grace_s` before it is
+        # trusted. The grace scales with settle_s (the user's slowness hint).
+        self.confirm_stay = confirm_stay
+        self.stay_grace_s = (stay_grace_s if stay_grace_s is not None
+                             else max(1.0, 2.0 * settle_s))
         self.ready_tries = ready_tries
         self.ready_interval = ready_interval
         self.stable_tries = stable_tries
         self.stable_interval = stable_interval
+        self.dump_retries = dump_retries
 
         self._canon = {}              # base signature -> canonical frame id (swap merging)
         self.visited = set()          # frame ids entered at least once
@@ -194,6 +213,36 @@ class AppExplorer:
         self._log = []
         self._screen_no = {}          # frame -> small integer id, discovery order
         self._screens = {}            # frame -> structured record for the graph
+
+        # Compiled-path capture (for fast replay later). `fingerprint()` returns
+        # a cheap screen fingerprint (see engine/fingerprint.py); it is sampled
+        # once per screen so replay can verify it is on the right screen without
+        # a full dump. `_plan` is the ordered device-action stream.
+        self.fingerprint = fingerprint
+        self._plan = []               # ordered actions: tap / back / relaunch / settext
+        self._fingerprints = {}       # frame -> fingerprint string
+
+    def _record(self, kind, **data):
+        """Append one device action to the compiled plan (order == execution)."""
+        step = {"n": len(self._plan), "kind": kind}
+        step.update(data)
+        self._plan.append(step)
+
+    def _fp_now(self):
+        """Fingerprint the current screen (safe: None if unavailable)."""
+        if self.fingerprint is None:
+            return None
+        try:
+            return self.fingerprint() or None
+        except Exception:
+            return None
+
+    def _snap_fingerprint(self, frame):
+        if self.fingerprint is None or frame in self._fingerprints:
+            return
+        fp = self._fp_now()
+        if fp:
+            self._fingerprints[frame] = fp
 
     # --- naming / logging ---------------------------------------------------
 
@@ -235,7 +284,28 @@ class AppExplorer:
         return bool(package) and package != self.app_package
 
     def _targets(self, root):
-        return tappable_targets(parse_hierarchy(root), self.min_side, self.max_side)
+        return tappable_targets(parse_hierarchy(root), self.min_side, self.max_frac)
+
+    def _fill_forms(self, root, frame):
+        """Type a placeholder into every text field on this screen once. Marks
+        the frame filled so it is not retyped, and returns a fresh dump if it
+        typed anything, else None (so the caller just proceeds to tap)."""
+        self._filled.add(frame)
+        if not (self.fill_forms and self.type_text):
+            return None
+        fields = text_fields(parse_hierarchy(root), self.min_side)
+        if not fields:
+            return None
+        for f in fields:
+            self.type_text(f.x, f.y, placeholder_for(f))
+            self._record("settext", x=f.x, y=f.y, text=placeholder_for(f))
+            self.sleep(0.2)
+        self.press_back()          # drop the soft keyboard so the submit stays hittable
+        self._record("back", note="drop-keyboard")
+        self.sleep(self.settle_s)
+        self._line(0, "filled {} text field(s) on {}".format(
+            len(fields), self._name(frame)))
+        return self._stable_dump()
 
     def _identity(self, root):
         """The screen a dump belongs to. Starts from the base signature (which
@@ -283,6 +353,7 @@ class AppExplorer:
         when the repair itself is impossible, leaving the walk's relaunch logic
         to handle the genuinely-lost case."""
         self.press_back()
+        self._record("back")
         self.sleep(self.settle_s)
         if not self._left_the_app():
             root = self._stable_dump()
@@ -313,17 +384,33 @@ class AppExplorer:
         self._line(0, "- Back missed {}; relaunch+replay to it [{}/{}]".format(
             self._name(frame), self.relaunches, self.max_relaunches))
         self.relaunch()
+        self._record("relaunch")
         root = self._replay(list(self.paths[frame]), start=self._await_ready())
         if root is None or self._identity(root) != frame:
             raise _LostPlace("replay to {} failed".format(self._name(frame)))
         return root
+
+    def _dump_once(self):
+        """One dump, tolerant of a transient bad read. Right after a (re)launch
+        the device can briefly return an empty or malformed hierarchy — the adb
+        layer raises then ("no <hierarchy> element"). Retry a few times before
+        turning it into a `_LostPlace`, which the walk recovers from by relaunch
+        rather than crashing the whole run."""
+        last = None
+        for attempt in range(max(1, self.dump_retries)):
+            try:
+                return self.dump()
+            except Exception as exc:          # transient adb / XML-parse failure
+                last = exc
+                self.sleep(self.stable_interval)
+        raise _LostPlace("dump failed ({})".format(last))
 
     def _await_ready(self):
         """After a (cold) launch, the app shows a splash and then loads its first
         screen progressively. Poll until the screen has tappable targets *and*
         has stopped changing (two equal signatures in a row), so the walk reads a
         fully-loaded screen, not a splash or a half-rendered one."""
-        root = self.dump()
+        root = self._dump_once()
         prev = None
         for _ in range(self.ready_tries):
             sig = self.base_signature(root)
@@ -331,7 +418,7 @@ class AppExplorer:
                 return root
             prev = sig
             self.sleep(self.ready_interval)
-            root = self.dump()
+            root = self._dump_once()
         return root
 
     def _stable_dump(self):
@@ -339,11 +426,11 @@ class AppExplorer:
         loading or an animation can otherwise give the same screen a different
         signature depending on how far it had rendered, which splits one screen
         into several and breaks the cache. Returns the first settled dump."""
-        root = self.dump()
+        root = self._dump_once()
         prev = self.base_signature(root)
         for _ in range(self.stable_tries):
             self.sleep(self.stable_interval)
-            nxt = self.dump()
+            nxt = self._dump_once()
             sig = self.base_signature(nxt)
             if sig == prev:
                 return nxt
@@ -360,11 +447,10 @@ class AppExplorer:
         return self._result(reason)
 
     def _walk(self):
-        reason = "completed"
-        root = self._await_ready()
         while True:
             try:
-                self._explore(root, 0, [])
+                root = self._await_ready()   # inside the try: a failed first/
+                self._explore(root, 0, [])   # post-relaunch dump recovers, not crash
                 return "exhausted the reachable app"
             except _BudgetSpent:
                 return "action budget ({}) reached".format(self.max_actions)
@@ -384,14 +470,16 @@ class AppExplorer:
                 self._line(0, "- {}; relaunching app [{}/{}]".format(
                     lost.reason, self.relaunches, self.max_relaunches))
                 self.relaunch()
+                self._record("relaunch")
                 self._stack = []
-                root = self._await_ready()   # poll past the cold-start splash
+                # loop: _await_ready() runs again at the top of the try
 
     def _explore(self, root, depth, path):
         frame = self._identity(root)
         if frame in self.exhausted:
             return                       # already fully done; caller backs out
         self.visited.add(frame)
+        self._snap_fingerprint(frame)
         self.tried.setdefault(frame, set())
         self.seen.setdefault(frame, set())
         self.paths.setdefault(frame, list(path))   # first known route from root
@@ -407,6 +495,15 @@ class AppExplorer:
                 if self.first_target is None and targets:
                     self.first_target = targets[0].as_target()
 
+                # Optionally fill any text fields once before tapping, so a
+                # login/sign-up screen whose submit only needs non-empty boxes
+                # can be passed instead of looping (the DFS otherwise only taps).
+                if self.fill_forms and frame not in self._filled:
+                    filled = self._fill_forms(root, frame)
+                    if filled is not None:
+                        root = filled
+                        continue
+
                 nxt = next((e for e in targets
                             if _element_key(e) not in self.tried[frame]), None)
                 if nxt is None:
@@ -418,6 +515,12 @@ class AppExplorer:
 
                 key = _element_key(nxt)
                 self.tried[frame].add(key)
+                # Fingerprint the screen *as it looks right now*, before the tap.
+                # A per-step fingerprint (not just one per screen) lets replay
+                # verify tab/chip-swap states that share a structural signature.
+                self._record("tap", screen_sig=frame,
+                             label=(nxt.element_id or nxt.resource_id or "?")[:60],
+                             target=nxt.as_target(), fp=self._fp_now())
                 record = self.controller.act(nxt.as_target())
                 self.actions_used += 1
                 index = self.actions_used - 1
@@ -427,6 +530,19 @@ class AppExplorer:
                 new_root = self._stable_dump()
                 new_base = self.base_signature(new_root)
                 new_frame = self._canon.get(new_base, new_base)
+
+                # An apparent no-op may be a slow navigation that had not begun
+                # rendering when we sampled. Give it one more grace + stable dump
+                # before trusting the "stay" — this is what stops a slow Compose
+                # app's tab/section taps from being silently dropped (and the app
+                # wrongly declared exhausted after a handful of taps).
+                if new_frame == frame and self.confirm_stay:
+                    self.sleep(self.stay_grace_s)
+                    retry_root = self._stable_dump()
+                    retry_base = self.base_signature(retry_root)
+                    retry_frame = self._canon.get(retry_base, retry_base)
+                    if retry_frame != frame:
+                        new_root, new_base, new_frame = retry_root, retry_base, retry_frame
 
                 if new_frame == frame:          # no-op, or a swap state already merged
                     self._emit(depth, index, label, "stay", record)
@@ -445,6 +561,10 @@ class AppExplorer:
                     continue
 
                 if self._left_the_app():        # a tap opened another app
+                    # Mark this tap in the plan so replay can skip it (never
+                    # re-open the share/dialer/chooser it triggered).
+                    if self._plan:
+                        self._plan[-1]["exits_app"] = True
                     self._emit(depth, index, label, "left-app", record)
                     screen["edges"].append({"via": label, "to": "left-app"})
                     raise _LostPlace("a tap opened another app")
@@ -498,7 +618,7 @@ class AppExplorer:
     def _replay(self, path, start=None):
         """Relaunch leaves us at the root; re-tap `path`'s keys to reach a screen
         again. Returns the root we land on, or None if a key is no longer there."""
-        root = start if start is not None else self.dump()
+        root = start if start is not None else self._dump_once()
         for key in path:
             if not self._budget_left():
                 return None
@@ -506,6 +626,8 @@ class AppExplorer:
                             if _element_key(e) == key), None)
             if element is None:
                 return None
+            self._record("tap", label=(element.element_id or "?")[:60],
+                         target=element.as_target(), fp=self._fp_now())
             self.controller.act(element.as_target())
             self.actions_used += 1
             self.sleep(self.settle_s)
@@ -536,6 +658,7 @@ class AppExplorer:
                 self._name(frame), untried))
             self.relaunches += 1
             self.relaunch()
+            self._record("relaunch")
             self._stack = []
             root = self._replay(list(self.paths[frame]), start=self._await_ready())
             if root is None or self._identity(root) != frame:
@@ -574,4 +697,6 @@ class AppExplorer:
             first_target=self.first_target,
             log_lines=self._log,
             screens=screens,
+            plan=self._plan,
+            fingerprints=self._fingerprints,
         )

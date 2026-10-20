@@ -35,6 +35,7 @@ class UiElement:
     text: str
     resource_id: str
     clickable: bool
+    editable: bool = False
 
     @property
     def area(self):
@@ -53,6 +54,7 @@ def _element(node):
     desc = (node.get("content-desc") or "").strip()
     resource_id = node.get("resource-id") or ""
     label = text or desc or resource_id.rsplit("/", 1)[-1] or "unnamed"
+    cls = node.get("class") or ""
     return UiElement(
         element_id=label,
         x=x1 + width / 2.0,
@@ -62,6 +64,7 @@ def _element(node):
         text=text,
         resource_id=resource_id,
         clickable=node.get("clickable") == "true",
+        editable="EditText" in cls or node.get("editable") == "true",
     )
 
 
@@ -156,16 +159,52 @@ def parse_hierarchy(source):
     return out
 
 
-def tappable_targets(elements, min_side=20.0, max_side=900.0):
+def tappable_targets(elements, min_side=20.0, max_frac=0.95, max_area_frac=0.45):
     """Clickable elements of a plausible size to aim at.
 
-    Containers spanning most of the screen are clickable but are not what a user
-    aims at, and zero-area nodes cannot be hit at all.
+    A node must be clickable and at least `min_side` px on its shorter side —
+    zero-area / sliver nodes cannot be hit. Clickable *containers* are excluded
+    two ways: a node spanning at least `max_frac` of the screen in BOTH axes
+    (a full-screen backdrop), and a node whose area is at least `max_area_frac`
+    of the screen (a large panel such as a dialpad, full-width and roughly
+    half-height). A full-width button is large on one axis only (e.g. 956x135 on
+    a 1080px screen) with a small area, so it is kept — the earlier
+    `max(w, h) <= 900` cap wrongly dropped such buttons. The screen extent is
+    taken from the dump itself (the bounding box of all elements), so no device
+    size need be threaded in.
     """
+    if not elements:
+        return []
+    screen_w = max(e.x + e.width / 2.0 for e in elements)
+    screen_h = max(e.y + e.height / 2.0 for e in elements)
+    screen_area = screen_w * screen_h
     return [e for e in elements
             if e.clickable
+            and not e.editable          # text inputs are filled, not tapped-to-navigate
             and min_side <= min(e.width, e.height)
-            and max(e.width, e.height) <= max_side]
+            and not (e.width >= max_frac * screen_w
+                     and e.height >= max_frac * screen_h)
+            and e.area < max_area_frac * screen_area]
+
+
+def text_fields(elements, min_side=20.0):
+    """Editable text inputs (EditText) a user would type into — in reading
+    order (top-to-bottom), so a form fills name/email/password sensibly."""
+    fields = [e for e in elements
+              if e.editable and min_side <= min(e.width, e.height)]
+    return sorted(fields, key=lambda e: (round(e.y), round(e.x)))
+
+
+def placeholder_for(element):
+    """A non-empty value to type into a field. Login forms here don't validate
+    real credentials — they only need the boxes filled — so an email-shaped
+    hint gets an email and everything else a generic alphanumeric string."""
+    hint = f"{element.text} {element.resource_id}".lower()
+    if "@" in element.text or "mail" in hint or "email" in hint:
+        return "test@example.com"
+    if "phone" in hint or "mobile" in hint or "number" in hint:
+        return "0712345678"
+    return "Test1234"
 
 
 def load_corpus(directory, pattern="*.xml"):
