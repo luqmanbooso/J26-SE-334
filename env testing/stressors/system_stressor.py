@@ -40,14 +40,15 @@ class SystemStressor(BaseStressor):
         self.is_active = True
 
         if not self.adb.is_simulated:
-            # On real Android shell: launch background CPU worker non-blocking
-            worker_cmd = "sh -c 'nohup yes >/dev/null 2>&1 & echo PID:$!'"
-            output = self.adb.run_shell(worker_cmd)
-            for line in output.splitlines():
-                if "PID:" in line:
-                    pid = line.split("PID:")[-1].strip()
-                    if pid.isdigit():
-                        self.cpu_stress_pids.append(pid)
+            # On real Android hardware: spawn parallel workers according to core count
+            try:
+                core_out = self.adb.run_shell("nproc").strip()
+                cores = int(core_out) if core_out.isdigit() and int(core_out) > 0 else 8
+            except Exception:
+                cores = 8
+            num_workers = max(1, min(cores, round(cores * (target_pct / 100.0))))
+            worker_cmd = f"sh -c 'for i in $(seq 1 {num_workers}); do nohup yes >/dev/null 2>&1 & done'"
+            self.adb.run_shell(worker_cmd)
         else:
             self.adb.simulated_state["cpu_stress_active"] = True
 

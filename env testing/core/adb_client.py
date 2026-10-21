@@ -46,7 +46,15 @@ class ADBClient:
         which = shutil.which("adb")
         if which:
             return which
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        meipass = getattr(sys, "_MEIPASS", base_dir)
+        exe_dir = os.path.dirname(sys.executable)
         for cand in [
+            os.path.join(exe_dir, "platform-tools", "adb.exe"),
+            os.path.join(exe_dir, "adb.exe"),
+            os.path.join(base_dir, "platform-tools", "adb.exe"),
+            os.path.join(meipass, "platform-tools", "adb.exe"),
+            os.path.expanduser("~/AppData/Local/Programs/HEART_Studio/platform-tools/adb.exe"),
             os.path.expanduser("~/AppData/Local/Android/Sdk/platform-tools/adb.exe"),
             r"C:\Users\user\AppData\Local\Android\Sdk\platform-tools\adb.exe",
             r"D:\Android\platform-tools\adb.exe",
