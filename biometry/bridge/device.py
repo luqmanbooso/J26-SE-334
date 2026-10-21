@@ -45,3 +45,24 @@ def foreground_package(device):
                 if token:
                     return token.split("/")[0].strip().lstrip("{").strip()
     return None
+
+
+def foreground_activity(device):
+    """The ``package/Activity`` of the current foreground activity, or None.
+
+    Like :func:`foreground_package` but keeps the activity component, so replay can
+    verify it is on the expected *screen* without a screenshot — which a stuck
+    notification shade (or any photo-heavy screen) would corrupt. Reads the same
+    ``dumpsys window``, preferring ``mCurrentFocus`` and falling back to
+    ``mFocusedApp`` when a system window holds the focus (so the shade does not
+    hide the real activity). Returns e.g. ``com.example.app/.MainActivity``.
+    """
+    focus = device.shell("dumpsys", "window")
+    for key in ("mCurrentFocus", "mFocusedApp"):
+        for line in focus.splitlines():
+            if key in line and "/" in line:
+                token = next((t for t in reversed(line.split()) if "/" in t), None)
+                if token:
+                    tok = token.strip().strip("{},")
+                    return tok if "/" in tok else None
+    return None

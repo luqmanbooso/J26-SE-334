@@ -17,7 +17,7 @@ import time
 
 from bridge.adb_bridge import ADBBridge
 from bridge.oracle_client import OracleNotifier
-from bridge.device import AdbDispatcher, foreground_package
+from bridge.device import AdbDispatcher, foreground_activity, foreground_package
 from bridge.frame_probe import FrameProbe
 from bridge.hierarchy import (frame_signature, full_signature, parse_hierarchy,
                               structural_signature, tappable_targets)
@@ -145,13 +145,19 @@ def main():
     if args.reset and package:
         print(f"[live] reset: pm clear {package} (fresh state)")
         bridge.device.run("shell", "pm", "clear", package)
-    if args.package and not args.no_launch:
+    # Cold-start when a package was named, or whenever --reset was used: a reset
+    # pm-clears the app, so without a relaunch the foreground is the *launcher* and
+    # the crawl would map the home screen. Only an explicit --no-launch (or a plain
+    # auto-detected run with no reset) means "explore what is already open".
+    if package and not args.no_launch and (args.package or args.reset):
         print(f"[live] launching {package} to the foreground (cold start)")
         bridge.launch_package(package)
-        # A cold start shows a splash before the first real screen; wait until
-        # there are tappable targets rather than reading the splash as empty.
-        for _ in range(12):
-            if tappable_targets(parse_hierarchy(bridge.dump_ui_hierarchy())):
+        # Wait until the app under test is *itself* foreground AND has tappable
+        # targets — not the launcher (foreground right after a pm clear, and it has
+        # its own tappable icons) and not a bare splash with nothing to tap.
+        for _ in range(15):
+            if (foreground_package(bridge.device) == package
+                    and tappable_targets(parse_hierarchy(bridge.dump_ui_hierarchy()))):
                 break
             time.sleep(1.0)
         landed = foreground_package(bridge.device)
@@ -249,6 +255,9 @@ def main():
             # Snapshot a cheap screen fingerprint per screen so the run also
             # emits a compiled plan that replay_live.py can walk fast later.
             fingerprint=lambda: ahash(bridge.device.screencap(as_pil=True)),
+            # ...and the foreground activity per tap, so replay can verify the
+            # screen by activity name (robust, pixel-free) rather than a screenshot.
+            activity=lambda: foreground_activity(bridge.device),
         )
         print("[live] exploring "
               f"(actions={'unlimited' if args.actions is None else args.actions}, "
