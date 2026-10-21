@@ -114,3 +114,53 @@ def test_model_selector_refuses_while_busy(workspace, monkeypatch):
     workspace.choose_model(label)
     workspace.busy = False
     assert svc.active_adapter() == before
+
+
+def test_own_app_capture_is_discoverable(workspace):
+    texts = []
+    for w in workspace.controls:
+        try:
+            texts.append(w.cget("text"))
+        except (ValueError, KeyError, Exception):
+            pass
+    assert "Capture my app (phone)" in texts
+    guide = workspace.guide.cget("text")
+    assert "your own app" in guide.lower() and "History" in guide
+
+
+def test_live_rows_keep_only_c2_actions_after_start():
+    from datetime import datetime, timedelta, timezone
+    from types import SimpleNamespace
+    from vision_oracle.frontend.workspace import C3Workspace
+    start = datetime(2026, 10, 22, 10, 0, tzinfo=timezone.utc)
+    pairs = [
+        (SimpleNamespace(action_id="live-0001"), (start + timedelta(seconds=5)).isoformat()),   # kept
+        (SimpleNamespace(action_id=None), (start + timedelta(seconds=6)).isoformat()),          # manual inspection
+        (SimpleNamespace(action_id="live-old"), (start - timedelta(minutes=5)).isoformat()),    # before the receiver
+        (SimpleNamespace(action_id="live-0002"), start + timedelta(seconds=9)),                 # datetime, kept
+    ]
+    kept = [v.action_id for v, _ in C3Workspace.live_rows_since(pairs, start)]
+    assert kept == ["live-0001", "live-0002"]
+
+
+def test_receiver_starts_offers_url_and_stops(workspace, monkeypatch):
+    import uvicorn
+
+    class FakeServer:
+        def __init__(self, config):
+            self.started, self.should_exit = True, False
+
+        def run(self):
+            pass
+
+    monkeypatch.setattr(uvicorn, "Server", FakeServer)
+    monkeypatch.setattr(uvicorn, "Config", lambda *a, **k: None)
+    offered = []
+    workspace.receiver_url_callback = offered.append
+    workspace.start_receiver()
+    if workspace.receiver is None:
+        pytest.skip(workspace.live_status.cget("text"))  # port already in use on this machine
+    assert offered == [workspace.live_url]
+    assert workspace.live_button.cget("text") == "Stop receiving"
+    workspace.stop_receiver()
+    assert workspace.receiver is None and workspace.live_button.cget("text") == "Start receiving"

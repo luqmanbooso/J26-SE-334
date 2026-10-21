@@ -35,9 +35,12 @@ def default_service():
 
 
 class C3Workspace(ctk.CTkFrame):
-    def __init__(self, master, service_factory=default_service, handover_callback=None):
+    def __init__(self, master, service_factory=default_service, handover_callback=None, receiver_url_callback=None):
         super().__init__(master, fg_color='transparent')
         self.handover_callback=handover_callback
+        # Called with the receiver URL when "Live from C2" starts, so the host app can fill C2's oracle field.
+        self.receiver_url_callback=receiver_url_callback
+        self.receiver=None;self.live_job=None;self.live_since=None
         self.service_factory=service_factory
         self.events=queue.Queue()
         self.busy=False
@@ -49,6 +52,7 @@ class C3Workspace(ctk.CTkFrame):
         self.build()
         self.poll_id=self.after(100,self.drain_events)
         self.refresh_devices()
+        self.refresh_history()  # saved inspections are visible without pressing Refresh
 
     def label(self,parent,text,size=13,**kwargs):
         widget=ctk.CTkLabel(parent,text=text,font=ctk.CTkFont(size=size),**kwargs)
@@ -70,7 +74,10 @@ class C3Workspace(ctk.CTkFrame):
         self.build_flow()
         source=ctk.CTkFrame(self)
         source.pack(fill='x',padx=8,pady=6)
-        self.buttons(source,[('Choose screenshot',self.choose_image),('Inspect screenshot',lambda:self.run('file')),('Capture phone',lambda:self.run('device'))])
+        self.buttons(source,[('Choose screenshot',self.choose_image),('Inspect screenshot',lambda:self.run('file')),('Capture my app (phone)',lambda:self.run('device'))])
+        self.guide=self.label(source,'Check your own app: connect your phone with USB debugging on, open the screen you want to check, '
+                              'pick the phone below, then press "Capture my app". The app\'s layout is read too, so findings name the element. '
+                              'Every result is saved: reopen it later from the History tab.',11,wraplength=760,justify='left',text_color='#475569')
         self.file_label=self.label(source,'Choose an image to begin.',12,wraplength=560)
         self.build_model_selector(source)
         row=ctk.CTkFrame(source,fg_color='transparent');row.pack(fill='x',padx=8,pady=5)
@@ -118,8 +125,117 @@ class C3Workspace(ctk.CTkFrame):
         self.integration_status=self.label(integration,'Run an inspection to see its trace.',12,wraplength=560,justify='left')
         self.payload=ctk.CTkTextbox(integration,wrap='none',height=150,font=ctk.CTkFont(family='Consolas',size=11));self.payload.pack(fill='both',expand=True,padx=8,pady=4);self.set_text(self.payload,'No handover payload yet.')
         self.handover_button=ctk.CTkButton(integration,text='Export delivery payload',command=lambda:self.export(True),state='disabled');self.handover_button.pack(fill='x',padx=8,pady=5)
+        self.build_live_tab(self.tabs.add('Live from C2'))
         self.build_history_tab(self.tabs.add('History'))
         self.build_model_tab(self.tabs.add('Model'))
+
+    def build_live_tab(self,tab):
+        """Receive C2's action triggers in this app: one model serves both this tab and the receiver."""
+        ctk.CTkLabel(tab,text='Receive actions from the user-behaviour engine (C2)',font=ctk.CTkFont(size=14,weight='bold')).pack(anchor='w',padx=8,pady=(6,2))
+        ctk.CTkLabel(tab,text='Start the receiver, then start a C2 run with this address in its "C3 Oracle URL" field. After each C2 action, '
+                     'C3 captures the phone screen and its layout, inspects it, and lists the result here and in History.',
+                     font=ctk.CTkFont(size=11),wraplength=760,justify='left',text_color='#475569').pack(anchor='w',padx=8)
+        bar=ctk.CTkFrame(tab,fg_color='transparent');bar.pack(fill='x',padx=6,pady=6)
+        self.live_button=ctk.CTkButton(bar,text='Start receiving',width=140,command=self.toggle_receiver);self.live_button.pack(side='left',padx=2)
+        from vision_oracle.core.config import SERVICE_PORT
+        self.live_url=f'http://127.0.0.1:{SERVICE_PORT}'
+        ctk.CTkLabel(bar,text=self.live_url,font=ctk.CTkFont(family='Consolas',size=12)).pack(side='left',padx=10)
+        ctk.CTkButton(bar,text='Copy address',width=110,command=self.copy_receiver_url).pack(side='left',padx=2)
+        self.live_status=ctk.CTkLabel(tab,text='Receiver off.',font=ctk.CTkFont(size=12),wraplength=760,justify='left');self.live_status.pack(anchor='w',padx=8)
+        self.live_list=ctk.CTkScrollableFrame(tab,height=360);self.live_list.pack(fill='both',expand=True,padx=6,pady=4)
+        self.live_rows=[]
+
+    def copy_receiver_url(self):
+        self.clipboard_clear();self.clipboard_append(self.live_url)
+        self.live_status.configure(text=f'Copied {self.live_url}. Paste it into C2\'s "C3 Oracle URL" field.')
+
+    def toggle_receiver(self):
+        if self.receiver:self.stop_receiver()
+        else:self.start_receiver()
+
+    def start_receiver(self):
+        if self.receiver:return
+        import socket
+        from vision_oracle.core.config import SERVICE_PORT
+        with socket.socket() as probe:
+            probe.settimeout(0.3)
+            if probe.connect_ex(('127.0.0.1',SERVICE_PORT))==0:
+                self.live_status.configure(text=f'Port {SERVICE_PORT} is already in use. If a separate C3 server is running, C2 can use it directly; '
+                                           'otherwise close the program using that port.');return
+        try:
+            import uvicorn
+            from vision_oracle.server import create_app
+            server=uvicorn.Server(uvicorn.Config(create_app(),host='127.0.0.1',port=SERVICE_PORT,log_level='warning'))
+        except Exception as exc:
+            self.live_status.configure(text=f'Receiver could not start: {exc}');return
+        thread=threading.Thread(target=server.run,daemon=True,name='c3-receiver');thread.start()
+        from datetime import datetime,timezone
+        self.receiver=(server,thread);self.live_since=datetime.now(timezone.utc)
+        self.live_button.configure(text='Stop receiving')
+        self.live_status.configure(text='Starting. The model loads first (about 30 to 40 s the first time).')
+        if self.receiver_url_callback:
+            try:self.receiver_url_callback(self.live_url)
+            except Exception:logging.getLogger(__name__).exception('Receiver URL callback failed')
+        self.poll_live()
+
+    def stop_receiver(self):
+        if not self.receiver:return
+        server,_thread=self.receiver;server.should_exit=True;self.receiver=None
+        if self.live_job:self.after_cancel(self.live_job);self.live_job=None
+        self.live_button.configure(text='Start receiving');self.live_status.configure(text='Receiver stopped. Results stay in History.')
+
+    def poll_live(self):
+        """While the receiver runs: report readiness and fetch C2-linked verdicts captured since it started."""
+        if not self.receiver:return
+        server,_thread=self.receiver
+        since=self.live_since
+        def worker():
+            try:
+                from vision_oracle.persistence.repository import get_repository
+                repo=get_repository()
+                pairs=[(v,getattr(repo.get_capture(v.capture_id),'timestamp_utc',None)) for v in repo.list_recent_verdicts(60)]
+                self.events.put(('live',(bool(getattr(server,'started',False)),self.live_rows_since(pairs,since))))
+            except Exception as exc:self.events.put(('live_error',str(exc)))
+        threading.Thread(target=worker,daemon=True).start()
+        self.live_job=self.after(4000,self.poll_live)
+
+    @staticmethod
+    def live_rows_since(pairs,since):
+        """Verdicts linked to a C2 action whose capture happened after the receiver started, newest first."""
+        from datetime import datetime,timezone
+        rows=[]
+        for verdict,stamp in pairs:
+            if not getattr(verdict,'action_id',None):continue
+            if isinstance(stamp,str):
+                try:stamp=datetime.fromisoformat(stamp.replace('Z','+00:00'))
+                except ValueError:stamp=None
+            if stamp is not None and stamp.tzinfo is None:stamp=stamp.replace(tzinfo=timezone.utc)
+            if since is not None and (stamp is None or stamp<since):continue
+            rows.append((verdict,stamp))
+        return rows
+
+    def show_live(self,ready,rows):
+        if self.receiver:
+            self.live_status.configure(text=(f'Listening at {self.live_url} · {len(rows)} C2 action(s) inspected since start.' if ready
+                                             else 'Starting. The model loads first (about 30 to 40 s the first time).'))
+        for row in self.live_rows:row.destroy()
+        self.live_rows=[]
+        labels={'defect_detected':'Defect','no_defect_detected':'No defect','inconclusive':'Inconclusive'}
+        for verdict,stamp in rows:
+            data=verdict.model_dump(mode='json');score=data['metadata'].get('defect_probability')
+            row=ctk.CTkFrame(self.live_list,corner_radius=6);row.pack(fill='x',padx=2,pady=2)
+            when=stamp.astimezone().strftime('%H:%M:%S') if hasattr(stamp,'astimezone') else '—'
+            text=f"{when}   {data.get('action_id') or '—':<24}   {labels.get(data['decision'],data['decision']):<12}   {f'{score:.0%}' if isinstance(score,(int,float)) else '—':>5}   {len(data['findings'])} finding(s)"
+            ctk.CTkLabel(row,text=text,font=ctk.CTkFont(family='Consolas',size=11),text_color=DECISION_COLORS.get(data['decision'])).pack(side='left',padx=6,pady=3)
+            ctk.CTkButton(row,text='Open',width=60,height=24,command=lambda v=data:self.open_history(v)).pack(side='right',padx=4)
+            self.live_rows.append(row)
+        if rows:
+            newest=rows[0][0].model_dump(mode='json')
+            self.set_stage(1,'done',f'{len(rows)} action(s) sent')
+            count=len(newest['findings'])
+            state,text={'defect_detected':('alert',f"Latest: {count} finding{'s' if count!=1 else ''}"),'no_defect_detected':('done','Latest: no defect'),
+                        'inconclusive':('warn','Latest: inconclusive')}[newest['decision']]
+            if not self.latest:self.set_stage(2,state,text)
 
     def build_flow(self):
         """Pipeline strip: C1 -> C2 -> C3 -> C4, each with a coloured border and one status line."""
@@ -512,6 +628,8 @@ class C3Workspace(ctk.CTkFrame):
                 elif kind=='result':self.finish();self.render(value)
                 elif kind=='history':self.show_history(value)
                 elif kind=='history_error':self.history_note.configure(text='Could not load history: '+value)
+                elif kind=='live':self.show_live(*value)
+                elif kind=='live_error':self.live_status.configure(text='Could not read results: '+value)
         except queue.Empty:
             pass
         except Exception:
@@ -538,7 +656,8 @@ class C3Workspace(ctk.CTkFrame):
         elapsed=f"{view['total_ms']/1000:.2f}s" if view['total_ms'] is not None else 'unavailable'
         split=' · '.join(x for x in (view.get('verdict_time'),view.get('localization_time')) if x)
         self.measurements.configure(text=f"{view['coverage']} · Analysis: {elapsed}"+(f" ({split})" if split else '')+f" · {verdict['analysis_status']}")
-        self.status.configure(text='Inspection saved locally. Review the findings.')
+        self.status.configure(text='Saved on this computer. Review the findings; reopen this inspection any time from the History tab.')
+        self.refresh_history()
         self.draw_preview(verdict['screenshot']['storage_path'],verdict['findings'])
         self.integration_status.configure(text=f"Session: {verdict['session_id']}\nAction: {verdict.get('action_id') or 'None (unlinked)'}\nCapture: {verdict['capture_id']}\nVerdict: {verdict['verdict_id']}\nHandover: {view['outcome'].replace('_',' ')} · prepared, not sent")
         self.set_text(self.payload,json.dumps(view['handover'],indent=2))
@@ -575,4 +694,5 @@ class C3Workspace(ctk.CTkFrame):
     def destroy(self):
         self.after_cancel(self.poll_id)
         if self.preview_job:self.after_cancel(self.preview_job)
+        self.stop_receiver()
         super().destroy()

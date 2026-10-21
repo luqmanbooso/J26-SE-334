@@ -3435,8 +3435,16 @@ class HeartSimpleApp(ctk.CTk):
     # =========================================================================
     def _build_vision_view(self, parent):
         from vision_oracle.frontend.workspace import C3Workspace
-        self.c3_workspace = C3Workspace(parent, handover_callback=self._receive_inspection)
+        self.c3_workspace = C3Workspace(parent, handover_callback=self._receive_inspection,
+                                        receiver_url_callback=self._offer_c3_url_to_c2)
         self.c3_workspace.pack(fill="both", expand=True)
+
+    def _offer_c3_url_to_c2(self, url):
+        """When C3's in-app receiver starts, fill C2's 'C3 Oracle URL' field if it is still empty."""
+        entry = getattr(self, "c2_oracle_entry", None)
+        if entry is not None and not entry.get().strip():
+            entry.insert(0, url)
+            self._append_log(f"[C3] Receiver listening at {url}; C2 will send each completed action there.")
 
     def _receive_inspection(self, payload):
         receiver = getattr(self, 'c4_receive_inspection', None)
