@@ -2463,8 +2463,11 @@ class HeartSimpleApp(ctk.CTk):
         # Unchecked -> --no-verify (blind both checks; the app guard still runs).
         if not (hasattr(self, "c2_replay_verify") and self.c2_replay_verify.get()):
             a += ["--no-verify"]
-        replay_out = base + "_replay"
-        a += ["--out", replay_out]
+        # Each replay gets a timestamped name in the SAME results/ folder, so a
+        # report is never overwritten (no new subfolders). The GUI owns the path
+        # (--no-stamp) so it can open the right report afterwards.
+        replay_out = base + "_replay_" + time.strftime("%Y%m%d-%H%M%S")
+        a += ["--out", replay_out, "--no-stamp"]
         return a, replay_out, plan
 
     def _c2_run_replay(self):

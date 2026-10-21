@@ -306,24 +306,13 @@ function showTapsFor(i) {
   document.querySelector(".tblwrap").scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
-// Populate the table up front, independent of Plotly: the worst episode,
-// else the single peak tap. This must never depend on the chart library so
-// the report is useful even if the CDN is unreachable (offline).
+// Populate the table up front with EVERY tap (calm ones included), independent of
+// Plotly so the report is useful even if the CDN is unreachable (offline). Clicking
+// a red stress band still filters the table down to that high-stress episode.
 (function () {
-  if (SPANS.length) {
-    let best = SPANS[0], bestPeak = -1;
-    for (const [a, b] of SPANS) { let p = 0; for (let k = a; k <= b; k++) p = Math.max(p, R[k].stress_s);
-      if (p > bestPeak) { bestPeak = p; best = [a, b]; } }
-    const list = []; for (let k = best[0]; k <= best[1]; k++) list.push(k);
-    document.getElementById("tbl-title").textContent =
-      `Taps in worst stress episode #${best[0]}–${best[1]} (${list.length} taps ≥ ${TH})`;
-    rows(list);
-  } else {
-    let pi = 0; R.forEach((r, i) => { if ((r.stress_s||0) > (R[pi].stress_s||0)) pi = i; });
-    document.getElementById("tbl-title").textContent =
-      R.length ? `Peak-stress tap #${pi} (no sustained episode ≥ ${TH})` : "No taps recorded";
-    rows(R.length ? [pi] : []);
-  }
+  document.getElementById("tbl-title").textContent =
+    R.length ? `All taps (${R.length})` : "No taps recorded";
+  rows(R.map((_, i) => i));
 })();
 
 // The chart is a progressive enhancement: guard every Plotly call so a missing

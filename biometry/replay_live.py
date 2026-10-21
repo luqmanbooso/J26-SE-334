@@ -17,6 +17,7 @@ non-deterministic app does not derail the run.
 """
 import argparse
 import json
+import os
 import time
 
 from bridge.adb_bridge import ADBBridge
@@ -75,7 +76,18 @@ def main():
     ap.add_argument("--max-resyncs", type=int, default=3)
     ap.add_argument("--out", default="results/replay")
     ap.add_argument("--no-report", dest="report", action="store_false", default=True)
+    ap.add_argument("--no-stamp", dest="stamp", action="store_false", default=True,
+                    help="write straight to --out and overwrite it. By default each run gets a "
+                         "timestamped name in the SAME folder (results/<name>_<ts>_*) so a replay "
+                         "never overwrites a previous report.")
     args = ap.parse_args()
+
+    # Timestamped name in the same folder, so a replay never overwrites a previous report.
+    if args.stamp:
+        args.out = "{}_{}".format(args.out, time.strftime("%Y%m%d-%H%M%S"))
+    out_dir = os.path.dirname(os.path.abspath(args.out))
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
 
     with open(args.plan, "r", encoding="utf-8") as fh:
         plan = json.load(fh)
