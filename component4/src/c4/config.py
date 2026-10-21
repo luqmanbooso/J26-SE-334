@@ -22,6 +22,7 @@ class TargetAppConfig(BaseModel):
     adb_path: str = "adb"
     no_reset: bool = True
     new_command_timeout: int = 120
+    server_launch_timeout_ms: int = Field(default=60000, ge=1000)
     setup_commands: list[list[str]] = Field(default_factory=list)
 
     @field_validator("package")
@@ -47,6 +48,10 @@ class TargetAppConfig(BaseModel):
             "appPackage": self.package,
             "noReset": self.no_reset,
             "newCommandTimeout": self.new_command_timeout,
+            "uiautomator2ServerLaunchTimeout": self.server_launch_timeout_ms,
+            # Start every run from a freshly launched app, not whatever is backgrounded.
+            "forceAppLaunch": True,
+            "shouldTerminateApp": True,
         }
         if self.activity:
             capabilities["appActivity"] = self.activity
