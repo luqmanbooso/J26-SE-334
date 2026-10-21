@@ -21,7 +21,8 @@ def model_lines(metadata, timings):
         if metadata.get('hierarchy_used_by_model'):
             lines.append('Model input: screenshot and layout file.')
         elif metadata.get('hierarchy_status') == 'available':
-            lines.append('Model input: screenshot only. The layout file is saved with the evidence; this model does not read it.')
+            lines.append('Model input: screenshot only. The layout file is not read by this model; it is used to name the '
+                         'affected element and is saved with the evidence.')
         else:
             lines.append('Model input: screenshot only.')
     verdict, localization = _seconds(timings.get('verdict_ms')), _seconds(timings.get('localization_ms'))
@@ -56,6 +57,11 @@ def present_result(result):
             lines.append(f'Model score: {confidence:.0%} (method: {method})')
         if finding.get('bbox_xyxy'):
             lines.append(f"Region (pixels): {finding['bbox_xyxy']}")
+        ref = (data['metadata'].get('element_refs') or {}).get(finding.get('finding_id'))
+        if finding.get('element_ref') and ref:
+            lines.append(f"Element (matched from layout file, overlap {ref['iou']:.0%}): {finding['element_ref']}")
+        elif finding.get('element_ref'):
+            lines.append(f"Element: {finding['element_ref']}")
     issues = list(dict.fromkeys(data['errors'] + data['coverage']['warnings']))
     if issues:
         lines += ['', 'Analysis notes:'] + [str(x) for x in issues]

@@ -110,7 +110,7 @@ def test_pipeline_reports_model_input_probability_and_timings(tmp_path, fusion):
     assert (backend.seen[0] is not None) is fusion  # vision-only adapters never get layout text
     text = " ".join(model_lines(md, verdict.timings_ms))
     assert "31%" in text and "not a calibrated probability" in text and "decision 0.6s" in text
-    assert ("does not read it" in text) is (not fusion)
+    assert ("not read by this model" in text) is (not fusion)
 
 
 def test_every_trained_defect_type_is_accepted_by_the_app():

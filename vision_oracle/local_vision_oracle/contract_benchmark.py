@@ -23,6 +23,17 @@ from PIL import Image
 BASE_MODEL = Path(__file__).resolve().parents[1] / "models" / "Qwen2-VL-2B-Instruct"
 
 
+def row_layout(row: Dict) -> Optional[str]:
+    """Layout text a fusion manifest row carries in its user turn (None for screenshot-only rows).
+
+    The fusion prompt is a header line, the layout, a blank line, then the instruction.
+    """
+    content = row["messages"][0]["content"]
+    if "Layout elements" not in content:
+        return None
+    return content.split("\n", 1)[1].rsplit("\n\n", 1)[0]
+
+
 def parse_output(raw: str) -> Optional[Dict]:
     """Strict parse: a JSON object with boolean has_defect, else None (abstention)."""
     try:
@@ -111,7 +122,8 @@ def run(manifest: str, adapter: Optional[str], output: str, limit: Optional[int]
             image = src.convert("RGB")
         # With a contract the backend replaces these messages with the trained prompt.
         tick = time.perf_counter()
-        raw = backend.generate([{"role": "user", "content": [{"type": "image"}]}], image, max_new_tokens=160)
+        raw = backend.generate([{"role": "user", "content": [{"type": "image"}]}], image, max_new_tokens=160,
+                               hierarchy_text=row_layout(row))
         latency = round((time.perf_counter() - tick) * 1000, 1)
         pred = parse_output(raw)
         rec = {"image": image_path, "gold_has": bool(gold["has_defect"]), "gold_type": gold["defect_type"],
@@ -131,7 +143,15 @@ def run(manifest: str, adapter: Optional[str], output: str, limit: Optional[int]
         tmp = out.with_suffix(".tmp")
         tmp.write_text(json.dumps(result, indent=1), encoding="utf-8")
         tmp.replace(out)
-        print(f"{len(records)}/{len(rows)} gold={rec['gold_type']} pred={rec['pred_type']} {latency}ms", flush=True)
+        progress = result["summary"]
+        print(
+            f"{len(records)}/{len(rows)} gold={rec['gold_type']} "
+            f"pred={rec['pred_type']} {latency}ms | "
+            f"running accuracy={progress['accuracy']:.1%} "
+            f"precision={progress['precision']:.1%} "
+            f"recall={progress['recall']:.1%} F1={progress['f1']:.1%}",
+            flush=True,
+        )
     return result
 
 
@@ -210,7 +230,7 @@ def score_run(manifest: str, adapter: Optional[str], output: str, limit: Optiona
         with Image.open(row["images"][0]) as src:
             image = src.convert("RGB")
         tick = time.perf_counter()
-        p = backend.defect_probability(image)
+        p = backend.defect_probability(image, hierarchy_text=row_layout(row))
         records.append({"image": row["images"][0], "gold_has": bool(gold["has_defect"]),
                         "gold_type": gold["defect_type"], "p_defect": round(p, 5),
                         "latency_ms": round((time.perf_counter() - tick) * 1000, 1)})

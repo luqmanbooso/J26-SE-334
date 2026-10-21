@@ -10,6 +10,7 @@ import random
 from pathlib import Path
 from dataclasses import dataclass
 from typing import List, Dict, Any, Optional, Tuple, Union
+import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 from local_vision_oracle.schemas import DefectType, Verdict
@@ -120,6 +121,27 @@ class SyntheticMutator:
         return max(set(quantised), key=quantised.count)
 
     @staticmethod
+    def _ink_extent(image: Image.Image, box: Tuple[int, int, int, int]):
+        """Bounding box of the rendered text inside an element, plus its background colour.
+
+        Returns None when the element has no clear text on a plain background (text over a
+        photo or gradient cannot be clipped convincingly).
+        """
+        bg = SyntheticMutator._dominant_color(image, box)
+        crop = np.asarray(image.crop(box).convert("RGB")).astype(int)
+        if crop.size == 0:
+            return None
+        diff = np.abs(crop - np.array(bg)).sum(axis=2)
+        if (diff < 30).mean() < 0.5:
+            return None
+        cols = np.where((diff > 120).any(axis=0))[0]
+        rows = np.where((diff > 120).any(axis=1))[0]
+        if cols.size == 0 or rows.size == 0 or cols[-1] - cols[0] < 40 or rows[-1] - rows[0] < 6:
+            return None
+        x1, y1 = box[0], box[1]
+        return x1 + int(cols[0]), y1 + int(rows[0]), x1 + int(cols[-1]) + 1, y1 + int(rows[-1]) + 1, bg
+
+    @staticmethod
     def _contrast_color(bg: Tuple[int, int, int]) -> Tuple[int, int, int]:
         luminance = 0.299 * bg[0] + 0.587 * bg[1] + 0.114 * bg[2]
         return (60, 60, 60) if luminance > 128 else (225, 225, 225)
@@ -220,30 +242,40 @@ class SyntheticMutator:
         if not text_nodes:
             return None
 
-        target = self.rng.choice(text_nodes)
         w, h = image.size
-        x1, y1, x2, y2 = target.bounds
-        x1, y1 = max(0, x1), max(0, y1)
-        x2, y2 = min(w, x2), min(h, y2)
-        if x2 <= x1 or y2 <= y1:
+        # Clipping a small caption changes too few pixels to see at training resolution, so
+        # take the candidates with the largest rendered text and pick among the best three.
+        scored = []
+        for node in text_nodes:
+            bx1, by1 = max(0, node.bounds[0]), max(0, node.bounds[1])
+            bx2, by2 = min(w, node.bounds[2]), min(h, node.bounds[3])
+            if bx2 <= bx1 or by2 <= by1:
+                continue
+            found = self._ink_extent(image, (bx1, by1, bx2, by2))
+            if found:
+                scored.append(((found[2] - found[0]) * (found[3] - found[1]), node, found))
+        if not scored:
             return None
+        scored.sort(key=lambda s: -s[0])
+        _, target, ink = self.rng.choice(scored[:3])
+        ix1, iy1, ix2, iy2, bg = ink
 
         mutated_img = image.copy()
         draw = ImageDraw.Draw(mutated_img)
 
-        # Blank out right 45% of text box using sample corner color
-        cut_x = x1 + int((x2 - x1) * 0.55)
-        sample_pixel = self._dominant_color(image, (x1, y1, x2, y2))
-        draw.rectangle([cut_x, y1, x2, y2], fill=sample_pixel)
+        # Cut inside the rendered text (not the element box, which is usually wider than the text),
+        # clear everything to the right of the cut up to the text's end, then draw an ellipsis.
+        cut_x = ix1 + int((ix2 - ix1) * self.rng.uniform(0.5, 0.75))
+        draw.rectangle([cut_x, iy1, ix2 + 2, iy2], fill=bg)
+        if self.rng.random() < 0.7:
+            try:
+                font = ImageFont.truetype("arial.ttf", max(12, int((iy2 - iy1) * 0.9)))
+            except Exception:
+                font = ImageFont.load_default()
+            draw.text((cut_x, iy1 - int((iy2 - iy1) * 0.1)), "...", fill=self._contrast_color(bg), font=font)
 
-        # Draw truncated ellipsis, sized to the text line so it survives downscaling
-        try:
-            font = ImageFont.truetype("arial.ttf", max(12, int((y2 - y1) * 0.7)))
-        except Exception:
-            font = ImageFont.load_default()
-        draw.text((cut_x - 5, y1 + int((y2 - y1) * 0.1)), "...", fill=self._contrast_color(sample_pixel), font=font)
-
-        bbox = self._normalize_box((x1, y1, x2, y2), w, h)
+        # The label covers the whole truncated text line, as annotators draw it.
+        bbox = self._normalize_box((ix1, iy1, ix2, iy2), w, h)
         elem_id = target.resource_id or target.class_name
 
         return MutationResult(
@@ -279,10 +311,24 @@ class SyntheticMutator:
         mutated_img = image.copy()
         draw = ImageDraw.Draw(mutated_img)
 
-        # Inpaint with blank placeholder box + X stroke
-        draw.rectangle([x1, y1, x2, y2], fill=(225, 225, 225), outline=(170, 170, 170), width=2)
-        draw.line([x1, y1, x2, y2], fill=(200, 200, 200), width=1)
-        draw.line([x1, y2, x2, y1], fill=(200, 200, 200), width=1)
+        # Unrendered-widget placeholder in one of the looks real apps show: grey box with a
+        # cross, flat grey, a dark box, or a grey box with a blue "?" (missing-resource icon).
+        style = self.rng.choice(["cross", "flat", "dark", "question"])
+        fill, edge = {"cross": ((225, 225, 225), (170, 170, 170)), "flat": ((210, 210, 210), (210, 210, 210)),
+                      "dark": ((70, 70, 70), (50, 50, 50)), "question": ((235, 235, 235), (190, 190, 190))}[style]
+        draw.rectangle([x1, y1, x2, y2], fill=fill, outline=edge, width=2)
+        if style == "cross":
+            draw.line([x1, y1, x2, y2], fill=(200, 200, 200), width=1)
+            draw.line([x1, y2, x2, y1], fill=(200, 200, 200), width=1)
+        elif style == "question":
+            side = max(10, min(x2 - x1, y2 - y1) // 2)
+            cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+            draw.rectangle([cx - side // 2, cy - side // 2, cx + side // 2, cy + side // 2], fill=(50, 110, 200))
+            try:
+                qfont = ImageFont.truetype("arial.ttf", max(10, side - 2))
+            except Exception:
+                qfont = ImageFont.load_default()
+            draw.text((cx - side // 4, cy - side // 2), "?", fill=(255, 255, 255), font=qfont)
 
         bbox = self._normalize_box((x1, y1, x2, y2), w, h)
         elem_id = target.resource_id or target.class_name
@@ -323,7 +369,7 @@ class SyntheticMutator:
         bg_color = self._dominant_color(image, (x1, y1, x2, y2))
 
         draw.rectangle([x1, y1, x2, y2], fill=bg_color)
-        null_str = self.rng.choice(["null", "nullnull", "NULL", "NaN"])
+        null_str = self.rng.choice(["null", "nullnull", "NULL", "NaN", "undefined", "null null", "{}", "%s", "None"])
         font_size = max(14, min(36, int((y2 - y1) * 0.7)))
         try:
             font = ImageFont.truetype("arial.ttf", font_size)

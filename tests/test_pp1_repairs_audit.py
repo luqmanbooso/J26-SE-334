@@ -157,3 +157,20 @@ def test_r8_capture_retry_submits_missing_job(test_env):
     assert retry_res["status"] == "already_captured"
     assert retry_res["job_id"] is not None
     assert retry_res["idempotent"] is True
+
+
+def test_c4_session_lookup_returns_latest_c3_verdict(test_env):
+    """C4 live client calls service.get_verdict(session_id); it must find that session's newest verdict."""
+    svc, img = test_env["svc"], test_env["img"]
+    first = svc.evaluate(img, session_id="sess_c2_run", action_id="act_c2_step1")
+    second = svc.evaluate(img, session_id="sess_c2_run", action_id="act_c2_step2")
+    found = svc.get_verdict("sess_c2_run")
+    assert found is not None and found["verdict_id"] == second["verdict_v2"]["verdict_id"]
+    assert found["verdict_id"] != first["verdict_v2"]["verdict_id"]
+    with svc._verdict_lock:
+        svc._recent_verdicts.clear()  # force the SQLite path
+    found_db = svc.get_verdict("sess_c2_run")
+    assert found_db["verdict_id"] == second["verdict_v2"]["verdict_id"]
+    from c4.c3_interface.contract import C3Verdict
+    assert C3Verdict.model_validate(found_db["c4_verdict"]).has_gui_defect is True
+    assert svc.get_verdict("no_such_session_or_verdict") is None

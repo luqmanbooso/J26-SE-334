@@ -37,6 +37,9 @@ FUSION_PROMPT = (
     "{hierarchy}\n\n" + TRAINING_PROMPT
 )
 MIN_VISIBLE_FRACTION = 0.002
+# Clipped text only changes the thin strokes of the letters, so a clearly visible truncation covers
+# far fewer pixels than a pasted block. Measured median for good truncations: 0.1% of the screen.
+MIN_VISIBLE_BY_KIND = {"truncation": 0.0008}
 MIN_BOX_COVERAGE = 0.8
 TOKEN_LIMIT = 1000  # LLaMA-Factory cutoff_len 1024 minus a safety margin
 MUTATION_TYPES = ("overlap", "truncation", "missing", "null")
@@ -165,7 +168,7 @@ def generate_mutations(clean_dir: Path, out_dir: Path, sources: List[str], seed:
                 rejected[f"{kind}:no_candidate"] += 1
                 continue
             visible, coverage = change_stats(original, res.image, res.bounding_box)
-            if visible < MIN_VISIBLE_FRACTION:
+            if visible < MIN_VISIBLE_BY_KIND.get(kind, MIN_VISIBLE_FRACTION):
                 rejected[f"{kind}:invisible"] += 1
                 continue
             if coverage < MIN_BOX_COVERAGE:
@@ -187,7 +190,7 @@ def generate_mutations(clean_dir: Path, out_dir: Path, sources: List[str], seed:
     (out_dir / "generation_report.json").write_text(json.dumps(
         {"target": target, "kept": len(kept), "quota": quota, "by_type": dict(have),
          "sources_tried": len(used) + rejected["source_without_valid_mutation"] + rejected["missing_source"],
-         "rejected": dict(rejected), "min_visible_fraction": MIN_VISIBLE_FRACTION,
+         "rejected": dict(rejected), "min_visible_fraction": MIN_VISIBLE_FRACTION, "min_visible_by_kind": MIN_VISIBLE_BY_KIND,
          "min_box_coverage": MIN_BOX_COVERAGE}, indent=1), encoding="utf-8")
     return kept, used
 
@@ -202,6 +205,70 @@ def _image_tokens(image_path: str) -> int:
     return math.ceil(w / 28) * math.ceil(h / 28)
 
 
+def _dhash(path: Path) -> Optional[int]:
+    """64-bit difference hash: near-identical screens (re-encodes, small shifts) differ in few bits."""
+    from PIL import Image
+    try:
+        im = Image.open(path).convert("L").resize((9, 8))
+    except OSError:
+        return None
+    px = list(im.getdata())
+    bits = 0
+    for row in range(8):
+        for col in range(8):
+            bits = (bits << 1) | (px[row * 9 + col] > px[row * 9 + col + 1])
+    return bits
+
+
+def _near(h: int, others: List[int], max_bits: int = 6) -> bool:
+    return any(bin(h ^ o).count("1") <= max_bits for o in others)
+
+
+def _extra_owleye(labels: Dict, old_owl: Dict[str, str], bug_dir: Path, normal_dir: Path, cap: int,
+                  rng: random.Random, report: Dict) -> List[Tuple]:
+    """Extra labelled OwlEye bug screens (not in any old split) plus the same number of normal screens,
+    for training only. A candidate within a few bits of any val/test OwlEye screen is dropped, so a
+    near-copy of a held-out screen can never enter training. Defect types are drawn round-robin."""
+    held = [(bug_dir / n) if not n.startswith("normal") else (normal_dir / n)
+            for n, s in old_owl.items() if s in ("val", "test")]
+    held_hashes = [h for h in map(_dhash, held) if h is not None]
+    by_type: Dict[str, List[str]] = defaultdict(list)
+    for name, lab in sorted(labels.items()):
+        if lab.get("status") == "labelled" and lab.get("split") == "extra" and lab.get("bounding_box") \
+                and name not in old_owl:
+            by_type[lab["defect_type"]].append(name)
+    for names in by_type.values():
+        rng.shuffle(names)
+    bugs, dups, queues = [], 0, {t: list(v) for t, v in by_type.items()}
+    while len(bugs) < cap and any(queues.values()):
+        for t in sorted(queues):
+            while queues[t] and len(bugs) < cap:
+                name = queues[t].pop()
+                h = _dhash(bug_dir / name)
+                if h is None or _near(h, held_hashes):
+                    dups += 1
+                    continue
+                lab = labels[name]
+                bugs.append(("owleye_bug", str(bug_dir / name),
+                             {"defect_type": lab["defect_type"], "bounding_box": lab["bounding_box"]}, None))
+                break
+    normals, ndups = [], 0
+    pool = sorted(n for n in os.listdir(normal_dir) if n.startswith("normal") and n not in old_owl)
+    rng.shuffle(pool)
+    for name in pool:
+        if len(normals) >= len(bugs):
+            break
+        h = _dhash(normal_dir / name)
+        if h is None or _near(h, held_hashes):
+            ndups += 1
+            continue
+        normals.append(("owleye_normal", str(normal_dir / name), {"defect_type": "none"}, None))
+    report["extra_owleye"] = {"bug_added": len(bugs), "normal_added": len(normals),
+                              "bug_dropped_near_duplicate": dups, "normal_dropped_near_duplicate": ndups,
+                              "bug_types": dict(Counter(b[2]["defect_type"] for b in bugs))}
+    return bugs + normals
+
+
 def make_example(image: str, target: Dict, layout: Optional[str], fusion: bool) -> Dict:
     prompt = FUSION_PROMPT.replace("{hierarchy}", layout) if (fusion and layout) else VISION_PROMPT
     return {"messages": [{"role": "user", "content": "<image>" + prompt},
@@ -211,7 +278,7 @@ def make_example(image: str, target: Dict, layout: Optional[str], fusion: bool) 
 
 def build(clean_dir: Path, owleye_bug_dir: Path, owleye_normal_dir: Path, data_dir: Path, out_dir: Path,
           labels_path: Optional[Path], mutations_per_split: Dict[str, int], clean_per_split: Dict[str, int],
-          tokenizer_dir: Optional[Path] = None, seed: int = 42) -> Dict:
+          tokenizer_dir: Optional[Path] = None, seed: int = 42, extra_cap: int = 0) -> Dict:
     rng = random.Random(seed)
     splits = assign_rico_splits(clean_dir, data_dir, seed)
     old_rico, old_owl = _old_split_ids(data_dir)
@@ -266,6 +333,8 @@ def build(clean_dir: Path, owleye_bug_dir: Path, owleye_normal_dir: Path, data_d
                                      {"defect_type": lab["defect_type"], "bounding_box": lab.get("bounding_box")}, None))
                 else:
                     report["owleye_bug_unlabelled_excluded"] += 1
+        if split == "train" and extra_cap:
+            owl_rows.extend(_extra_owleye(labels, old_owl, owleye_bug_dir, owleye_normal_dir, extra_cap, rng, report))
         # OwlEye clean screens without OwlEye defect screens would teach "OwlEye look = clean".
         # Use the OwlEye source in a split only when its defect screens are labelled.
         if any(r[0] == "owleye_bug" for r in owl_rows):
@@ -332,12 +401,14 @@ def main(argv=None):
     ap.add_argument("--tokenizer", default=None, help="model dir for the token-length check")
     ap.add_argument("--mutations", default="1000,150,150", help="per split train,val,test")
     ap.add_argument("--clean", default="700,110,110", help="Rico clean negatives per split train,val,test")
+    ap.add_argument("--extra-owleye", type=int, default=0,
+                    help="max extra labelled OwlEye bug screens (split 'extra' in the labels) to add to train, plus as many normals")
     a = ap.parse_args(argv)
     mut = dict(zip(("train", "val", "test"), map(int, a.mutations.split(","))))
     cln = dict(zip(("train", "val", "test"), map(int, a.clean.split(","))))
     report = build(Path(a.clean_dir), Path(a.owleye_bug_dir), Path(a.owleye_normal_dir), Path(a.data_dir),
                    Path(a.out_dir), Path(a.labels) if a.labels else None, mut, cln,
-                   Path(a.tokenizer) if a.tokenizer else None)
+                   Path(a.tokenizer) if a.tokenizer else None, extra_cap=a.extra_owleye)
     print(json.dumps(report, indent=1))
 
 

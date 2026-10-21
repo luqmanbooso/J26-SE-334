@@ -10,6 +10,7 @@ import json
 import re
 import math
 import hashlib
+import logging
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from pathlib import Path
@@ -26,6 +27,8 @@ from local_vision_oracle.pruner import HierarchyPruner, PrunedNode
 from local_vision_oracle.preprocessor import ImagePreprocessor, PreprocessedImage
 from local_vision_oracle.prompt import PromptBuilder, VerdictParser, ORACLE_SYSTEM_PROMPT
 from local_vision_oracle.freeze_detector import TemporalFreezeDetector
+
+logger = logging.getLogger(__name__)
 
 
 class InferenceBackend(ABC):
@@ -388,6 +391,22 @@ class TransformersInferenceBackend(InferenceBackend):
         return response_text
 
 
+
+def _is_cuda_oom(err: Exception) -> bool:
+    return err.__class__.__name__ == "OutOfMemoryError" or "out of memory" in str(err).lower()
+
+
+def _release_cuda_cache() -> None:
+    import gc
+    gc.collect()
+    try:
+        import torch
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+    except Exception:
+        pass
+
+
 class OracleEngine:
     """
     Main C3 Local Multimodal Vision-Semantic Oracle Engine.
@@ -565,10 +584,16 @@ class OracleEngine:
 
         # Stage 4: Global Inference Execution
         t_inf_start = time.perf_counter()
-        raw_output = self.backend.generate(
-            messages=messages,
-            image=preprocessed.image,
-        )
+        try:
+            raw_output = self.backend.generate(
+                messages=messages,
+                image=preprocessed.image,
+            )
+        except Exception as inf_err:
+            if _is_cuda_oom(inf_err):
+                logger.error("CUDA OutOfMemoryError during global inference pass: %s", inf_err)
+                _release_cuda_cache()
+            raise
         t_inf_end = time.perf_counter()
         inference_ms = round((t_inf_end - t_inf_start) * 1000.0, 2)
 
@@ -581,20 +606,36 @@ class OracleEngine:
             if len(slices) > 1:
                 detected_slice_verdicts = []
                 for current_slice in slices:
-                    slice_prep = self.preprocessor.preprocess(current_slice.image)
-                    slice_msgs = self.prompt_builder.build_qwen_chat_input(
-                        image_content=slice_prep.image,
-                        pruned_nodes=None,
-                        metadata={"viewport_slice_index": current_slice.slice_index},
-                    )
-                    t_slice_start = time.perf_counter()
-                    slice_raw = self.backend.generate(messages=slice_msgs, image=slice_prep.image)
-                    t_slice_end = time.perf_counter()
-                    inference_ms += round((t_slice_end - t_slice_start) * 1000.0, 2)
-                    sv = VerdictParser.parse(slice_raw)
-                    if sv.has_defect:
-                        global_bbox = current_slice.map_bbox_to_global(sv.bounding_box)
-                        detected_slice_verdicts.append((current_slice, sv, global_bbox))
+                    try:
+                        slice_prep = self.preprocessor.preprocess(current_slice.image)
+                        slice_msgs = self.prompt_builder.build_qwen_chat_input(
+                            image_content=slice_prep.image,
+                            pruned_nodes=None,
+                            metadata={"viewport_slice_index": current_slice.slice_index},
+                        )
+                        t_slice_start = time.perf_counter()
+                        slice_raw = self.backend.generate(messages=slice_msgs, image=slice_prep.image)
+                        t_slice_end = time.perf_counter()
+                        inference_ms += round((t_slice_end - t_slice_start) * 1000.0, 2)
+                        sv = VerdictParser.parse(slice_raw)
+                        if sv.has_defect:
+                            global_bbox = current_slice.map_bbox_to_global(sv.bounding_box)
+                            detected_slice_verdicts.append((current_slice, sv, global_bbox))
+                    except Exception as slice_err:
+                        if not _is_cuda_oom(slice_err):
+                            raise
+                        # Keep the global verdict and any tile findings already collected.
+                        logger.warning(
+                            "CUDA OutOfMemoryError during SAHI slice %d. Reclaiming VRAM and "
+                            "stopping tile passes (falling back to the global verdict).",
+                            current_slice.slice_index,
+                        )
+                        run_metadata["sahi_oom_recovered"] = True
+                        _release_cuda_cache()
+                        break
+                    finally:
+                        slice_prep = slice_msgs = slice_raw = None
+                        _release_cuda_cache()
 
                 if detected_slice_verdicts:
                     primary_slice, primary_sv, primary_bbox = detected_slice_verdicts[0]

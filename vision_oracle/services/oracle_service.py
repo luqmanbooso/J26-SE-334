@@ -24,10 +24,23 @@ from PIL import Image
 import sys as _sys
 
 _C3_DIR = str(Path(__file__).resolve().parents[1])
-if _sys.path[:1] != [_C3_DIR]:
-    if _C3_DIR in _sys.path:
-        _sys.path.remove(_C3_DIR)
-    _sys.path.insert(0, _C3_DIR)
+
+
+def _norm(p: str) -> str:
+    return str(Path(p).resolve()).lower() if p else ""
+
+
+# Place vision_oracle/ just ahead of installed packages (where the stale copy lives), not at the
+# very front: other components put their own folders first (C1's "env testing" has a package
+# named `core`, as does vision_oracle/), and moving C3 to the front broke their imports.
+_paths = [_norm(p) for p in _sys.path]
+_first_installed = next((i for i, p in enumerate(_paths)
+                         if "site-packages" in p or "local-vision-oracle" in p), len(_sys.path))
+_mine = _paths.index(_norm(_C3_DIR)) if _norm(_C3_DIR) in _paths else None
+if _mine is None or _mine > _first_installed:
+    if _mine is not None:
+        del _sys.path[_mine]
+    _sys.path.insert(_first_installed, _C3_DIR)
 _stale = _sys.modules.get("local_vision_oracle")
 if _stale is not None and not str(getattr(_stale, "__file__", "")).startswith(_C3_DIR):
     raise ImportError(
@@ -429,7 +442,29 @@ class OracleService:
                 return json.loads(target_file.read_text(encoding="utf-8"))
             except Exception:
                 pass
-        return None
+        return self.get_latest_session_verdict(verdict_id)
+
+    def get_latest_session_verdict(self, session_id: str) -> Optional[Dict[str, Any]]:
+        """Most recent verdict of a session. C4's live client asks get_verdict(session_id),
+        which before 2026-10-21 never matched a verdict id, so C4 silently fell back to a
+        default verdict and lost C3's evidence."""
+        if not session_id:
+            return None
+        with self._verdict_lock:
+            for record in self._recent_verdicts:  # newest first
+                if record.get("session_id") == session_id:
+                    return record
+        verdicts = self._repo.list_session_verdicts(session_id)
+        if not verdicts:
+            return None
+        v_v2 = verdicts[0]  # list_session_verdicts is newest first
+        return {
+            "verdict_id": v_v2.verdict_id,
+            "session_id": v_v2.session_id,
+            "timestamp": "",
+            "verdict_v2": v_v2.model_dump(),
+            "c4_verdict": v_v2.to_c4_verdict().model_dump(),
+        }
 
     def evaluate(
         self,
@@ -630,19 +665,35 @@ class OracleService:
             else:
                 resolved_screens.append(s)
 
+        if len(resolved_screens) < 2:
+            raise ValueError("Temporal freeze analysis requires at least 2 screen frames.")
+        curr_hier = hierarchies[-1] if (hierarchies and len(hierarchies) >= len(resolved_screens)) else None
+        prev_hier = hierarchies[-2] if (hierarchies and len(hierarchies) >= len(resolved_screens)) else None
+
+        # 1. Temporal freeze rule (deterministic, CPU only).
         with self._inference_lock:
-            result = self._engine.evaluate_sequence(
-                screens=resolved_screens,
-                hierarchies=hierarchies,
-                time_delta_s=time_delta_s,
-                action_dispatched=action_dispatched,
-                action_context=action_context,
+            freeze = self._engine.freeze_detector.detect_freeze(
+                current_image=resolved_screens[-1], previous_image=resolved_screens[-2],
+                current_hierarchy=curr_hier, previous_hierarchy=prev_hier,
+                time_delta_s=time_delta_s, action_dispatched=action_dispatched,
             )
-        record = self.save_verdict_to_ledger(result, session_id=session_id)
-        return {
-            "oracle_result": result.to_dict(),
-            "c4_verdict": record["c4_verdict"],
-        }
+        if freeze.is_frozen:
+            with self._inference_lock:
+                result = self._engine.evaluate_sequence(
+                    screens=resolved_screens, hierarchies=hierarchies, time_delta_s=time_delta_s,
+                    action_dispatched=action_dispatched, action_context=action_context,
+                )
+            record = self.save_verdict_to_ledger(result, session_id=session_id)
+            return {"oracle_result": result.to_dict(), "c4_verdict": record["c4_verdict"]}
+
+        # 2. Not frozen: inspect the latest frame through the production pipeline (same as
+        # /evaluate). Before 2026-10-21 this used the legacy engine with tile views on, which
+        # disagreed with /evaluate on the same screen.
+        latest = resolved_screens[-1]
+        return self.evaluate(
+            image_input=latest if isinstance(latest, (str, Image.Image)) else Image.open(io.BytesIO(latest)),
+            raw_hierarchy=curr_hier, action_context=action_context, session_id=session_id, enable_sahi=False,
+        )
 
 
 # Singleton service instance

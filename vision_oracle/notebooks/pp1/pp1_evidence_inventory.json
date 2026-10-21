@@ -1,0 +1,462 @@
+{
+  "audit_date": "2026-10-21",
+  "kind": "read_only_recomputation_of_existing_evidence_no_new_inference",
+  "base_stored_parameters": 2208985600,
+  "base_plus_adapter_parameters": 2227450368,
+  "adapter_share_of_combined_percent": 0.8289642842448286,
+  "models": [
+    {
+      "name": "v1_stage1",
+      "path": "D:\\university\\Resesarch\\results\\c3_lora_clean_zero_leakage",
+      "adapter_sha256": "2b7c0e194bf050f801b10677df8af77f765ad7919a254fd1aa43a2c162b92358",
+      "file_bytes": 73916992,
+      "parameters": {
+        "count": 18464768,
+        "tensor_count": 392,
+        "dtypes": [
+          "F32"
+        ],
+        "vision_tensor_count": 0
+      },
+      "rank": 16,
+      "alpha": 32,
+      "dropout": 0.0,
+      "targets": [
+        "down_proj",
+        "gate_proj",
+        "k_proj",
+        "o_proj",
+        "q_proj",
+        "up_proj",
+        "v_proj"
+      ],
+      "global_step": 368,
+      "epoch": 2.0,
+      "best_metric": null,
+      "best_checkpoint": null,
+      "loss_points": 36,
+      "eval_loss_points": 0
+    },
+    {
+      "name": "v1_step246",
+      "path": "D:\\university\\Resesarch\\J26-SE-334\\vision_oracle\\models\\c3_qwen2vl_2b_lora_step246",
+      "adapter_sha256": "1a3642f57db0d85e1426216d1bbc32829a466f684cd85d82a83ad7ed711b6354",
+      "file_bytes": 73916992,
+      "parameters": {
+        "count": 18464768,
+        "tensor_count": 392,
+        "dtypes": [
+          "F32"
+        ],
+        "vision_tensor_count": 0
+      },
+      "rank": 16,
+      "alpha": 32,
+      "dropout": 0.0,
+      "targets": [
+        "down_proj",
+        "gate_proj",
+        "k_proj",
+        "o_proj",
+        "q_proj",
+        "up_proj",
+        "v_proj"
+      ],
+      "global_step": 246,
+      "epoch": 2.0,
+      "best_metric": null,
+      "best_checkpoint": null,
+      "loss_points": 24,
+      "eval_loss_points": 0
+    },
+    {
+      "name": "v2_checkpoint-173",
+      "path": "D:\\university\\Resesarch\\results\\c3_lora_v2\\checkpoint-173",
+      "adapter_sha256": "946ef20ff3cd2c889a241607a5307e44e8abe84c5c50a0e479beec68f58d3be5",
+      "file_bytes": 73916992,
+      "parameters": {
+        "count": 18464768,
+        "tensor_count": 392,
+        "dtypes": [
+          "F32"
+        ],
+        "vision_tensor_count": 0
+      },
+      "rank": 16,
+      "alpha": 32,
+      "dropout": 0.05,
+      "targets": [
+        "down_proj",
+        "gate_proj",
+        "k_proj",
+        "o_proj",
+        "q_proj",
+        "up_proj",
+        "v_proj"
+      ],
+      "global_step": 173,
+      "epoch": 1.0,
+      "best_metric": null,
+      "best_checkpoint": null,
+      "loss_points": 17,
+      "eval_loss_points": 0
+    },
+    {
+      "name": "v2_epoch2",
+      "path": "D:\\university\\Resesarch\\results\\c3_lora_v2_epoch2",
+      "adapter_sha256": "8614abc020baa15e428c6f8d8f931f96e530136ce79f21c0ffd63de0a2517947",
+      "file_bytes": 73916992,
+      "parameters": {
+        "count": 18464768,
+        "tensor_count": 392,
+        "dtypes": [
+          "F32"
+        ],
+        "vision_tensor_count": 0
+      },
+      "rank": 16,
+      "alpha": 32,
+      "dropout": 0.05,
+      "targets": [
+        "down_proj",
+        "gate_proj",
+        "k_proj",
+        "o_proj",
+        "q_proj",
+        "up_proj",
+        "v_proj"
+      ],
+      "global_step": 173,
+      "epoch": 1.0,
+      "best_metric": null,
+      "best_checkpoint": null,
+      "loss_points": 17,
+      "eval_loss_points": 0
+    }
+  ],
+  "scores": [
+    {
+      "name": "base_v2prompt",
+      "val_auc": 0.5951,
+      "test_auc_recomputed": 0.5733856753725365,
+      "test_auc_95ci_saved": [
+        0.5094,
+        0.638
+      ],
+      "threshold_from_validation": 0.18011,
+      "n": 316,
+      "tp": 158,
+      "fp": 154,
+      "fn": 0,
+      "tn": 4,
+      "precision": 0.5064102564102564,
+      "recall": 1.0,
+      "f1": 0.6723404255319149,
+      "accuracy": 0.5126582278481012,
+      "test_score_median_ms": 673.4,
+      "contract": {
+        "user_prompt": "Inspect this Android screen for non-crash UI defects. Answer with JSON only: {\"has_defect\": true|false, \"defect_type\": \"none|component_overlap|text_truncation|missing_component|data_binding_null\", \"bounding_box\": [ymin, xmin, ymax, xmax] in 0-1000 or null}.",
+        "system_prompt": null,
+        "image_max_pixels": 262144,
+        "source": "local_vision_oracle.dataset_v2.TRAINING_PROMPT; qwen2_vl default system; qwen2vl_lora_c3_v2.yaml"
+      },
+      "source": "vision_oracle\\evidence\\11_model_v2\\benchmarks\\base_v2prompt_test316_scores.json",
+      "source_sha256": "c18ece24f333a550fbb44e46c4b5caaa3150ba529fbc77daed71bde9ae45bbf0",
+      "validation_source": "vision_oracle\\evidence\\11_model_v2\\benchmarks\\base_v2prompt_val291_scores.json",
+      "validation_sha256": "405ef5d771dbf8757999ec2f3c96fb849946c54fe0c6b397e5697a7048d251b5"
+    },
+    {
+      "name": "v1_step246",
+      "val_auc": 0.7369,
+      "test_auc_recomputed": 0.7503605191475725,
+      "test_auc_95ci_saved": [
+        0.6921,
+        0.8026
+      ],
+      "threshold_from_validation": 0.5351,
+      "n": 316,
+      "tp": 125,
+      "fp": 79,
+      "fn": 33,
+      "tn": 79,
+      "precision": 0.6127450980392157,
+      "recall": 0.7911392405063291,
+      "f1": 0.6906077348066298,
+      "accuracy": 0.6455696202531646,
+      "test_score_median_ms": 631.5999999999999,
+      "contract": {
+        "user_prompt": "Analyze this mobile screen for non-crash visual and semantic defects.\n\nReturn the verdict in the specified JSON format.",
+        "system_prompt": null,
+        "image_max_pixels": 262144,
+        "source": "RD/LLaMA-Factory/data/train_boosted.json user turn; qwen2_vl template default system; qwen2vl_lora_sft_c3_boosted.yaml image_max_pixels",
+        "decision_threshold": 0.5351,
+        "threshold_source": "F1-optimal on c3v2_val (291 screens), v1_step246; never tuned on test"
+      },
+      "source": "vision_oracle\\evidence\\11_model_v2\\benchmarks\\v1_step246_test316_scores.json",
+      "source_sha256": "2c0d7e0ac0fe1c966398d325308211cc922e7187584d77af47b649e9b702eadd",
+      "validation_source": "vision_oracle\\evidence\\11_model_v2\\benchmarks\\v1_step246_val291_scores.json",
+      "validation_sha256": "4668c1ee4231204a3d05b82b0bcf289bf497181cf0545669470ac1692ba47852"
+    },
+    {
+      "name": "v2_checkpoint-173",
+      "val_auc": 0.7071,
+      "test_auc_recomputed": 0.6798589969556161,
+      "test_auc_95ci_saved": [
+        0.6194,
+        0.7347
+      ],
+      "threshold_from_validation": 0.22816,
+      "n": 316,
+      "tp": 144,
+      "fp": 121,
+      "fn": 14,
+      "tn": 37,
+      "precision": 0.5433962264150943,
+      "recall": 0.9113924050632911,
+      "f1": 0.6808510638297872,
+      "accuracy": 0.5727848101265823,
+      "test_score_median_ms": 615.0,
+      "contract": {
+        "user_prompt": "Inspect this Android screen for non-crash UI defects. Answer with JSON only: {\"has_defect\": true|false, \"defect_type\": \"none|component_overlap|text_truncation|missing_component|data_binding_null\", \"bounding_box\": [ymin, xmin, ymax, xmax] in 0-1000 or null}.",
+        "system_prompt": null,
+        "image_max_pixels": 262144,
+        "source": "local_vision_oracle.dataset_v2.TRAINING_PROMPT; qwen2_vl default system; qwen2vl_lora_c3_v2.yaml"
+      },
+      "source": "vision_oracle\\evidence\\11_model_v2\\benchmarks\\v2_checkpoint-173_test316_scores.json",
+      "source_sha256": "dc1d79a7de6724b6cbb592f717a0872f31ca3fa0de85b5dbb9fc9285f64236d5",
+      "validation_source": "vision_oracle\\evidence\\11_model_v2\\benchmarks\\v2_checkpoint-173_val291_scores.json",
+      "validation_sha256": "ac41b25cfa887014875862562ad35c8a67080729c30c33af2235d737c369caf4"
+    },
+    {
+      "name": "v2_epoch2",
+      "val_auc": 0.7088,
+      "test_auc_recomputed": 0.7123658067617369,
+      "test_auc_95ci_saved": [
+        0.655,
+        0.7662
+      ],
+      "threshold_from_validation": 0.18011,
+      "n": 316,
+      "tp": 149,
+      "fp": 125,
+      "fn": 9,
+      "tn": 33,
+      "precision": 0.5437956204379562,
+      "recall": 0.9430379746835443,
+      "f1": 0.6898148148148148,
+      "accuracy": 0.5759493670886076,
+      "test_score_median_ms": 748.55,
+      "contract": {
+        "user_prompt": "Inspect this Android screen for non-crash UI defects. Answer with JSON only: {\"has_defect\": true|false, \"defect_type\": \"none|component_overlap|text_truncation|missing_component|data_binding_null\", \"bounding_box\": [ymin, xmin, ymax, xmax] in 0-1000 or null}.",
+        "system_prompt": null,
+        "image_max_pixels": 262144,
+        "source": "local_vision_oracle.dataset_v2.TRAINING_PROMPT; qwen2_vl default system; qwen2vl_lora_c3_v2.yaml"
+      },
+      "source": "vision_oracle\\evidence\\11_model_v2\\benchmarks\\v2_epoch2_test316_scores.json",
+      "source_sha256": "2c2676732060d69640d9ae8a6364579acf6c6180d9a2df5615b99a4b1860f4b8",
+      "validation_source": "vision_oracle\\evidence\\11_model_v2\\benchmarks\\v2_epoch2_val291_scores.json",
+      "validation_sha256": "a6f99b73f40b33c20acb7306fe26c44d2c079353f922eba552ab4b44117d8a16"
+    }
+  ],
+  "test_pairs_same_images_labels_order": true,
+  "diagnosis_pairs_verified": 18,
+  "diagnosis_defects": 11,
+  "diagnosis_old_input_tp": 1,
+  "diagnosis_training_input_tp": 9,
+  "e2e_saved_summary": {
+    "n": 316,
+    "tp": 124,
+    "fp": 78,
+    "fn": 34,
+    "tn": 80,
+    "accuracy": 0.6456,
+    "precision": 0.6139,
+    "recall": 0.7848,
+    "f1": 0.6889,
+    "type_accuracy_on_defects": 0.3544,
+    "iou_at_0_5_on_defects": 0.0823,
+    "invalid_outputs": 0,
+    "median_latency_ms": 8037.1,
+    "p95_latency_ms": 26020.6,
+    "per_class": {
+      "component_overlap": {
+        "n": 62,
+        "binary_correct": 43,
+        "type_correct": 37
+      },
+      "data_binding_null": {
+        "n": 15,
+        "binary_correct": 15,
+        "type_correct": 1
+      },
+      "missing_component": {
+        "n": 43,
+        "binary_correct": 38,
+        "type_correct": 18
+      },
+      "none": {
+        "n": 158,
+        "binary_correct": 80,
+        "type_correct": 80
+      },
+      "text_truncation": {
+        "n": 38,
+        "binary_correct": 28,
+        "type_correct": 0
+      }
+    }
+  },
+  "e2e_invalid_recounted": 0,
+  "notebooks": [
+    {
+      "path": "vision_oracle\\notebooks\\C3_live_demo.ipynb",
+      "cells": 22,
+      "executed_code_cells": 11,
+      "superseded_banner": false,
+      "error_outputs": 0
+    },
+    {
+      "path": "vision_oracle\\notebooks\\c3_local_vision_oracle_interactive.ipynb",
+      "cells": 9,
+      "executed_code_cells": 0,
+      "superseded_banner": false,
+      "error_outputs": 0
+    },
+    {
+      "path": "vision_oracle\\notebooks\\c3_model_v2_review.ipynb",
+      "cells": 22,
+      "executed_code_cells": 0,
+      "superseded_banner": false,
+      "error_outputs": 0
+    },
+    {
+      "path": "vision_oracle\\notebooks\\c3_sahi_multimodal_evaluator.ipynb",
+      "cells": 27,
+      "executed_code_cells": 0,
+      "superseded_banner": false,
+      "error_outputs": 0
+    },
+    {
+      "path": "vision_oracle\\notebooks\\c3_vision_oracle_master_evaluation.ipynb",
+      "cells": 42,
+      "executed_code_cells": 7,
+      "superseded_banner": true,
+      "error_outputs": 0
+    },
+    {
+      "path": "vision_oracle\\notebooks\\model_evaluation.ipynb",
+      "cells": 13,
+      "executed_code_cells": 5,
+      "superseded_banner": true,
+      "error_outputs": 0
+    },
+    {
+      "path": "vision_oracle\\notebooks\\oracle_demonstration.ipynb",
+      "cells": 12,
+      "executed_code_cells": 8,
+      "superseded_banner": false,
+      "error_outputs": 0
+    },
+    {
+      "path": "vision_oracle\\notebooks\\pp1\\00_environment_identity_and_provenance.ipynb",
+      "cells": 5,
+      "executed_code_cells": 0,
+      "superseded_banner": true,
+      "error_outputs": 0
+    },
+    {
+      "path": "vision_oracle\\notebooks\\pp1\\01_standalone_visual_inspection.ipynb",
+      "cells": 4,
+      "executed_code_cells": 0,
+      "superseded_banner": true,
+      "error_outputs": 0
+    },
+    {
+      "path": "vision_oracle\\notebooks\\pp1\\02_held_out_evaluation.ipynb",
+      "cells": 3,
+      "executed_code_cells": 0,
+      "superseded_banner": true,
+      "error_outputs": 0
+    },
+    {
+      "path": "vision_oracle\\notebooks\\pp1\\03_fine_tuning_and_slicing_ablations.ipynb",
+      "cells": 3,
+      "executed_code_cells": 0,
+      "superseded_banner": true,
+      "error_outputs": 0
+    },
+    {
+      "path": "vision_oracle\\notebooks\\pp1\\04_hardware_performance_and_offline_operation.ipynb",
+      "cells": 3,
+      "executed_code_cells": 0,
+      "superseded_banner": true,
+      "error_outputs": 0
+    },
+    {
+      "path": "vision_oracle\\notebooks\\pp1\\05_reliability_and_failure_handling.ipynb",
+      "cells": 3,
+      "executed_code_cells": 0,
+      "superseded_banner": true,
+      "error_outputs": 0
+    },
+    {
+      "path": "vision_oracle\\notebooks\\pp1\\06_staged_integration_and_pp1_trace.ipynb",
+      "cells": 3,
+      "executed_code_cells": 0,
+      "superseded_banner": true,
+      "error_outputs": 0
+    },
+    {
+      "path": "vision_oracle\\notebooks\\pp1\\C3_PP1_measured_results.ipynb",
+      "cells": 26,
+      "executed_code_cells": 10,
+      "superseded_banner": false,
+      "error_outputs": 0
+    },
+    {
+      "path": "vision_oracle\\notebooks\\test.ipynb",
+      "cells": 9,
+      "executed_code_cells": 3,
+      "superseded_banner": false,
+      "error_outputs": 0
+    },
+    {
+      "path": "vision_oracle\\notebooks\\test_inference.ipynb",
+      "cells": 2,
+      "executed_code_cells": 2,
+      "superseded_banner": false,
+      "error_outputs": 0
+    },
+    {
+      "path": "vision_oracle\\notebooks\\test_model.ipynb",
+      "cells": 3,
+      "executed_code_cells": 3,
+      "superseded_banner": false,
+      "error_outputs": 1
+    },
+    {
+      "path": "vision_oracle\\notebooks\\train.ipynb",
+      "cells": 5,
+      "executed_code_cells": 0,
+      "superseded_banner": false,
+      "error_outputs": 0
+    },
+    {
+      "path": "vision_oracle\\notebooks\\visual_evaluator.ipynb",
+      "cells": 18,
+      "executed_code_cells": 0,
+      "superseded_banner": false,
+      "error_outputs": 0
+    }
+  ],
+  "limitations": [
+    "Base-v2 prompt and v1 prompt differ; historical recipe comparison is not a pure LoRA effect.",
+    "V2 uses 1377 compact-target filtered training records, not the identical v1 training recipe.",
+    "No rank sweep: inspected adapters all rank16.",
+    "Archived v2 YAML says 3 epochs/26 warmup; training log/state show 2 planned epochs/346 steps; current external YAML says 2/17.",
+    "V2 second stage loads adapter weights; optimizer/scheduler restart, not proven full-state resume.",
+    "Legacy test set has been inspected/demoed; do not describe it as presently untouched.",
+    "Missing adapter hashes/code versions in old score artifacts limit historical weight provenance.",
+    "No new model inference or training in this audit."
+  ]
+}
