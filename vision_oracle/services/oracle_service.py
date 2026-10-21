@@ -14,7 +14,7 @@ import threading
 import time
 from collections import deque
 from pathlib import Path
-from typing import List, Optional, Dict, Any, Union
+from typing import List, Optional, Dict, Any, Tuple, Union
 from PIL import Image
 
 # An older copy of this package is pip-installed (editable) from
@@ -82,30 +82,32 @@ from vision_oracle.core.manifest import log_model_configuration
 logger = logging.getLogger("vision_oracle.service")
 
 
-def create_default_engine() -> OracleEngine:
+def create_default_engine(adapter_dir: Optional[Path] = None) -> OracleEngine:
     """
     Initializes production OracleEngine strictly with real 4-bit NF4 quantized Qwen2-VL-2B model + LoRA adapter.
+    ``adapter_dir`` overrides the configured default adapter (used by the desktop app's model selector).
     Raises RuntimeError immediately if weights not found or loading fails. Zero mock fallbacks.
     """
+    adapter = Path(adapter_dir) if adapter_dir else LORA_WEIGHTS_PATH
     if not (BASE_MODEL_PATH and BASE_MODEL_PATH.exists()):
         raise RuntimeError(
             f"C3 base model path not found: {BASE_MODEL_PATH}. "
             "Ensure RD/models/Qwen2-VL-2B-Instruct exists on disk."
         )
-    if not (LORA_WEIGHTS_PATH and LORA_WEIGHTS_PATH.exists()):
+    if not (adapter and adapter.exists()):
         raise RuntimeError(
-            f"C3 LoRA adapter path not found: {LORA_WEIGHTS_PATH}. "
+            f"C3 LoRA adapter path not found: {adapter}. "
             "Ensure vision_oracle/models/c3_v3_vision_1ep exists on disk, or set C3_ADAPTER to an adapter folder."
         )
 
     logger.info(
         "Loading real 4-bit Qwen2-VL model from %s with LoRA from %s",
         BASE_MODEL_PATH,
-        LORA_WEIGHTS_PATH,
+        adapter,
     )
     backend = TransformersInferenceBackend(
         model_name_or_path=str(BASE_MODEL_PATH),
-        adapter_dir=str(LORA_WEIGHTS_PATH),
+        adapter_dir=str(adapter),
         quantization_bit=4,
         lazy_load=False,
     )
@@ -113,7 +115,7 @@ def create_default_engine() -> OracleEngine:
         logger.warning(
             "C3 adapter %s has no inference_contract.json. It will receive a prompt and "
             "resolution it was not trained on and will under-detect defects. See "
-            "vision_oracle/evidence/MODEL_V2_DECISIONS.md.", LORA_WEIGHTS_PATH,
+            "vision_oracle/evidence/MODEL_V2_DECISIONS.md.", adapter,
         )
     else:
         logger.info("C3 inference contract active: %s px, decision threshold %s",
@@ -133,7 +135,7 @@ class OracleService:
         engine: Optional[OracleEngine] = None,
         repository: Optional[OracleRepository] = None,
     ):
-        self._engine: OracleEngine = engine or create_default_engine()
+        self._engine: OracleEngine = engine or create_default_engine(_ADAPTER_OVERRIDE)
         self._repo: OracleRepository = repository or get_repository()
         self._inference_lock = threading.Lock()
         self._verdict_lock = threading.Lock()
@@ -698,6 +700,7 @@ class OracleService:
 
 # Singleton service instance
 _ORACLE_SERVICE: Optional[OracleService] = None
+_ADAPTER_OVERRIDE: Optional[Path] = None
 _SERVICE_INIT_LOCK = threading.Lock()
 
 
@@ -712,3 +715,45 @@ def get_oracle_service() -> OracleService:
 def set_oracle_service(service: OracleService) -> None:
     global _ORACLE_SERVICE
     _ORACLE_SERVICE = service
+
+
+_ADAPTER_LABELS = {
+    "c3_v3_vision_1ep": "Vision (default): screenshot only",
+    "c3_v3_fusion_1ep": "Fusion (experimental): screenshot + layout",
+    "c3_qwen2vl_2b_lora_step246": "Earlier version (v1)",
+}
+
+
+def available_adapters() -> List[Tuple[str, Path]]:
+    """Adapter folders next to the default one that carry weights and an inference contract: (label, folder)."""
+    root = (LORA_WEIGHTS_PATH.parent if LORA_WEIGHTS_PATH else None)
+    if root is None or not root.exists():
+        return []
+    found = [(_ADAPTER_LABELS.get(d.name, d.name), d) for d in sorted(root.iterdir())
+             if (d / "adapter_model.safetensors").exists() and (d / "inference_contract.json").exists()]
+    return sorted(found, key=lambda item: (item[1].name not in _ADAPTER_LABELS, list(_ADAPTER_LABELS).index(item[1].name)
+                                           if item[1].name in _ADAPTER_LABELS else 0, item[0]))
+
+
+def active_adapter() -> Optional[Path]:
+    """The adapter folder the next (or current) service uses."""
+    return _ADAPTER_OVERRIDE or LORA_WEIGHTS_PATH
+
+
+def switch_adapter(adapter_dir: Path) -> None:
+    """Use a different adapter from the next inspection on. Drops the loaded model so the 4 GB GPU holds only one."""
+    global _ORACLE_SERVICE, _ADAPTER_OVERRIDE
+    adapter_dir = Path(adapter_dir)
+    if not (adapter_dir / "adapter_model.safetensors").exists():
+        raise FileNotFoundError(f"No adapter weights in {adapter_dir}")
+    with _SERVICE_INIT_LOCK:
+        _ADAPTER_OVERRIDE = adapter_dir
+        _ORACLE_SERVICE = None
+    import gc
+    gc.collect()
+    try:
+        import torch
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+    except Exception:
+        pass
