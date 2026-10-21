@@ -18,14 +18,21 @@ def build_c4_view(parent, theme: dict, log: Callable[[str], None] = print, root=
     from tkinter import filedialog
 
     root = root or parent.winfo_toplevel()
-    controller = C4DemoController()
+    try:
+        from vision_oracle.core.config import C3_DIR
+        c3_inbox = Path(C3_DIR) / "results" / "c4_inbox"
+    except Exception:
+        c3_inbox = None
+    controller = C4DemoController(c3_inbox=c3_inbox)
     sample_dir = Path(__file__).parent / "samples"
+    out_root = Path(__file__).parents[3] / "out"
     variables = {
         name: ctk.StringVar(value=value)
         for name, value in {
             "config": "", "model": "qwen3:8b", "ollama": "http://127.0.0.1:11434",
             "telemetry": "", "source": "sentry", "journey": "", "script": "",
             "step": "0", "hierarchy": "", "baseline": "", "status": "Ready",
+            "threshold": "0.5", "c3_evidence": "(auto: match session)",
         }.items()
     }
     c3_var = ctk.BooleanVar(value=False)
@@ -105,6 +112,27 @@ def build_c4_view(parent, theme: dict, log: Callable[[str], None] = print, root=
     row(setup, "Model", variables["model"])
     row(setup, "Ollama URL", variables["ollama"])
     ctk.CTkCheckBox(setup, text="Use C3 verdict context", variable=c3_var).pack(anchor="w", pady=3)
+    c3_menu = ctk.CTkOptionMenu(setup, variable=variables["c3_evidence"], values=["(auto: match session)"])
+    c3_menu.pack(anchor="w", pady=3)
+    row(setup, "Heal threshold", variables["threshold"])
+
+    def refresh_c3_evidence():
+        c3_menu.configure(values=["(auto: match session)", *controller.c3_evidence()])
+
+    def selected_c3():
+        value = variables["c3_evidence"].get()
+        return None if value.startswith("(auto") else value
+
+    def heal_threshold():
+        try:
+            value = float(variables["threshold"].get())
+        except ValueError:
+            raise ValueError("Heal threshold must be a number between 0 and 1")
+        if not 0.0 <= value <= 1.0:
+            raise ValueError("Heal threshold must be a number between 0 and 1")
+        return value
+
+    refresh_c3_evidence()
     button(setup, "Preflight", lambda: run_async(action_buttons, lambda: controller.preflight(variables["config"].get()),
         lambda result: _show_preflight(result))).pack_forget()
     preflight_button = setup.winfo_children()[-1]
@@ -119,7 +147,7 @@ def build_c4_view(parent, theme: dict, log: Callable[[str], None] = print, root=
                       values=["sentry", "crashlytics"]).pack(anchor="w", pady=3)
     journey_menu = ctk.CTkOptionMenu(journeys_card, variable=variables["journey"], values=["(none)"])
     journey_menu.pack(anchor="w", pady=3)
-    journey_list = ctk.CTkTextbox(journeys_card, height=80, state="disabled")
+    journey_list = ctk.CTkTextbox(journeys_card, height=110, state="disabled")
     journey_list.pack(fill="x", pady=4)
     step_list = ctk.CTkTextbox(journeys_card, height=70, state="disabled")
     step_list.pack(fill="x", pady=4)
@@ -136,6 +164,10 @@ def build_c4_view(parent, theme: dict, log: Callable[[str], None] = print, root=
             variables["status"].set(f"Error: {result}")
             return
         current_journeys = result
+        if result and result[0].error:
+            variables["status"].set(f"Error: {result[0].error}")
+            write_log(f"[C4] {result[0].error}")
+            return
         ids = [item.id for item in result if item.id]
         journey_menu.configure(values=ids or ["(none)"])
         if ids:
@@ -143,8 +175,10 @@ def build_c4_view(parent, theme: dict, log: Callable[[str], None] = print, root=
         journey_list.configure(state="normal")
         journey_list.delete("1.0", "end")
         journey_list.insert("end", "\n".join(
-            f"{item.id} | {item.failing_screen or '-'} | {item.steps} steps | "
-            f"{'reproducible' if item.reproducible else 'not reproducible'} | {'; '.join(item.hints)}"
+            f"{item.id} | origin: {item.source} ({Path(item.source_file).name}) | session {item.session_id} | "
+            f"app {item.app_version or '-'} | {item.failing_screen or '-'} | {item.steps} steps | "
+            f"{'reproducible' if item.reproducible else 'not reproducible'} | "
+            f"hints: {'; '.join(item.hints) or 'none'}"
             for item in result
         ))
         journey_list.configure(state="disabled")
@@ -164,13 +198,19 @@ def build_c4_view(parent, theme: dict, log: Callable[[str], None] = print, root=
     journey_menu.configure(command=_show_steps)
     button(journeys_card, "Load sample", _load_sample, theme["warning"])
     button(journeys_card, "Create journeys", lambda: run_async(action_buttons,
-        lambda: controller.create_journeys(variables["telemetry"].get(), variables["source"].get(), str(sample_dir / "runs")),
+        lambda: controller.create_journeys(variables["telemetry"].get(), variables["source"].get(), str(out_root / "journeys")),
         _show_journeys))
     button(journeys_card, "Export seed (for C1/C2)", lambda: _export_seed())
 
     def _export_seed():
         if variables["journey"].get() and variables["journey"].get() != "(none)":
-            path = controller.export_seed(variables["journey"].get(), str(sample_dir / "exported_seed.json"))
+            target = filedialog.asksaveasfilename(
+                defaultextension=".json", initialfile="exported_seed.json",
+                initialdir=str(out_root), filetypes=[("Journey seed", "*.json")])
+            if not target:
+                return
+            path = controller.export_seed(variables["journey"].get(), target)
+            variables["status"].set(path if path.startswith("ERROR") else "Seed exported")
             write_log(f"[C4] Seed: {path}")
 
     test = card("C  Test", "Generate locally, execute, and optionally heal the failing run")
@@ -179,33 +219,55 @@ def build_c4_view(parent, theme: dict, log: Callable[[str], None] = print, root=
     script_box.configure(state="disabled")
     button(test, "Generate test", lambda: run_async(action_buttons,
         lambda: controller.generate_test(variables["journey"].get(), variables["model"].get(),
-            variables["ollama"].get(), c3_var.get(), variables["config"].get()), _show_test))
+            variables["ollama"].get(), c3_var.get(), variables["config"].get(), selected_c3()), _show_test))
     button(test, "Run on device", lambda: run_async(action_buttons,
-        lambda: controller.run_test(variables["journey"].get(), variables["config"].get()), _show_run))
+        lambda: controller.run_test(
+            variables["journey"].get(), variables["config"].get(), str(out_root / "runs"),
+            model=variables["model"].get(), ollama_url=variables["ollama"].get(),
+            use_c3=c3_var.get(), c3_verdict_id=selected_c3()), _show_run))
     ctk.CTkCheckBox(test, text="Run + heal", variable=heal_var).pack(side="left", padx=5)
     status_label(test)
     run_link = ctk.CTkLabel(test, text="", text_color=theme["primary"])
     run_link.pack(anchor="w")
 
     def _show_test(result):
-        variables["status"].set(f"Test: {result.status}")
+        c3_note = ""
+        if c3_var.get():
+            c3_note = f" | C3: {result.c3_status}" + (f" ({result.c3_verdict_id})" if result.c3_verdict_id else "")
+        variables["status"].set(f"Test: {result.status}{c3_note}" + (f" - {result.error}" if result.error else ""))
         script_box.configure(state="normal")
         script_box.delete("1.0", "end")
-        script_box.insert("end", result.script)
+        script_box.insert("end", result.script or result.error or "")
         script_box.configure(state="disabled")
 
     def _show_run(result):
-        variables["status"].set(f"Run: {result.status} ({result.failure_kind or 'no failure'})")
+        variables["status"].set(
+            f"Run: {result.status} ({result.failure_kind or result.error or 'no failure'})")
         run_link.configure(text=result.run_folder or result.error or "")
-        if heal_var.get() and result.status != "error":
-            run_async(action_buttons, lambda: controller.heal_last_failure(result, "lexical"), _show_heal)
+        if heal_var.get() and result.execution_result is not None and result.execution_result.failure is not None:
+            try:
+                threshold = heal_threshold()
+            except ValueError as error:
+                variables["status"].set(f"Error: {error}")
+                return
+            run_async(action_buttons, lambda: controller.heal_last_failure(
+                result, "lexical", threshold, verify=True, config_path=variables["config"].get()), _show_heal)
 
     healing = card("D  Healing result", "Auditable confidence, narrowing, candidates, diff, and versions")
     healing_box = ctk.CTkTextbox(healing, height=190, state="disabled", font=ctk.CTkFont(family="Consolas", size=10))
     healing_box.pack(fill="x")
 
     def _show_heal(result):
+        if result.error:
+            text = result.error
+        elif result.verified:
+            outcome = f"VERIFIED: re-execution passed (versions {result.versions})"
+        elif result.rerun_status in (None, "not_run"):
+            outcome = "SUGGESTED ONLY: not applied and not verified by re-execution"
+        else:
+            outcome = f"NOT VERIFIED: {result.rerun_status}" + (f" ({result.reason})" if result.reason else "")
         text = result.error or (
+            f"{outcome}\n"
             f"{result.status}: {result.original_locator} -> {result.healed_locator}\n"
             f"confidence={result.confidence} threshold={result.threshold} margin={result.margin}\n"
             f"candidates={result.candidates_total} -> {result.candidates_after_narrowing}\n"
@@ -254,7 +316,8 @@ def build_c4_view(parent, theme: dict, log: Callable[[str], None] = print, root=
         import json
         from vision_oracle.core.config import C3_DIR
         receipt = controller.receive_inspection(payload, C3_DIR / 'results' / 'c4_inbox')
-        inbox_status.configure(text='Received: ' + receipt['verdict_id'] + '\nEvidence saved. Select a recorded journey above to generate a reproducible test.')
+        refresh_c3_evidence()
+        inbox_status.configure(text='Received: ' + receipt['verdict_id'] + '\nEvidence saved. Select it in "Use C3 verdict context" (Setup) to attach it to a journey.')
         inbox_preview.configure(state='normal')
         inbox_preview.delete('1.0', 'end')
         inbox_preview.insert('1.0', json.dumps(payload, indent=2))

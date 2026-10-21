@@ -59,7 +59,10 @@ class ExecutionService:
         adb_device: SharedAdb | None = None,
     ) -> None:
         self.runner = runner or AppiumRunner()
-        self.retry_config = retry_config or ExecutionRetryConfig()
+        # The script budget must outlast the UiAutomator2 server launch wait.
+        self.retry_config = retry_config or ExecutionRetryConfig(
+            timeout_seconds=120.0 + (target.server_launch_timeout_ms / 1000 if target else 0.0)
+        )
         self.target = target
         self.command_runner = command_runner or _default_command_runner
         self._probes = (adb_probe, device_probe, appium_probe, package_probe)
