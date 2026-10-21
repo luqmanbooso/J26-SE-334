@@ -23,6 +23,10 @@ Thumbs.db
 /results/*
 !/results/*.py
 !/results/exp-02/
+# C2 run artifacts (live/replay timelines, plans, reports, figures) — not committed;
+# experiment subdirs (exp-03/04/05…) stay trackable.
+/biometry/results/*
+!/biometry/results/exp-*/
 scratch/
 
 # Vision Oracle Models

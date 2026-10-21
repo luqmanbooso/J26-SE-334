@@ -64,20 +64,51 @@ def _episodes(records, threshold=HIGH_STRESS):
     return spans
 
 
-def build_report(timeline_json_path, out_html_path=None, threshold=HIGH_STRESS):
+def _reliability_banner(reliability):
+    """A prominent notice at the top of the report when a replay was disrupted, so a
+    stuck/relaunched run can never quietly look like a clean one. Returns "" for a
+    clean ('ok') run or when there is no verdict (e.g. a map run)."""
+    if not reliability:
+        return ""
+    level = reliability.get("level", "ok")
+    if level == "ok":
+        return ""
+    msg = html.escape(str(reliability.get("message", "")))
+    counts = "{} taps · {} relaunches · {} drifts · {} screens verified".format(
+        reliability.get("taps", "—"), reliability.get("relaunches", "—"),
+        reliability.get("drifts", "—"), reliability.get("verified", "—"))
+    label = "⚠ Results may be unreliable" if level == "unreliable" else "⚠ Read with caution"
+    return ('<div class="banner {lvl}"><div class="bt">{label}</div>'
+            '<div class="bm">{msg}</div><div class="bc">{counts}</div></div>').format(
+                lvl=html.escape(level), label=label, msg=msg, counts=html.escape(counts))
+
+
+def build_report(timeline_json_path, out_html_path=None, threshold=HIGH_STRESS,
+                 reliability=None):
     """Write an interactive HTML report next to the timeline JSON.
 
     Returns the path written. `out_html_path` defaults to the JSON path with
     `_timeline.json` / `.json` swapped for `_report.html`.
+
+    `reliability` is the replay verdict dict (level/message/counts). If not passed,
+    a sibling `<base>_reliability.json` (written by a replay run) is auto-loaded, so
+    the banner appears whoever calls build_report. A map run leaves no sidecar and so
+    gets no banner.
     """
     meta, records = _load_records(timeline_json_path)
+    base = timeline_json_path
+    for suffix in ("_timeline.json", ".json"):
+        if base.endswith(suffix):
+            base = base[: -len(suffix)]
+            break
     if out_html_path is None:
-        base = timeline_json_path
-        for suffix in ("_timeline.json", ".json"):
-            if base.endswith(suffix):
-                base = base[: -len(suffix)]
-                break
         out_html_path = base + "_report.html"
+    if reliability is None:
+        try:
+            with open(base + "_reliability.json", "r", encoding="utf-8") as fh:
+                reliability = json.load(fh)
+        except Exception:
+            reliability = None
 
     spans = _episodes(records, threshold)
     n = len(records)
@@ -107,6 +138,7 @@ def build_report(timeline_json_path, out_html_path=None, threshold=HIGH_STRESS):
     title = f"C2 Stress Report · {html.escape(str(summary['run_id']))}"
     doc = _TEMPLATE.replace("__TITLE__", title)
     doc = doc.replace("__PLOTLY_SCRIPT__", _plotly_script_tag())
+    doc = doc.replace("__BANNER__", _reliability_banner(reliability))
     doc = doc.replace("__PAYLOAD__", payload)
 
     with open(out_html_path, "w", encoding="utf-8") as fh:
@@ -150,6 +182,12 @@ __PLOTLY_SCRIPT__
   td.hit { color: #059669; }
   .tblwrap { max-height: 340px; overflow: auto; border: 1px solid #e2e8f0; border-radius: 10px; }
   .pill { display:inline-block; padding:1px 7px; border-radius:999px; font-size:11px; font-weight:600; }
+  .banner { border-radius: 10px; padding: 12px 14px; margin: 10px 0 4px; border: 1px solid; }
+  .banner .bt { font-weight: 700; font-size: 14px; }
+  .banner .bm { font-size: 12.5px; margin-top: 3px; line-height: 1.45; }
+  .banner .bc { font-size: 11px; margin-top: 6px; opacity: .8; font-variant-numeric: tabular-nums; }
+  .banner.unreliable { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+  .banner.caution { background: #fffbeb; border-color: #fde68a; color: #92400e; }
 </style>
 </head>
 <body>
@@ -158,6 +196,7 @@ __PLOTLY_SCRIPT__
   <div class="sub" id="subtitle"></div>
 </header>
 <div class="wrap">
+  __BANNER__
   <div class="kpis" id="kpis"></div>
   <div class="card"><div id="chart"></div></div>
   <div class="hint">Hover a tap to see what it aimed at and why stress moved.
