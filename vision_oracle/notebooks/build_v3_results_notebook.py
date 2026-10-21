@@ -121,7 +121,7 @@ if sc:
     code("""def box(v): return json.loads(v) if isinstance(v, str) else v
 def iou1(a0, a1, b0, b1):
     i = max(0, min(a1, b1) - max(a0, b0)); u = (a1 - a0) + (b1 - b0) - i; return i / u if u > 0 else 0
-E2E = {'v3 vision': 'v3_e2e_defects122.json', 'v3 fusion': 'v3_fusion_e2e_defects122.json'}
+E2E = {'base (untrained)': 'base_vision_e2e_defects122.json', 'v3 vision': 'v3_e2e_defects122.json', 'v3 fusion': 'v3_fusion_e2e_defects122.json'}
 for label, f in E2E.items():
     d = load(f)
     if not d: continue
@@ -148,17 +148,86 @@ ax[0].set_xlabel('step'); ax[0].set_ylabel('training loss'); ax[0].legend(); ax[
 rep = json.loads((C3 / 'evidence' / '12_dataset_v3' / 'dataset_v3_report.json').read_text(encoding='utf-8'))['splits']['train']
 names, vals = list(rep), list(rep.values()); ax[1].barh(names, vals); ax[1].set_title('training examples by source and type', fontsize=9); plt.tight_layout(); plt.show()
 print('training examples:', sum(vals))"""),
+    md("""## 8b. Proof that fine-tuning happened
+The trainable-parameter counts below are read from the saved adapter files themselves, not from the training logs."""),
+    code("""import struct
+def adapter_facts(folder):
+    cfg = json.loads((folder / 'adapter_config.json').read_text(encoding='utf-8'))
+    with open(folder / 'adapter_model.safetensors', 'rb') as f:
+        n = struct.unpack('<Q', f.read(8))[0]; header = json.loads(f.read(n))
+    params = sum(int(np.prod(v['shape'])) for k, v in header.items() if k != '__metadata__')
+    return cfg, params
+print(f"{'adapter':<30}{'rank':>5}{'alpha':>6}{'dropout':>9}{'trainable params':>20}")
+for name, folder in (('v1 shipped', C3 / 'models' / 'c3_qwen2vl_2b_lora_step246'), ('v3 vision', C3 / 'models' / 'c3_v3_vision_1ep'), ('v3 fusion', C3 / 'models' / 'c3_v3_fusion_1ep')):
+    if (folder / 'adapter_model.safetensors').exists():
+        cfg, p = adapter_facts(folder)
+        print(f"{name:<30}{cfg['r']:>5}{cfg['lora_alpha']:>6}{cfg.get('lora_dropout', 0):>9}{p:>20,}  ({p / 2227450368:.2%} of the 2.23 B base)")
+print('base model: Qwen2-VL-2B-Instruct, weights frozen, loaded in 4-bit NF4 (QLoRA); vision encoder frozen')
+for label, f in (('vision', 'v3_vision_trainer_log.jsonl'), ('fusion', 'v3_fusion_trainer_log.jsonl')):
+    rows = [r for r in (json.loads(l) for l in (EV / f).read_text(encoding='utf-8').splitlines() if l.strip()) if 'loss' in r]
+    print(f"{label}: {rows[-1]['total_steps']} steps, first loss {rows[0]['loss']:.2f}, last loss {rows[-1]['loss']:.2f}")"""),
+    md("## 8c. Are the differences statistically real? (McNemar on paired decisions)\nEach model's decision on each test screen is correct or wrong. McNemar's test asks whether two models disagree more in one direction than chance would give. Decisions use each model's fixed threshold from above. p < 0.05 means the difference is unlikely to be luck."),
+    code("""import math
+def decisions(label):
+    m = MODELS[label]; return {r['image']: ((r['p'] >= m['thr']) == r['gold']) for r in m['recs']}
+def mcnemar(a, b):
+    da, db = decisions(a), decisions(b); imgs = sorted(set(da) & set(db))
+    b_only = sum(da[i] and not db[i] for i in imgs); c_only = sum(db[i] and not da[i] for i in imgs)
+    chi = (abs(b_only - c_only) - 1) ** 2 / (b_only + c_only) if b_only + c_only else 0.0
+    return b_only, c_only, math.erfc(math.sqrt(chi / 2))
+pairs = [('v3 vision (retrained)', 'v1 shipped (before)'), ('v3 vision (retrained)', 'base, screenshot only'),
+         ('v3 fusion (+ layout text)', 'v3 vision (retrained)'), ('base, + layout text', 'base, screenshot only')]
+print(f"{'A':<28}{'B':<28}{'A right, B wrong':>18}{'B right, A wrong':>18}{'p-value':>10}")
+for a, b in pairs:
+    if a in MODELS and b in MODELS:
+        x, y, p = mcnemar(a, b); print(f"{a:<28}{b:<28}{x:>18}{y:>18}{p:>10.4f}" + ('  *' if p < 0.05 else ''))"""),
+    md("## 8d. Efficiency on the 4 GB laptop GPU\nThe decision (defect or not) is one forward pass. Type and box need generation, which is slower. Peak memory includes the 4-bit base model."),
+    code("""print(f"{'model':<24}{'decision median':>17}{'type+box median':>17}{'type+box p95':>14}{'peak GPU memory':>17}")
+for label, sf, ef in (('v3 vision', 'v3_test_scores.json', 'v3_e2e_defects122.json'), ('v3 fusion', 'v3_fusion_test_scores.json', 'v3_fusion_e2e_defects122.json'), ('base (untrained)', 'base_vision_test_scores.json', 'base_vision_e2e_defects122.json')):
+    s, e = load(sf), load(ef)
+    if not (s and e): continue
+    dec = np.median([float(r['latency_ms']) for r in s['records']]) / 1000
+    print(f"{label:<24}{dec:>15.2f} s{e['summary']['median_latency_ms'] / 1000:>15.1f} s{e['summary']['p95_latency_ms'] / 1000:>12.1f} s{e['peak_vram_bytes'] / 1024 ** 3:>14.2f} GB")
+print('target from the proposal: 1.5 s. Met for the defect decision, not when the type and box are generated.')"""),
+    md("## 8e. Per defect type (type correct, among the 122 test defects)"),
+    code("""types = ['component_overlap', 'data_binding_null', 'missing_component', 'text_truncation']
+print(f"{'type':<22}" + ''.join(f'{m:>20}' for m in E2E))
+for t in types:
+    cells = []
+    for f in E2E.values():
+        d = load(f); pc = d['summary']['per_class'].get(t) if d else None
+        cells.append(f"{pc['type_correct']}/{pc['n']} ({pc['type_correct'] / pc['n']:.0%})" if pc else '-')
+    print(f'{t:<22}' + ''.join(f'{c:>20}' for c in cells))"""),
+    md("## 8f. Same screens, different models: where each one puts its box\nGreen = true box. Red = v3 vision. Blue = v3 fusion. Orange dashed = untrained base."),
+    code("""from PIL import Image
+E = {k: {r['image']: r for r in load(f)['records']} for k, f in (('vision', 'v3_e2e_defects122.json'), ('fusion', 'v3_fusion_e2e_defects122.json'), ('base', 'base_vision_e2e_defects122.json')) if load(f)}
+common = [i for i in E['vision'] if all(i in e for e in E.values()) and E['vision'][i]['pred_box'] and E['vision'][i]['gold_box']]
+rng = np.random.default_rng(3)
+owl = [i for i in common if 'OwlEye' in i]; rico = [i for i in common if 'OwlEye' not in i]
+pick = list(rng.choice(owl, 4, replace=False)) + list(rng.choice(rico, 4, replace=False))
+fig, axes = plt.subplots(2, 4, figsize=(15, 9))
+def draw(ax, b, w, h, color, ls='-'):
+    if not b: return
+    y1, x1, y2, x2 = box(b); ax.add_patch(plt.Rectangle((x1 * w / 1000, y1 * h / 1000), (x2 - x1) * w / 1000, (y2 - y1) * h / 1000, fill=False, ec=color, lw=2.5, ls=ls))
+for ax, img in zip(axes.ravel(), pick):
+    with Image.open(img) as im: im = im.convert('RGB')
+    w, h = im.size; ax.imshow(im); ax.axis('off')
+    draw(ax, E['vision'][img]['gold_box'], w, h, 'lime'); draw(ax, E['base'][img]['pred_box'], w, h, 'orange', '--')
+    draw(ax, E['vision'][img]['pred_box'], w, h, 'red'); draw(ax, E['fusion'][img]['pred_box'], w, h, 'deepskyblue')
+    ax.set_title(f"{'OwlEye' if 'OwlEye' in img else 'Rico'} | IoU vision {E['vision'][img]['iou'] or 0:.2f}, fusion {E['fusion'][img]['iou'] or 0:.2f}", fontsize=8)
+plt.tight_layout(); plt.show()"""),
     md("""## 9. What this does and does not show
-- Detection improved measurably: AUC 0.735 to 0.814, with confidence intervals that do not overlap the old model's value.
-- Defect-type accuracy on flagged defects roughly doubled.
-- At the chosen threshold about half of clean screens are flagged. In real use defects are rare, so precision would be lower than shown here. Reducing false alarms is future work.
-- Boxes are in the right area but rarely tight. Real OwlEye bugs have no layout files, so the fusion effect can only be measured on the synthetic Rico screens.
-- One epoch, one seed, model-assisted labels. These are limits, not hidden details.
+- **Fine-tuning helped a lot.** Retrained vision arm vs the untrained base model: AUC +0.22 (95% CI +0.16 to +0.27). vs the earlier model: +0.08 (+0.04 to +0.12). The base model flags only about one defect in ten and names the type correctly 2% of the time.
+- **Fusion (adding layout text) did not improve detection in this first attempt.** AUC fell from 0.814 to 0.753 (difference -0.06, CI -0.095 to -0.026), including on OwlEye screens that carry no layout, so part of the gap may be run-to-run variation (one run, one seed).
+- **A hint that layout helps boxes on synthetic screens:** tight boxes on Rico rose from 17.5% to 25%, but with only 40 screens this is within noise. On real OwlEye screens fusion was worse.
+- **For synthetic defects the layout describes the original, unmutated screen,** so it cannot reveal the defect. It can only say where elements are. This is a limit of the design and a PP2 question.
+- At the chosen threshold about half of clean screens are flagged. In real use defects are rare, so precision would be lower than shown here.
+- Boxes are in the right area but rarely tight on real screens. One epoch, one seed, model-assisted labels. These are limits, not hidden details.
 """),
 ]
 nb = nbf.v4.new_notebook(); nb.cells = cells
 nb.metadata["kernelspec"] = {"name": "python3", "display_name": "Python 3", "language": "python"}
 out = HERE / "C3_v3_measured_results.ipynb"
 NotebookClient(nb, timeout=600, kernel_name="python3", resources={"metadata": {"path": str(HERE.parent)}}).execute()
-nbf.write(nb, out)
+out.write_bytes(nbf.writes(nb).encode("utf-8"))  # LF line endings, as Jupyter writes them
 print(out)

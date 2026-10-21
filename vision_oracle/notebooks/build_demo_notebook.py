@@ -6,17 +6,20 @@ md, code = nbf.v4.new_markdown_cell, nbf.v4.new_code_cell
 cells = [
     md("""# C3 Vision Oracle: live demo
 
-Each screen below is analysed **live** by the shipped model, through the same service the HEART app's *Inspect screenshot* button uses (global view, adapter `c3_qwen2vl_2b_lora_step246`, threshold 0.535). All screens come from the held-out test split, never used for training.
+Each screen below is analysed **live** by the shipped model, through the same service the HEART app's *Inspect screenshot* button uses (global view, retrained adapter `c3_v3_vision_1ep`, decision threshold 0.30 read from the adapter's own contract). All nine screens are in the held-out test split of the retrained dataset, so the model never trained on them.
 
 **Red box** = the region the model flagged (approximate). **Green box** = where the defect really is.
 
-These are selected screens that show behaviour. For accuracy, quote the held-out test only: AUC 0.75, F1 0.69, precision 61%, recall 79% on 316 screens.
+These are selected screens that show behaviour. For accuracy, quote the held-out test only: AUC 0.81, F1 0.78, precision 68%, recall 90% on 425 screens. At this threshold about half of clean screens are also flagged, so a clean screen shown as flagged below is expected behaviour, not a surprise.
 
 Run the cells from top to bottom. The first cell loads the model (about 20–40 s). Each screen then takes about 1 s if clean, or 8–10 s if a defect is found."""),
     code("""import sys, time
 from pathlib import Path
 C3 = next(p for p in [Path.cwd().resolve(), *Path.cwd().resolve().parents] if (p / 'demo_inputs').exists())
 sys.path.insert(0, str(C3.parent))
+import os, json
+os.environ['C3_ADAPTER'] = str(C3 / 'models' / 'c3_v3_vision_1ep')   # the retrained adapter
+THRESH = json.loads((Path(os.environ['C3_ADAPTER']) / 'inference_contract.json').read_text(encoding='utf-8'))['decision_threshold']
 import vision_oracle.services.oracle_service as svc_mod   # must be imported first (path guard)
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
@@ -64,7 +67,8 @@ def inspect(name, layout=None):
     plt.show()
     score = v['metadata'].get('defect_probability')
     print(f"Decision : {decision}")
-    print(f"Score    : {score:.2f} (flagged at 0.54 or above)" if score is not None else 'Score: -')
+    print(f"Type     : model said '{got}', expected '{expected}' -> {'CORRECT' if ok else 'MISSED'}")
+    print(f"Score    : {score:.2f} (flagged at {THRESH:.2f} or above)" if score is not None else 'Score: -')
     if f.get('element_ref'):
         print(f"Element  : {f['element_ref']} (matched from the layout file)")
     print(f"Time     : {secs:.1f} s")"""),

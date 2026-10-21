@@ -62,11 +62,13 @@ def resolve_path(rel_candidate: Union[str, Path]) -> Optional[Path]:
 
 
 BASE_MODEL_PATH = resolve_path("models/Qwen2-VL-2B-Instruct") or resolve_path("RD/models/Qwen2-VL-2B-Instruct")
-# C3_ADAPTER overrides the adapter folder (e.g. results/c3_lora_v2_epoch2 for the v2 ablation).
-# The shipped adapter was selected on validation AUC on 20 Oct 2026 (evidence/11_model_v2/benchmarks/selection.json).
+# C3_ADAPTER overrides the adapter folder (e.g. models/c3_qwen2vl_2b_lora_step246 for the earlier v1 model).
+# Default: the v3 vision adapter, retrained on dataset v3 and selected over the fusion arm on 21 Oct 2026
+# (test AUC 0.814 vs 0.735 for v1; evidence/15_model_v3). v1 stays on disk as the fallback.
 # Each adapter folder carries inference_contract.json: the prompt, resolution and decision threshold.
 LORA_WEIGHTS_PATH = (
     (resolve_path(os.environ["C3_ADAPTER"]) if os.getenv("C3_ADAPTER") else None)
+    or resolve_path("models/c3_v3_vision_1ep")
     or resolve_path("models/c3_qwen2vl_2b_lora_step246")
     or resolve_path("models/c3_lora_final")
     or resolve_path("results/c3_qwen2vl_2b_lora_step246")

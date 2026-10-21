@@ -14,6 +14,17 @@ from vision_oracle.frontend.presentation import present_result
 
 C3_ROOT = Path(__file__).resolve().parents[1]
 
+# The four HEART components in pipeline order. C3 is this window; the others are shown so the
+# screen reads as one stage of the full pipeline.
+FLOW_STAGES = (
+    ('C1', 'Environment perturbation', 'Applies network, battery and interruption conditions'),
+    ('C2', 'Human stress interaction', 'Drives the app like a stressed user'),
+    ('C3', 'Vision oracle', 'Inspects each screen (this window)'),
+    ('C4', 'Self-healing synthesis', 'Turns confirmed findings into regression tests'),
+)
+FLOW_COLORS = {'idle': '#64748b', 'active': '#1d4ed8', 'done': '#047857', 'alert': '#be123c', 'warn': '#a16207'}
+FLOW_DEFAULTS = (('idle', 'Not run here'), ('idle', 'Not run here'), ('idle', 'Ready'), ('idle', 'Waiting for a result'))
+
 
 def default_service():
     from vision_oracle.services.oracle_service import get_oracle_service
@@ -53,6 +64,7 @@ class C3Workspace(ctk.CTkFrame):
         self.label(self,'Screen inspection',20)
         self.label(self,'Inspect a screenshot independently, or capture a connected phone.',13,wraplength=560,justify='left')
         self.label(self,'Review visual findings before taking action.',12,text_color='#a16207')
+        self.build_flow()
         source=ctk.CTkFrame(self)
         source.pack(fill='x',padx=8,pady=6)
         self.buttons(source,[('Choose screenshot',self.choose_image),('Inspect screenshot',lambda:self.run('file')),('Capture phone',lambda:self.run('device'))])
@@ -95,6 +107,56 @@ class C3Workspace(ctk.CTkFrame):
         self.payload=ctk.CTkTextbox(integration,wrap='none',height=150,font=ctk.CTkFont(family='Consolas',size=11));self.payload.pack(fill='both',expand=True,padx=8,pady=4);self.set_text(self.payload,'No handover payload yet.')
         self.handover_button=ctk.CTkButton(integration,text='Export delivery payload',command=lambda:self.export(True),state='disabled');self.handover_button.pack(fill='x',padx=8,pady=5)
 
+    def build_flow(self):
+        """Pipeline strip: C1 -> C2 -> C3 -> C4, each with a coloured border and one status line."""
+        self.flow=ctk.CTkFrame(self,fg_color='transparent');self.flow.pack(fill='x',padx=8,pady=(2,4))
+        self.stage_cards=[];self.stage_status=[];self.preview_job=None
+        for index,(code,name,_) in enumerate(FLOW_STAGES):
+            self.flow.grid_columnconfigure(index*2,weight=1)
+            card=ctk.CTkFrame(self.flow,corner_radius=8,border_width=2,border_color=FLOW_COLORS['idle'])
+            card.grid(row=0,column=index*2,sticky='nsew',padx=2)
+            ctk.CTkLabel(card,text=f'{code}  {name}',font=ctk.CTkFont(size=12,weight='bold'),wraplength=135).pack(anchor='w',padx=8,pady=(6,0))
+            status=ctk.CTkLabel(card,text='',font=ctk.CTkFont(size=11),wraplength=135,justify='left');status.pack(anchor='w',padx=8,pady=(0,6))
+            self.stage_cards.append(card);self.stage_status.append(status)
+            if index<len(FLOW_STAGES)-1:
+                ctk.CTkLabel(self.flow,text='→',font=ctk.CTkFont(size=18,weight='bold')).grid(row=0,column=index*2+1,padx=2)
+        self.flow_note=ctk.CTkLabel(self,text='C3 runs on its own here: C1 and C2 would normally supply the perturbed run and the action reference.',font=ctk.CTkFont(size=11),wraplength=560,justify='left',text_color='#64748b')
+        self.flow_note.pack(anchor='w',padx=12)
+        self.preview_button=ctk.CTkButton(self,text='Preview full pipeline',command=self.preview_flow,width=150,height=24,fg_color='#475569')
+        self.preview_button.pack(anchor='w',padx=12,pady=(2,4));self.controls.append(self.preview_button)
+        self.reset_flow()
+
+    def set_stage(self,index,state,text):
+        color=FLOW_COLORS[state]
+        self.stage_cards[index].configure(border_color=color);self.stage_status[index].configure(text=text,text_color=color)
+
+    def reset_flow(self):
+        for index,(state,text) in enumerate(FLOW_DEFAULTS):self.set_stage(index,state,text)
+
+    def flow_from_view(self,view):
+        """Show the finished inspection in the C3 card and the readiness of C4."""
+        verdict=view['verdict'];count=len(verdict.get('findings') or [])
+        state,text={'defect_detected':('alert',f"{count} finding{'s' if count!=1 else ''}"),
+                    'no_defect_detected':('done','No defect found'),
+                    'inconclusive':('warn','Inconclusive')}[verdict['decision']]
+        self.set_stage(2,state,text);self.set_stage(3,'idle','Review, then send')
+
+    def preview_flow(self):
+        """Walk through the stages one by one, describing what each does in the full pipeline."""
+        if self.busy or self.preview_job:return
+        steps=list(enumerate(FLOW_STAGES))
+        def step():
+            if not self.winfo_exists():return
+            if steps:
+                index,(code,_,what)=steps.pop(0)
+                for other in range(len(FLOW_STAGES)):self.set_stage(other,'idle' if other!=index else 'active',FLOW_DEFAULTS[other][1] if other!=index else what)
+                self.preview_job=self.after(1400,step)
+            else:
+                self.preview_job=None
+                if self.latest:self.flow_from_view(self.latest)
+                else:self.reset_flow()
+        step()
+
     def send_handover(self):
         if not self.latest or self.busy:
             return
@@ -107,6 +169,7 @@ class C3Workspace(ctk.CTkFrame):
             self.delivery_steps.configure(text='✓ Inspected    ✓ Submitted    ✓ Received by test workspace')
             self.integration_status.configure(text='Delivered successfully. Evidence is saved in the test workspace inbox.')
             self.send_button.configure(state='disabled',text='Delivered')
+            self.set_stage(3,'done','Receipt received')
         except Exception as exc:
             self.integration_status.configure(text='Delivery failed: ' + str(exc) + '\nYour result is still saved. Retry when the workspace is available.')
 
@@ -138,6 +201,7 @@ class C3Workspace(ctk.CTkFrame):
 
     def clear_result(self):
         self.latest=None
+        self.reset_flow()
         self.send_button.configure(state='disabled',text='Send to test workspace')
         self.delivery_steps.configure(text='1  Inspect screen     2  Review findings     3  Send evidence')
         self.review_button.configure(state='disabled')
@@ -186,6 +250,8 @@ class C3Workspace(ctk.CTkFrame):
         image_path,hierarchy_path=self.image_path,self.hierarchy_path
         action_id=self.action.get().strip() or None;slicing=bool(self.slicing.get())
         self.clear_result();self.busy=True;self.started=time.monotonic()
+        if self.preview_job:self.after_cancel(self.preview_job);self.preview_job=None
+        self.set_stage(2,'active','Inspecting…')
         for widget in self.controls:widget.configure(state='disabled')
         self.result_title.configure(text='Inspection in progress…',text_color='#1d4ed8')
         self.set_text(self.details,'Loading the local model and inspecting the screen. The first run can take longer.')
@@ -218,6 +284,7 @@ class C3Workspace(ctk.CTkFrame):
                     devices,note=value;self.device.configure(values=devices or ['No device']);self.device.set(devices[0] if devices else 'No device');self.device_label.configure(text=note)
                 elif kind=='error':
                     self.finish();self.clear_result();self.result_title.configure(text='Inspection failed',text_color='#be123c')
+                    self.set_stage(2,'alert','Failed. Retry')
                     self.set_text(self.details,value+'\n\nNo verdict was produced. Check model files, GPU memory or device connection, then retry.')
                     self.status.configure(text='Failed. You can retry.')
                 elif kind=='result':self.finish();self.render(value)
@@ -234,6 +301,7 @@ class C3Workspace(ctk.CTkFrame):
 
     def render(self,view):
         self.latest=view;verdict=view['verdict']
+        self.flow_from_view(view)
         self.send_button.configure(state='normal')
         self.delivery_steps.configure(text='✓ Inspection complete    → Review findings    ○ Send evidence')
         self.review_button.configure(state='normal')
@@ -281,4 +349,5 @@ class C3Workspace(ctk.CTkFrame):
 
     def destroy(self):
         self.after_cancel(self.poll_id)
+        if self.preview_job:self.after_cancel(self.preview_job)
         super().destroy()
