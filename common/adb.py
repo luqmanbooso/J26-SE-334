@@ -36,6 +36,45 @@ try:                                     # POSIX
 except ImportError:                      # Windows
     import msvcrt
     _WINDOWS = True
+    _orig_common_run = subprocess.run
+    _CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+    def _safe_run(*args, **kwargs):
+        if "creationflags" not in kwargs:
+            kwargs["creationflags"] = _CREATE_NO_WINDOW
+        return _orig_common_run(*args, **kwargs)
+    subprocess.run = _safe_run
+
+
+# Auto-detect and register Android SDK tools in PATH
+for _sdk_p in [
+    os.path.expanduser("~/AppData/Local/Android/Sdk/platform-tools"),
+    os.path.expanduser("~/AppData/Local/Android/Sdk/emulator"),
+    r"C:\Users\user\AppData\Local\Android\Sdk\platform-tools",
+    r"C:\Users\user\AppData\Local\Android\Sdk\emulator",
+    r"D:\Android\platform-tools",
+    r"D:\Android\emulator",
+    r"C:\Android\platform-tools",
+    r"C:\Android\emulator",
+]:
+    if os.path.exists(_sdk_p) and _sdk_p not in os.environ.get("PATH", ""):
+        os.environ["PATH"] = _sdk_p + os.pathsep + os.environ.get("PATH", "")
+
+def resolve_adb_binary(adb: str = "adb") -> str:
+    """Resolves concrete adb binary path across standard environments."""
+    if adb and os.path.isabs(adb) and os.path.exists(adb):
+        return adb
+    which = shutil.which(adb)
+    if which:
+        return which
+    for cand in [
+        os.path.expanduser("~/AppData/Local/Android/Sdk/platform-tools/adb.exe"),
+        r"C:\Users\user\AppData\Local\Android\Sdk\platform-tools\adb.exe",
+        r"D:\Android\platform-tools\adb.exe",
+        r"C:\Android\platform-tools\adb.exe",
+    ]:
+        if os.path.exists(cand):
+            return cand
+    return adb
 
 
 class NoDeviceError(RuntimeError):
@@ -94,7 +133,7 @@ class AdbDevice:
     """One device, driven through one serialised connection."""
 
     def __init__(self, serial=None, adb="adb", lock_timeout=60.0, verify=True):
-        self.adb = adb
+        self.adb = resolve_adb_binary(adb)
         self.serial = serial
         self._lock_timeout = lock_timeout
         self._cache = None          # (monotonic_timestamp, xml_text)
@@ -107,11 +146,12 @@ class AdbDevice:
     @staticmethod
     def list_devices(adb="adb"):
         """Serials of attached, ready devices. Raises if adb is missing."""
-        if shutil.which(adb) is None:
+        resolved = resolve_adb_binary(adb)
+        if shutil.which(resolved) is None and not (os.path.isabs(resolved) and os.path.exists(resolved)):
             raise NoDeviceError(
                 f"{adb!r} is not on PATH. Install Android platform-tools "
                 f"(e.g. `sudo pacman -S android-tools`).")
-        out = subprocess.run([adb, "devices"], capture_output=True, text=True).stdout
+        out = subprocess.run([resolved, "devices"], capture_output=True, text=True).stdout
         return [ln.split("\t")[0] for ln in out.splitlines()[1:]
                 if "\tdevice" in ln]
 
@@ -350,7 +390,7 @@ class AdbDevice:
         Falls back gracefully with descriptive error if uiautomator2 is not installed.
         """
         try:
-            import uiautomator2 as u2
+            import uiautomator2 as u2  # type: ignore
             return u2.connect(self.serial)
         except ImportError as exc:
             raise ImportError(

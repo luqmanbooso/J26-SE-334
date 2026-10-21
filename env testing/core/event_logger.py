@@ -30,9 +30,19 @@ class EventLogger:
         epoch_ms = int(time.time() * 1000)
         timestamp_iso = datetime.now().isoformat()
 
-        # Measure host system overhead
-        host_cpu = psutil.cpu_percent(interval=None) if psutil else 0.0
-        host_mem = psutil.virtual_memory().percent if psutil else 0.0
+        # Measure host system overhead defensively
+        host_cpu = 0.0
+        host_mem = 0.0
+        if psutil is not None:
+            try:
+                fn_cpu = getattr(psutil, "cpu_percent", None)
+                if callable(fn_cpu):
+                    host_cpu = float(fn_cpu(interval=None))
+                fn_mem = getattr(psutil, "virtual_memory", None)
+                if callable(fn_mem):
+                    host_mem = float(fn_mem().percent)
+            except Exception:
+                pass
 
         latency = injection_latency_ms if injection_latency_ms is not None else round(time.process_time() * 1000 % 45 + 12, 2)
 

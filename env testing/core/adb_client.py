@@ -41,20 +41,39 @@ class ADBClient:
         self._device = None          # shared AdbDevice, created on first real command
         self._initialize_connection()
 
+    @staticmethod
+    def _resolve_adb_binary() -> str:
+        which = shutil.which("adb")
+        if which:
+            return which
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        meipass = getattr(sys, "_MEIPASS", base_dir)
+        exe_dir = os.path.dirname(sys.executable)
+        for cand in [
+            os.path.join(exe_dir, "platform-tools", "adb.exe"),
+            os.path.join(exe_dir, "adb.exe"),
+            os.path.join(base_dir, "platform-tools", "adb.exe"),
+            os.path.join(meipass, "platform-tools", "adb.exe"),
+            os.path.expanduser("~/AppData/Local/Programs/HEART_Studio/platform-tools/adb.exe"),
+            os.path.expanduser("~/AppData/Local/Android/Sdk/platform-tools/adb.exe"),
+            r"C:\Users\user\AppData\Local\Android\Sdk\platform-tools\adb.exe",
+            r"D:\Android\platform-tools\adb.exe",
+            r"C:\Android\platform-tools\adb.exe",
+        ]:
+            if os.path.exists(cand):
+                return cand
+        return "adb"
+
     def _initialize_connection(self) -> None:
         """Determines if real hardware ADB or virtual simulation should be used."""
         if self.force_simulation or "pytest" in sys.modules or os.environ.get("PYTEST_CURRENT_TEST"):
             self._enable_simulation("Force simulation enabled by configuration or test runner.")
             return
 
-        adb_path = shutil.which("adb")
-        if not adb_path:
-            self._enable_simulation("ADB binary not found on system PATH.")
-            return
-
+        adb_bin = self._resolve_adb_binary()
         try:
             res = subprocess.run(
-                ["adb", "devices"],
+                [adb_bin, "devices"],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
@@ -67,6 +86,7 @@ class ADBClient:
                     target = active_devices[0].split("\t")[0]
                     self.device_id = self.device_id or target
                     self.is_simulated = False
+                    self._device = AdbDevice(serial=self.device_id, adb=adb_bin, verify=False)
                     print(f"[ADB Bridge] Connected to live hardware/emulator target: {self.device_id}")
                     return
                 else:
@@ -75,6 +95,20 @@ class ADBClient:
                 self._enable_simulation(f"ADB devices query error: {res.stderr.strip()}")
         except Exception as e:
             self._enable_simulation(f"ADB check exception: {str(e)}")
+
+    def connect(self, device_id: Optional[str] = None) -> bool:
+        """Explicitly switch or re-evaluate live ADB connection to given device."""
+        if device_id:
+            self.device_id = device_id
+        self.is_simulated = False
+        adb_bin = self._resolve_adb_binary()
+        if self._device is None or self._device.serial != self.device_id:
+            self._device = AdbDevice(serial=self.device_id, adb=adb_bin, verify=False)
+        else:
+            self._device.serial = self.device_id
+            self._device.adb = adb_bin
+        print(f"[ADB Bridge] Connected to live target: {self.device_id}")
+        return True
 
     def _enable_simulation(self, reason: str) -> None:
         self.is_simulated = True
@@ -99,11 +133,13 @@ class ADBClient:
         if self.is_simulated:
             return self._handle_simulated_cmd(cmd)
 
-        # Routed through the shared device layer: list arguments rather than a
-        # shell string, and serialised against C2's and C4's traffic so a dump
-        # from one component cannot corrupt another's timing measurement.
-        if self._device is None:
-            self._device = AdbDevice(serial=self.device_id, verify=False)
+        adb_bin = self._resolve_adb_binary()
+        if self._device is None or self._device.serial != self.device_id:
+            self._device = AdbDevice(serial=self.device_id, adb=adb_bin, verify=False)
+        else:
+            self._device.serial = self.device_id
+            self._device.adb = adb_bin
+
         res = self._device.run(*shlex.split(cmd), timeout=15)
         if res.returncode != 0 and "error" in res.stderr.lower():
             print(f"[ADB Warning] Non-zero code for '{cmd}': {res.stderr.strip()}")

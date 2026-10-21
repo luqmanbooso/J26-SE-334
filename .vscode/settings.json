@@ -1,15 +1,18 @@
 {
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
   "python.analysis.extraPaths": [
-    "d:/J26-SE-334/env testing",
+    "${workspaceFolder}",
     "${workspaceFolder}/env testing",
-    "./env testing",
-    "."
+    "${workspaceFolder}/biometry",
+    "${workspaceFolder}/component4/src",
+    "${workspaceFolder}/vision_oracle"
   ],
   "python.autoComplete.extraPaths": [
-    "d:/J26-SE-334/env testing",
+    "${workspaceFolder}",
     "${workspaceFolder}/env testing",
-    "./env testing",
-    "."
+    "${workspaceFolder}/biometry",
+    "${workspaceFolder}/component4/src",
+    "${workspaceFolder}/vision_oracle"
   ],
   "python.testing.pytestEnabled": true,
   "python.testing.pytestArgs": [

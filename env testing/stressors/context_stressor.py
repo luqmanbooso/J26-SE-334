@@ -22,13 +22,23 @@ class ContextStressor(BaseStressor):
             self.set_gps_location(lat, lon)
         return True
 
-    def set_orientation(self, mode: str = "portrait") -> None:
-        """Modes: 'portrait' (0), 'landscape' (1), 'reverse_landscape' (3)."""
-        rot_val = "1" if mode == "landscape" else ("3" if mode == "reverse_landscape" else "0")
-        self.current_state["orientation"] = mode
+    def set_orientation(self, mode: Any = "portrait") -> None:
+        """Modes: 'portrait' (0), 'landscape' (1), 'reverse_landscape' (3), or ints 0, 1, 3."""
+        if str(mode).strip() in ("1", "landscape"):
+            rot_val = "1"
+            clean_mode = "landscape"
+        elif str(mode).strip() in ("3", "reverse_landscape"):
+            rot_val = "3"
+            clean_mode = "reverse_landscape"
+        else:
+            rot_val = "0"
+            clean_mode = "portrait"
+        self.current_state["orientation"] = clean_mode
+        # Grant shell permission to mutate system settings on physical hardware
+        self.adb.run_shell("appops set com.android.shell WRITE_SETTINGS allow")
         self.adb.run_shell("settings put system accelerometer_rotation 0")
         self.adb.run_shell(f"settings put system user_rotation {rot_val}")
-        self.logger.record("CONTEXT_ORIENTATION", "ORIENTATION_CHANGED", {"mode": mode, "rotation_val": rot_val})
+        self.logger.record("CONTEXT_ORIENTATION", "ORIENTATION_CHANGED", {"mode": clean_mode, "rotation_val": rot_val})
 
     def set_dark_mode(self, enabled: bool = True) -> None:
         """Toggles Android system night mode (Dark Theme)."""
@@ -51,6 +61,7 @@ class ContextStressor(BaseStressor):
 
     def revert(self) -> bool:
         """Restores context settings back to standard system defaults."""
+        self.adb.run_shell("appops set com.android.shell WRITE_SETTINGS allow")
         self.adb.run_shell("settings put system user_rotation 0")
         self.adb.run_shell("settings put system accelerometer_rotation 1")
         self.adb.run_shell("cmd uimode night no")

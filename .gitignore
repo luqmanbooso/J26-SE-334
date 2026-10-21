@@ -50,7 +50,10 @@ env testing/uploads/*.apk
 
 # PyInstaller build artifacts
 build/
+dist_installer/
+platform-tools/
 *.spec
+!HEART_Studio.spec
 
 # Private Defense & Viva Preparation (Local Only)
 *viva_defense_script*
