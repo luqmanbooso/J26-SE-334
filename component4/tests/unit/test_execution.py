@@ -97,3 +97,12 @@ def test_execution_service_skips_non_generated_synthesis(tmp_path) -> None:
     assert result.status is ExecutionStatus.SKIPPED
     assert result.attempts == []
     assert not (tmp_path / "run-3" / "synthesized_test.py").exists()
+
+
+def test_default_timeout_outlasts_server_launch_wait() -> None:
+    from c4.config import TargetAppConfig
+
+    target = TargetAppConfig(package="p", activity=".A", server_launch_timeout_ms=90000)
+    assert ExecutionService(target=target).retry_config.timeout_seconds == 210.0
+    assert target.capabilities()["uiautomator2ServerLaunchTimeout"] == 90000
+    assert target.capabilities()["forceAppLaunch"] and target.capabilities()["shouldTerminateApp"]

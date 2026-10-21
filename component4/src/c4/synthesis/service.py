@@ -121,7 +121,8 @@ class SynthesisService:
                     )
         self.last_c3_verdict = verdict
         self.last_c3_status = c3_status
-        base_prompt = self.prompt_builder.build(journey, verdict)
+        # Only real evidence enters the prompt; a placeholder no-evidence verdict must not.
+        base_prompt = self.prompt_builder.build(journey, verdict if c3_status == "used" else None)
         attempts: list[SynthesisAttempt] = []
         previous_response = ""
         last_error: str | None = None

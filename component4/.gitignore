@@ -30,3 +30,18 @@ build/
 dist/
 
 runs*/
+
+# Local test configs and sample inputs
+/target_app.json
+/sentry*.json
+/decision.json
+/healed_check.*
+*.local.json
+
+# Local virtual environments
+.venv*/
+
+# Evaluation inputs and outputs (keep curated summaries in docs/evidence/)
+evaluation/input/
+evaluation/runs/
+evaluation/results/

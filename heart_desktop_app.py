@@ -2,8 +2,11 @@ import os
 import sys
 import time
 import json
+import re
 import subprocess
 import threading
+import shutil
+import webbrowser
 import queue
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
@@ -63,7 +66,7 @@ C4_SRC_DIR = os.path.join(ROOT_DIR, "component4", "src")
 if C4_SRC_DIR not in sys.path:
     sys.path.insert(0, C4_SRC_DIR)
 try:
-    from c4.ui.panel import build_c4_view
+    from c4.ui.panel import build_c4_view  # type: ignore
     C4_UI_AVAILABLE = True
     C4_UI_ERROR = ""
 except Exception as _c4_err:
@@ -77,6 +80,8 @@ for p in [
     r"D:\Android\emulator",
     os.path.expanduser("~/AppData/Local/Android/Sdk/platform-tools"),
     os.path.expanduser("~/AppData/Local/Android/Sdk/emulator"),
+    os.path.expanduser("~/Android/Sdk/platform-tools"),
+    "/usr/lib/android-sdk/platform-tools",
 ]:
     if os.path.exists(p) and p not in os.environ.get("PATH", ""):
         os.environ["PATH"] = p + os.pathsep + os.environ.get("PATH", "")
@@ -90,6 +95,8 @@ def get_adb_binary() -> str:
         r"D:\Android\platform-tools\adb.exe",
         os.path.expanduser("~/AppData/Local/Android/Sdk/platform-tools/adb.exe"),
         r"C:\Android\platform-tools\adb.exe",
+        os.path.expanduser("~/Android/Sdk/platform-tools/adb"),
+        "/usr/bin/adb", "/usr/local/bin/adb", "/usr/lib/android-sdk/platform-tools/adb",
     ]:
         if os.path.exists(cand):
             return cand
@@ -108,6 +115,11 @@ def get_emulator_binary() -> str:
         if os.path.exists(cand):
             return cand
     return "emulator"
+
+
+# C2 code (device scan, screencap, C2 tab) references ADB_BIN; alias it to C1's
+# cross-platform resolver so both naming conventions work after the merge.
+ADB_BIN = get_adb_binary()
 
 from orchestrator import PerturbationOrchestrator  # type: ignore
 from attribution_engine import EnvironmentAttributionEngine  # type: ignore
@@ -189,7 +201,7 @@ class HeartSimpleApp(ctk.CTk):
         self.current_mirror_img = None
         self._mirror_w = 196
         self._mirror_h = 428
-        self._last_latency_ms = 24.6
+        self._last_latency_ms = None   # set by _update_kpi after a real probe
         
         # Biometric User Mimic state
         self.bio_sim = BiometricSimulator() if BiometricSimulator else None
@@ -312,6 +324,34 @@ class HeartSimpleApp(ctk.CTk):
             }
         }
 
+        # Telemetry State Tracking for Before vs After Diff
+        self._baseline_state = {
+            "cpu": 0,
+            "cpu_str": "0% (Idle)",
+            "battery": 100,
+            "battery_charging": True,
+            "battery_str": "100% (Charging)",
+            "thermal": "Nominal",
+            "thermal_temp": "30.0°C",
+            "thermal_temp_num": 30.0,
+            "thermal_str": "Nominal (30.0°C)",
+            "bandwidth": "Normal (4G/5G)",
+            "latency_ms": 0,
+            "packet_loss": 0,
+            "network_str": "Normal (4G/5G, 0ms)",
+            "orientation": "Portrait (0°)",
+            "dark_mode": False
+        }
+        self._active_state = dict(self._baseline_state)
+        self._stressors_active = False
+
+        # Quick button references for active state highlighting
+        self.cpu_buttons = {}
+        self.thermal_buttons = {}
+        self.bandwidth_buttons = {}
+        self.latency_buttons = {}
+        self.orientation_buttons = {}
+
         # Build UI layout
         self._build_header()
         self._build_bottom_telemetry()
@@ -319,6 +359,8 @@ class HeartSimpleApp(ctk.CTk):
 
         # Initial device scan & app package discovery
         self.after(300, self._scan_device_and_apps)
+        self.after(600, self._sample_live_hardware_baseline)
+        self.after(4000, self._periodic_device_check)
 
     # =========================================================================
     # 1. TOP HEADER (Real Device Status & Master Actions)
@@ -371,8 +413,14 @@ class HeartSimpleApp(ctk.CTk):
             button_color=THEME["primary"],
             button_hover_color=THEME["primary_hover"],
             text_color=THEME["text_heading"],
+            # Without explicit dropdown colours the open popup rendered as
+            # near-white text on a pale panel (barely legible). Pin it to the
+            # light theme: white panel, deep-navy text, soft-blue hover.
+            dropdown_fg_color="#ffffff",
+            dropdown_text_color=THEME["text_heading"],
+            dropdown_hover_color=THEME["primary_light"],
             font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
-            dropdown_font=ctk.CTkFont(size=9),
+            dropdown_font=ctk.CTkFont(size=10),
             command=self._on_device_dropdown_change
         )
         self.device_selector.pack(side="left", padx=(0, 6), pady=2)
@@ -499,6 +547,7 @@ class HeartSimpleApp(ctk.CTk):
         self.env_scroll.grid(row=1, column=0, sticky="nsew")
 
         self._build_card_env_profiles(self.env_scroll)
+        self._build_card_telemetry_diff(self.env_scroll)
         self._build_card_hardware(self.env_scroll)
         self._build_card_network(self.env_scroll)
         self._build_card_interruption(self.env_scroll)
@@ -784,6 +833,8 @@ class HeartSimpleApp(ctk.CTk):
         if not p:
             return
 
+        self._stressors_active = (choice != "🔄 Nominal Baseline (Clean Reset)")
+
         # 1. Update all UI knobs and labels immediately
         cpu = p["cpu"]
         self.cpu_slider.set(cpu)
@@ -807,6 +858,20 @@ class HeartSimpleApp(ctk.CTk):
         plug_tag = "Charging" if bat >= 100 else "Unplugged"
         if hasattr(self, "dev_battery_lbl"):
             self.dev_battery_lbl.configure(text=f"🔋 {bat}% ({plug_tag}) • 🌡️ {temp_c} [{p['thermal']}] • {tag}")
+
+        self._active_state["cpu"] = cpu
+        self._active_state["battery"] = bat
+        self._active_state["battery_charging"] = (bat >= 100)
+        self._active_state["thermal"] = p["thermal"]
+        self._active_state["thermal_temp"] = temp_c
+        self._active_state["bandwidth"] = p["network"]
+        self._active_state["latency_ms"] = lat
+        self._active_state["packet_loss"] = loss
+        self._highlight_cpu_button(cpu)
+        self._highlight_thermal_button(p["thermal"])
+        self._highlight_bandwidth_button(p["network"])
+        self._highlight_latency_button(lat)
+        self._update_telemetry_diff()
 
         if hasattr(self, "prof_status_lbl"):
             self.prof_status_lbl.configure(text="● Active on Device", text_color=THEME["danger"] if p["severity"] > 50 else THEME["success"])
@@ -915,6 +980,395 @@ class HeartSimpleApp(ctk.CTk):
         threading.Thread(target=_revert, daemon=True).start()
 
     # -------------------------------------------------------------------------
+    # Card 0: Live Telemetry & Perturbation Diff (Before vs After)
+    # -------------------------------------------------------------------------
+    def _build_card_telemetry_diff(self, parent):
+        card = ctk.CTkFrame(parent, fg_color=THEME["bg_card"], corner_radius=10, border_width=1, border_color=THEME["border"])
+        card.pack(fill="x", pady=(0, 10))
+
+        head = ctk.CTkFrame(card, fg_color=THEME["bg_box"], height=32, corner_radius=8)
+        head.pack(fill="x", padx=6, pady=(6, 8))
+        head.pack_propagate(False)
+
+        ctk.CTkLabel(
+            head,
+            text="Live Telemetry & Perturbation Diff",
+            font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
+            text_color=THEME["text_heading"]
+        ).pack(side="left", padx=10)
+
+        self.btn_sample_telemetry = ctk.CTkButton(
+            head,
+            text="🔄 Sample Live Device",
+            width=135,
+            height=22,
+            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+            fg_color=THEME["primary_light"],
+            hover_color="#e0e7ff",
+            text_color=THEME["primary"],
+            corner_radius=6,
+            command=self._sample_live_hardware_baseline
+        )
+        self.btn_sample_telemetry.pack(side="right", padx=6)
+
+        self.telemetry_target_lbl = ctk.CTkLabel(
+            head,
+            text="Live: Auto-Sampling...",
+            font=ctk.CTkFont(family="Segoe UI", size=9),
+            text_color=THEME["text_muted"]
+        )
+        self.telemetry_target_lbl.pack(side="right", padx=6)
+
+        diff_box = ctk.CTkFrame(card, fg_color="transparent")
+        diff_box.pack(fill="x", padx=12, pady=(2, 10))
+
+        # Header Row
+        hdr = ctk.CTkFrame(diff_box, fg_color=THEME["bg_box"], height=26, corner_radius=6)
+        hdr.pack(fill="x", pady=(0, 4))
+        hdr.pack_propagate(False)
+        ctk.CTkLabel(hdr, text="METRIC", width=100, anchor="w", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color=THEME["text_muted"]).pack(side="left", padx=(8, 0))
+        ctk.CTkLabel(hdr, text="BASELINE (BEFORE)", width=130, anchor="w", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color=THEME["text_muted"]).pack(side="left", padx=4)
+        ctk.CTkLabel(hdr, text="", width=20, font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color=THEME["text_muted"]).pack(side="left")
+        ctk.CTkLabel(hdr, text="ACTIVE INJECTION (AFTER)", width=175, anchor="w", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color=THEME["text_muted"]).pack(side="left", padx=4)
+        ctk.CTkLabel(hdr, text="IMPACT STATUS", width=125, anchor="e", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color=THEME["text_muted"]).pack(side="right", padx=(0, 8))
+
+        self.diff_rows = {}
+        metrics_def = [
+            ("cpu", "⚙️ CPU Load", self._baseline_state.get("cpu_str", "0% (Idle)")),
+            ("battery", "🔋 Battery", self._baseline_state.get("battery_str", "100% (Charging)")),
+            ("thermal", "🌡️ Thermal", self._baseline_state.get("thermal_str", "Nominal (30.0°C)")),
+            ("network", "📶 Network", self._baseline_state.get("network_str", "Normal (4G/5G, 0ms)")),
+            ("orientation", "🔄 Orientation", self._baseline_state.get("orientation", "Portrait (0°)"))
+        ]
+
+        for key, name, base_val in metrics_def:
+            row = ctk.CTkFrame(diff_box, fg_color="transparent", height=24)
+            row.pack(fill="x", pady=1)
+            ctk.CTkLabel(row, text=name, width=100, anchor="w", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color=THEME["text_body"]).pack(side="left", padx=(8, 0))
+
+            lbl_before = ctk.CTkLabel(row, text=base_val, width=130, anchor="w", font=ctk.CTkFont(family="Segoe UI", size=9), text_color=THEME["text_muted"])
+            lbl_before.pack(side="left", padx=4)
+
+            ctk.CTkLabel(row, text="➔", width=20, font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color="#94a3b8").pack(side="left")
+
+            lbl_after = ctk.CTkLabel(row, text=base_val, width=175, anchor="w", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color=THEME["text_heading"])
+            lbl_after.pack(side="left", padx=4)
+
+            badge = ctk.CTkLabel(row, text="NOMINAL", width=125, font=ctk.CTkFont(family="Segoe UI", size=8, weight="bold"), fg_color=THEME["success_bg"], text_color=THEME["success"], corner_radius=4, padx=6, pady=1)
+            badge.pack(side="right", padx=(0, 8))
+
+            self.diff_rows[key] = {
+                "before": lbl_before,
+                "after": lbl_after,
+                "badge": badge
+            }
+
+    def _sample_live_hardware_baseline(self, dev_id=None):
+        """Samples authentic live hardware telemetry (battery, cpu, thermal, network, orientation) from connected device."""
+        target_dev = dev_id or getattr(self.adb, "device_id", None)
+        if hasattr(self, "telemetry_target_lbl"):
+            self.telemetry_target_lbl.configure(text=f"Sampling {target_dev or 'device'}...")
+
+        def _worker():
+            adb_bin = get_adb_binary()
+            actual_dev = target_dev
+            if not actual_dev:
+                try:
+                    res = subprocess.run([adb_bin, "devices"], capture_output=True, text=True, timeout=3)
+                    for line in res.stdout.splitlines()[1:]:
+                        parts = line.strip().split()
+                        if len(parts) >= 2 and parts[1] == "device":
+                            actual_dev = parts[0]
+                            break
+                except Exception:
+                    pass
+
+            base_cpu = 0
+            cpu_str = "0% (Idle)"
+            base_bat = 100
+            is_charging = True
+            bat_str = "100% (Charging)"
+            base_temp_c = 30.0
+            thermal_state = "Nominal"
+            thermal_str = "Nominal (30.0°C)"
+            net_type = "Normal (4G/5G)"
+            net_lat = 0
+            net_loss = 0
+            net_str = "Normal (4G/5G, 0ms)"
+            orient_val = 0
+            orient_str = "Portrait (0°)"
+
+            if actual_dev:
+                # 1. Query Battery & Thermal from dumpsys battery
+                try:
+                    bat_res = subprocess.run([adb_bin, "-s", actual_dev, "shell", "dumpsys", "battery"], capture_output=True, text=True, timeout=4)
+                    if bat_res.returncode == 0:
+                        lines = bat_res.stdout.splitlines()
+                        for line in lines:
+                            line_s = line.strip()
+                            if line_s.startswith("level:"):
+                                base_bat = int(line_s.split(":")[-1].strip())
+                            elif line_s.startswith("status:"):
+                                stat_code = line_s.split(":")[-1].strip()
+                                is_charging = (stat_code in ("2", "5"))
+                            elif line_s.startswith("USB powered:") and "true" in line_s.lower():
+                                is_charging = True
+                            elif line_s.startswith("AC powered:") and "true" in line_s.lower():
+                                is_charging = True
+                            elif line_s.startswith("temperature:"):
+                                try:
+                                    raw_t = int(line_s.split(":")[-1].strip())
+                                    base_temp_c = raw_t / 10.0
+                                except ValueError:
+                                    pass
+                        chg_label = "Charging" if is_charging else "Unplugged"
+                        bat_str = f"{base_bat}% ({chg_label})"
+                        if base_temp_c < 42.0:
+                            thermal_state = "Nominal"
+                        elif base_temp_c < 48.0:
+                            thermal_state = "Warm"
+                        else:
+                            thermal_state = "Hot"
+                        thermal_str = f"{thermal_state} ({base_temp_c:.1f}°C)"
+                except Exception:
+                    pass
+
+                # 2. Query CPU load from dumpsys cpuinfo
+                try:
+                    cpu_res = subprocess.run([adb_bin, "-s", actual_dev, "shell", "dumpsys", "cpuinfo"], capture_output=True, text=True, timeout=4)
+                    if cpu_res.returncode == 0:
+                        m = re.search(r"(\d+(?:\.\d+)?)%\s*TOTAL", cpu_res.stdout)
+                        if m:
+                            base_cpu = int(float(m.group(1)))
+                            cpu_str = f"{base_cpu}% (Idle)"
+                except Exception:
+                    pass
+
+                # 3. Query Orientation from dumpsys window
+                try:
+                    win_res = subprocess.run([adb_bin, "-s", actual_dev, "shell", "dumpsys", "window"], capture_output=True, text=True, timeout=4)
+                    if win_res.returncode == 0:
+                        if "ROTATION_90" in win_res.stdout:
+                            orient_val = 1
+                            orient_str = "Landscape (90°)"
+                        elif "ROTATION_270" in win_res.stdout:
+                            orient_val = 3
+                            orient_str = "Landscape (270°)"
+                        elif "ROTATION_180" in win_res.stdout:
+                            orient_val = 2
+                            orient_str = "Reverse Portrait (180°)"
+                        else:
+                            orient_val = 0
+                            orient_str = "Portrait (0°)"
+                except Exception:
+                    pass
+
+                # 4. Query Network type & live RTT
+                try:
+                    prop_res = subprocess.run([adb_bin, "-s", actual_dev, "shell", "getprop", "gsm.network.type"], capture_output=True, text=True, timeout=2)
+                    raw_net = prop_res.stdout.strip().split(",")[0] if prop_res.returncode == 0 else ""
+                    net_type = raw_net if raw_net else "LTE/WiFi"
+                    ping_res = subprocess.run([adb_bin, "-s", actual_dev, "shell", "ping", "-c", "1", "-W", "1", "8.8.8.8"], capture_output=True, text=True, timeout=3)
+                    if ping_res.returncode == 0:
+                        m_time = re.search(r"time=([\d.]+)\s*ms", ping_res.stdout)
+                        if m_time:
+                            net_lat = int(float(m_time.group(1)))
+                    net_str = f"{net_type} ({net_lat}ms, 0% drop)"
+                except Exception:
+                    pass
+
+            def _apply():
+                self._baseline_state = {
+                    "cpu": base_cpu,
+                    "cpu_str": cpu_str,
+                    "battery": base_bat,
+                    "battery_charging": is_charging,
+                    "battery_str": bat_str,
+                    "thermal": thermal_state,
+                    "thermal_temp": f"{base_temp_c:.1f}°C",
+                    "thermal_temp_num": base_temp_c,
+                    "thermal_str": thermal_str,
+                    "bandwidth": net_type,
+                    "latency_ms": net_lat,
+                    "packet_loss": net_loss,
+                    "network_str": net_str,
+                    "orientation": orient_str,
+                    "orientation_val": orient_val
+                }
+                if hasattr(self, "diff_rows"):
+                    self.diff_rows["cpu"]["before"].configure(text=cpu_str)
+                    self.diff_rows["battery"]["before"].configure(text=bat_str)
+                    self.diff_rows["thermal"]["before"].configure(text=thermal_str)
+                    self.diff_rows["network"]["before"].configure(text=net_str)
+                    self.diff_rows["orientation"]["before"].configure(text=orient_str)
+
+                # Sync active state if no stressor is currently injected
+                if not getattr(self, "_stressors_active", False):
+                    self._active_state = dict(self._baseline_state)
+                    if hasattr(self, "bat_slider"):
+                        self.bat_slider.set(base_bat)
+                        self.bat_val_lbl.configure(text=f"{base_bat}%")
+
+                if hasattr(self, "telemetry_target_lbl"):
+                    tag = "AVD" if (actual_dev and actual_dev.startswith("emulator-")) else "Hardware"
+                    self.telemetry_target_lbl.configure(text=f"Live: {actual_dev or 'Simulated'} ({tag})")
+
+                self._update_telemetry_diff()
+                self._append_log(f"[TELEMETRY BASELINE] Real hardware baseline: CPU={cpu_str}, Bat={bat_str}, Temp={thermal_str}, Net={net_str}, Orient={orient_str}")
+
+            self.after(0, _apply)
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _highlight_cpu_button(self, active_pct):
+        for pct, btn in self.cpu_buttons.items():
+            if pct == active_pct:
+                btn.configure(fg_color=THEME["primary"], text_color="#ffffff", border_color=THEME["primary"])
+            else:
+                btn.configure(fg_color=THEME["bg_box"], text_color=THEME["text_body"], border_color=THEME["border"])
+
+    def _highlight_thermal_button(self, active_state):
+        colors = {"Nominal": THEME["success"], "Fair": THEME["warning"], "Serious": "#ea580c", "Critical": THEME["danger"]}
+        for s, btn in self.thermal_buttons.items():
+            if s == active_state:
+                c = colors.get(s, THEME["primary"])
+                btn.configure(fg_color=c, text_color="#ffffff", border_color=c)
+            else:
+                btn.configure(fg_color=THEME["bg_box"], text_color=THEME["text_body"], border_color=THEME["border"])
+
+    def _highlight_bandwidth_button(self, active_key):
+        for k, btn in self.bandwidth_buttons.items():
+            if k == active_key:
+                c = THEME["danger"] if k == "offline" else THEME["primary"]
+                btn.configure(fg_color=c, text_color="#ffffff", border_color=c)
+            else:
+                btn.configure(fg_color=THEME["bg_box"], text_color=THEME["text_body"], border_color=THEME["border"])
+
+    def _highlight_latency_button(self, active_ms):
+        for ms, btn in self.latency_buttons.items():
+            if ms == active_ms:
+                btn.configure(fg_color=THEME["primary"], text_color="#ffffff", border_color=THEME["primary"])
+            else:
+                btn.configure(fg_color=THEME["bg_box"], text_color=THEME["text_body"], border_color=THEME["border"])
+
+    def _highlight_orientation_button(self, active_rot):
+        val = 1 if str(active_rot) in ("1", "landscape") else 0
+        for rot, btn in self.orientation_buttons.items():
+            if rot == val:
+                btn.configure(fg_color=THEME["primary"], text_color="#ffffff", border_color=THEME["primary"])
+            else:
+                btn.configure(fg_color=THEME["bg_box"], text_color=THEME["text_body"], border_color=THEME["border"])
+
+    def _update_telemetry_diff(self):
+        if not hasattr(self, "diff_rows"):
+            return
+
+        base = getattr(self, "_baseline_state", {})
+
+        # 1. CPU
+        base_cpu = int(base.get("cpu", 0))
+        cpu = int(self._active_state.get("cpu", 0))
+        row_cpu = self.diff_rows.get("cpu")
+        if row_cpu:
+            if cpu == 0:
+                row_cpu["after"].configure(text=base.get("cpu_str", f"{base_cpu}% (Idle)"), text_color=THEME["text_body"])
+                row_cpu["badge"].configure(text=f"NOMINAL ({base_cpu}%)", fg_color=THEME["success_bg"], text_color=THEME["success"])
+            elif cpu < 70:
+                delta = max(0, cpu - base_cpu)
+                row_cpu["after"].configure(text=f"{cpu}% (Throttled)", text_color=THEME["warning"])
+                row_cpu["badge"].configure(text=f"MODERATE (+{delta}%)", fg_color=THEME["warning_bg"], text_color=THEME["warning"])
+            else:
+                delta = max(0, cpu - base_cpu)
+                row_cpu["after"].configure(text=f"{cpu}% (Starvation)", text_color=THEME["danger"])
+                row_cpu["badge"].configure(text=f"HIGH STRESS (+{delta}%)", fg_color=THEME["danger_light"], text_color=THEME["danger"])
+
+        # 2. Battery
+        base_bat = int(base.get("battery", 100))
+        base_chg = base.get("battery_charging", True)
+        bat = int(self._active_state.get("battery", base_bat))
+        is_charging = self._active_state.get("battery_charging", base_chg)
+        row_bat = self.diff_rows.get("battery")
+        if row_bat:
+            if bat == base_bat and is_charging == base_chg:
+                row_bat["after"].configure(text=base.get("battery_str", f"{base_bat}%"), text_color=THEME["text_body"])
+                row_bat["badge"].configure(text="NOMINAL", fg_color=THEME["success_bg"], text_color=THEME["success"])
+            elif bat > 20 and is_charging:
+                delta = bat - base_bat
+                row_bat["after"].configure(text=f"{bat}% (Charging)", text_color=THEME["text_body"])
+                row_bat["badge"].configure(text=f"CHARGING ({delta:+d}%)", fg_color=THEME["success_bg"], text_color=THEME["success"])
+            elif bat > 20:
+                delta = bat - base_bat
+                row_bat["after"].configure(text=f"{bat}% (Unplugged)", text_color=THEME["warning"])
+                row_bat["badge"].configure(text=f"DISCHARGING ({delta:+d}%)", fg_color=THEME["warning_bg"], text_color=THEME["warning"])
+            elif bat > 5:
+                delta = bat - base_bat
+                row_bat["after"].configure(text=f"{bat}% (Low Power)", text_color="#ea580c")
+                row_bat["badge"].configure(text=f"LOW POWER ({delta:+d}%)", fg_color="#fff7ed", text_color="#ea580c")
+            else:
+                delta = bat - base_bat
+                row_bat["after"].configure(text=f"{bat}% (CRITICAL DROP)", text_color=THEME["danger"])
+                row_bat["badge"].configure(text=f"CRITICAL ({delta:+d}%)", fg_color=THEME["danger_light"], text_color=THEME["danger"])
+
+        # 3. Thermal
+        th = self._active_state.get("thermal", "Nominal")
+        temp = self._active_state.get("thermal_temp", "30.0°C")
+        base_temp_num = float(base.get("thermal_temp_num", 30.0))
+        row_th = self.diff_rows.get("thermal")
+        if row_th:
+            if th == "Nominal":
+                row_th["after"].configure(text=base.get("thermal_str", f"Nominal ({base_temp_num:.1f}°C)"), text_color=THEME["text_body"])
+                row_th["badge"].configure(text="OPTIMAL", fg_color=THEME["success_bg"], text_color=THEME["success"])
+            elif th == "Fair":
+                d_c = max(0.0, 45.0 - base_temp_num)
+                row_th["after"].configure(text=f"Fair ({temp})", text_color=THEME["warning"])
+                row_th["badge"].configure(text=f"WARMING (+{d_c:.1f}°C)", fg_color=THEME["warning_bg"], text_color=THEME["warning"])
+            elif th == "Serious":
+                d_c = max(0.0, 50.0 - base_temp_num)
+                row_th["after"].configure(text=f"Serious ({temp})", text_color="#ea580c")
+                row_th["badge"].configure(text=f"THROTTLING (+{d_c:.1f}°C)", fg_color="#fff7ed", text_color="#ea580c")
+            else:
+                d_c = max(0.0, 55.0 - base_temp_num)
+                row_th["after"].configure(text=f"Critical ({temp})", text_color=THEME["danger"])
+                row_th["badge"].configure(text=f"OVERHEAT (+{d_c:.1f}°C)", fg_color=THEME["danger_light"], text_color=THEME["danger"])
+
+        # 4. Network
+        net = self._active_state.get("bandwidth", "Normal (4G/5G)")
+        lat = int(self._active_state.get("latency_ms", 0))
+        loss = int(self._active_state.get("packet_loss", 0))
+        base_net_str = base.get("network_str", "Normal (4G/5G, 0ms)")
+        row_net = self.diff_rows.get("network")
+        if row_net:
+            if net == "offline":
+                row_net["after"].configure(text="Offline (Airplane Mode)", text_color=THEME["danger"])
+                row_net["badge"].configure(text="DISCONNECTED", fg_color=THEME["danger_light"], text_color=THEME["danger"])
+            elif lat == 0 and loss == 0 and net in ("lte", "Normal (4G/5G)", "normal", base.get("bandwidth")):
+                row_net["after"].configure(text=base_net_str, text_color=THEME["text_body"])
+                row_net["badge"].configure(text="NOMINAL LINK", fg_color=THEME["success_bg"], text_color=THEME["success"])
+            else:
+                extra = []
+                if lat > 0:
+                    extra.append(f"+{lat}ms")
+                if loss > 0:
+                    extra.append(f"{loss}% drop")
+                prof_tag = {"3g": "3G HSPA", "edge": "2G Edge"}.get(net, str(net))
+                detail = f"{prof_tag} ({', '.join(extra)})" if extra else prof_tag
+                row_net["after"].configure(text=detail, text_color="#ea580c")
+                row_net["badge"].configure(text="DEGRADED LINK", fg_color="#fff7ed", text_color="#ea580c")
+
+        # 5. Orientation
+        orient = self._active_state.get("orientation", "Portrait (0°)")
+        base_orient = base.get("orientation", "Portrait (0°)")
+        row_o = self.diff_rows.get("orientation")
+        if row_o:
+            if orient == base_orient or (str(orient) in ("0", "portrait") and "Portrait (0°)" in base_orient):
+                row_o["after"].configure(text=base_orient, text_color=THEME["text_body"])
+                row_o["badge"].configure(text="STANDARD", fg_color=THEME["success_bg"], text_color=THEME["success"])
+            else:
+                rot_lbl = "Landscape (90°)" if str(orient) in ("1", "landscape") else ("Reverse Landscape (270°)" if str(orient) in ("3", "270") else "Landscape (90°)")
+                row_o["after"].configure(text=rot_lbl, text_color=THEME["primary"])
+                row_o["badge"].configure(text="REORIENTED (90°)", fg_color=THEME["primary_light"], text_color=THEME["primary"])
+
+    # -------------------------------------------------------------------------
     # Card 1: Hardware & Power
     # -------------------------------------------------------------------------
     def _build_card_hardware(self, parent):
@@ -934,20 +1388,23 @@ class HeartSimpleApp(ctk.CTk):
         quick_cpu = ctk.CTkFrame(card, fg_color="transparent")
         quick_cpu.pack(fill="x", padx=14, pady=(0, 10))
         for pct in [0, 50, 75, 95]:
-            ctk.CTkButton(
+            is_active = (pct == 0)
+            btn = ctk.CTkButton(
                 quick_cpu,
                 text=f"{pct}% CPU" if pct > 0 else "Nominal (0%)",
                 height=24,
                 width=72,
-                fg_color=THEME["bg_box"],
+                fg_color=THEME["primary"] if is_active else THEME["bg_box"],
                 hover_color=THEME["primary_light"],
-                text_color=THEME["text_body"],
+                text_color="#ffffff" if is_active else THEME["text_body"],
                 border_width=1,
-                border_color=THEME["border"],
+                border_color=THEME["primary"] if is_active else THEME["border"],
                 corner_radius=6,
                 font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
                 command=lambda p=pct: self._set_cpu(p)
-            ).pack(side="left", padx=2)
+            )
+            btn.pack(side="left", padx=2)
+            self.cpu_buttons[pct] = btn
 
         # Battery Level & Unplug
         r2 = ctk.CTkFrame(card, fg_color="transparent")
@@ -972,20 +1429,23 @@ class HeartSimpleApp(ctk.CTk):
         r3.pack(fill="x", padx=14, pady=(4, 8))
         ctk.CTkLabel(r3, text="Thermal State:", font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"), text_color=THEME["text_body"]).pack(side="left", padx=(0, 8))
         for state in ["Nominal", "Fair", "Serious", "Critical"]:
-            ctk.CTkButton(
+            is_active = (state == "Nominal")
+            btn = ctk.CTkButton(
                 r3,
                 text=state,
                 height=24,
                 width=72,
-                fg_color=THEME["bg_box"],
+                fg_color=THEME["success"] if is_active else THEME["bg_box"],
                 hover_color=THEME["primary_light"],
-                text_color=THEME["text_body"],
+                text_color="#ffffff" if is_active else THEME["text_body"],
                 border_width=1,
-                border_color=THEME["border"],
+                border_color=THEME["success"] if is_active else THEME["border"],
                 corner_radius=6,
                 font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
                 command=lambda s=state: self._set_thermal(s)
-            ).pack(side="left", padx=2)
+            )
+            btn.pack(side="left", padx=2)
+            self.thermal_buttons[state] = btn
 
     # -------------------------------------------------------------------------
     # Card 2: Network & Latency
@@ -999,19 +1459,22 @@ class HeartSimpleApp(ctk.CTk):
         ctk.CTkLabel(r_profiles, text="Bandwidth:", font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"), text_color=THEME["text_body"]).pack(side="left", padx=(0, 6))
 
         for prof_name, key in [("Normal (4G/5G)", "lte"), ("3G HSPA", "3g"), ("Edge (2G)", "edge"), ("Offline Mode", "offline")]:
-            ctk.CTkButton(
+            is_active = (key == "lte")
+            btn = ctk.CTkButton(
                 r_profiles,
                 text=prof_name,
                 height=24,
-                fg_color=THEME["bg_box"],
+                fg_color=THEME["primary"] if is_active else THEME["bg_box"],
                 hover_color=THEME["primary_light"],
-                text_color=THEME["text_body"],
+                text_color="#ffffff" if is_active else THEME["text_body"],
                 border_width=1,
-                border_color=THEME["border"],
+                border_color=THEME["primary"] if is_active else THEME["border"],
                 corner_radius=6,
                 font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
                 command=lambda k=key: self._set_network_profile(k)
-            ).pack(side="left", padx=2)
+            )
+            btn.pack(side="left", padx=2)
+            self.bandwidth_buttons[key] = btn
 
         # Latency Injection
         r_lat = ctk.CTkFrame(card, fg_color="transparent")
@@ -1028,7 +1491,7 @@ class HeartSimpleApp(ctk.CTk):
         quick_lat.pack(fill="x", padx=14, pady=(0, 10))
         ctk.CTkButton(quick_lat, text="Apply Latency", width=95, height=24, font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), corner_radius=6, fg_color=THEME["primary"], hover_color=THEME["primary_hover"], command=self._apply_latency).pack(side="left", padx=2)
         for ms in [250, 800, 1500, 3000]:
-            ctk.CTkButton(
+            btn = ctk.CTkButton(
                 quick_lat,
                 text=f"+{ms}ms",
                 height=24,
@@ -1041,7 +1504,9 @@ class HeartSimpleApp(ctk.CTk):
                 corner_radius=6,
                 font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
                 command=lambda m=ms: self._set_latency_val(m)
-            ).pack(side="left", padx=2)
+            )
+            btn.pack(side="left", padx=2)
+            self.latency_buttons[ms] = btn
 
         # Packet Loss
         r_loss = ctk.CTkFrame(card, fg_color="transparent")
@@ -1132,8 +1597,24 @@ class HeartSimpleApp(ctk.CTk):
         r.pack(fill="x", padx=14, pady=(6, 10))
 
         ctk.CTkLabel(r, text="Orientation:", font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"), text_color=THEME["text_body"]).pack(side="left", padx=(0, 6))
-        ctk.CTkButton(r, text="Portrait (0°)", width=95, height=24, font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), corner_radius=6, fg_color=THEME["bg_box"], text_color=THEME["text_body"], border_width=1, border_color=THEME["border"], hover_color=THEME["border"], command=lambda: self._set_rotation(0)).pack(side="left", padx=2)
-        ctk.CTkButton(r, text="Landscape (90°)", width=105, height=24, font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), corner_radius=6, fg_color=THEME["bg_box"], text_color=THEME["text_body"], border_width=1, border_color=THEME["border"], hover_color=THEME["border"], command=lambda: self._set_rotation(1)).pack(side="left", padx=2)
+        for rot_val, rot_lbl in [(0, "Portrait (0°)"), (1, "Landscape (90°)")]:
+            is_active = (rot_val == 0)
+            btn = ctk.CTkButton(
+                r,
+                text=rot_lbl,
+                width=105,
+                height=24,
+                font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+                corner_radius=6,
+                fg_color=THEME["primary"] if is_active else THEME["bg_box"],
+                text_color="#ffffff" if is_active else THEME["text_body"],
+                border_width=1,
+                border_color=THEME["primary"] if is_active else THEME["border"],
+                hover_color=THEME["primary_light"],
+                command=lambda rv=rot_val: self._set_rotation(rv)
+            )
+            btn.pack(side="left", padx=2)
+            self.orientation_buttons[rot_val] = btn
 
         self.dark_mode_switch = ctk.CTkSwitch(r, text="Dark Mode", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), progress_color=THEME["primary"], command=self._on_dark_mode_switch)
         self.dark_mode_switch.pack(side="right", padx=6)
@@ -1166,262 +1647,776 @@ class HeartSimpleApp(ctk.CTk):
     # =========================================================================
     # BIOMETRIC USER MIMIC & TOUCH DISTORTION INTEGRATION
     # =========================================================================
+    def _bio_group(self, parent, title, collapsed=False):
+        """A collapsible titled group. Returns the body frame to pack into."""
+        card = ctk.CTkFrame(parent, fg_color=THEME["bg_card"], corner_radius=10,
+                            border_width=1, border_color=THEME["border"])
+        card.pack(fill="x", pady=(0, 8))
+        state = {"open": not collapsed}
+        head = ctk.CTkButton(
+            card, text=("▾  " if state["open"] else "▸  ") + title, anchor="w",
+            fg_color=THEME["bg_box"], hover_color=THEME["bg_card_hover"],
+            text_color=THEME["text_heading"], corner_radius=8, height=30,
+            font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"))
+        head.pack(fill="x", padx=6, pady=(6, 0))
+        body = ctk.CTkFrame(card, fg_color="transparent")
+        if state["open"]:
+            body.pack(fill="x", padx=4, pady=(2, 6))
+
+        def _toggle():
+            state["open"] = not state["open"]
+            if state["open"]:
+                body.pack(fill="x", padx=4, pady=(2, 6))
+                head.configure(text="▾  " + title)
+            else:
+                body.pack_forget()
+                head.configure(text="▸  " + title)
+        head.configure(command=_toggle)
+        return body
+
+    def _cfg_row(self, parent, label, hint=None):
+        r = ctk.CTkFrame(parent, fg_color="transparent")
+        r.pack(fill="x", padx=10, pady=2)
+        ctk.CTkLabel(r, text=label, width=150, anchor="w",
+                     font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
+                     text_color=THEME["text_body"]).pack(side="left")
+        return r
+
+    def _cfg_entry(self, parent, default="", width=74, placeholder=None):
+        e = ctk.CTkEntry(parent, width=width, height=24,
+                         font=ctk.CTkFont(family="Segoe UI", size=10),
+                         placeholder_text=placeholder or "")
+        if default:
+            e.insert(0, str(default))
+        e.bind("<KeyRelease>", self._c2_update_argv)
+        e.pack(side="left", padx=3)
+        return e
+
     def _build_biometry_view(self, parent):
-        # 1. Header Info Banner
-        banner = ctk.CTkFrame(parent, fg_color=THEME["bg_card"], corner_radius=8, border_width=1, border_color=THEME["border"])
+        small = ctk.CTkFont(family="Segoe UI", size=10)
+        smallb = ctk.CTkFont(family="Segoe UI", size=10, weight="bold")
+
+        # ---- Header banner -------------------------------------------------
+        banner = ctk.CTkFrame(parent, fg_color=THEME["bg_card"], corner_radius=8,
+                              border_width=1, border_color=THEME["border"])
         banner.pack(fill="x", pady=(0, 10))
-        
         b_head = ctk.CTkFrame(banner, fg_color="transparent")
-        b_head.pack(fill="x", padx=12, pady=(8, 4))
-        
-        ctk.CTkLabel(
-            b_head,
-            text="Biometric User Mimic & Touch Distortion",
-            font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"),
-            text_color=THEME["primary"]
-        ).pack(side="left")
-        
-        ctk.CTkLabel(
-            b_head,
-            text="RDR-0008 ALIGNED",
-            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
-            fg_color=THEME["primary_light"],
-            text_color=THEME["primary"],
-            corner_radius=4,
-            padx=6,
-            pady=2
-        ).pack(side="right")
-        
-        ctk.CTkLabel(
-            banner,
-            text="Kinematic rotational hand model couples cognitive stress (Scog) with approach angle, tremor dispersion, and FrameProbe gfxinfo responsiveness.",
-            font=ctk.CTkFont(family="Segoe UI", size=9),
-            text_color=THEME["text_muted"],
-            wraplength=480,
-            justify="left"
-        ).pack(fill="x", padx=12, pady=(0, 8))
+        b_head.pack(fill="x", padx=12, pady=(8, 2))
+        ctk.CTkLabel(b_head, text="C2 · Human Stress-Aware Input Interaction Engine",
+                     font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"),
+                     text_color=THEME["primary"]).pack(side="left")
+        ctk.CTkLabel(b_head, text="IT23156760", font=ctk.CTkFont(size=9, weight="bold"),
+                     fg_color=THEME["primary_light"], text_color=THEME["primary"],
+                     corner_radius=4, padx=6, pady=2).pack(side="right")
+        ctk.CTkLabel(banner, wraplength=470, justify="left",
+                     text="Configure and run run_live_adaptive.py on the connected device. "
+                          "Cognitive stress (Scog) drives the rotational hand model; every "
+                          "control below maps to one engine flag.",
+                     font=ctk.CTkFont(family="Segoe UI", size=9),
+                     text_color=THEME["text_muted"]).pack(fill="x", padx=12, pady=(0, 8))
 
-        # 2. Card: Cognitive State & Biomechanical Posture
-        card_cog = self._create_card(parent, "Cognitive Stress State & Biomechanical Posture")
-        
-        # State Presets Row
-        r_preset = ctk.CTkFrame(card_cog, fg_color="transparent")
-        r_preset.pack(fill="x", padx=12, pady=(6, 4))
-        ctk.CTkLabel(r_preset, text="Stress Presets:", font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"), text_color=THEME["text_body"]).pack(side="left", padx=(0, 6))
+        # ---- ① Run mode & cognitive stress --------------------------------
+        g1 = self._bio_group(parent, "①  Run Mode & Cognitive Stress")
 
-        for name, s_val, ang_val, col in [
-            ("CALM (0.05)", 0.05, 45.0, "#059669"),
-            ("IMPATIENT (0.45)", 0.45, 55.0, "#d97706"),
-            ("FRUSTRATED (0.90)", 0.90, 75.0, "#dc2626")
-        ]:
-            ctk.CTkButton(
-                r_preset,
-                text=name,
-                height=24,
-                fg_color=THEME["bg_box"],
-                hover_color=col,
-                text_color=THEME["text_heading"],
-                font=ctk.CTkFont(size=9, weight="bold"),
-                command=lambda s=s_val, a=ang_val: self._set_bio_state(s, a)
-            ).pack(side="left", padx=3)
+        r_mode = self._cfg_row(g1, "Stress source:")
+        self.c2_mode = ctk.CTkSegmentedButton(
+            r_mode, values=["Adaptive cognitive", "Static ablation"],
+            font=small, command=self._c2_update_argv)
+        self.c2_mode.set("Adaptive cognitive")
+        self.c2_mode.pack(side="left", fill="x", expand=True)
 
-        # Coupled Environmental Chaos Presets Row
-        r_env_coupling = ctk.CTkFrame(card_cog, fg_color="transparent")
-        r_env_coupling.pack(fill="x", padx=12, pady=(0, 8))
-        ctk.CTkLabel(r_env_coupling, text="Coupled Chaos:", font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"), text_color=THEME["text_body"]).pack(side="left", padx=(0, 6))
+        r_preset = self._cfg_row(g1, "Scog presets:")
+        self._c2_preset_defs = [
+            ("CALM 0.05", 0.05, 45.0, "#059669"),
+            ("IMPATIENT 0.45", 0.45, 55.0, "#d97706"),
+            ("FRUSTRATED 0.90", 0.90, 75.0, "#dc2626")]
+        self._c2_preset_btns = []
+        for idx, (name, s_val, ang_val, col) in enumerate(self._c2_preset_defs):
+            btn = ctk.CTkButton(r_preset, text=name, height=24, fg_color=THEME["bg_box"],
+                                hover_color=col, text_color=THEME["text_heading"],
+                                border_width=1, border_color=THEME["border"],
+                                font=ctk.CTkFont(size=9, weight="bold"),
+                                command=lambda i=idx: self._c2_apply_preset(i))
+            btn.pack(side="left", padx=2)
+            self._c2_preset_btns.append(btn)
 
-        chaos_presets = [
-            ("⚡ Compound (0.88)", "⚡ Compound Multi-Factor Chaos", 0.88, 60.0, 3.20, THEME["danger_light"], THEME["danger"]),
-            ("📶 3G Drop (0.65)", "📶 3G Cellular Network Drop", 0.65, 45.0, 2.40, THEME["warning_bg"], THEME["warning"]),
-            ("🔥 95% CPU (0.82)", "🔥 High CPU Starvation (95%)", 0.82, 55.0, 2.90, "#fff7ed", "#ea580c"),
-            ("🪫 3% Bat (0.72)", "🪫 Thermal Overheat & 3% Battery", 0.72, 50.0, 2.60, "#fef2f2", "#b91c1c"),
-            ("📞 Calls (0.78)", "📞 Aggressive OS Interruption Storm", 0.78, 52.0, 2.75, "#f5f3ff", "#7c3aed"),
-            ("🔄 Nominal (0.05)", "🔄 Nominal Baseline (Clean Reset)", 0.05, 45.0, 1.50, THEME["success_bg"], THEME["success"]),
-        ]
-
-        for chip_lbl, prof_key, s_val, a_val, sg_val, bg_c, fg_c in chaos_presets:
-            ctk.CTkButton(
-                r_env_coupling,
-                text=chip_lbl,
-                height=24,
-                fg_color=bg_c,
-                hover_color="#e2e8f0",
-                text_color=fg_c,
-                border_width=1,
-                border_color=fg_c,
-                font=ctk.CTkFont(size=9, weight="bold"),
-                command=lambda pk=prof_key, s=s_val, a=a_val, sg=sg_val: self._apply_bio_chaos_profile(pk, s, a, sg)
-            ).pack(side="left", padx=2)
-
-        # Scog Slider
-        r_scog = ctk.CTkFrame(card_cog, fg_color="transparent")
-        r_scog.pack(fill="x", padx=12, pady=(2, 2))
-        ctk.CTkLabel(r_scog, text="Cognitive Stress (Scog):", font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"), text_color=THEME["text_body"]).pack(side="left")
-        self.bio_scog_lbl = ctk.CTkLabel(r_scog, text="0.45 (Moderate / Impatient)", font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"), text_color=THEME["warning"])
+        r_scog = ctk.CTkFrame(g1, fg_color="transparent")
+        r_scog.pack(fill="x", padx=12, pady=(4, 0))
+        ctk.CTkLabel(r_scog, text="Cognitive Stress (Scog):", font=smallb,
+                     text_color=THEME["text_body"]).pack(side="left")
+        self.bio_scog_lbl = ctk.CTkLabel(r_scog, text="0.45 (Moderate / Impatient)",
+                                         font=smallb, text_color=THEME["warning"])
         self.bio_scog_lbl.pack(side="right")
-
-        self.bio_scog_slider = ctk.CTkSlider(card_cog, from_=0.0, to=1.0, number_of_steps=100, command=self._on_bio_slider_change, progress_color=THEME["warning"], button_color=THEME["warning"], height=16)
+        self.bio_scog_slider = ctk.CTkSlider(g1, from_=0.0, to=1.0, number_of_steps=100,
+                                             command=self._on_bio_slider_change,
+                                             progress_color=THEME["warning"],
+                                             button_color=THEME["warning"], height=16)
         self.bio_scog_slider.set(0.45)
         self.bio_scog_slider.pack(fill="x", padx=12, pady=(0, 6))
 
-        # Biomechanical Angle & Imprecision Sliders
-        r_bio = ctk.CTkFrame(card_cog, fg_color="transparent")
-        r_bio.pack(fill="x", padx=12, pady=(2, 4))
-        
-        # Left half: Angle
+        r_bio = ctk.CTkFrame(g1, fg_color="transparent")
+        r_bio.pack(fill="x", padx=12, pady=(0, 4))
         f_ang = ctk.CTkFrame(r_bio, fg_color="transparent")
         f_ang.pack(side="left", fill="x", expand=True, padx=(0, 6))
         r_ang_h = ctk.CTkFrame(f_ang, fg_color="transparent")
         r_ang_h.pack(fill="x")
-        ctk.CTkLabel(r_ang_h, text="Approach Angle (θ):", font=ctk.CTkFont(size=9, weight="bold"), text_color=THEME["text_body"]).pack(side="left")
-        self.bio_ang_lbl = ctk.CTkLabel(r_ang_h, text="45°", font=ctk.CTkFont(size=9, weight="bold"), text_color=THEME["primary"])
+        ctk.CTkLabel(r_ang_h, text="Approach Angle (θ):", font=ctk.CTkFont(size=9, weight="bold"),
+                     text_color=THEME["text_body"]).pack(side="left")
+        self.bio_ang_lbl = ctk.CTkLabel(r_ang_h, text="45°", font=ctk.CTkFont(size=9, weight="bold"),
+                                        text_color=THEME["primary"])
         self.bio_ang_lbl.pack(side="right")
-        self.bio_ang_slider = ctk.CTkSlider(f_ang, from_=0.0, to=90.0, number_of_steps=90, command=self._on_bio_slider_change, progress_color=THEME["primary"], button_color=THEME["primary"], height=14)
+        self.bio_ang_slider = ctk.CTkSlider(f_ang, from_=0.0, to=90.0, number_of_steps=90,
+                                            command=self._on_bio_slider_change,
+                                            progress_color=THEME["primary"],
+                                            button_color=THEME["primary"], height=14)
         self.bio_ang_slider.set(45.0)
         self.bio_ang_slider.pack(fill="x", pady=(2, 0))
-
-        # Right half: Imprecision Floor Sigma
         f_sig = ctk.CTkFrame(r_bio, fg_color="transparent")
         f_sig.pack(side="right", fill="x", expand=True, padx=(6, 0))
         r_sig_h = ctk.CTkFrame(f_sig, fg_color="transparent")
         r_sig_h.pack(fill="x")
-        ctk.CTkLabel(r_sig_h, text="Imprecision Floor (σ):", font=ctk.CTkFont(size=9, weight="bold"), text_color=THEME["text_body"]).pack(side="left")
-        self.bio_sig_lbl = ctk.CTkLabel(r_sig_h, text="1.50 mm", font=ctk.CTkFont(size=9, weight="bold"), text_color=THEME["primary"])
-        self.bio_sig_slider = ctk.CTkSlider(f_sig, from_=0.5, to=3.5, number_of_steps=60, command=self._on_bio_slider_change, progress_color=THEME["primary"], button_color=THEME["primary"], height=14)
+        ctk.CTkLabel(r_sig_h, text="Imprecision Floor (σ):", font=ctk.CTkFont(size=9, weight="bold"),
+                     text_color=THEME["text_body"]).pack(side="left")
+        self.bio_sig_lbl = ctk.CTkLabel(r_sig_h, text="1.50 mm", font=ctk.CTkFont(size=9, weight="bold"),
+                                        text_color=THEME["primary"])
+        self.bio_sig_lbl.pack(side="right")
+        self.bio_sig_slider = ctk.CTkSlider(f_sig, from_=0.5, to=3.5, number_of_steps=60,
+                                            command=self._on_bio_slider_change,
+                                            progress_color=THEME["primary"],
+                                            button_color=THEME["primary"], height=14)
         self.bio_sig_slider.set(1.50)
         self.bio_sig_slider.pack(fill="x", pady=(2, 0))
 
-        # 3. Card: Live Rotational Touch Dispersion Simulation Canvas (500 Samples)
-        card_disp = self._create_card(parent, "🎯 Live Rotational Touch Dispersion Simulation (500 Samples)")
-        
+        r_sp = self._cfg_row(g1, "Static stress (--stress):")
+        self.c2_stress_entry = self._cfg_entry(r_sp, "0.05", width=70)
+        ctk.CTkLabel(r_sp, text="used only in Static ablation", font=ctk.CTkFont(size=9),
+                     text_color=THEME["text_muted"]).pack(side="left", padx=4)
+        r_pr = self._cfg_row(g1, "Behaviour profile:")
+        self.c2_profile = ctk.CTkOptionMenu(r_pr, values=["default", "calm", "rushed", "tremor"],
+                                            width=120, height=24, font=small,
+                                            dropdown_fg_color="#ffffff",
+                                            dropdown_text_color=THEME["text_heading"],
+                                            dropdown_hover_color=THEME["primary_light"],
+                                            command=self._c2_update_argv)
+        self.c2_profile.set("default")
+        self.c2_profile.pack(side="left", padx=3)
+        ctk.CTkLabel(r_pr, text="Seed:", font=smallb, text_color=THEME["text_body"]).pack(side="left", padx=(12, 2))
+        self.c2_seed_entry = self._cfg_entry(r_pr, "2026", width=70)
+
+        # ---- ② Target & device --------------------------------------------
+        g2 = self._bio_group(parent, "②  Target App & Device")
+        r_app = self._cfg_row(g2, "Search apps:")
+        self.c2_app_search = ctk.CTkEntry(r_app, width=150, height=24, font=small,
+                                          placeholder_text="type to filter…")
+        self.c2_app_search.bind("<KeyRelease>", self._c2_filter_apps)
+        self.c2_app_search.pack(side="left", padx=3)
+        self.c2_app_count = ctk.CTkLabel(r_app, text="0 apps", font=ctk.CTkFont(size=9),
+                                         text_color=THEME["text_muted"])
+        self.c2_app_count.pack(side="left", padx=4)
+        ctk.CTkButton(r_app, text="⟳", width=28, height=24, font=smallb,
+                      fg_color=THEME["bg_box"], text_color=THEME["text_heading"],
+                      hover_color=THEME["border"], command=self._c2_load_apps).pack(side="right", padx=3)
+        r_app2 = self._cfg_row(g2, "Target app (--package):")
+        self.c2_app_menu = ctk.CTkOptionMenu(r_app2, values=["(loading…)"], width=270, height=26,
+                                             font=small, dynamic_resizing=False,
+                                             dropdown_fg_color="#ffffff",
+                                             dropdown_text_color=THEME["text_heading"],
+                                             dropdown_hover_color=THEME["primary_light"],
+                                             command=self._c2_update_argv)
+        self.c2_app_menu.pack(side="left", padx=3, fill="x", expand=True)
+        r_dev = self._cfg_row(g2, "Device (--device):")
+        self.c2_device_lbl = ctk.CTkLabel(r_dev, text="scanning…", font=smallb,
+                                          text_color=THEME["text_muted"])
+        self.c2_device_lbl.pack(side="left")
+        ctk.CTkButton(r_dev, text="⟳ Rescan", width=78, height=24, font=ctk.CTkFont(size=9, weight="bold"),
+                      fg_color=THEME["bg_box"], text_color=THEME["text_heading"],
+                      hover_color=THEME["border"],
+                      command=lambda: (self._scan_device_and_apps(), self._c2_load_apps())).pack(side="right", padx=3)
+        r_px = self._cfg_row(g2, "Scale (--px-per-mm):")
+        self.c2_pxmm_auto = ctk.CTkCheckBox(r_px, text="auto (from device)", font=small,
+                                            checkbox_width=18, checkbox_height=18,
+                                            command=self._c2_update_argv)
+        self.c2_pxmm_auto.select()
+        self.c2_pxmm_auto.pack(side="left")
+        self.c2_pxmm_entry = self._cfg_entry(r_px, "", width=70, placeholder="17.72")
+
+        # ---- ③ Exploration -------------------------------------------------
+        g3 = self._bio_group(parent, "③  Exploration")
+        r_strat = self._cfg_row(g3, "Strategy:")
+        self.c2_strategy = ctk.CTkSegmentedButton(
+            r_strat, values=["Explore (DFS)", "Sequential"], font=small,
+            command=self._c2_update_argv)
+        self.c2_strategy.set("Explore (DFS)")
+        self.c2_strategy.pack(side="left", fill="x", expand=True)
+        r_lim = self._cfg_row(g3, "Max actions / depth:")
+        self.c2_actions_entry = self._cfg_entry(r_lim, "", width=74, placeholder="∞")
+        ctk.CTkLabel(r_lim, text="depth", font=ctk.CTkFont(size=9), text_color=THEME["text_muted"]).pack(side="left", padx=(8, 2))
+        self.c2_depth_entry = self._cfg_entry(r_lim, "", width=74, placeholder="∞")
+        r_sig = self._cfg_row(g3, "Screen signature:")
+        self.c2_signature = ctk.CTkOptionMenu(r_sig, values=["auto", "structural", "frame", "full"],
+                                              width=130, height=24, font=small,
+                                              dropdown_fg_color="#ffffff",
+                                              dropdown_text_color=THEME["text_heading"],
+                                              dropdown_hover_color=THEME["primary_light"],
+                                              command=self._c2_update_argv)
+        self.c2_signature.set("auto")
+        self.c2_signature.pack(side="left", padx=3)
+        r_lr = self._cfg_row(g3, "Launch / relaunch:")
+        self.c2_launch = ctk.CTkCheckBox(r_lr, text="launch pkg first", font=small,
+                                         checkbox_width=18, checkbox_height=18, command=self._c2_update_argv)
+        self.c2_launch.select()
+        self.c2_launch.pack(side="left")
+        self.c2_relaunch = ctk.CTkCheckBox(r_lr, text="relaunch", font=small,
+                                           checkbox_width=18, checkbox_height=18, command=self._c2_update_argv)
+        self.c2_relaunch.select()
+        self.c2_relaunch.pack(side="left", padx=(8, 2))
+        ctk.CTkLabel(r_lr, text="max", font=ctk.CTkFont(size=9), text_color=THEME["text_muted"]).pack(side="left")
+        self.c2_maxrelaunch_entry = self._cfg_entry(r_lr, "5", width=48)
+        r_fill = self._cfg_row(g3, "Forms:")
+        self.c2_fill = ctk.CTkCheckBox(r_fill, text="auto-fill text fields (pass logins)", font=small,
+                                       checkbox_width=18, checkbox_height=18, command=self._c2_update_argv)
+        self.c2_fill.pack(side="left")
+        ctk.CTkLabel(r_fill, text="types placeholders so a login that only needs non-empty boxes advances",
+                     font=ctk.CTkFont(size=8), text_color=THEME["text_muted"]).pack(side="left", padx=6)
+
+        # ---- ④ Timing & robustness (collapsed) ----------------------------
+        g4 = self._bio_group(parent, "④  Timing & Robustness", collapsed=True)
+        r_fast = self._cfg_row(g4, "Speed preset:")
+        self.c2_fast = ctk.CTkCheckBox(r_fast, text="⚡ Fast (settle .6 · tries 2 · int .2)", font=small,
+                                       checkbox_width=18, checkbox_height=18, command=self._c2_update_argv)
+        self.c2_fast.pack(side="left")
+        r_t1 = self._cfg_row(g4, "Settle / stable-tries:")
+        self.c2_settle_entry = self._cfg_entry(r_t1, "", width=70, placeholder="0.4")
+        self.c2_tries_entry = self._cfg_entry(r_t1, "", width=70, placeholder="3")
+        r_t2 = self._cfg_row(g4, "Interval / retries:")
+        self.c2_interval_entry = self._cfg_entry(r_t2, "", width=70, placeholder="0.4")
+        self.c2_retries_entry = self._cfg_entry(r_t2, "", width=70, placeholder="3")
+        r_cov = self._cfg_row(g4, "Coverage:")
+        self.c2_confirm_stay = ctk.CTkCheckBox(r_cov, text="confirm slow screens", font=small,
+                                               checkbox_width=18, checkbox_height=18,
+                                               command=self._c2_update_argv)
+        self.c2_confirm_stay.select()
+        self.c2_confirm_stay.pack(side="left")
+        ctk.CTkLabel(r_cov, text="re-checks an apparent no-op tap so a slow (Compose) app's tabs "
+                     "aren't skipped & the run ends early — raise Settle for very slow apps",
+                     font=ctk.CTkFont(size=8), text_color=THEME["text_muted"],
+                     wraplength=320, justify="left").pack(side="left", padx=6)
+
+        # ---- ⑤ Integration & output (collapsed) ---------------------------
+        g5 = self._bio_group(parent, "⑤  Integration & Output", collapsed=True)
+        r_orc = self._cfg_row(g5, "C3 Oracle URL:")
+        self.c2_oracle_entry = self._cfg_entry(r_orc, "", width=240, placeholder="http://127.0.0.1:8000")
+        r_out = self._cfg_row(g5, "Output name (--out):")
+        self.c2_out_entry = self._cfg_entry(r_out, "results/live_run", width=240)
+
+        # ---- Live rotational touch dispersion (oval visual input) ---------
+        card_disp = self._create_card(parent, "🎯 Live Rotational Touch Dispersion (oval, 500 samples)")
         tool_disp = ctk.CTkFrame(card_disp, fg_color="transparent")
         tool_disp.pack(fill="x", padx=12, pady=(4, 6))
-        ctk.CTkLabel(tool_disp, text="Rotational Gaussian Dispersion (Kinematic Covariance Σ):", font=ctk.CTkFont(size=9), text_color=THEME["text_muted"]).pack(side="left")
-        
-        ctk.CTkButton(
-            tool_disp,
-            text="🎲 Re-Sample 500 Points",
-            height=22,
-            width=140,
-            fg_color=THEME["bg_box"],
-            hover_color="#334155",
-            text_color=THEME["text_heading"],
-            font=ctk.CTkFont(size=9, weight="bold"),
-            command=self._redraw_biometry_canvas
-        ).pack(side="right")
-
-        # Tkinter Canvas for 500-sample dispersion
-        canv_container = ctk.CTkFrame(card_disp, fg_color="#ffffff", corner_radius=6, border_width=1, border_color=THEME["border"])
+        ctk.CTkLabel(tool_disp, text="Rotational Gaussian dispersion (kinematic covariance Σ)",
+                     font=ctk.CTkFont(size=9), text_color=THEME["text_muted"]).pack(side="left")
+        ctk.CTkButton(tool_disp, text="🎲 Re-Sample", height=22, width=110, fg_color=THEME["bg_box"],
+                      hover_color="#334155", text_color=THEME["text_heading"],
+                      font=ctk.CTkFont(size=9, weight="bold"),
+                      command=self._redraw_biometry_canvas).pack(side="right")
+        canv_container = ctk.CTkFrame(card_disp, fg_color="#ffffff", corner_radius=6,
+                                      border_width=1, border_color=THEME["border"])
         canv_container.pack(fill="x", padx=12, pady=(0, 6))
-        
         self.bio_canvas = tk.Canvas(canv_container, height=190, bg="#ffffff", highlightthickness=0)
         self.bio_canvas.pack(fill="both", expand=True, padx=4, pady=4)
-
-        # Real-time Telemetry Metrics Chips
-        m_frame = ctk.CTkFrame(card_disp, fg_color=THEME["bg_box"], corner_radius=8, border_width=1, border_color=THEME["border"])
+        m_frame = ctk.CTkFrame(card_disp, fg_color=THEME["bg_box"], corner_radius=8,
+                               border_width=1, border_color=THEME["border"])
         m_frame.pack(fill="x", padx=12, pady=(0, 10))
-        
-        self.m_hit_rate = ctk.CTkLabel(m_frame, text="Hit Rate: 98.4%", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color=THEME["success"])
-        self.m_hit_rate.pack(side="left", padx=12, pady=6)
-        
-        self.m_mean_err = ctk.CTkLabel(m_frame, text="Mean Error: 14.2px (0.89mm)", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color=THEME["text_heading"])
-        self.m_mean_err.pack(side="left", padx=12, pady=6)
-        
-        self.m_p95_dev = ctk.CTkLabel(m_frame, text="P95 Dev: 28.6px", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color=THEME["text_body"])
-        self.m_p95_dev.pack(side="left", padx=12, pady=6)
-        
-        self.m_delay = ctk.CTkLabel(m_frame, text="Synthetic Delay: 184ms", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color=THEME["primary"])
-        self.m_delay.pack(side="left", padx=12, pady=6)
+        self.m_hit_rate = ctk.CTkLabel(m_frame, text="Hit Rate: 98.4%", font=smallb, text_color=THEME["success"])
+        self.m_hit_rate.pack(side="left", padx=10, pady=6)
+        self.m_mean_err = ctk.CTkLabel(m_frame, text="Mean Error: 14.2px", font=smallb, text_color=THEME["text_heading"])
+        self.m_mean_err.pack(side="left", padx=10, pady=6)
+        self.m_p95_dev = ctk.CTkLabel(m_frame, text="P95 Dev: 28.6px", font=smallb, text_color=THEME["text_body"])
+        self.m_p95_dev.pack(side="left", padx=10, pady=6)
+        self.m_delay = ctk.CTkLabel(m_frame, text="Delay: 184ms", font=smallb, text_color=THEME["primary"])
+        self.m_delay.pack(side="left", padx=10, pady=6)
 
-        # 4. Card: Real Device Dispatch & RDR-0008 FrameProbe
-        card_act = self._create_card(parent, "📲 Real-Device Dispatch & RDR-0008 FrameProbe", subtitle="Dumpsys & Touch Injection")
-        
-        # Row 1: Autonomous Auto-Pilot Touch Exploration (Zero-Click Auto Crawl)
-        r_auto = ctk.CTkFrame(card_act, fg_color=THEME["primary_light"], corner_radius=8, border_width=1, border_color=THEME["primary_border"])
-        r_auto.pack(fill="x", padx=12, pady=(4, 6))
-
-        self.auto_pilot_btn = ctk.CTkButton(
-            r_auto,
-            text="⚡ Start Autonomous Auto-Pilot (Zero-Click)",
-            height=30,
-            fg_color="#059669",
-            hover_color="#047857",
-            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
-            corner_radius=6,
-            command=self._toggle_auto_pilot
-        )
+        # ---- Manual dispatch & probes (collapsed, legacy) -----------------
+        g6 = self._bio_group(parent, "⑥  Manual Dispatch & FrameProbe", collapsed=True)
+        r_auto = ctk.CTkFrame(g6, fg_color=THEME["primary_light"], corner_radius=8,
+                              border_width=1, border_color=THEME["primary_border"])
+        r_auto.pack(fill="x", padx=10, pady=(4, 6))
+        self.auto_pilot_btn = ctk.CTkButton(r_auto, text="⚡ Auto-Pilot (Zero-Click)", height=28,
+                                            fg_color="#059669", hover_color="#047857",
+                                            font=smallb, corner_radius=6, command=self._toggle_auto_pilot)
         self.auto_pilot_btn.pack(side="left", padx=8, pady=6)
-
-        self.auto_pilot_status_lbl = ctk.CTkLabel(
-            r_auto,
-            text="⚡ Auto-Pilot Ready (Autonomous Exploration & Page Traversal)",
-            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
-            text_color="#047857"
-        )
+        self.auto_pilot_status_lbl = ctk.CTkLabel(r_auto, text="Auto-Pilot ready",
+                                                  font=ctk.CTkFont(size=9, weight="bold"), text_color="#047857")
         self.auto_pilot_status_lbl.pack(side="left", padx=6, pady=6)
-
-        ctk.CTkButton(
-            r_auto,
-            text="🚀 Run Full E2E Pipeline",
-            height=30,
-            fg_color="#4f46e5",
-            hover_color="#4338ca",
-            text_color="#ffffff",
-            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
-            corner_radius=6,
-            command=self._toggle_e2e_pipeline
-        ).pack(side="right", padx=8, pady=6)
-
-        # Row 2: Manual Single Distorted Touch Injection
-        r_disp = ctk.CTkFrame(card_act, fg_color="transparent")
-        r_disp.pack(fill="x", padx=12, pady=(2, 6))
-        
-        ctk.CTkButton(
-            r_disp,
-            text="🎯 Dispatch Distorted Tap to Phone",
-            height=28,
-            fg_color=THEME["primary"],
-            hover_color=THEME["primary_hover"],
-            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
-            corner_radius=6,
-            command=self._inject_distorted_touch_to_device
-        ).pack(side="left", padx=(0, 6))
-
-        ctk.CTkButton(
-            r_disp,
-            text="〰 Dispatch Distorted Swipe",
-            height=28,
-            fg_color=THEME["bg_box"],
-            hover_color=THEME["border"],
-            text_color=THEME["text_heading"],
-            border_width=1,
-            border_color=THEME["border"],
-            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
-            corner_radius=6,
-            command=self._inject_distorted_swipe_to_device
-        ).pack(side="left", padx=2)
-
-        # Row 2: RDR-0008 FrameProbe
-        r_probe = ctk.CTkFrame(card_act, fg_color="transparent")
-        r_probe.pack(fill="x", padx=12, pady=(4, 8))
-        
-        ctk.CTkButton(
-            r_probe,
-            text="⏱ Probe Frame Latency (dumpsys gfxinfo)",
-            height=26,
-            fg_color=THEME["secondary"],
-            hover_color=THEME["secondary_hover"],
-            font=ctk.CTkFont(size=10, weight="bold"),
-            command=self._run_frameprobe_benchmark
-        ).pack(side="left", padx=(0, 8))
-
-        self.bio_probe_badge = ctk.CTkLabel(
-            r_probe,
-            text="Gfxinfo Ready (RDR-0008 58ms Probe)",
-            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
-            text_color=THEME["text_muted"]
-        )
+        r_disp = ctk.CTkFrame(g6, fg_color="transparent")
+        r_disp.pack(fill="x", padx=10, pady=(2, 4))
+        ctk.CTkButton(r_disp, text="🎯 Dispatch Tap", height=26, fg_color=THEME["primary"],
+                      hover_color=THEME["primary_hover"], font=smallb, corner_radius=6,
+                      command=self._inject_distorted_touch_to_device).pack(side="left", padx=(0, 6))
+        ctk.CTkButton(r_disp, text="〰 Dispatch Swipe", height=26, fg_color=THEME["bg_box"],
+                      hover_color=THEME["border"], text_color=THEME["text_heading"], border_width=1,
+                      border_color=THEME["border"], font=ctk.CTkFont(size=9, weight="bold"), corner_radius=6,
+                      command=self._inject_distorted_swipe_to_device).pack(side="left", padx=2)
+        r_probe = ctk.CTkFrame(g6, fg_color="transparent")
+        r_probe.pack(fill="x", padx=10, pady=(2, 8))
+        ctk.CTkButton(r_probe, text="⏱ Probe Frame Latency", height=26, fg_color=THEME["secondary"],
+                      hover_color=THEME["secondary_hover"], font=smallb,
+                      command=self._run_frameprobe_benchmark).pack(side="left", padx=(0, 8))
+        self.bio_probe_badge = ctk.CTkLabel(r_probe, text="Gfxinfo ready", font=ctk.CTkFont(size=9, weight="bold"),
+                                            text_color=THEME["text_muted"])
         self.bio_probe_badge.pack(side="left")
+
+        # ---- Run bar (persistent) -----------------------------------------
+        runbar = ctk.CTkFrame(parent, fg_color=THEME["bg_card"], corner_radius=10,
+                              border_width=1, border_color=THEME["primary_border"])
+        runbar.pack(fill="x", pady=(2, 10))
+        ctk.CTkLabel(runbar,
+                     text="①  ▶ RUN C2 ENGINE  maps the app + saves the plan   →   ②  🔁 Replay  re-walks that plan fast as the Scog persona",
+                     font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+                     text_color=THEME["text_body"]).pack(anchor="w", padx=12, pady=(8, 0))
+        row1 = ctk.CTkFrame(runbar, fg_color="transparent")
+        row1.pack(fill="x", padx=10, pady=(6, 2))
+        self.c2_run_btn = ctk.CTkButton(row1, text="▶  RUN C2 ENGINE  (Map)", height=34, fg_color="#059669",
+                                        hover_color="#047857", font=ctk.CTkFont(size=12, weight="bold"),
+                                        corner_radius=8, command=self._c2_run_engine)
+        self.c2_run_btn.pack(side="left")
+        self.c2_stop_btn = ctk.CTkButton(row1, text="■ Stop", height=34, width=70, fg_color=THEME["danger"],
+                                         hover_color=THEME["danger_hover"], font=smallb, corner_radius=8,
+                                         state="disabled", command=self._c2_stop_engine)
+        self.c2_stop_btn.pack(side="left", padx=6)
+        self.c2_status = ctk.CTkLabel(row1, text="● idle", font=smallb, text_color=THEME["text_muted"])
+        self.c2_status.pack(side="left", padx=8)
+        # When on (default), the Map run ignores the persona/Scog and taps calmly +
+        # accurately + fills forms, so the whole app is discovered. The persona is
+        # applied later at Replay. Uncheck it to run RUN as a real adaptive test.
+        self.c2_accurate = ctk.CTkCheckBox(row1, text="🎯 accurate map (ignore persona)", font=small,
+                                           checkbox_width=18, checkbox_height=18)
+        self.c2_accurate.select()
+        self.c2_accurate.pack(side="left", padx=8)
+        # Reset (pm clear) the app before each Map and Replay so an onboarding/login
+        # flow is reproducible (the map logs you in; without a reset, replay would
+        # cold-start past the login and diverge). Applies to both RUN and Replay.
+        self.c2_reset = ctk.CTkCheckBox(row1, text="🔄 reset app (fresh login)", font=small,
+                                        checkbox_width=18, checkbox_height=18)
+        self.c2_reset.select()
+        self.c2_reset.pack(side="left", padx=4)
+        self.c2_report_btn = ctk.CTkButton(row1, text="📊 Interactive Report", height=34, fg_color=THEME["primary"],
+                                           hover_color=THEME["primary_hover"], font=smallb, corner_radius=8,
+                                           state="disabled", command=self._c2_open_report)
+        self.c2_report_btn.pack(side="right", padx=(6, 0))
+        self.c2_png_btn = ctk.CTkButton(row1, text="🖼 PNG", height=34, width=70, fg_color=THEME["bg_box"],
+                                        hover_color=THEME["border"], text_color=THEME["text_heading"],
+                                        font=smallb, corner_radius=8, state="disabled", command=self._c2_open_png)
+        self.c2_png_btn.pack(side="right")
+
+        # ---- Fast-replay row: re-walk a SELECTED saved plan quickly as the Scog
+        # persona. Map once with ▶ RUN (writes <out>_plan.json), then pick a plan
+        # (any app) and Replay — no dumps.
+        row2 = ctk.CTkFrame(runbar, fg_color="transparent")
+        row2.pack(fill="x", padx=10, pady=(0, 2))
+        self.c2_replay_btn = ctk.CTkButton(row2, text="🔁 Replay (fast · no dumps)", height=30,
+                                           fg_color=THEME["secondary"], hover_color=THEME["secondary_hover"],
+                                           font=smallb, corner_radius=8, command=self._c2_run_replay)
+        self.c2_replay_btn.pack(side="left")
+        # The GUI always replays BLIND (no per-screen screenshot check): taps land
+        # on their targets so the whole app is traversed, and the report is driven
+        # by the ①  Run Mode (Adaptive = dynamic stress). Per-screen verify exists
+        # only on the CLI (`replay_live.py` without --no-verify) for static apps,
+        # because it stops early on a dynamic one (tabs/lists shift the screenshot).
+        ctk.CTkLabel(row2, text="Plan:", font=smallb, text_color=THEME["text_body"]).pack(side="left", padx=(10, 2))
+        self.c2_plan_entry = ctk.CTkEntry(row2, height=26, font=small,
+                                          placeholder_text="results/<name>_plan.json  (auto from Output name)")
+        self.c2_plan_entry.pack(side="left", fill="x", expand=True, padx=2)
+        ctk.CTkButton(row2, text="📂 Pick", width=64, height=26, font=smallb,
+                      fg_color=THEME["bg_box"], text_color=THEME["text_heading"],
+                      hover_color=THEME["border"], command=self._c2_pick_plan).pack(side="left", padx=(2, 0))
+
+        self.c2_argv = ctk.CTkLabel(runbar, text="python run_live_adaptive.py …", anchor="w", justify="left",
+                                    wraplength=520, font=ctk.CTkFont(family="Consolas", size=9),
+                                    text_color=THEME["text_muted"])
+        self.c2_argv.pack(fill="x", padx=12, pady=(0, 10))
+
+        # Initial state: draw canvas, sync device, lazy-load installed apps.
+        self._on_bio_slider_change(None)
+        self._c2_sync_device_label()
+        self._c2_update_argv()
+        self.after(1400, self._c2_load_apps)
+
+    # -------------------------------------------------------------------------
+    # C2 engine driver (runs run_live_adaptive.py as a subprocess)
+    # -------------------------------------------------------------------------
+    def _c2_selected_pkg(self):
+        # Placeholder entries like "(none)" / "(scanning…)" / "(no apps found)"
+        # are not real packages and must never leak into the engine argv.
+        v = self.c2_app_menu.get() if hasattr(self, "c2_app_menu") else ""
+        if v and not v.startswith("("):
+            return v
+        try:
+            v2 = self.app_selector.get()
+            if v2 and not v2.startswith("("):
+                return v2
+        except Exception:
+            pass
+        return None
+
+    def _c2_sync_device_label(self):
+        dev = getattr(self.adb, "device_id", None)
+        sim = getattr(self.adb, "is_simulated", True)
+        if dev and not sim:
+            self.c2_device_lbl.configure(text=f"● {dev}", text_color=THEME["success"])
+        else:
+            self.c2_device_lbl.configure(text="○ simulated / none", text_color=THEME["warning"])
+
+    def _c2_load_apps(self):
+        """Load installed third-party packages from the device for the selector."""
+        self._c2_sync_device_label()
+
+        def _worker():
+            dev = getattr(self.adb, "device_id", None)
+            pkgs = []
+            if dev and not getattr(self.adb, "is_simulated", False):
+                # --user 0 is needed on Work-Profile devices (e.g. the SM-A226B)
+                # where an unscoped `pm list` returns nothing usable.
+                for args in (["pm", "list", "packages", "--user", "0", "-3"],
+                             ["pm", "list", "packages", "-3"]):
+                    try:
+                        r = subprocess.run([ADB_BIN, "-s", dev, "shell"] + args,
+                                           capture_output=True, text=True, timeout=8)
+                        pkgs = sorted(p.replace("package:", "").strip()
+                                      for p in r.stdout.splitlines()
+                                      if p.strip().startswith("package:"))
+                        if pkgs:
+                            break
+                    except Exception:
+                        pkgs = []
+            # No device / empty list: leave it empty and let the selector show
+            # an honest "(none)" rather than fabricating example packages.
+            self._c2_all_pkgs = pkgs
+            self.after(0, lambda: self._c2_apply_app_list(pkgs))
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _c2_apply_app_list(self, pkgs):
+        if not hasattr(self, "c2_app_menu"):
+            return
+        self.c2_app_menu.configure(values=pkgs or ["(none)"])
+        cur = self.c2_app_menu.get()
+        if cur not in pkgs:
+            prefer = next((p for p in ("com.example.trippygoandroids", "com.example.medigo") if p in pkgs), None)
+            self.c2_app_menu.set(prefer or (pkgs[0] if pkgs else "(none)"))
+        self.c2_app_count.configure(text=f"{len(pkgs)} apps")
+        try:
+            self.app_selector.configure(values=pkgs)
+        except Exception:
+            pass
+        self._append_log(f"[C2] loaded {len(pkgs)} installed apps")
+        self._c2_update_argv()
+
+    def _c2_filter_apps(self, _evt=None):
+        q = self.c2_app_search.get().strip().lower()
+        allp = getattr(self, "_c2_all_pkgs", [])
+        matches = [p for p in allp if q in p.lower()] if q else allp
+        self.c2_app_menu.configure(values=matches or ["(no match)"])
+        # Keep the user's current pick; only change it when it is filtered out of
+        # view. (Previously this reset to matches[0] on every keystroke, so
+        # clearing the search silently re-selected the first app in the list.)
+        cur = self.c2_app_menu.get()
+        if cur not in matches:
+            self.c2_app_menu.set(matches[0] if matches else "(no match)")
+        self.c2_app_count.configure(text=(f"{len(matches)}/{len(allp)}" if q else f"{len(allp)} apps"))
+        self._c2_update_argv()
+
+    def _c2_build_argv(self):
+        a = []
+        pkg = self._c2_selected_pkg()
+        if pkg:
+            a += ["--package", pkg]
+        dev = getattr(self.adb, "device_id", None)
+        if dev and not getattr(self.adb, "is_simulated", False):
+            a += ["--device", dev]
+        if self.c2_mode.get().startswith("Static"):
+            a += ["--static", "--stress", (self.c2_stress_entry.get().strip() or "0.05")]
+        prof = self.c2_profile.get()
+        if prof and prof != "default":
+            a += ["--profile", prof]
+        seed = self.c2_seed_entry.get().strip()
+        if seed:
+            a += ["--seed", seed]
+        if not self.c2_pxmm_auto.get():
+            v = self.c2_pxmm_entry.get().strip()
+            if v:
+                a += ["--px-per-mm", v]
+        if self.c2_strategy.get().startswith("Sequential"):
+            a += ["--sequential"]
+        act = self.c2_actions_entry.get().strip()
+        if act:
+            a += ["--actions", act]
+        dep = self.c2_depth_entry.get().strip()
+        if dep:
+            a += ["--max-depth", dep]
+        sig = self.c2_signature.get()
+        if sig and sig != "auto":
+            a += ["--signature", sig]
+        if not self.c2_launch.get():
+            a += ["--no-launch"]
+        if not self.c2_relaunch.get():
+            a += ["--no-relaunch"]
+        # Accurate map mode: persona-independent discovery — calm/accurate taps
+        # (--accurate) and always fill forms so a login is passed and the whole
+        # app is traversed, whatever persona chips are selected.
+        if hasattr(self, "c2_reset") and self.c2_reset.get():
+            a += ["--reset"]
+        accurate = hasattr(self, "c2_accurate") and self.c2_accurate.get()
+        if accurate:
+            a += ["--accurate"]
+        fill = accurate or (hasattr(self, "c2_fill") and self.c2_fill.get())
+        if fill:
+            a += ["--fill-forms"]
+        else:
+            mr = self.c2_maxrelaunch_entry.get().strip()
+            if mr and mr != "5":
+                a += ["--max-relaunches", mr]
+        if self.c2_fast.get():
+            a += ["--fast"]
+        # confirm-stay is on by default in run_live_adaptive.py; only emit a flag
+        # when the user turns it off.
+        if hasattr(self, "c2_confirm_stay") and not self.c2_confirm_stay.get():
+            a += ["--no-confirm-stay"]
+        for flag, entry in (("--settle", self.c2_settle_entry),
+                            ("--stable-tries", self.c2_tries_entry),
+                            ("--stable-interval", self.c2_interval_entry),
+                            ("--dump-retries", self.c2_retries_entry)):
+            v = entry.get().strip()
+            if v:
+                a += [flag, v]
+        orc = self.c2_oracle_entry.get().strip()
+        if orc:
+            a += ["--oracle-url", orc]
+        out = self.c2_out_entry.get().strip() or "results/live_run"
+        a += ["--out", out]
+        return a, out
+
+    def _c2_update_argv(self, *_):
+        if not hasattr(self, "c2_argv"):
+            return
+        # Keep the phone-pane "Target App" selector in lockstep with the C2
+        # picker so there is a single target the run, the Launch button and the
+        # mirror all agree on.
+        v = self.c2_app_menu.get() if hasattr(self, "c2_app_menu") else ""
+        if v and not v.startswith("("):
+            try:
+                if self.app_selector.get() != v:
+                    self.app_selector.set(v)
+            except Exception:
+                pass
+        try:
+            argv, _ = self._c2_build_argv()
+            self.c2_argv.configure(text="python run_live_adaptive.py " + " ".join(argv))
+        except Exception:
+            pass
+
+    def _c2_on_right_app_change(self, value):
+        """Right-pane 'Target App' dropdown -> keep the C2 picker in sync."""
+        if not value or value.startswith("(") or not hasattr(self, "c2_app_menu"):
+            return
+        try:
+            vals = list(self.c2_app_menu.cget("values"))
+            if value not in vals:
+                self.c2_app_menu.configure(values=sorted(set(vals + [value])))
+            self.c2_app_menu.set(value)
+            if hasattr(self, "c2_app_search"):
+                self.c2_app_search.delete(0, "end")
+            self._c2_update_argv()
+        except Exception:
+            pass
+
+    def _c2_run_engine(self):
+        if getattr(self, "_c2_proc", None) and self._c2_proc.poll() is None:
+            return
+        argv, out = self._c2_build_argv()
+        self._c2_out = out
+        # Point the replay Plan field at the map this run is about to produce.
+        if hasattr(self, "c2_plan_entry"):
+            self.c2_plan_entry.delete(0, "end")
+            self.c2_plan_entry.insert(0, out + "_plan.json")
+        self.c2_run_btn.configure(state="disabled")
+        self.c2_stop_btn.configure(state="normal")
+        self.c2_status.configure(text="● running…", text_color=THEME["warning"])
+        self.c2_report_btn.configure(state="disabled")
+        self.c2_png_btn.configure(state="disabled")
+        if not getattr(self, "live_stream_active", False):
+            try:
+                self._toggle_stream()
+            except Exception:
+                pass
+        cmd = [sys.executable, "run_live_adaptive.py"] + argv
+        self._append_log("[C2 ENGINE] " + " ".join(cmd))
+
+        def _worker():
+            try:
+                self._c2_proc = subprocess.Popen(
+                    cmd, cwd=BIOMETRY_DIR, stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT, text=True, bufsize=1)
+                for line in self._c2_proc.stdout:
+                    line = line.rstrip()
+                    if line:
+                        self.after(0, lambda l=line: self._append_log("[C2] " + l))
+                self._c2_proc.wait()
+            except Exception as e:
+                self.after(0, lambda e=e: self._append_log(f"[C2 ENGINE ERROR] {e}"))
+            finally:
+                self.after(0, self._c2_engine_finished)
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _c2_pick_plan(self):
+        """Browse for a saved map plan (any app) to replay."""
+        init = os.path.join(BIOMETRY_DIR, "results")
+        path = filedialog.askopenfilename(
+            title="Select a map plan to replay",
+            initialdir=init if os.path.isdir(init) else BIOMETRY_DIR,
+            filetypes=[("Map plan", "*_plan.json"), ("JSON", "*.json"), ("All files", "*.*")])
+        if not path:
+            return
+        # Store relative to biometry/ when possible (replay runs with cwd=biometry).
+        try:
+            rel = os.path.relpath(path, BIOMETRY_DIR)
+            if not rel.startswith(".."):
+                path = rel
+        except Exception:
+            pass
+        self.c2_plan_entry.delete(0, "end")
+        self.c2_plan_entry.insert(0, path)
+        self._append_log(f"[C2 REPLAY] plan selected: {path}")
+
+    def _c2_build_replay_argv(self):
+        """Command for replay_live.py: re-walk the selected plan as the Scog persona.
+
+        The plan carries its own app package, so any app's plan replays with the
+        current persona settings. Output is derived from the plan name, not the
+        Output-name box, so each plan writes next to itself."""
+        plan = self.c2_plan_entry.get().strip() if hasattr(self, "c2_plan_entry") else ""
+        if not plan:
+            out = self.c2_out_entry.get().strip() or "results/live_run"
+            plan = out + "_plan.json"
+        if plan.endswith("_plan.json"):
+            base = plan[: -len("_plan.json")]
+        elif plan.endswith(".json"):
+            base = plan[: -len(".json")]
+        else:
+            base = plan
+        a = ["--plan", plan]
+        dev = getattr(self.adb, "device_id", None)
+        if dev and not getattr(self.adb, "is_simulated", False):
+            a += ["--device", dev]
+        prof = self.c2_profile.get()
+        if prof:
+            a += ["--profile", prof]
+        # Stress source follows the ①  Run Mode toggle. Adaptive (default) lets the
+        # cognitive model drive stress from the app's responsiveness during replay
+        # — a dynamic calm→impatient→frustrated curve like a live run. Static
+        # ablation pins it to the Scog slider (a flat line at that level).
+        if self.c2_mode.get().startswith("Static"):
+            a += ["--static", "--stress", f"{self._bio_stress:.2f}"]
+        settle = self.c2_settle_entry.get().strip() or "0.6"
+        a += ["--settle", settle]
+        if hasattr(self, "c2_reset") and self.c2_reset.get():
+            a += ["--reset"]
+        a += ["--no-verify"]        # GUI replay is always blind → full traversal
+        replay_out = base + "_replay"
+        a += ["--out", replay_out]
+        return a, replay_out, plan
+
+    def _c2_run_replay(self):
+        if getattr(self, "_c2_proc", None) and self._c2_proc.poll() is None:
+            return
+        argv, out, plan = self._c2_build_replay_argv()
+        base_plan = plan if os.path.isabs(plan) else os.path.join(BIOMETRY_DIR, plan)
+        if not os.path.exists(base_plan):
+            self._append_log(f"[C2 REPLAY] no plan at {plan} — run ▶ RUN C2 ENGINE first to map the app")
+            self.c2_status.configure(text="✗ no plan (map first)", text_color=THEME["danger"])
+            return
+        self._c2_out = out
+        self.c2_run_btn.configure(state="disabled")
+        self.c2_replay_btn.configure(state="disabled")
+        self.c2_stop_btn.configure(state="normal")
+        self.c2_status.configure(text="🔁 replaying…", text_color=THEME["warning"])
+        self.c2_report_btn.configure(state="disabled")
+        self.c2_png_btn.configure(state="disabled")
+        if not getattr(self, "live_stream_active", False):
+            try:
+                self._toggle_stream()
+            except Exception:
+                pass
+        cmd = [sys.executable, "replay_live.py"] + argv
+        self._append_log("[C2 REPLAY] " + " ".join(cmd))
+
+        def _worker():
+            try:
+                self._c2_proc = subprocess.Popen(
+                    cmd, cwd=BIOMETRY_DIR, stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT, text=True, bufsize=1)
+                for line in self._c2_proc.stdout:
+                    line = line.rstrip()
+                    if line:
+                        self.after(0, lambda l=line: self._append_log("[REPLAY] " + l))
+                self._c2_proc.wait()
+            except Exception as e:
+                self.after(0, lambda e=e: self._append_log(f"[C2 REPLAY ERROR] {e}"))
+            finally:
+                self.after(0, self._c2_engine_finished)
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _c2_stop_engine(self):
+        p = getattr(self, "_c2_proc", None)
+        if p and p.poll() is None:
+            try:
+                p.terminate()
+            except Exception:
+                pass
+            self._append_log("[C2 ENGINE] stop requested")
+        self.c2_status.configure(text="■ stopped", text_color=THEME["text_muted"])
+        self.c2_run_btn.configure(state="normal")
+        if hasattr(self, "c2_replay_btn"):
+            self.c2_replay_btn.configure(state="normal")
+        self.c2_stop_btn.configure(state="disabled")
+
+    def _c2_engine_finished(self):
+        self.c2_run_btn.configure(state="normal")
+        if hasattr(self, "c2_replay_btn"):
+            self.c2_replay_btn.configure(state="normal")
+        self.c2_stop_btn.configure(state="disabled")
+        rc = self._c2_proc.returncode if getattr(self, "_c2_proc", None) else None
+        ok = (rc == 0)
+        self.c2_status.configure(text="✓ done" if ok else f"✗ exit {rc}",
+                                 text_color=THEME["success"] if ok else THEME["danger"])
+        out = getattr(self, "_c2_out", "results/live_run")
+        base = out if os.path.isabs(out) else os.path.join(BIOMETRY_DIR, out)
+        self._c2_png = base + "_timeline.png"
+        self._c2_json = base + "_timeline.json"
+        if os.path.exists(self._c2_png):
+            self.c2_png_btn.configure(state="normal")
+        if os.path.exists(self._c2_json):
+            try:
+                from engine.interactive_report import build_report  # type: ignore
+                self._c2_report = build_report(self._c2_json)
+                self.c2_report_btn.configure(state="normal")
+                self._append_log(f"[C2 ENGINE] interactive report ready: {self._c2_report}")
+            except Exception as e:
+                self._append_log(f"[C2 REPORT ERROR] {e}")
+
+    def _c2_open_report(self):
+        p = getattr(self, "_c2_report", None)
+        if p and os.path.exists(p):
+            webbrowser.open("file://" + os.path.abspath(p))
+        else:
+            self._append_log("[C2] no report yet — run the engine first")
+
+    def _c2_open_png(self):
+        p = getattr(self, "_c2_png", None)
+        if p and os.path.exists(p):
+            webbrowser.open("file://" + os.path.abspath(p))
 
     def _set_bio_state(self, stress, angle):
         self._bio_stress = stress
@@ -1429,6 +2424,31 @@ class HeartSimpleApp(ctk.CTk):
         self.bio_scog_slider.set(stress)
         self.bio_ang_slider.set(angle)
         self._on_bio_slider_change(None)
+
+    def _c2_apply_preset(self, idx):
+        """Click handler for a Scog preset chip: set Scog + angle, then let
+        _on_bio_slider_change repaint the selected-state highlight."""
+        _name, s_val, ang_val, _col = self._c2_preset_defs[idx]
+        self._set_bio_state(s_val, ang_val)
+
+    def _c2_highlight_preset(self, active_idx):
+        """Paint the active preset in its accent colour; reset the others."""
+        for i, btn in enumerate(getattr(self, "_c2_preset_btns", [])):
+            if i == active_idx:
+                btn.configure(fg_color=self._c2_preset_defs[i][3],
+                              text_color="#ffffff", border_color=self._c2_preset_defs[i][3])
+            else:
+                btn.configure(fg_color=THEME["bg_box"],
+                              text_color=THEME["text_heading"], border_color=THEME["border"])
+
+    def _c2_sync_preset_highlight(self, stress):
+        """Highlight the preset whose Scog matches the slider; clear when the
+        user has dragged to a value that is not one of the presets."""
+        if not hasattr(self, "_c2_preset_btns"):
+            return
+        match = next((i for i, d in enumerate(self._c2_preset_defs)
+                      if abs(d[1] - stress) < 1e-3), None)
+        self._c2_highlight_preset(match if match is not None else -1)
 
     def _apply_bio_chaos_profile(self, prof_key, stress, angle, sigma):
         self._bio_stress = stress
@@ -1468,6 +2488,7 @@ class HeartSimpleApp(ctk.CTk):
         self.bio_ang_lbl.configure(text=f"{angle:.0f}°")
         self.bio_sig_lbl.configure(text=f"{sigma:.2f} mm")
 
+        self._c2_sync_preset_highlight(stress)
         self._redraw_biometry_canvas()
 
     def _redraw_biometry_canvas(self):
@@ -2568,7 +3589,12 @@ class HeartSimpleApp(ctk.CTk):
         )
         self.log_meta_lbl.pack(side="left")
 
-        self.log_textbox = ctk.CTkTextbox(
+        # NOTE: this is the JSON audit-log viewer, kept distinct from the live
+        # ADB stream terminal (self.log_textbox, built in _build_bottom_telemetry).
+        # It used to be named self.log_textbox too, which clobbered the live
+        # terminal: _append_log then wrote into this (disabled) viewer and the
+        # bottom ADB stream silently stopped updating after the init line.
+        self.report_log_textbox = ctk.CTkTextbox(
             card_log,
             height=230,
             font=ctk.CTkFont(family="Consolas", size=9),
@@ -2579,7 +3605,7 @@ class HeartSimpleApp(ctk.CTk):
             border_color=THEME["border"],
             wrap="none"
         )
-        self.log_textbox.pack(fill="both", expand=True, padx=12, pady=(0, 12))
+        self.report_log_textbox.pack(fill="both", expand=True, padx=12, pady=(0, 12))
 
         self._raw_log_buffer = ""
         self._refresh_log_viewer()
@@ -2661,7 +3687,7 @@ class HeartSimpleApp(ctk.CTk):
         return None
 
     def _refresh_log_viewer(self):
-        if not hasattr(self, "log_textbox"):
+        if not hasattr(self, "report_log_textbox"):
             return
         path = self._get_active_log_path()
         if path and os.path.exists(path):
@@ -2690,7 +3716,7 @@ class HeartSimpleApp(ctk.CTk):
         self._filter_displayed_log()
 
     def _filter_displayed_log(self):
-        if not hasattr(self, "log_textbox"):
+        if not hasattr(self, "report_log_textbox"):
             return
         query = self.log_search_entry.get().strip().lower() if hasattr(self, "log_search_entry") else ""
         if not query:
@@ -2699,10 +3725,10 @@ class HeartSimpleApp(ctk.CTk):
             lines = self._raw_log_buffer.splitlines()
             filtered = "\n".join(l for l in lines if query in l.lower())
 
-        self.log_textbox.configure(state="normal")
-        self.log_textbox.delete("1.0", "end")
-        self.log_textbox.insert("1.0", filtered)
-        self.log_textbox.configure(state="disabled")
+        self.report_log_textbox.configure(state="normal")
+        self.report_log_textbox.delete("1.0", "end")
+        self.report_log_textbox.insert("1.0", filtered)
+        self.report_log_textbox.configure(state="disabled")
 
     def _copy_log_to_clipboard(self):
         content = getattr(self, "_raw_log_buffer", "")
@@ -2724,7 +3750,11 @@ class HeartSimpleApp(ctk.CTk):
 
 
     def _generate_phone_screen_mockup(self, target_w=196, target_h=428, touch_point=None, touch_res=None):
-        """Generates a realistic, interactive smartphone UI mockup in crisp light mode."""
+        """Neutral placeholder shown when no real device frame is available.
+
+        Renders a phone frame + "no live screen" card (plus the synthesized
+        touch overlay) rather than any fabricated app content, so nothing here
+        can be mistaken for a real device/app screen or real readings."""
         img = Image.new("RGBA", (target_w, target_h), (255, 255, 255, 255))
         draw = ImageDraw.Draw(img)
 
@@ -2756,80 +3786,34 @@ class HeartSimpleApp(ctk.CTk):
         bat_col = (5, 150, 105, 255) if bat_level > 20 else (220, 38, 38, 255)
         draw.rectangle([target_w - 25, 7, target_w - 26 + bat_fill_w, 15], fill=bat_col)
 
-        # 2. Top App Bar (h=38)
-        pkg = self.app_selector.get() if hasattr(self, "app_selector") else "com.example.medigo"
-        is_calc = "calc" in pkg.lower()
+        # 2. Body — honest "no live screen" placeholder.
+        # This mock is only shown when there is no real device frame to mirror
+        # (device offline, or the captured frame was all-black). It renders a
+        # neutral status card instead of a fabricated app (previously a fake
+        # "MediGo" patient-vitals screen) so nothing here can be mistaken for
+        # real device or application data.
+        is_sim = getattr(self.adb, "is_simulated", True)
+        body_top = 36
+        draw.rounded_rectangle([8, body_top, target_w - 8, body_top + 152], radius=10,
+                               fill=(248, 250, 252, 255), outline=(226, 232, 240, 255))
+        cxp = target_w // 2
+        # Simple phone glyph
+        draw.rounded_rectangle([cxp - 16, body_top + 18, cxp + 16, body_top + 70], radius=6,
+                               outline=(148, 163, 184, 255), width=2)
+        draw.line([cxp - 6, body_top + 64, cxp + 6, body_top + 64], fill=(148, 163, 184, 255), width=2)
+        headline = "No live screen"
+        sub1 = "Connect a device and" if is_sim else "Waiting for device frame"
+        sub2 = "press Stream" if is_sim else "(screen may be off)"
+        draw.text((cxp - len(headline) * 3, body_top + 84), headline, fill=(15, 23, 42, 255))
+        draw.text((cxp - len(sub1) * 3, body_top + 102), sub1, fill=(100, 116, 139, 255))
+        draw.text((cxp - len(sub2) * 3, body_top + 116), sub2, fill=(100, 116, 139, 255))
 
-        if is_calc:
-            draw.rectangle([0, 22, target_w, 56], fill=(241, 245, 249, 255), outline=(226, 232, 240, 255))
-            draw.text((10, 30), "Mi Calculator", fill=(15, 23, 42, 255))
-            draw.text((target_w - 30, 30), "[=]", fill=(100, 116, 139, 255))
-
-            draw.rounded_rectangle([8, 64, target_w - 8, 126], radius=8, fill=(255, 255, 255, 255), outline=(203, 213, 225, 255))
-            draw.text((14, 72), "DEG", fill=(148, 163, 184, 255))
-            draw.text((target_w - 75, 94), "4,290.00", fill=(15, 23, 42, 255))
-
-            keys = [
-                ["C", "( )", "%", "/"],
-                ["7", "8", "9", "*"],
-                ["4", "5", "6", "-"],
-                ["1", "2", "3", "+"],
-                ["+/-", "0", ".", "="]
-            ]
-            start_y = 136
-            btn_h = 24
-            btn_w = (target_w - 24) // 4
-            for r_idx, row in enumerate(keys):
-                for c_idx, k in enumerate(row):
-                    bx1 = 10 + c_idx * (btn_w + 2)
-                    by1 = start_y + r_idx * (btn_h + 3)
-                    bx2 = bx1 + btn_w
-                    by2 = by1 + btn_h
-                    is_op = k in ["/", "*", "-", "+", "="]
-                    k_bg = (239, 246, 255, 255) if is_op else (255, 255, 255, 255)
-                    k_fg = (37, 99, 235, 255) if is_op else (15, 23, 42, 255)
-                    draw.rounded_rectangle([bx1, by1, bx2, by2], radius=4, fill=k_bg, outline=(226, 232, 240, 255))
-                    draw.text((bx1 + btn_w // 2 - 4, by1 + 5), k, fill=k_fg)
-
-        else:
-            # MediGo Healthcare UI
-            draw.rectangle([0, 22, target_w, 58], fill=(37, 99, 235, 255))
-            draw.text((10, 27), "MediGo Health Portal", fill=(255, 255, 255, 255))
-            draw.text((10, 42), "Emergency Care Unit", fill=(219, 234, 254, 255))
-            draw.rounded_rectangle([target_w - 26, 28, target_w - 8, 46], radius=4, fill=(29, 78, 216, 255))
-            draw.text((target_w - 20, 31), "!", fill=(255, 255, 255, 255))
-
-            # Patient Vitals Card
-            draw.rounded_rectangle([8, 66, target_w - 8, 140], radius=8, fill=(255, 255, 255, 255), outline=(226, 232, 240, 255))
-            draw.text((14, 72), "PATIENT VITALS - LIVE", fill=(37, 99, 235, 255))
-            draw.text((14, 88), "Heart Rate: 74 bpm", fill=(15, 23, 42, 255))
-            # Mini stylized ECG pulse
-            ecg = [(130, 96), (140, 96), (144, 90), (148, 102), (152, 86), (156, 104), (160, 96), (174, 96)]
-            draw.line(ecg, fill=(220, 38, 38, 255), width=2)
-            draw.text((14, 104), "SpO2: 99%  |  BP: 120/80", fill=(71, 85, 105, 255))
-            draw.text((14, 120), "Body Temp: 36.8 C", fill=(71, 85, 105, 255))
-
-            # Environmental Telemetry Card
-            draw.rounded_rectangle([8, 148, target_w - 8, 212], radius=8, fill=(248, 250, 252, 255), outline=(226, 232, 240, 255))
-            draw.text((14, 154), "ENVIRONMENTAL TELEMETRY", fill=(217, 119, 6, 255))
-            lat = getattr(self, "_last_latency_ms", 24.6)
-            cpu = int(self.cpu_slider.get()) if hasattr(self, "cpu_slider") else 0
-            loss = int(self.loss_slider.get()) if hasattr(self, "loss_slider") else 0
-            draw.text((14, 172), f"RTT Latency: {lat} ms", fill=(15, 23, 42, 255))
-            draw.text((14, 188), f"Injected CPU: {cpu}%  |  Loss: {loss}%", fill=(71, 85, 105, 255))
-
-            # Interactive Patient Tap Target Card (Target Button)
-            draw.rounded_rectangle([8, 220, target_w - 8, 292], radius=8, fill=(255, 255, 255, 255), outline=(37, 99, 235, 255))
-            draw.rounded_rectangle([14, 230, target_w - 14, 272], radius=6, fill=(37, 99, 235, 255))
-            draw.text((20, 238), "CONFIRM EMERGENCY DOSE", fill=(255, 255, 255, 255))
-            draw.text((18, 252), "[Clinical Target Button]", fill=(219, 234, 254, 255))
-            draw.text((14, 276), "Status: Ready for input", fill=(100, 116, 139, 255))
-
-            # Quick Doctor Actions
-            draw.rounded_rectangle([8, 300, target_w // 2 - 4, 338], radius=6, fill=(255, 255, 255, 255), outline=(226, 232, 240, 255))
-            draw.text((18, 312), "EHR Records", fill=(51, 65, 85, 255))
-            draw.rounded_rectangle([target_w // 2 + 4, 300, target_w - 8, 338], radius=6, fill=(255, 255, 255, 255), outline=(226, 232, 240, 255))
-            draw.text((target_w // 2 + 18, 312), "Rx Order", fill=(51, 65, 85, 255))
+        # Injected environmental stress is the operator's own input (not device
+        # telemetry), so echoing the live slider values here is accurate.
+        cpu = int(self.cpu_slider.get()) if hasattr(self, "cpu_slider") else 0
+        loss = int(self.loss_slider.get()) if hasattr(self, "loss_slider") else 0
+        draw.text((14, body_top + 166), f"Injected CPU: {cpu}%  |  Loss: {loss}%",
+                  fill=(71, 85, 105, 255))
 
         # Bottom Virtual Touch Visualizer (if touch was dispatched)
         if touch_point:
@@ -3047,17 +4031,21 @@ class HeartSimpleApp(ctk.CTk):
 
         self.app_selector = ctk.CTkOptionMenu(
             toolstrip,
-            values=["com.example.medigo", "com.miui.calculator", "com.android.settings"],
+            values=["(scanning…)"],
             height=26,
             width=145,
             fg_color="#ffffff",
             button_color=THEME["primary"],
             button_hover_color=THEME["primary_hover"],
             text_color=THEME["text_heading"],
+            dropdown_fg_color="#ffffff",
+            dropdown_text_color=THEME["text_heading"],
+            dropdown_hover_color=THEME["primary_light"],
             font=ctk.CTkFont(family="Segoe UI", size=9),
-            dropdown_font=ctk.CTkFont(size=9)
+            dropdown_font=ctk.CTkFont(size=9),
+            command=self._c2_on_right_app_change,
         )
-        self.app_selector.set("com.example.medigo")
+        self.app_selector.set("(scanning…)")
         self.app_selector.pack(side="left", padx=(0, 4))
 
         ctk.CTkButton(
@@ -3362,6 +4350,8 @@ class HeartSimpleApp(ctk.CTk):
                         self.device_selector.set("○ No Devices Detected")
                         self.dev_battery_lbl.configure(text="Click 'Launch AVD' or connect USB phone")
                         self._append_log("[ADB] No active devices found. Simulation ready.")
+                        if hasattr(self, "c2_device_lbl"):
+                            self._c2_sync_device_label()
                     self.after(0, _update_offline)
                     return
 
@@ -3408,6 +4398,23 @@ class HeartSimpleApp(ctk.CTk):
 
         threading.Thread(target=_worker, daemon=True).start()
 
+    def _periodic_device_check(self):
+        """Auto-discovers newly connected USB devices or booted AVDs in the background."""
+        def _check():
+            try:
+                adb_bin = get_adb_binary()
+                res = subprocess.run([adb_bin, "devices"], capture_output=True, text=True, timeout=4)
+                devs = [l.split()[0] for l in res.stdout.splitlines()[1:] if "\tdevice" in l]
+                curr_dev = getattr(self.adb, "device_id", None)
+                is_sim = getattr(self.adb, "is_simulated", True)
+                known_devs = list(getattr(self, "_devices_map", {}).values())
+                if devs and (is_sim or set(devs) != set(known_devs)):
+                    self.after(0, lambda: self._scan_device_and_apps(preferred_id=devs[0]))
+            except Exception:
+                pass
+        threading.Thread(target=_check, daemon=True).start()
+        self.after(4000, self._periodic_device_check)
+
     def _on_device_dropdown_change(self, choice):
         did = getattr(self, "_devices_map", {}).get(choice)
         if did:
@@ -3416,52 +4423,86 @@ class HeartSimpleApp(ctk.CTk):
     def _switch_to_device(self, dev_id):
         def _worker():
             adb_bin = get_adb_binary()
-            self.adb.device_id = dev_id
-            self.adb.is_simulated = False
+            if hasattr(self.adb, "connect"):
+                self.adb.connect(dev_id)
+            else:
+                self.adb.device_id = dev_id
+                self.adb.is_simulated = False
             is_emu = dev_id.startswith("emulator-")
             tag = "AVD Emulator" if is_emu else "USB Hardware"
 
-            # Query model & release
-            if is_emu:
-                avd_res = subprocess.run([adb_bin, "-s", dev_id, "shell", "getprop", "ro.boot.qemu.avd_name"], capture_output=True, text=True, timeout=3)
-                dev_name = avd_res.stdout.strip() if avd_res.returncode == 0 and avd_res.stdout.strip() else "Pixel AVD"
-            else:
-                m_res = subprocess.run([adb_bin, "-s", dev_id, "shell", "getprop", "ro.product.model"], capture_output=True, text=True, timeout=3)
-                dev_name = f"Xiaomi {m_res.stdout.strip()}" if m_res.returncode == 0 else dev_id
-            rel_res = subprocess.run([adb_bin, "-s", dev_id, "shell", "getprop", "ro.build.version.release"], capture_output=True, text=True, timeout=3)
-            rel = rel_res.stdout.strip() if rel_res.returncode == 0 else ""
+            def _prop(name):
+                r = subprocess.run([adb_bin, "-s", dev_id, "shell", "getprop", name],
+                                   capture_output=True, text=True, timeout=3)
+                return r.stdout.strip() if r.returncode == 0 else ""
 
-            # Query battery
+            # Query model & release — use the real manufacturer, not a hard-coded
+            # brand (this box's test phone is a Samsung SM-A226B, not a Xiaomi).
+            if is_emu:
+                dev_name = _prop("ro.boot.qemu.avd_name") or "Android Emulator"
+            else:
+                maker = _prop("ro.product.manufacturer")
+                model = _prop("ro.product.model")
+                dev_name = (f"{maker.title()} {model}".strip() if (maker or model) else dev_id)
+            rel = _prop("ro.build.version.release")
+
+            # Query battery — report only what the device actually returns; no
+            # fabricated "85% / 30.0°C" placeholder when parsing fails.
             bat_res = subprocess.run([adb_bin, "-s", dev_id, "shell", "dumpsys", "battery"], capture_output=True, text=True, timeout=4)
-            bat_level = "100%" if is_emu else "85%"
-            bat_temp = "30.0°C"
+            bat_level = None
+            bat_temp = None
             for bline in bat_res.stdout.splitlines():
                 if "level:" in bline:
                     bat_level = f"{bline.split(':')[-1].strip()}%"
                 elif "temperature:" in bline:
-                    raw_t = int(bline.split(':')[-1].strip())
-                    bat_temp = f"{raw_t / 10.0:.1f}°C"
+                    try:
+                        bat_temp = f"{int(bline.split(':')[-1].strip()) / 10.0:.1f}°C"
+                    except ValueError:
+                        pass
+            bat_str = bat_level if bat_level else "—"
 
-            # Query installed packages
-            pkg_res = subprocess.run([adb_bin, "-s", dev_id, "shell", "pm", "list", "packages", "-3"], capture_output=True, text=True, timeout=6)
-            pkgs = [p.replace("package:", "").strip() for p in pkg_res.stdout.splitlines() if p.strip().startswith("package:")]
-            default_pkgs = ["com.example.medigo", "com.example.entrepreneur_toolkit", "com.google.android.calculator", "com.android.calculator2", "com.miui.calculator", "com.android.settings"]
-            final_pkgs = pkgs if pkgs else default_pkgs
+            # Query installed third-party packages. --user 0 first: on a
+            # Work-Profile device (the SM-A226B) an unscoped list returns nothing.
+            pkgs = []
+            for args in (["pm", "list", "packages", "--user", "0", "-3"],
+                         ["pm", "list", "packages", "-3"]):
+                pkg_res = subprocess.run([adb_bin, "-s", dev_id, "shell"] + args,
+                                         capture_output=True, text=True, timeout=6)
+                pkgs = sorted(p.replace("package:", "").strip()
+                              for p in pkg_res.stdout.splitlines()
+                              if p.strip().startswith("package:"))
+                if pkgs:
+                    break
+            final_pkgs = pkgs  # may be empty — do not fabricate a package list
 
             def _update_ui():
                 self.dev_status_icon.configure(text_color=THEME["success"])
-                self.dev_battery_lbl.configure(text=f"🔋 {bat_level} • {tag}")
-                self.app_selector.configure(values=final_pkgs)
-                if "com.example.medigo" in final_pkgs:
-                    self.app_selector.set("com.example.medigo")
-                elif "com.example.entrepreneur_toolkit" in final_pkgs:
-                    self.app_selector.set("com.example.entrepreneur_toolkit")
-                elif final_pkgs:
-                    self.app_selector.set(final_pkgs[0])
+                self.dev_battery_lbl.configure(text=f"🔋 {bat_str} • {tag}")
+                self.app_selector.configure(values=final_pkgs or ["(no apps found)"])
+                if final_pkgs:
+                    # Prefer a known C2 demo target if it is actually installed.
+                    prefer = next((p for p in ("com.example.trippygoandroids",
+                                               "com.example.medigo",
+                                               "com.example.entrepreneur_toolkit")
+                                   if p in final_pkgs), None)
+                    self.app_selector.set(prefer or final_pkgs[0])
+                else:
+                    self.app_selector.set("(no apps found)")
                 self._append_log(f"[DEVICE SWITCHED] Active target: {dev_name} (Android {rel}) [{dev_id}] - {tag}. {len(final_pkgs)} apps.")
+                # Feed the same app list to the C2 picker and let it set the
+                # shared target, so after a scan the C2 picker, the phone-pane
+                # selector and the Launch button all agree on one app.
+                if hasattr(self, "c2_app_menu"):
+                    self._c2_all_pkgs = final_pkgs
+                    self._c2_apply_app_list(final_pkgs)
+                # Keep the C2 tab's "Device (--device)" label in step with the
+                # header dropdown's active selection.
+                if hasattr(self, "c2_device_lbl"):
+                    self._c2_sync_device_label()
                 self._refresh_screen_async()
                 if not self.live_stream_active:
                     self._toggle_stream()
+                self._sample_live_hardware_baseline(dev_id)
 
             self.after(0, _update_ui)
 
@@ -3947,6 +4988,21 @@ class HeartSimpleApp(ctk.CTk):
                 attribution_data = engine.correlate(failures=failures, perturbation_events=events, time_window_sec=60.0)
                 
                 is_emu = str(dev_id).startswith("emulator-")
+                # Report the device's real model instead of a hard-coded name.
+                dev_model = "Unknown device"
+                try:
+                    if dev_id and not is_emu:
+                        maker = subprocess.run([ADB_BIN, "-s", dev_id, "shell", "getprop", "ro.product.manufacturer"],
+                                               capture_output=True, text=True, timeout=3).stdout.strip()
+                        model = subprocess.run([ADB_BIN, "-s", dev_id, "shell", "getprop", "ro.product.model"],
+                                               capture_output=True, text=True, timeout=3).stdout.strip()
+                        dev_model = f"{maker.title()} {model}".strip() or str(dev_id)
+                    elif dev_id:
+                        dev_model = subprocess.run([ADB_BIN, "-s", dev_id, "shell", "getprop", "ro.boot.qemu.avd_name"],
+                                                   capture_output=True, text=True, timeout=3).stdout.strip() or "Android Emulator"
+                except Exception:
+                    dev_model = str(dev_id) if dev_id else "Unknown device"
+                lat = self._last_latency_ms
                 session_report = {
                     "project_metadata": {
                         "platform": "HEART Mobile Environmental Testing Laboratory",
@@ -3955,14 +5011,14 @@ class HeartSimpleApp(ctk.CTk):
                         "target_device": {
                             "device_id": dev_id,
                             "type": "Virtual AVD" if is_emu else "Physical Hardware",
-                            "model": "Pixel 9 Pro" if is_emu else "Xiaomi 23129RAA4G",
+                            "model": dev_model,
                             "active_package": active_pkg
                         }
                     },
                     "kpi_benchmarks": {
                         "rq1_latency_threshold_ms": 100.0,
-                        "last_measured_latency_ms": self._last_latency_ms,
-                        "rq1_compliant": self._last_latency_ms < 100.0,
+                        "last_measured_latency_ms": lat,
+                        "rq1_compliant": (lat < 100.0) if lat is not None else None,
                         "total_perturbations_recorded": len(events)
                     },
                     "attribution_summary": attribution_data,
@@ -4072,11 +5128,19 @@ class HeartSimpleApp(ctk.CTk):
     # ENVIRONMENTAL STRESSOR ACTIONS
     # =========================================================================
     def _on_cpu_slider(self, val):
-        self.cpu_val_lbl.configure(text=f"{int(val)}%")
+        pct = int(val)
+        self.cpu_val_lbl.configure(text=f"{pct}%")
+        self._active_state["cpu"] = pct
+        self._highlight_cpu_button(pct)
+        self._update_telemetry_diff()
 
     def _set_cpu(self, val):
+        self._stressors_active = (val > 0)
         self.cpu_slider.set(val)
         self.cpu_val_lbl.configure(text=f"{val}%")
+        self._active_state["cpu"] = val
+        self._highlight_cpu_button(val)
+        self._update_telemetry_diff()
         self._apply_cpu(val)
 
     def _apply_cpu(self, val=None):
@@ -4088,8 +5152,12 @@ class HeartSimpleApp(ctk.CTk):
         self.bat_val_lbl.configure(text=f"{int(val)}%")
 
     def _set_battery(self, level, unplugged=True):
+        self._stressors_active = True
         self.bat_slider.set(level)
         self.bat_val_lbl.configure(text=f"{level}%")
+        self._active_state["battery"] = level
+        self._active_state["battery_charging"] = not unplugged
+        self._update_telemetry_diff()
         dev_id = getattr(self.adb, "device_id", None)
         tag = "AVD" if (dev_id and dev_id.startswith("emulator-")) else "USB"
         self.dev_battery_lbl.configure(text=f"🔋 {level}% (Unplugged) • {tag}")
@@ -4101,24 +5169,39 @@ class HeartSimpleApp(ctk.CTk):
         self._set_battery(level, True)
 
     def _reset_battery(self):
-        self.bat_slider.set(100)
-        self.bat_val_lbl.configure(text="100%")
+        base_bat = int(self._baseline_state.get("battery", 100))
+        is_chg = self._baseline_state.get("battery_charging", True)
+        self.bat_slider.set(base_bat)
+        self.bat_val_lbl.configure(text=f"{base_bat}%")
+        self._active_state["battery"] = base_bat
+        self._active_state["battery_charging"] = is_chg
+        self._update_telemetry_diff()
         dev_id = getattr(self.adb, "device_id", None)
         tag = "AVD" if (dev_id and dev_id.startswith("emulator-")) else "USB"
-        self.dev_battery_lbl.configure(text=f"🔋 100% (Charging) • {tag}")
+        bat_str = self._baseline_state.get("battery_str", f"{base_bat}%")
+        self.dev_battery_lbl.configure(text=f"🔋 {bat_str} • {tag}")
         self._run_async_stressor("STRESSOR", lambda: self.orchestrator.system.revert(),
-                                 lambda: self._append_log("[STRESSOR] Battery state reset to nominal baseline"))
+                                 lambda: (self._append_log("[STRESSOR] Battery state reset to nominal baseline"), self.after(400, self._sample_live_hardware_baseline)))
 
     def _set_thermal(self, state):
+        self._stressors_active = (state != "Nominal")
+        self._active_state["thermal"] = state
+        temp_c = {"Nominal": "32.0°C", "Fair": "45.0°C", "Serious": "55.0°C", "Critical": "55.0°C"}.get(state, "38.0°C")
+        self._active_state["thermal_temp"] = temp_c
+        self._highlight_thermal_button(state)
+        self._update_telemetry_diff()
         dev_id = getattr(self.adb, "device_id", None)
         tag = "AVD" if (dev_id and dev_id.startswith("emulator-")) else "USB"
-        temp_c = {"Nominal": "32.0°C", "Fair": "45.0°C", "Serious": "55.0°C", "Critical": "55.0°C"}.get(state, "38.0°C")
         bat = int(self.bat_slider.get())
         self.dev_battery_lbl.configure(text=f"🔋 {bat}% • 🌡️ {temp_c} [{state}] • {tag}")
         self._run_async_stressor("STRESSOR", lambda: self.orchestrator.system.set_thermal_state(state),
                                  lambda: self._append_log(f"[STRESSOR] Thermal profile applied: {state}"))
 
     def _set_network_profile(self, key):
+        self._stressors_active = (key not in ("lte", "Normal (4G/5G)", "normal"))
+        self._active_state["bandwidth"] = key
+        self._highlight_bandwidth_button(key)
+        self._update_telemetry_diff()
         if key == "offline":
             fn = lambda: self.orchestrator.network.set_mode("offline")
             label = "Offline Mode (Airplane Mode Enabled, WiFi & Data Off)"
@@ -4138,23 +5221,38 @@ class HeartSimpleApp(ctk.CTk):
                                  lambda: self._append_log(f"[STRESSOR] Network bandwidth set to: '{label}'"))
 
     def _on_lat_slider(self, val):
-        self.lat_val_lbl.configure(text=f"{int(val)} ms")
+        ms = int(val)
+        self.lat_val_lbl.configure(text=f"{ms} ms")
+        self._active_state["latency_ms"] = ms
+        self._highlight_latency_button(ms)
+        self._update_telemetry_diff()
 
     def _set_latency_val(self, ms):
         self.lat_slider.set(ms)
         self.lat_val_lbl.configure(text=f"{ms} ms")
+        self._active_state["latency_ms"] = ms
+        self._highlight_latency_button(ms)
+        self._update_telemetry_diff()
         self._apply_latency()
 
     def _apply_latency(self):
         ms = int(self.lat_slider.get())
+        self._active_state["latency_ms"] = ms
+        self._highlight_latency_button(ms)
+        self._update_telemetry_diff()
         self._run_async_stressor("STRESSOR", lambda: self.orchestrator.network.inject_latency(ms),
                                  lambda: self._append_log(f"[STRESSOR] Network RTT latency injected: {ms}ms"))
 
     def _on_loss_slider(self, val):
-        self.loss_val_lbl.configure(text=f"{int(val)}%")
+        pct = int(val)
+        self.loss_val_lbl.configure(text=f"{pct}%")
+        self._active_state["packet_loss"] = pct
+        self._update_telemetry_diff()
 
     def _apply_loss(self):
         pct = int(self.loss_slider.get())
+        self._active_state["packet_loss"] = pct
+        self._update_telemetry_diff()
         self._run_async_stressor("STRESSOR", lambda: self.orchestrator.network.inject_packet_loss(pct),
                                  lambda: self._append_log(f"[STRESSOR] Packet loss rate injected: {pct}%"))
 
@@ -4163,6 +5261,12 @@ class HeartSimpleApp(ctk.CTk):
         self.lat_val_lbl.configure(text="0 ms")
         self.loss_slider.set(0)
         self.loss_val_lbl.configure(text="0%")
+        self._active_state["latency_ms"] = 0
+        self._active_state["packet_loss"] = 0
+        self._active_state["bandwidth"] = "lte"
+        self._highlight_bandwidth_button("lte")
+        self._highlight_latency_button(0)
+        self._update_telemetry_diff()
         self._run_async_stressor("STRESSOR", lambda: self.orchestrator.network.revert(),
                                  lambda: self._append_log("[STRESSOR] Network reset to nominal baseline (Full Speed, 0ms delay, 0% drop)"))
 
@@ -4196,7 +5300,11 @@ class HeartSimpleApp(ctk.CTk):
                                  lambda: self._append_log(f"[INTERRUPTION] SMS notification banner posted: '{msg}'"))
 
     def _set_rotation(self, rot):
-        lbl = 'Portrait (0°)' if rot == 0 else 'Landscape (90°)'
+        self._stressors_active = True
+        lbl = 'Portrait (0°)' if str(rot) in ('0', 'portrait') else 'Landscape (90°)'
+        self._active_state["orientation"] = lbl
+        self._highlight_orientation_button(rot)
+        self._update_telemetry_diff()
         self._run_async_stressor("CONTEXT", lambda: self.orchestrator.context.set_orientation(rot),
                                  lambda: self._append_log(f"[CONTEXT] Display orientation set: {lbl}"))
 
@@ -4244,27 +5352,48 @@ class HeartSimpleApp(ctk.CTk):
             messagebox.showerror("AVD Error", f"Failed to start emulator:\n{e}")
 
     def _poll_for_emulator(self, attempts=0):
-        if attempts > 15:
+        if attempts > 30:
+            self._append_log("[EMULATOR] AVD launch wait completed.")
             return
         adb_bin = get_adb_binary()
-        res = subprocess.run([adb_bin, "devices"], capture_output=True, text=True, timeout=4)
-        for line in res.stdout.splitlines():
-            if line.startswith("emulator-"):
-                emu_id = line.split()[0]
-                self._append_log(f"[EMULATOR] AVD detected ({emu_id}). Switching active mirror to AVD.")
-                self._scan_device_and_apps(preferred_id=emu_id)
+        try:
+            res = subprocess.run([adb_bin, "devices"], capture_output=True, text=True, timeout=4)
+            found_emu = None
+            for line in res.stdout.splitlines():
+                parts = line.split()
+                if len(parts) >= 2 and parts[0].startswith("emulator-") and parts[1] == "device":
+                    # Verify boot is finished
+                    boot_res = subprocess.run([adb_bin, "-s", parts[0], "shell", "getprop", "sys.boot_completed"], capture_output=True, text=True, timeout=3)
+                    if boot_res.stdout.strip() == "1":
+                        found_emu = parts[0]
+                        break
+            if found_emu:
+                self._append_log(f"[EMULATOR] AVD online and ready ({found_emu}). Switching active mirror to AVD.")
+                self._scan_device_and_apps(preferred_id=found_emu)
                 return
-        self.after(3000, lambda: self._poll_for_emulator(attempts + 1))
+        except Exception:
+            pass
+        self.after(2500, lambda: self._poll_for_emulator(attempts + 1))
 
     def _reset_all_stressors(self):
+        self._stressors_active = False
+        base = getattr(self, "_baseline_state", {})
+        base_bat = int(base.get("battery", 100))
         self.cpu_slider.set(0)
         self.cpu_val_lbl.configure(text="0%")
-        self.bat_slider.set(100)
-        self.bat_val_lbl.configure(text="100%")
+        self.bat_slider.set(base_bat)
+        self.bat_val_lbl.configure(text=f"{base_bat}%")
         self.lat_slider.set(0)
         self.lat_val_lbl.configure(text="0 ms")
         self.loss_slider.set(0)
         self.loss_val_lbl.configure(text="0%")
+        self._active_state = dict(self._baseline_state)
+        self._highlight_cpu_button(0)
+        self._highlight_thermal_button("Nominal")
+        self._highlight_bandwidth_button("lte")
+        self._highlight_latency_button(0)
+        self._highlight_orientation_button(0)
+        self._update_telemetry_diff()
         if hasattr(self, "env_profile_selector"):
             nominal_key = "🔄 Nominal Baseline (Clean Reset)"
             if nominal_key in self.ENV_PROFILES:
@@ -4274,10 +5403,12 @@ class HeartSimpleApp(ctk.CTk):
             self.prof_status_lbl.configure(text="Baseline Nominal", text_color=THEME["success"])
         dev_id = getattr(self.adb, "device_id", None)
         tag = "AVD" if (dev_id and dev_id.startswith("emulator-")) else "USB"
+        bat_str = base.get("battery_str", f"{base_bat}%")
+        temp_str = base.get("thermal_str", "Nominal (32.0°C)")
         if hasattr(self, "dev_battery_lbl"):
-            self.dev_battery_lbl.configure(text=f"🔋 100% (Charging) • 🌡️ 32.0°C [Nominal] • {tag}")
+            self.dev_battery_lbl.configure(text=f"🔋 {bat_str} • 🌡️ {temp_str} • {tag}")
         self._run_async_stressor("SYSTEM RESET", lambda: self.orchestrator.reset_all(),
-                                 lambda: self._append_log("[SYSTEM RESET] All stressors restored to baseline."))
+                                 lambda: (self._append_log("[SYSTEM RESET] All stressors restored to baseline."), self.after(500, self._sample_live_hardware_baseline)))
 
 
     # =========================================================================

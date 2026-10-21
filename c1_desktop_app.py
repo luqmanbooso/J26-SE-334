@@ -3834,8 +3834,11 @@ class HeartSimpleApp(ctk.CTk):
     def _switch_to_device(self, dev_id):
         def _worker():
             adb_bin = get_adb_binary()
-            self.adb.device_id = dev_id
-            self.adb.is_simulated = False
+            if hasattr(self.adb, "connect"):
+                self.adb.connect(dev_id)
+            else:
+                self.adb.device_id = dev_id
+                self.adb.is_simulated = False
             is_emu = dev_id.startswith("emulator-")
             tag = "AVD Emulator" if is_emu else "USB Hardware"
 
@@ -3851,14 +3854,18 @@ class HeartSimpleApp(ctk.CTk):
 
             # Query battery
             bat_res = subprocess.run([adb_bin, "-s", dev_id, "shell", "dumpsys", "battery"], capture_output=True, text=True, timeout=4)
-            bat_level = "100%" if is_emu else "85%"
-            bat_temp = "30.0°C"
+            bat_level = None
+            bat_temp = None
             for bline in bat_res.stdout.splitlines():
                 if "level:" in bline:
                     bat_level = f"{bline.split(':')[-1].strip()}%"
                 elif "temperature:" in bline:
-                    raw_t = int(bline.split(':')[-1].strip())
-                    bat_temp = f"{raw_t / 10.0:.1f}°C"
+                    try:
+                        raw_t = int(bline.split(':')[-1].strip())
+                        bat_temp = f"{raw_t / 10.0:.1f}°C"
+                    except ValueError:
+                        pass
+            bat_str = bat_level or ("100%" if is_emu else "85%")
 
             # Query installed packages
             pkg_res = subprocess.run([adb_bin, "-s", dev_id, "shell", "pm", "list", "packages", "-3"], capture_output=True, text=True, timeout=6)
@@ -3868,7 +3875,7 @@ class HeartSimpleApp(ctk.CTk):
 
             def _update_ui():
                 self.dev_status_icon.configure(text_color=THEME["success"])
-                self.dev_battery_lbl.configure(text=f"🔋 {bat_level} • {tag}")
+                self.dev_battery_lbl.configure(text=f"🔋 {bat_str} • {tag}")
                 self.app_selector.configure(values=final_pkgs)
                 if "com.example.medigo" in final_pkgs:
                     self.app_selector.set("com.example.medigo")
@@ -4662,17 +4669,27 @@ class HeartSimpleApp(ctk.CTk):
             messagebox.showerror("AVD Error", f"Failed to start emulator:\n{e}")
 
     def _poll_for_emulator(self, attempts=0):
-        if attempts > 15:
+        if attempts > 30:
+            self._append_log("[EMULATOR] AVD launch wait completed.")
             return
         adb_bin = get_adb_binary()
-        res = subprocess.run([adb_bin, "devices"], capture_output=True, text=True, timeout=4)
-        for line in res.stdout.splitlines():
-            if line.startswith("emulator-"):
-                emu_id = line.split()[0]
-                self._append_log(f"[EMULATOR] AVD detected ({emu_id}). Switching active mirror to AVD.")
-                self._scan_device_and_apps(preferred_id=emu_id)
+        try:
+            res = subprocess.run([adb_bin, "devices"], capture_output=True, text=True, timeout=4)
+            found_emu = None
+            for line in res.stdout.splitlines():
+                parts = line.split()
+                if len(parts) >= 2 and parts[0].startswith("emulator-") and parts[1] == "device":
+                    boot_res = subprocess.run([adb_bin, "-s", parts[0], "shell", "getprop", "sys.boot_completed"], capture_output=True, text=True, timeout=3)
+                    if boot_res.stdout.strip() == "1":
+                        found_emu = parts[0]
+                        break
+            if found_emu:
+                self._append_log(f"[EMULATOR] AVD online and ready ({found_emu}). Switching active mirror to AVD.")
+                self._scan_device_and_apps(preferred_id=found_emu)
                 return
-        self.after(3000, lambda: self._poll_for_emulator(attempts + 1))
+        except Exception:
+            pass
+        self.after(2500, lambda: self._poll_for_emulator(attempts + 1))
 
     def _reset_all_stressors(self):
         self.cpu_slider.set(0)
