@@ -36,6 +36,13 @@ try:                                     # POSIX
 except ImportError:                      # Windows
     import msvcrt
     _WINDOWS = True
+    _orig_common_run = subprocess.run
+    _CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+    def _safe_run(*args, **kwargs):
+        if "creationflags" not in kwargs:
+            kwargs["creationflags"] = _CREATE_NO_WINDOW
+        return _orig_common_run(*args, **kwargs)
+    subprocess.run = _safe_run
 
 
 # Auto-detect and register Android SDK tools in PATH

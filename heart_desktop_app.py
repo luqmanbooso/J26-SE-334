@@ -4,6 +4,23 @@ import time
 import json
 import re
 import subprocess
+if sys.platform == "win32":
+    _orig_subprocess_run = subprocess.run
+    _orig_subprocess_popen = subprocess.Popen
+    _CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+
+    def _silent_run(*args, **kwargs):
+        if "creationflags" not in kwargs:
+            kwargs["creationflags"] = _CREATE_NO_WINDOW
+        return _orig_subprocess_run(*args, **kwargs)
+
+    def _silent_popen(*args, **kwargs):
+        if "creationflags" not in kwargs:
+            kwargs["creationflags"] = _CREATE_NO_WINDOW
+        return _orig_subprocess_popen(*args, **kwargs)
+
+    subprocess.run = _silent_run
+    subprocess.Popen = _silent_popen
 import threading
 import shutil
 import webbrowser
@@ -91,7 +108,13 @@ def get_adb_binary() -> str:
     which_adb = shutil.which("adb")
     if which_adb:
         return which_adb
+    exe_dir = os.path.dirname(sys.executable)
     for cand in [
+        os.path.join(exe_dir, "platform-tools", "adb.exe"),
+        os.path.join(exe_dir, "adb.exe"),
+        os.path.join(ROOT_DIR, "platform-tools", "adb.exe"),
+        os.path.join(getattr(sys, "_MEIPASS", ROOT_DIR), "platform-tools", "adb.exe"),
+        os.path.expanduser("~/AppData/Local/Programs/HEART_Studio/platform-tools/adb.exe"),
         r"D:\Android\platform-tools\adb.exe",
         os.path.expanduser("~/AppData/Local/Android/Sdk/platform-tools/adb.exe"),
         r"C:\Android\platform-tools\adb.exe",
@@ -1384,6 +1407,7 @@ class HeartSimpleApp(ctk.CTk):
         self.cpu_slider = ctk.CTkSlider(card, from_=0, to=100, number_of_steps=20, command=self._on_cpu_slider, progress_color=THEME["primary"], button_color=THEME["primary"], height=14)
         self.cpu_slider.set(0)
         self.cpu_slider.pack(fill="x", padx=14, pady=(2, 6))
+        self.cpu_slider.bind("<ButtonRelease-1>", lambda e: self._apply_cpu())
 
         quick_cpu = ctk.CTkFrame(card, fg_color="transparent")
         quick_cpu.pack(fill="x", padx=14, pady=(0, 10))
@@ -5355,6 +5379,15 @@ class HeartSimpleApp(ctk.CTk):
                 self._append_log(f"[EMULATOR] AVD is already running ({emu_id}). Switching active display to AVD now...")
                 self._scan_device_and_apps(preferred_id=emu_id)
                 return
+
+        # Check if emulator binary exists on PC
+        if not shutil.which(emu_bin) and not os.path.exists(emu_bin):
+            self._append_log("[EMULATOR] Android Emulator binary not found on PC.")
+            messagebox.showinfo("Android Emulator Not Installed",
+                                "Android Studio / Emulator (AVD) is not installed on this PC.\n\n"
+                                "Your physical Xiaomi phone is connected!\n"
+                                "Click 'Re-Scan Device' to connect to the physical phone.")
+            return
 
         # Dynamically discover installed AVD
         target_avd = "Medium_Phone"
