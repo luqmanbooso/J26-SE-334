@@ -17,6 +17,24 @@ from pathlib import Path
 from typing import List, Optional, Dict, Any, Union
 from PIL import Image
 
+# An older copy of this package is pip-installed (editable) from
+# D:/university/Resesarch/local-vision-oracle. Without the next lines, any launch that
+# does not put vision_oracle/ first on sys.path silently loads that stale engine,
+# which lacks the inference contract fix.
+import sys as _sys
+
+_C3_DIR = str(Path(__file__).resolve().parents[1])
+if _sys.path[:1] != [_C3_DIR]:
+    if _C3_DIR in _sys.path:
+        _sys.path.remove(_C3_DIR)
+    _sys.path.insert(0, _C3_DIR)
+_stale = _sys.modules.get("local_vision_oracle")
+if _stale is not None and not str(getattr(_stale, "__file__", "")).startswith(_C3_DIR):
+    raise ImportError(
+        f"Stale local_vision_oracle already imported from {_stale.__file__}; expected {_C3_DIR}. "
+        "Run 'pip uninstall local-vision-oracle' or import vision_oracle.services first."
+    )
+
 from vision_oracle.core.config import (
     VERDICTS_DIR,
     BASE_MODEL_PATH,
@@ -78,6 +96,16 @@ def create_default_engine() -> OracleEngine:
         quantization_bit=4,
         lazy_load=False,
     )
+    if backend.inference_contract is None:
+        logger.warning(
+            "C3 adapter %s has no inference_contract.json. It will receive a prompt and "
+            "resolution it was not trained on and will under-detect defects. See "
+            "vision_oracle/evidence/MODEL_V2_DECISIONS.md.", LORA_WEIGHTS_PATH,
+        )
+    else:
+        logger.info("C3 inference contract active: %s px, decision threshold %s",
+                    backend.inference_contract["image_max_pixels"],
+                    backend.inference_contract.get("decision_threshold"))
     return OracleEngine(
         backend=backend,
         engine_descriptor="qwen2-vl-2b-instruct+c3-lora-4bit",
@@ -200,7 +228,7 @@ class OracleService:
         self,
         capture_id: str,
         session_id: Optional[str] = None,
-        policy: str = CoveragePolicy.GLOBAL_PLUS_TILES_V1.value,
+        policy: str = CoveragePolicy.GLOBAL_ONLY.value,
     ) -> Dict[str, Any]:
         """Submits capture for asynchronous analysis, returning job metadata immediately."""
         capture = self._repo.get_capture(capture_id)
@@ -272,7 +300,7 @@ class OracleService:
 
                 try:
                     img = Image.open(capture.artifact_path).convert("RGB")
-                    pol = CoveragePolicy(job["policy"]) if job.get("policy") in [p.value for p in CoveragePolicy] else CoveragePolicy.GLOBAL_PLUS_TILES_V1
+                    pol = CoveragePolicy(job["policy"]) if job.get("policy") in [p.value for p in CoveragePolicy] else CoveragePolicy.GLOBAL_ONLY
 
                     with self._inference_lock:
                         if job_id in self._cancelled_jobs:
@@ -315,7 +343,7 @@ class OracleService:
                     record = {
                         "verdict_id": verdict_v2.verdict_id,
                         "session_id": verdict_v2.session_id or "default_session",
-                        "timestamp": bundle.timestamp_utc,
+                        "timestamp": capture.timestamp_utc,  # was `bundle`, undefined here: every job flipped to FAILED
                         "verdict_v2": verdict_v2.model_dump(),
                         "c4_verdict": c4_dict,
                     }
@@ -325,6 +353,11 @@ class OracleService:
                 except Exception as exc:
                     err_msg = f"Job {job_id} inference failure: {exc}"
                     logger.error(err_msg, exc_info=True)
+                    current = self._repo.get_job(job_id)
+                    if current and current["state"] == JobState.COMPLETED.value:
+                        # The verdict is already saved; a later bookkeeping error must not hide it.
+                        logger.warning("Post-completion error for job %s ignored: %s", job_id, exc)
+                        continue
                     self._repo.update_job(job_id, JobState.FAILED, error_message=str(exc))
                     if "OutOfMemoryError" in type(exc).__name__ or "out of memory" in str(exc).lower():
                         import gc
@@ -404,7 +437,7 @@ class OracleService:
         raw_hierarchy: Optional[str] = None,
         screen_id: Optional[str] = None,
         action_context: Optional[str] = None,
-        enable_sahi: bool = True,
+        enable_sahi: bool = False,  # tile views not validated with the current adapter (see MODEL_V2_DECISIONS.md)
         session_id: Optional[str] = None,
         action_id: Optional[str] = None,
         capture_ms: float = 0.0,
@@ -463,11 +496,15 @@ class OracleService:
             if primary and primary.type in [d.value for d in DefectType]
             else (DefectType.OTHER if primary else DefectType.NONE)
         )
-        confidence = (
-            float(primary.confidence)
-            if primary and primary.confidence is not None
-            else (0.95 if verdict_v2.decision == AnalysisDecision.NO_DEFECT_DETECTED else 0.0)
-        )
+        # Legacy envelope needs a number. Use the model's own probability: P(defect) for a
+        # finding, 1 - P(defect) for a clean verdict, 0.0 when the model reported none.
+        p_defect = verdict_v2.metadata.get("defect_probability")
+        if primary and primary.confidence is not None:
+            confidence = float(primary.confidence)
+        elif verdict_v2.decision == AnalysisDecision.NO_DEFECT_DETECTED and isinstance(p_defect, (int, float)):
+            confidence = round(1.0 - float(p_defect), 4)
+        else:
+            confidence = 0.0
 
         norm_box = None
         if primary and primary.bbox_xyxy:
@@ -536,7 +573,7 @@ class OracleService:
         action_context: Optional[str] = None,
         session_id: Optional[str] = "live_device_session",
         device: Optional[Any] = None,
-        enable_sahi: bool = True,
+        enable_sahi: bool = False,  # tile views not validated with the current adapter (see MODEL_V2_DECISIONS.md)
         action_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Captures and evaluates screen from Android device via canonical AnalysisPipeline."""

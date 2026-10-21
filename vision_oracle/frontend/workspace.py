@@ -60,7 +60,7 @@ class C3Workspace(ctk.CTkFrame):
         row=ctk.CTkFrame(source,fg_color='transparent');row.pack(fill='x',padx=8,pady=5)
         self.device=ctk.CTkOptionMenu(row,values=['No device'],width=150);self.device.pack(side='left',padx=3);self.controls.append(self.device)
         refresh=ctk.CTkButton(row,text='Refresh devices',command=self.refresh_devices,width=110);refresh.pack(side='left',padx=3);self.controls.append(refresh)
-        self.slicing=ctk.CTkSwitch(row,text='Multi-view');self.slicing.select();self.slicing.pack(side='left',padx=6);self.controls.append(self.slicing)
+        self.slicing=ctk.CTkSwitch(row,text='Extra tile views (slower, not validated)');self.slicing.pack(side='left',padx=6);self.controls.append(self.slicing)
         self.device_label=self.label(source,'Checking connected phones…',11,wraplength=560)
         self.options_button=ctk.CTkButton(source,text='Advanced options',command=self.toggle_options,fg_color='#475569')
         self.options_button.pack(fill='x',padx=12,pady=3)
@@ -241,7 +241,8 @@ class C3Workspace(ctk.CTkFrame):
         color={'defect_detected':'#be123c','no_defect_detected':'#047857','inconclusive':'#a16207'}[verdict['decision']]
         self.result_title.configure(text=view['title'],text_color=color);self.set_text(self.details,view['summary'])
         elapsed=f"{view['total_ms']/1000:.2f}s" if view['total_ms'] is not None else 'unavailable'
-        self.measurements.configure(text=f"{view['coverage']} · Analysis: {elapsed} · {verdict['analysis_status']}")
+        split=' · '.join(x for x in (view.get('verdict_time'),view.get('localization_time')) if x)
+        self.measurements.configure(text=f"{view['coverage']} · Analysis: {elapsed}"+(f" ({split})" if split else '')+f" · {verdict['analysis_status']}")
         self.status.configure(text='Inspection saved locally. Review the findings.')
         self.draw_preview(verdict['screenshot']['storage_path'],verdict['findings'])
         self.integration_status.configure(text=f"Session: {verdict['session_id']}\nAction: {verdict.get('action_id') or 'None (unlinked)'}\nCapture: {verdict['capture_id']}\nVerdict: {verdict['verdict_id']}\nHandover: {view['outcome'].replace('_',' ')} · prepared, not sent")

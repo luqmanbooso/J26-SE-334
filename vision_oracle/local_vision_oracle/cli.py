@@ -223,32 +223,36 @@ def cmd_inspect(args: argparse.Namespace) -> int:
             with open(h_path, "r", encoding="utf-8") as f:
                 hierarchy_content = f.read()
 
-    # Backend selection
+    enable_sahi = bool(getattr(args, "sahi", False))
     if args.mock:
-        backend = MockInferenceBackend()
-    else:
-        from local_vision_oracle.engine import TransformersInferenceBackend
-        default_base = r"D:\university\Resesarch\RD\models\Qwen2-VL-2B-Instruct"
-        default_lora = r"D:\university\Resesarch\results\c3_lora_final"
-        base_path = getattr(args, "base_model", None) or default_base
-        lora_path = getattr(args, "weights", None) or default_lora
-        backend = TransformersInferenceBackend(
-            model_name_or_path=base_path,
-            adapter_dir=lora_path,
-            quantization_bit=4,
+        engine = OracleEngine(backend=MockInferenceBackend())
+        result: C3OracleResult = engine.evaluate(
+            image_input=str(image_path),
+            raw_hierarchy=hierarchy_content,
+            action_context=args.action,
+            enable_sahi=enable_sahi,
         )
+        print(json.dumps(result.to_dict(), indent=2))
+        return 0
 
-    engine = OracleEngine(backend=backend)
-    enable_sahi = not getattr(args, "no_sahi", False)
+    # Real model: the same service and pipeline as the HEART desktop app (shipped adapter,
+    # its inference contract, global-only unless --sahi). Before 2026-10-21 this command
+    # loaded an older adapter (results/c3_lora_final) through the legacy engine.
+    from vision_oracle.services.oracle_service import get_oracle_service
 
-    result: C3OracleResult = engine.evaluate(
+    if isinstance(hierarchy_content, dict):
+        hierarchy_content = json.dumps(hierarchy_content)
+    result = get_oracle_service().evaluate(
         image_input=str(image_path),
         raw_hierarchy=hierarchy_content,
         action_context=args.action,
         enable_sahi=enable_sahi,
     )
-
-    print(json.dumps(result.to_dict(), indent=2))
+    v2 = result["verdict_v2"]
+    print(json.dumps({"decision": v2["decision"], "findings": v2["findings"],
+                      "metadata": {k: v2["metadata"].get(k) for k in
+                                   ("defect_probability", "decision_threshold", "model_input")},
+                      "timings_ms": v2["timings_ms"], "errors": v2["errors"]}, indent=2))
     return 0
 
 
@@ -279,8 +283,14 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
         raw_data = json.load(f)
 
     items = [EvaluationItem(**d) for d in raw_data]
-    backend = MockInferenceBackend() if args.mock else None
-    engine = OracleEngine(backend=backend)
+    if not args.mock:
+        # OracleEngine(backend=None) silently fell back to the mock backend, so this command
+        # used to report mock F1 as if it were the model's. Real benchmarks live elsewhere.
+        print("Real-model benchmarking: python -m local_vision_oracle.eval_stages --stage screen "
+              "(or local_vision_oracle.contract_benchmark). This command only supports --mock.",
+              file=sys.stderr)
+        return 2
+    engine = OracleEngine(backend=MockInferenceBackend())
     evaluator = Evaluator(engine=engine)
 
     metrics, _ = evaluator.evaluate_dataset(items)
@@ -326,7 +336,8 @@ def build_parser() -> argparse.ArgumentParser:
     inspect_p.add_argument("--action", "-a", help="Action context description")
     inspect_p.add_argument("--weights", "-w", help="Path to fine-tuned LoRA weights directory")
     inspect_p.add_argument("--base-model", "-m", help="Path to base Qwen2-VL model directory")
-    inspect_p.add_argument("--no-sahi", action="store_true", default=False, help="Disable SAHI dynamic tiling fallback")
+    inspect_p.add_argument("--sahi", action="store_true", default=False, help="Add tile views (experimental, not validated with the current adapter)")
+    inspect_p.add_argument("--no-sahi", action="store_true", default=False, help="Deprecated: tile views are off by default")
     inspect_p.add_argument("--mock", action="store_true", default=False, help="Use mock inference backend")
     inspect_p.set_defaults(func=cmd_inspect)
 

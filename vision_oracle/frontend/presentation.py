@@ -2,6 +2,34 @@
 from vision_oracle.contracts.v2 import VerdictEnvelopeV2
 
 
+def _seconds(ms):
+    return f"{ms / 1000:.1f}s" if isinstance(ms, (int, float)) else None
+
+
+def model_lines(metadata, timings):
+    """What the model scored and read, stated without overclaiming."""
+    lines = []
+    p = metadata.get('defect_probability')
+    threshold = metadata.get('decision_threshold')
+    if isinstance(p, (int, float)):
+        line = f'Model defect score: {p:.0%}'
+        if isinstance(threshold, (int, float)):
+            line += f' (flagged at {threshold:.0%} or above)'
+        lines.append(line + '. This is the model\'s own score, not a calibrated probability.')
+    model_input = metadata.get('model_input')
+    if model_input:
+        if metadata.get('hierarchy_used_by_model'):
+            lines.append('Model input: screenshot and layout file.')
+        elif metadata.get('hierarchy_status') == 'available':
+            lines.append('Model input: screenshot only. The layout file is saved with the evidence; this model does not read it.')
+        else:
+            lines.append('Model input: screenshot only.')
+    verdict, localization = _seconds(timings.get('verdict_ms')), _seconds(timings.get('localization_ms'))
+    if verdict:
+        lines.append(f'Time: decision {verdict}' + (f', defect type and region {localization}' if localization else ''))
+    return lines
+
+
 def present_result(result):
     verdict = VerdictEnvelopeV2.model_validate(result['verdict_v2'])
     data = verdict.model_dump(mode='json')
@@ -17,6 +45,7 @@ def present_result(result):
         lines.append('No finding in the inspected views. This does not certify a defect-free screen.')
     elif decision == 'inconclusive':
         lines.append('The available evidence is insufficient. Review the errors below and retry.')
+    lines.extend(model_lines(data['metadata'], data['timings_ms']))
     for index, finding in enumerate(data['findings'], 1):
         lines.extend(['', f"{index}. {finding['type'].replace('_', ' ')}", finding['explanation']])
         confidence = finding.get('confidence')
@@ -24,16 +53,20 @@ def present_result(result):
         if confidence is None or method == 'unavailable':
             lines.append('Confidence: not calibrated')
         else:
-            lines.append(f'Confidence score: {confidence:.1%} (method: {method})')
+            lines.append(f'Model score: {confidence:.0%} (method: {method})')
         if finding.get('bbox_xyxy'):
             lines.append(f"Region (pixels): {finding['bbox_xyxy']}")
     issues = list(dict.fromkeys(data['errors'] + data['coverage']['warnings']))
     if issues:
         lines += ['', 'Analysis notes:'] + [str(x) for x in issues]
     outcome = handover.get('evidence', {}).get('handover_outcome', 'evidence_only')
+    verdict_time = _seconds(data['timings_ms'].get('verdict_ms'))
+    localization_time = _seconds(data['timings_ms'].get('localization_ms'))
     return {
         'verdict': data, 'handover': handover, 'title': labels[decision],
         'summary': '\n'.join(lines), 'outcome': outcome,
         'coverage': f"{verdict.coverage.completed_views}/{verdict.coverage.planned_views} views completed",
         'total_ms': verdict.timings_ms.get('total_pipeline_ms'),
+        'verdict_time': f'decision {verdict_time}' if verdict_time else None,
+        'localization_time': f'type and region {localization_time}' if localization_time else None,
     }

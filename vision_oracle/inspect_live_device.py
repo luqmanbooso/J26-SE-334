@@ -27,7 +27,8 @@ def main():
     parser = argparse.ArgumentParser(description="Live Android Screen Inspection via C3 Oracle")
     parser.add_argument("--serial", type=str, default=None, help="ADB serial of target device/emulator")
     parser.add_argument("--mock", action="store_true", help="Use MockInferenceBackend for rapid smoke testing")
-    parser.add_argument("--no-sahi", action="store_true", help="Disable SAHI dynamic tiling fallback")
+    parser.add_argument("--sahi", action="store_true", help="Add tile views (experimental, not validated with the current adapter)")
+    parser.add_argument("--no-sahi", action="store_true", help="Deprecated: tile views are already off by default")
     try:
         from vision_oracle.core.config import BASE_MODEL_PATH, LORA_WEIGHTS_PATH
         default_base = str(BASE_MODEL_PATH) if BASE_MODEL_PATH else r"D:\university\Resesarch\RD\models\Qwen2-VL-2B-Instruct"
@@ -69,9 +70,29 @@ def main():
 
         # Step 3: Stream Live Screen & Hierarchy
         print("\n[3/4] Streaming live screen and dumping view hierarchy...")
+        if not args.mock:
+            # Same service and pipeline as the HEART desktop app (adapter contract, honest
+            # verdicts). The legacy engine turned unreadable model output into "clean".
+            from vision_oracle.services.oracle_service import get_oracle_service
+            res = get_oracle_service().evaluate_device(
+                device=device, enable_sahi=args.sahi,
+                action_context="Live device robustness verification pass")
+            v2 = res["verdict_v2"]
+            print("\n[4/4] Evaluation Complete:")
+            print(f"  * Decision        : {v2['decision']}")
+            print(f"  * Findings        : {[(f['type'], f.get('bbox_xyxy')) for f in v2['findings']]}")
+            print(f"  * Defect score    : {v2['metadata'].get('defect_probability')} "
+                  f"(threshold {v2['metadata'].get('decision_threshold')})")
+            print(f"  * Timings (ms)    : {v2['timings_ms']}")
+            if args.output:
+                Path(args.output).parent.mkdir(parents=True, exist_ok=True)
+                Path(args.output).write_text(json.dumps(res["c4_verdict"] if "c4_verdict" in res else v2, indent=2),
+                                             encoding="utf-8")
+                print(f"\n[+] Saved verdict to: {args.output}")
+            return
         result = oracle.evaluate_device(
             device=device,
-            enable_sahi=not args.no_sahi,
+            enable_sahi=args.sahi,
             action_context="Live device robustness verification pass",
         )
 

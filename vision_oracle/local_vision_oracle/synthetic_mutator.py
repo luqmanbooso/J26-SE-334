@@ -66,6 +66,8 @@ class SyntheticMutator:
       1. component_overlap
       2. text_truncation
       3. missing_component
+      4. data_binding_null
+    Node bounds are scaled from hierarchy device pixels to screenshot pixels.
     """
 
     def __init__(self, seed: int = 42):
@@ -111,6 +113,35 @@ class SyntheticMutator:
         return nodes
 
     @staticmethod
+    def _dominant_color(image: Image.Image, box: Tuple[int, int, int, int]) -> Tuple[int, int, int]:
+        """Most common colour inside the element: its own background, not a neighbour's."""
+        crop = image.crop(box).convert("RGB").resize((32, 32))
+        quantised = [tuple(v // 16 * 16 + 8 for v in px) for px in crop.getdata()]
+        return max(set(quantised), key=quantised.count)
+
+    @staticmethod
+    def _contrast_color(bg: Tuple[int, int, int]) -> Tuple[int, int, int]:
+        luminance = 0.299 * bg[0] + 0.587 * bg[1] + 0.114 * bg[2]
+        return (60, 60, 60) if luminance > 128 else (225, 225, 225)
+
+    @staticmethod
+    def _scale_nodes(nodes: List[UINode], sx: float, sy: float) -> List[UINode]:
+        """Map device-pixel hierarchy bounds onto screenshot pixels.
+
+        Rico hierarchies use 1440x2560 device pixels while the screenshots are
+        downscaled (1080x1920 or 540x960). Before 2026-10-20 the bounds were applied
+        unscaled, which painted mutations in the wrong place (often off-screen) and
+        produced wrong boxes.
+        """
+        return [
+            UINode(class_name=n.class_name, resource_id=n.resource_id,
+                   bounds=(int(round(n.bounds[0] * sx)), int(round(n.bounds[1] * sy)),
+                           int(round(n.bounds[2] * sx)), int(round(n.bounds[3] * sy))),
+                   text=n.text, clickable=n.clickable)
+            for n in nodes
+        ]
+
+    @staticmethod
     def _normalize_box(
         bounds: Tuple[int, int, int, int], 
         img_width: int, 
@@ -132,12 +163,12 @@ class SyntheticMutator:
         hierarchy_data: Dict[str, Any],
     ) -> Optional[MutationResult]:
         """Shifts Widget B to visually collide and occlude Widget A (VisionDroid 30% overlap rule)."""
-        candidates = [n for n in nodes if n.area > 2000]
+        w, h = image.size
+        candidates = [n for n in nodes if n.area > 2000 and n.area < 0.15 * w * h]
         if len(candidates) < 2:
             return None
 
         node_a, node_b = self.rng.sample(candidates, 2)
-        w, h = image.size
 
         # Crop Node B
         bx1, by1, bx2, by2 = node_b.bounds
@@ -201,12 +232,16 @@ class SyntheticMutator:
         draw = ImageDraw.Draw(mutated_img)
 
         # Blank out right 45% of text box using sample corner color
-        cut_x = x1 + int(target.width * 0.55)
-        sample_pixel = image.getpixel((max(0, x1 - 2), max(0, y1 - 2)))
+        cut_x = x1 + int((x2 - x1) * 0.55)
+        sample_pixel = self._dominant_color(image, (x1, y1, x2, y2))
         draw.rectangle([cut_x, y1, x2, y2], fill=sample_pixel)
 
-        # Draw truncated ellipsis
-        draw.text((cut_x - 5, y1 + int(target.height * 0.15)), "...", fill=(180, 50, 50))
+        # Draw truncated ellipsis, sized to the text line so it survives downscaling
+        try:
+            font = ImageFont.truetype("arial.ttf", max(12, int((y2 - y1) * 0.7)))
+        except Exception:
+            font = ImageFont.load_default()
+        draw.text((cut_x - 5, y1 + int((y2 - y1) * 0.1)), "...", fill=self._contrast_color(sample_pixel), font=font)
 
         bbox = self._normalize_box((x1, y1, x2, y2), w, h)
         elem_id = target.resource_id or target.class_name
@@ -285,10 +320,7 @@ class SyntheticMutator:
         mutated_img = image.copy()
         draw = ImageDraw.Draw(mutated_img)
 
-        try:
-            bg_color = image.getpixel((max(0, x1 - 2), max(0, y1 - 2)))
-        except Exception:
-            bg_color = (255, 255, 255)
+        bg_color = self._dominant_color(image, (x1, y1, x2, y2))
 
         draw.rectangle([x1, y1, x2, y2], fill=bg_color)
         null_str = self.rng.choice(["null", "nullnull", "NULL", "NaN"])
@@ -298,7 +330,7 @@ class SyntheticMutator:
         except Exception:
             font = ImageFont.load_default()
 
-        draw.text((x1 + 4, y1 + 2), null_str, fill=(120, 120, 120), font=font)
+        draw.text((x1 + 4, y1 + 2), null_str, fill=self._contrast_color(bg_color), font=font)
 
         bbox = self._normalize_box((x1, y1, x2, y2), w, h)
         elem_id = target.resource_id or target.class_name
@@ -327,6 +359,9 @@ class SyntheticMutator:
         nodes = self._extract_leaf_nodes(h_data)
         if not nodes:
             return None
+        from local_vision_oracle.hierarchy_text import rico_screen_size
+        screen_w, screen_h = rico_screen_size(h_data)
+        nodes = self._scale_nodes(nodes, img.width / screen_w, img.height / screen_h)
 
         screen_id = Path(image_path).stem
 
