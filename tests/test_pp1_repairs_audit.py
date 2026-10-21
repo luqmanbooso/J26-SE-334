@@ -70,7 +70,12 @@ def test_r3_evidence_survives_persistence_roundtrip(test_env):
     repo = test_env["repo"]
     img = test_env["img"]
 
-    res = svc.evaluate(img, action_context="act_r3_roundtrip")
+    # Since 2026-10-21 the target element must exist in the captured layout; a model-written id
+    # alone is not passed to C4 (a screenshot-only model cannot know real resource ids).
+    layout = ('<hierarchy><node class="android.widget.FrameLayout" bounds="[0,0][1080,2400]" text="" clickable="false">'
+              '<node class="android.widget.Button" resource-id="btn_buy" text="Buy" clickable="true" bounds="[108,240][324,720]"/>'
+              '</node></hierarchy>')
+    res = svc.evaluate(img, raw_hierarchy=layout, action_context="act_r3_roundtrip")
     verdict_id = res["verdict_v2"]["verdict_id"]
 
     restored = repo.get_verdict(verdict_id)
