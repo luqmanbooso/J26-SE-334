@@ -126,6 +126,12 @@ Remove-Item -Path (Join-Path $RepoRoot "dist\HEART_Studio") -Recurse -Force -Err
 
 & $pyPath -m PyInstaller --noconfirm HEART_Studio.spec
 
+$TargetExe = Join-Path $RepoRoot "dist\HEART_Studio\HEART_Studio.exe"
+if (-not (Test-Path $TargetExe)) {
+    Write-Host "[ERROR] PyInstaller failed to compile $TargetExe! Aborting installer compilation." -ForegroundColor Red
+    exit 1
+}
+
 # Copy local platform-tools into dist folder so ADB works out of the box
 $DistPlatformTools = Join-Path $RepoRoot "dist\HEART_Studio\platform-tools"
 if (Test-Path $PlatformToolsDir) {
