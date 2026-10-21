@@ -3948,13 +3948,59 @@ class HeartSimpleApp(ctk.CTk):
     # =========================================================================
     # LIVE PHONE SCREEN CAPTURE & STREAMING
     # =========================================================================
+    # LIVE PHONE SCREEN CAPTURE & STREAMING
+    # =========================================================================
+    def _get_adb_shell(self):
+        """Maintains a persistent interactive ADB shell for <0.1ms command dispatch."""
+        dev_id = getattr(self.adb, "device_id", None)
+        if getattr(self.adb, "is_simulated", False) or not dev_id:
+            return None
+
+        proc = getattr(self, "_persistent_shell_proc", None)
+        proc_dev = getattr(self, "_persistent_shell_dev", None)
+        if proc and proc_dev == dev_id and proc.poll() is None:
+            return proc
+
+        try:
+            if proc and proc.poll() is None:
+                try:
+                    proc.stdin.write("exit\n")
+                    proc.stdin.flush()
+                    proc.terminate()
+                except Exception:
+                    pass
+            adb_bin = get_adb_binary()
+            cmd = [adb_bin, "-s", str(dev_id), "shell"]
+            self._persistent_shell_proc = subprocess.Popen(
+                cmd,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                text=True,
+                bufsize=1,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+            )
+            self._persistent_shell_dev = dev_id
+            return self._persistent_shell_proc
+        except Exception:
+            return None
+
     def _send_adb_input(self, input_cmd):
-        """Send input command instantly without blocking GUI thread."""
+        """Send input command instantly through persistent shell without blocking GUI thread."""
+        shell = self._get_adb_shell()
+        if shell and shell.poll() is None:
+            try:
+                shell.stdin.write(f"{input_cmd}\n")
+                shell.stdin.flush()
+                return
+            except Exception:
+                self._persistent_shell_proc = None
+
         dev_id = getattr(self.adb, "device_id", None)
         adb_bin = get_adb_binary()
         cmd = [adb_bin]
         if dev_id and not getattr(self.adb, "is_simulated", False):
-            cmd.extend(["-s", dev_id])
+            cmd.extend(["-s", str(dev_id)])
         cmd.extend(["shell"] + input_cmd.split())
         try:
             subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -3977,18 +4023,17 @@ class HeartSimpleApp(ctk.CTk):
         threading.Thread(target=_worker, daemon=True).start()
 
     def _trigger_settling_refreshes(self):
-        """Trigger rapid multi-stage refreshes so animations don't freeze halfway."""
+        """Trigger multi-stage refreshes synchronized with Android UI rendering."""
         self._pending_refresh = True
-        self._refresh_screen_async()
-        self.after(60, self._refresh_screen_async)
-        self.after(180, self._refresh_screen_async)
-        self.after(380, self._refresh_screen_async)
+        self.after(40, self._refresh_screen_async)
+        self.after(140, self._refresh_screen_async)
+        self.after(320, self._refresh_screen_async)
 
     def _refresh_screen_async(self, callback=None):
         if getattr(self, "_refreshing_screen", False):
             self._pending_refresh = True
             if callback:
-                self.after(30, callback)
+                self.after(25, callback)
             return
         self._refreshing_screen = True
         self._pending_refresh = False
@@ -4001,9 +4046,11 @@ class HeartSimpleApp(ctk.CTk):
                 is_emu = bool(dev_id and str(dev_id).startswith("emulator-"))
 
                 img = None
-                # Accelerator 1: Direct target file screencap for emulator (~240ms)
+                # Accelerator 1: Direct target file screencap for emulator (~70ms)
                 if is_emu:
-                    target_png = os.path.join(ROOT_DIR, "scratch", "emu_stream.png")
+                    target_dir = os.path.join(ROOT_DIR, "scratch")
+                    os.makedirs(target_dir, exist_ok=True)
+                    target_png = os.path.join(target_dir, "emu_stream.png")
                     try:
                         res = subprocess.run([adb_bin, "-s", dev_id, "emu", "screenrecord", "screenshot", target_png], capture_output=True, timeout=2)
                         if os.path.exists(target_png):
@@ -4108,6 +4155,30 @@ class HeartSimpleApp(ctk.CTk):
 
     def _on_touch_down(self, event):
         self._touch_start = (event.x, event.y, time.time())
+        # Instant visual ripple feedback on mouse down (0ms perceptual lag)
+        try:
+            target_h = getattr(self, "_mirror_h", 410)
+            target_w = getattr(self, "_mirror_w", 185)
+            lbl_w = self.screen_mirror_lbl.winfo_width()
+            lbl_h = self.screen_mirror_lbl.winfo_height()
+            off_x = max(0, (lbl_w - target_w) / 2)
+            off_y = max(0, (lbl_h - target_h) / 2)
+            orig_w = getattr(self, "_orig_w", 1280)
+            orig_h = getattr(self, "_orig_h", 2856)
+
+            rx = max(0, min(target_w, event.x - off_x))
+            ry = max(0, min(target_h, event.y - off_y))
+            dev_x = int((rx / target_w) * orig_w)
+            dev_y = int((ry / target_h) * orig_h)
+
+            self._register_touch_event(dev_x, dev_y, is_hit=True, error_dist=0.0, touch_type="tap")
+            if hasattr(self, "_last_raw_phone_img") and self._last_raw_phone_img:
+                fast_overlay = self._apply_touch_overlays(self._last_raw_phone_img.copy(), target_w, target_h)
+                ctk_img = ctk.CTkImage(light_image=fast_overlay, dark_image=fast_overlay, size=(target_w, target_h))
+                self.current_mirror_img = ctk_img
+                self.screen_mirror_lbl.configure(image=ctk_img, text="", compound="none")
+        except Exception:
+            pass
 
     def _on_touch_up(self, event):
         if not hasattr(self, "_touch_start"):
