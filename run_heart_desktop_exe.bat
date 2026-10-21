@@ -12,6 +12,6 @@ if exist "HEART_Studio_v4.exe" (
     start "" "HEART_Studio_v4.exe"
 ) else (
     cd /d "%~dp0"
-    python c1_desktop_app.py
+    python heart_desktop_app.py
 )
 exit
