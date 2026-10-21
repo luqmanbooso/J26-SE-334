@@ -164,3 +164,33 @@ def test_receiver_starts_offers_url_and_stops(workspace, monkeypatch):
     assert workspace.live_button.cget("text") == "Stop receiving"
     workspace.stop_receiver()
     assert workspace.receiver is None and workspace.live_button.cget("text") == "Start receiving"
+
+
+def test_history_names_where_a_result_came_from():
+    from vision_oracle.frontend.workspace import C3Workspace
+    assert C3Workspace.source_of({"action_id": "live_session-0003", "session_id": "live_session", "metadata": {}}) == "C2 action live_session-0003"
+    assert C3Workspace.source_of({"metadata": {"device_serial": "R58M", "app_package": "com.shop"}}) == "phone · com.shop"
+    assert C3Workspace.source_of({"metadata": {}}) == "screenshot file"
+
+
+def test_live_tab_explains_an_empty_list_and_the_strip_reflects_the_connection(workspace, monkeypatch):
+    import uvicorn
+
+    class FakeServer:
+        def __init__(self, config):
+            self.started, self.should_exit = False, False
+
+        def run(self):
+            pass
+
+    monkeypatch.setattr(uvicorn, "Server", FakeServer)
+    monkeypatch.setattr(uvicorn, "Config", lambda *a, **k: None)
+    workspace.start_receiver()
+    if workspace.receiver is None:
+        pytest.skip(workspace.live_status.cget("text"))
+    assert "Connected" in workspace.flow_note.cget("text")
+    assert workspace.stage_status[1].cget("text").startswith("Connected")
+    workspace.show_live(True, [])
+    assert "connect a phone" in workspace.live_empty.cget("text")
+    workspace.stop_receiver()
+    assert workspace.stage_status[1].cget("text") == "Not run here"

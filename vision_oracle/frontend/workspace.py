@@ -24,6 +24,7 @@ FLOW_STAGES = (
 )
 FLOW_COLORS = {'idle': '#64748b', 'active': '#1d4ed8', 'done': '#047857', 'alert': '#be123c', 'warn': '#a16207'}
 FLOW_DEFAULTS = (('idle', 'Not run here'), ('idle', 'Not run here'), ('idle', 'Ready'), ('idle', 'Waiting for a result'))
+FLOW_NOTE = 'C3 runs on its own here: C1 and C2 would normally supply the perturbed run and the action reference.'
 FINDING_LABELS = {'component_overlap': 'Overlapping elements', 'text_truncation': 'Cut-off text',
                   'missing_component': 'Missing image or icon', 'data_binding_null': 'Placeholder text shown'}
 DECISION_COLORS = {'defect_detected': '#be123c', 'no_defect_detected': '#047857', 'inconclusive': '#a16207'}
@@ -75,9 +76,11 @@ class C3Workspace(ctk.CTkFrame):
         source=ctk.CTkFrame(self)
         source.pack(fill='x',padx=8,pady=6)
         self.buttons(source,[('Choose screenshot',self.choose_image),('Inspect screenshot',lambda:self.run('file')),('Capture my app (phone)',lambda:self.run('device'))])
-        self.guide=self.label(source,'Check your own app: connect your phone with USB debugging on, open the screen you want to check, '
-                              'pick the phone below, then press "Capture my app". The app\'s layout is read too, so findings name the element. '
-                              'Every result is saved: reopen it later from the History tab.',11,wraplength=760,justify='left',text_color='#475569')
+        self.guide=self.label(source,'Check your own app\n'
+                              '1  Connect your phone with USB debugging on, then press Refresh devices.\n'
+                              '2  Open the screen you want to check on the phone.\n'
+                              '3  Press "Capture my app". The app\'s layout is read too, so findings name the element.\n'
+                              'Every result is saved: reopen it any time from the History tab.',12,wraplength=760,justify='left')
         self.file_label=self.label(source,'Choose an image to begin.',12,wraplength=560)
         self.build_model_selector(source)
         row=ctk.CTkFrame(source,fg_color='transparent');row.pack(fill='x',padx=8,pady=5)
@@ -142,8 +145,11 @@ class C3Workspace(ctk.CTkFrame):
         ctk.CTkLabel(bar,text=self.live_url,font=ctk.CTkFont(family='Consolas',size=12)).pack(side='left',padx=10)
         ctk.CTkButton(bar,text='Copy address',width=110,command=self.copy_receiver_url).pack(side='left',padx=2)
         self.live_status=ctk.CTkLabel(tab,text='Receiver off.',font=ctk.CTkFont(size=12),wraplength=760,justify='left');self.live_status.pack(anchor='w',padx=8)
+        self.live_progress=ctk.CTkProgressBar(tab,mode='indeterminate');self.live_progress.pack(fill='x',padx=8,pady=(2,4));self.live_progress.set(0)
         self.live_list=ctk.CTkScrollableFrame(tab,height=360);self.live_list.pack(fill='both',expand=True,padx=6,pady=4)
         self.live_rows=[]
+        self.live_empty=ctk.CTkLabel(self.live_list,text='Results from C2 actions appear here.',text_color='#64748b',wraplength=700,justify='left')
+        self.live_empty.pack(anchor='w',padx=6,pady=6)
 
     def copy_receiver_url(self):
         self.clipboard_clear();self.clipboard_append(self.live_url)
@@ -173,6 +179,9 @@ class C3Workspace(ctk.CTkFrame):
         self.receiver=(server,thread);self.live_since=datetime.now(timezone.utc)
         self.live_button.configure(text='Stop receiving')
         self.live_status.configure(text='Starting. The model loads first (about 30 to 40 s the first time).')
+        self.live_progress.start()
+        self.flow_note.configure(text='Connected: C2 sends each completed action to C3 (see the Live from C2 tab). C1 is not part of this run.')
+        self.set_stage(1,'active','Connected, waiting for actions')
         if self.receiver_url_callback:
             try:self.receiver_url_callback(self.live_url)
             except Exception:logging.getLogger(__name__).exception('Receiver URL callback failed')
@@ -183,6 +192,8 @@ class C3Workspace(ctk.CTkFrame):
         server,_thread=self.receiver;server.should_exit=True;self.receiver=None
         if self.live_job:self.after_cancel(self.live_job);self.live_job=None
         self.live_button.configure(text='Start receiving');self.live_status.configure(text='Receiver stopped. Results stay in History.')
+        self.live_progress.stop();self.live_progress.set(0)
+        self.flow_note.configure(text=FLOW_NOTE);self.set_stage(1,*FLOW_DEFAULTS[1])
 
     def poll_live(self):
         """While the receiver runs: report readiness and fetch C2-linked verdicts captured since it started."""
@@ -218,6 +229,9 @@ class C3Workspace(ctk.CTkFrame):
         if self.receiver:
             self.live_status.configure(text=(f'Listening at {self.live_url} · {len(rows)} C2 action(s) inspected since start.' if ready
                                              else 'Starting. The model loads first (about 30 to 40 s the first time).'))
+            if ready:self.live_progress.stop();self.live_progress.set(1)
+        self.live_empty.configure(text='' if rows else ('No C2 actions yet. Start a run in the User Touch & Biometrics tab. If C2 is running and nothing '
+                                                        'appears, connect a phone: C3 captures each screen from the phone, and without one it refuses the action.'))
         for row in self.live_rows:row.destroy()
         self.live_rows=[]
         labels={'defect_detected':'Defect','no_defect_detected':'No defect','inconclusive':'Inconclusive'}
@@ -250,7 +264,7 @@ class C3Workspace(ctk.CTkFrame):
             self.stage_cards.append(card);self.stage_status.append(status)
             if index<len(FLOW_STAGES)-1:
                 ctk.CTkLabel(self.flow,text='→',font=ctk.CTkFont(size=18,weight='bold')).grid(row=0,column=index*2+1,padx=2)
-        self.flow_note=ctk.CTkLabel(self,text='C3 runs on its own here: C1 and C2 would normally supply the perturbed run and the action reference.',font=ctk.CTkFont(size=11),wraplength=560,justify='left',text_color='#64748b')
+        self.flow_note=ctk.CTkLabel(self,text=FLOW_NOTE,font=ctk.CTkFont(size=11),wraplength=560,justify='left',text_color='#64748b')
         self.flow_note.pack(anchor='w',padx=12)
         self.preview_button=ctk.CTkButton(self,text='Preview full pipeline',command=self.preview_flow,width=150,height=24,fg_color='#475569')
         self.preview_button.pack(anchor='w',padx=12,pady=(2,4));self.controls.append(self.preview_button)
@@ -324,7 +338,7 @@ class C3Workspace(ctk.CTkFrame):
             title=ctk.CTkLabel(card,text=f"{index}   {FINDING_LABELS.get(kind,kind.replace('_',' ').capitalize())}",font=ctk.CTkFont(size=13,weight='bold'))
             title.pack(anchor='w',padx=8,pady=(5,0))
             score=finding.get('confidence')
-            detail=[f"Element: {finding['element_ref']}" if finding.get('element_ref') else 'Element: not matched (no layout file, or no single element under the box)',
+            detail=[f"Element: {finding['element_ref']}" if finding.get('element_ref') else 'Element: not named (no layout, or the box covers several elements)',
                     f"Model score {score:.0%}" if isinstance(score,(int,float)) else 'Model score unavailable',
                     'Region shown in the preview (approximate)' if finding.get('bbox_xyxy') else 'No region given']
             body=ctk.CTkLabel(card,text='\n'.join(detail),font=ctk.CTkFont(size=11),justify='left',wraplength=420)
@@ -396,11 +410,20 @@ class C3Workspace(ctk.CTkFrame):
                     stamp=datetime.fromisoformat(stamp.replace('Z','+00:00'))
                 except ValueError:pass
             when=stamp.strftime('%d %b %H:%M') if hasattr(stamp,'strftime') else str(stamp or '—')[:16]
-            name=Path(data['screenshot']['storage_path']).name if data.get('screenshot') else '—'
-            text=f"{when}   {labels.get(data['decision'],data['decision']):<12}   {f'{score:.0%}' if isinstance(score,(int,float)) else '—':>5}   {len(data['findings'])} finding(s)   {name}"
+            text=f"{when}   {labels.get(data['decision'],data['decision']):<12}   {f'{score:.0%}' if isinstance(score,(int,float)) else '—':>5}   {len(data['findings'])} finding(s)   {self.source_of(data)}"
             ctk.CTkLabel(row,text=text,font=ctk.CTkFont(family='Consolas',size=11),text_color=DECISION_COLORS.get(data['decision'])).pack(side='left',padx=6,pady=3)
             ctk.CTkButton(row,text='Open',width=60,height=24,command=lambda v=data:self.open_history(v)).pack(side='right',padx=4)
             self.history_rows.append(row)
+
+    @staticmethod
+    def source_of(data):
+        """Where a saved inspection came from, in words: a C2 action, the user's phone, or a screenshot file."""
+        meta=data.get('metadata') or {}
+        if data.get('action_id'):
+            c2=str(data.get('session_id','')).startswith(('live','c2'))
+            return f"{'C2 action' if c2 else 'action'} {data['action_id']}"
+        if meta.get('device_serial'):return 'phone' + (f" · {meta['app_package']}" if meta.get('app_package') else '')
+        return 'screenshot file'
 
     def open_history(self,verdict):
         if self.busy:return
@@ -584,7 +607,7 @@ class C3Workspace(ctk.CTkFrame):
             messagebox.showinfo('Choose a screenshot','Select an image before inspection.');return
         serial=self.device.get()
         if source=='device' and serial=='No device':
-            messagebox.showinfo('Connect a phone','Attach an Android device, enable USB debugging, then refresh devices.');return
+            messagebox.showinfo('Connect your phone','Connect your phone with USB debugging on, press Refresh devices, pick it in the list, then press Capture my app.');return
         image_path,hierarchy_path=self.image_path,self.hierarchy_path
         action_id=self.action.get().strip() or None;slicing=bool(self.slicing.get())
         self.clear_result();self.busy=True;self.started=time.monotonic()
