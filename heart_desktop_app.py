@@ -21,6 +21,7 @@ if sys.platform == "win32":
 
     subprocess.run = _silent_run
     subprocess.Popen = _silent_popen
+import asyncio  # noqa: F401  first import on the main thread, before any worker thread starts (see vision_oracle/frontend/workspace.py)
 import threading
 import shutil
 import webbrowser
