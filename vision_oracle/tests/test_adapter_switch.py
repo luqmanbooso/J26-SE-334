@@ -58,3 +58,31 @@ def test_new_service_is_built_from_the_override(adapters, monkeypatch):
     svc.switch_adapter(adapters / "c3_v3_fusion_1ep")
     svc.OracleService()
     assert seen["adapter"].name == "c3_v3_fusion_1ep"
+
+
+def test_switch_closes_the_old_service_so_its_model_is_unloaded(adapters, monkeypatch):
+    class Old:
+        closed = 0
+
+        def close(self):
+            Old.closed += 1
+
+    monkeypatch.setattr(svc, "_ORACLE_SERVICE", Old())
+    svc.switch_adapter(adapters / "c3_v3_fusion_1ep")
+    assert Old.closed == 1 and svc._ORACLE_SERVICE is None
+
+
+def test_service_close_stops_its_worker_and_unloads_the_backend():
+    class Backend:
+        unloaded = 0
+
+        def unload(self):
+            Backend.unloaded += 1
+
+    service = svc.OracleService.__new__(svc.OracleService)
+    service._job_queue = svc.queue.Queue(maxsize=20)
+    service._inference_lock = svc.threading.Lock()
+    service._engine = type("E", (), {"backend": Backend()})()
+    service.close()
+    assert service._job_queue.get_nowait() is None  # the worker's stop signal
+    assert Backend.unloaded == 1

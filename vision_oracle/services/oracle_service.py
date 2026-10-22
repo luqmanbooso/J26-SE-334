@@ -165,6 +165,17 @@ class OracleService:
         self._worker_thread = threading.Thread(target=self._job_worker_loop, daemon=True, name="OracleJobWorker")
         self._worker_thread.start()
 
+    def close(self) -> None:
+        """Stop the job worker (which otherwise keeps this service, and its model, alive) and unload the model."""
+        try:
+            self._job_queue.put_nowait(None)
+        except queue.Full:
+            pass
+        unload = getattr(getattr(self._engine, "backend", None), "unload", None)
+        if callable(unload):
+            with self._inference_lock:  # let a running forward pass finish first
+                unload()
+
     @property
     def engine(self) -> OracleEngine:
         return self._engine
@@ -748,7 +759,11 @@ def switch_adapter(adapter_dir: Path) -> None:
         raise FileNotFoundError(f"No adapter weights in {adapter_dir}")
     with _SERVICE_INIT_LOCK:
         _ADAPTER_OVERRIDE = adapter_dir
-        _ORACLE_SERVICE = None
+        old, _ORACLE_SERVICE = _ORACLE_SERVICE, None
+    close = getattr(old, "close", None)
+    if callable(close):
+        close()
+    del old, close
     import gc
     gc.collect()
     try:
