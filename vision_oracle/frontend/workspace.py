@@ -100,7 +100,8 @@ class C3Workspace(ctk.CTkFrame):
         actions=ctk.CTkFrame(source,fg_color='transparent');actions.pack(fill='x',padx=10,pady=(0,6))
         for text,command,kind in (('Capture my app (phone)',lambda:self.run('device'),'primary'),
                                   ('Choose screenshot',self.choose_image,'secondary'),
-                                  ('Inspect screenshot',lambda:self.run('file'),'secondary')):
+                                  ('Inspect screenshot',lambda:self.run('file'),'secondary'),
+                                  ('Save phone screen',self.save_phone_screen,'secondary')):
             button=self.button(actions,text,command,kind,width=180 if kind=='primary' else 150,height=32);button.pack(side='left',padx=4)
             self.controls.append(button)
         tip=ctk.CTkFrame(source,fg_color=T['primary_light'],border_width=1,border_color=T['primary_border'],corner_radius=8)
@@ -109,7 +110,7 @@ class C3Workspace(ctk.CTkFrame):
         self.guide=ctk.CTkLabel(tip,text='1   Connect your phone with USB debugging on, then press Refresh devices.\n'
                                 '2   Open the screen you want to check on the phone.\n'
                                 '3   Press "Capture my app" to inspect your own app. Its layout is read too, so findings name the element.\n'
-                                'Every result is saved: reopen it any time from the History tab.',
+                                'Every result is saved: reopen it any time from the History tab. "Save phone screen" keeps the image and its layout file for later.',
                                 font=self.font(10),text_color=T['body'],justify='left',wraplength=760)
         self.guide.pack(anchor='w',padx=12,pady=(0,8))
         self.file_label=self.label(source,'No screenshot chosen.',9,text_color=T['muted'],wraplength=560)
@@ -616,6 +617,29 @@ class C3Workspace(ctk.CTkFrame):
             except Exception as exc:self.events.put(('devices',([],str(exc))))
         threading.Thread(target=worker,daemon=True).start()
 
+    def save_phone_screen(self):
+        """Save the phone's current screenshot and layout (XML) side by side, then load both here so they can be inspected."""
+        if self.busy:return
+        serial=self.device.get()
+        if serial=='No device':
+            messagebox.showinfo('Connect your phone','Connect your phone with USB debugging on, press Refresh devices, pick it in the list, then press Save phone screen.');return
+        self.status.configure(text='Saving the phone screen…')
+        for widget in self.controls:widget.configure(state='disabled')
+        folder=C3_ROOT/'results'/'captured_screens'
+        def worker():
+            try:
+                from datetime import datetime
+                from common.adb import AdbDevice
+                device=AdbDevice(serial=AdbDevice.resolve_serial(serial),verify=True)
+                image=device.screencap(as_pil=True);xml=device.dump_hierarchy(max_age_s=0.0)
+                folder.mkdir(parents=True,exist_ok=True)
+                stem=f"{datetime.now():%Y%m%d_%H%M%S}_{''.join(c if c.isalnum() else '-' for c in device.serial)}"
+                png,layout=folder/f'{stem}.png',folder/f'{stem}.xml'
+                image.convert('RGB').save(png);layout.write_text(xml,encoding='utf-8')
+                self.events.put(('saved',(str(png),str(layout))))
+            except Exception as exc:self.events.put(('save_error',f'{type(exc).__name__}: {exc}'))
+        threading.Thread(target=worker,daemon=True).start()
+
     def run(self,source):
         if self.busy:return
         if source=='file' and not self.image_path:
@@ -665,6 +689,13 @@ class C3Workspace(ctk.CTkFrame):
                     self.finish();self.clear_result();self.result_title.configure(text='Inspection failed',text_color=T['danger'])
                     self.set_text(self.details,value+'\n\nNo verdict was produced. Check model files, GPU memory or device connection, then retry.')
                     self.status.configure(text='Failed. You can retry.')
+                elif kind=='saved':
+                    for widget in self.controls:widget.configure(state='normal')
+                    png,layout=value;self.select_image(png);self.hierarchy_path=layout;self.hierarchy_label.configure(text=Path(layout).name)
+                    self.status.configure(text=f'Saved {Path(png).name} and {Path(layout).name} in {Path(png).parent}. Both are loaded: press Inspect screenshot to evaluate them.')
+                elif kind=='save_error':
+                    for widget in self.controls:widget.configure(state='normal')
+                    self.status.configure(text='Could not save the phone screen: '+value)
                 elif kind=='result':self.finish();self.render(value)
                 elif kind=='history':self.show_history(value)
                 elif kind=='history_error':self.history_note.configure(text='Could not load history: '+value)

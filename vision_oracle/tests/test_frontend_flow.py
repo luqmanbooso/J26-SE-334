@@ -172,3 +172,49 @@ def test_live_tab_explains_an_empty_list(workspace, monkeypatch):
     assert not workspace.live_progress.winfo_manager()
     workspace.stop_receiver()
     assert workspace.live_button.cget("text") == "Start receiving"
+
+
+def test_save_phone_screen_without_a_phone_says_what_to_do(workspace, monkeypatch):
+    import vision_oracle.frontend.workspace as wsmod
+    shown = []
+    monkeypatch.setattr(wsmod.messagebox, "showinfo", lambda title, msg, **k: shown.append(msg))
+    workspace.device.set("No device")
+    workspace.save_phone_screen()
+    assert shown and "Connect your phone" in shown[0]
+
+
+def test_save_phone_screen_writes_image_and_xml_and_loads_them(workspace, tk_root, monkeypatch, tmp_path):
+    import time
+    from PIL import Image
+    import common.adb as adb
+    import vision_oracle.frontend.workspace as wsmod
+
+    class FakeDevice:
+        serial = "R58M-test"
+
+        def __init__(self, serial=None, verify=True):
+            pass
+
+        @staticmethod
+        def resolve_serial(serial=None):
+            return "R58M-test"
+
+        def screencap(self, as_pil=True):
+            return Image.new("RGB", (90, 160), "white")
+
+        def dump_hierarchy(self, max_age_s=0.0):
+            return "<hierarchy><node class='android.widget.TextView'/></hierarchy>"
+
+    monkeypatch.setattr(adb, "AdbDevice", FakeDevice)
+    monkeypatch.setattr(wsmod, "C3_ROOT", tmp_path)
+    workspace.device.configure(values=["R58M-test"]);workspace.device.set("R58M-test")
+    workspace.save_phone_screen()
+    deadline = time.time() + 10
+    while time.time() < deadline and not workspace.hierarchy_path:
+        tk_root.update();time.sleep(0.05)
+    saved = tmp_path / "results" / "captured_screens"
+    pngs, xmls = list(saved.glob("*.png")), list(saved.glob("*.xml"))
+    assert len(pngs) == 1 and len(xmls) == 1 and pngs[0].stem == xmls[0].stem
+    assert "TextView" in xmls[0].read_text(encoding="utf-8")
+    assert workspace.image_path == str(pngs[0].resolve()) and workspace.hierarchy_path == str(xmls[0])
+    assert "press Inspect screenshot" in workspace.status.cget("text")
