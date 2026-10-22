@@ -13,7 +13,7 @@ import struct
 import nbformat as nbf
 
 HERE = Path(__file__).resolve().parent
-C3 = HERE.parents[1]
+C3 = HERE.parents[2]
 NAMES = ['01_model_training_and_experiments', '02_model_progress_and_evaluation']
 
 
@@ -78,7 +78,7 @@ SETUP = '''from pathlib import Path
 import sys
 # Works when launched from the repository root, vision_oracle, or this folder.
 candidates = [p / suffix for p in [Path.cwd(), *Path.cwd().parents]
-              for suffix in ('', 'notebooks/pp1', 'vision_oracle/notebooks/pp1')]
+              for suffix in ('', 'notebooks/old/pp1', 'vision_oracle/notebooks/old/pp1')]
 HERE = next((p.resolve() for p in candidates if (p/'pp1_evidence.py').exists()), None)
 if HERE is None:
     raise FileNotFoundError('Open from the repository or the pp1 notebook folder')

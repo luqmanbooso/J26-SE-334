@@ -1,3 +1,5 @@
+> **Historical (v1/v2 models, 316-screen test).** For the current results use `../../C3_v3_measured_results.ipynb`. The notebooks here still run; their numbers are out of date.
+
 # PP1 evidence notebooks
 
 Open the executed notebooks in this order:
@@ -11,8 +13,8 @@ The two notebooks have **15 saved figures** and run entirely on CPU from `eviden
 From the repository root:
 
 ```powershell
-python vision_oracle/notebooks/pp1/build_pp1_notebook.py --execute
-python -m unittest discover -s vision_oracle/notebooks/pp1 -p test_pp1_evidence.py
+python vision_oracle/notebooks/old/pp1/build_pp1_notebook.py --execute
+python -m unittest discover -s vision_oracle/notebooks/old/pp1 -p test_pp1_evidence.py
 ```
 
 `build_pp1_notebook.py` now forwards to `build_evidence_notebooks.py`. Without `--execute`, the builder writes unexecuted notebooks. Use `--execute` to preserve presentation-ready outputs. The previous `C3_PP1_measured_results.ipynb` and older notebooks are historical, not the current presentation entry points.
@@ -20,7 +22,7 @@ python -m unittest discover -s vision_oracle/notebooks/pp1 -p test_pp1_evidence.
 To refresh the portable snapshot on the original evidence workstation:
 
 ```powershell
-python vision_oracle/notebooks/pp1/build_pp1_notebook.py --refresh --execute
+python vision_oracle/notebooks/old/pp1/build_pp1_notebook.py --refresh --execute
 ```
 
 Refresh reads model locations from `pp1_evidence_inventory.json`, base tensor headers from `vision_oracle/models/Qwen2-VL-2B-Instruct`, and saved records under `vision_oracle/evidence`. Missing sources fail visibly. The bundle includes archived configurations, trainer states, tensor headers and prediction records; source paths/hashes are displayed in both notebooks. Its companion SHA-256 checks snapshot integrity, not independent authenticity or historical checkpoint identity. Tensor-header hashes do not hash weight values. Absolute image paths are record identifiers; images are not bundled here.
