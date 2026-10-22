@@ -638,7 +638,11 @@ class C3Workspace(ctk.CTkFrame):
                     result=service.evaluate(image_input=image_path,raw_hierarchy=hierarchy,action_id=action_id,enable_sahi=slicing,session_id=self.session_id)
                 else:result=service.evaluate_device(serial=serial,action_id=action_id,enable_sahi=slicing,session_id=self.session_id)
                 self.events.put(('result',present_result(result)))
-            except Exception as exc:self.events.put(('error',f'{type(exc).__name__}: {exc}'))
+            except Exception as exc:
+                logging.getLogger(__name__).exception('Inspection failed')
+                import traceback
+                where=''.join(traceback.format_exception(type(exc),exc,exc.__traceback__)[-4:]).strip()
+                self.events.put(('error',f'{type(exc).__name__}: {exc}\n\nWhere it failed:\n{where}'))
         threading.Thread(target=worker,daemon=True).start()
 
     def finish(self):
