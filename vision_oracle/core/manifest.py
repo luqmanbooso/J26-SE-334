@@ -20,7 +20,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 from vision_oracle.core.config import BASE_MODEL_PATH, LORA_WEIGHTS_PATH, C3_DIR
 
 BASE_MODEL_DIR = BASE_MODEL_PATH or C3_DIR / "models" / "Qwen2-VL-2B-Instruct"
-LORA_ADAPTER_DIR = LORA_WEIGHTS_PATH or C3_DIR / "models" / "c3_qwen2vl_2b_lora_step246"
+LORA_ADAPTER_DIR = LORA_WEIGHTS_PATH or C3_DIR / "models" / "c3_v3_vision_1ep"
 MANIFEST_FILE = C3_DIR / "models" / "c3_model_manifest.json"
 
 
@@ -72,6 +72,12 @@ def get_model_manifest() -> Dict[str, Any]:
 
     adapter_weights_path = LORA_ADAPTER_DIR / "adapter_model.safetensors"
     adapter_sha256 = compute_file_sha256(adapter_weights_path) or "sha256_uncalculated"
+    contract_path = LORA_ADAPTER_DIR / "inference_contract.json"
+    try:
+        import json as _json
+        contract = _json.loads(contract_path.read_text(encoding="utf-8")) if contract_path.exists() else None
+    except Exception:
+        contract = None
 
     return {
         "manifest_version": "1.0",
@@ -101,17 +107,19 @@ def get_model_manifest() -> Dict[str, Any]:
             "method": "bitsandbytes_4bit",
             "quant_type": "nf4",
             "compute_dtype": "float16",
-            "fp32_cpu_offload": True,
+            "fp32_cpu_offload": False,
+            "device_map": "cuda:0 (whole model on GPU)",
             "vram_budget_target_mb": 4096,
         },
         "prompt": {
-            "prompt_version": "v2_single_primary_visual_defect",
+            "source": "adapter inference_contract.json (identical to the fine-tuning prompt)",
             "chat_template": "qwen2_vl_standard",
-            "system_instruction": "Analyze this mobile screen for non-crash visual and semantic defects. Return verdict in specified JSON format.",
+            "inference_contract": contract,
         },
         "preprocessing_and_slicing": {
             "coverage_policy_default": "global_plus_tiles_v1",
-            "max_thumbnail_resolution": [720, 1280],
+            "image_max_pixels": (contract or {}).get("image_max_pixels"),
+            "fallback_thumbnail_without_contract": [720, 1280],
             "resampling_filter": "LANCZOS",
             "tall_aspect_ratio_threshold": 1.6,
             "tile_overlap_ratio": 0.25,

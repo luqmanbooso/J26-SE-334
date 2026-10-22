@@ -1,0 +1,101 @@
+[
+ {
+  "file": "01_overlap_team_names.jpg",
+  "layout": null,
+  "expected": "defect / component_overlap",
+  "app_result": "defect / component_overlap",
+  "score": 0.8245,
+  "element": null,
+  "correct": true,
+  "point_at": "team names and labels drawn over each other",
+  "seconds": 10.3
+ },
+ {
+  "file": "02_overlap_title.jpg",
+  "layout": null,
+  "expected": "defect / component_overlap",
+  "app_result": "defect / component_overlap",
+  "score": 0.6689,
+  "element": null,
+  "correct": true,
+  "point_at": "'Classes' title drawn over the description",
+  "seconds": 7.9
+ },
+ {
+  "file": "03_null_text.jpg",
+  "layout": null,
+  "expected": "defect / data_binding_null",
+  "app_result": "defect / data_binding_null",
+  "score": 0.9252,
+  "element": null,
+  "correct": true,
+  "point_at": "result shows the word 'null'",
+  "seconds": 7.9
+ },
+ {
+  "file": "04_missing_icons.jpg",
+  "layout": null,
+  "expected": "defect / missing_component",
+  "app_result": "defect / missing_component",
+  "score": 0.8933,
+  "element": null,
+  "correct": true,
+  "point_at": "category icons not rendered",
+  "seconds": 8.0
+ },
+ {
+  "file": "05_missing_widget_synthetic.jpg",
+  "layout": "05_missing_widget_synthetic_layout.json",
+  "expected": "defect / missing_component",
+  "app_result": "defect / missing_component",
+  "score": 0.9185,
+  "element": "android:id/navigationBarBackground",
+  "correct": true,
+  "point_at": "grey placeholder replaces a widget",
+  "seconds": 8.1
+ },
+ {
+  "file": "06_overlap_synthetic.jpg",
+  "layout": "06_overlap_synthetic_layout.json",
+  "expected": "defect / component_overlap",
+  "app_result": "defect / component_overlap",
+  "score": 0.6406,
+  "element": "com.mevikings.mapwhosyourdaddy:id/wbdesc",
+  "correct": true,
+  "point_at": "widget pasted over another",
+  "seconds": 9.1
+ },
+ {
+  "file": "07_clean_owleye.jpg",
+  "layout": null,
+  "expected": "clean / none",
+  "app_result": "clean / none",
+  "score": 0.363,
+  "element": null,
+  "correct": true,
+  "point_at": "normal screen, not flagged",
+  "seconds": 0.9
+ },
+ {
+  "file": "08_clean_rico.jpg",
+  "layout": null,
+  "expected": "clean / none",
+  "app_result": "clean / none",
+  "score": 0.3558,
+  "element": null,
+  "correct": true,
+  "point_at": "normal screen, not flagged",
+  "seconds": 0.8
+ },
+ {
+  "file": "09_known_miss_truncation.jpg",
+  "layout": null,
+  "expected": "defect / text_truncation",
+  "app_result": "clean / none",
+  "score": 0.5273,
+  "element": null,
+  "correct": false,
+  "point_at": "thin clipped text: the model misses it (honest limitation)",
+  "seconds": 0.7
+ }
+]

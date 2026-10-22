@@ -14,13 +14,17 @@ if sys.platform == "win32":
             kwargs["creationflags"] = _CREATE_NO_WINDOW
         return _orig_subprocess_run(*args, **kwargs)
 
-    def _silent_popen(*args, **kwargs):
-        if "creationflags" not in kwargs:
-            kwargs["creationflags"] = _CREATE_NO_WINDOW
-        return _orig_subprocess_popen(*args, **kwargs)
+    # A subclass, not a function: asyncio (imported later by torch/uvicorn) subclasses subprocess.Popen, and a plain
+    # function there raised "TypeError: function() argument 'code' must be code, not str", which broke every inspection.
+    class _SilentPopen(_orig_subprocess_popen):
+        def __init__(self, *args, **kwargs):
+            if "creationflags" not in kwargs:
+                kwargs["creationflags"] = _CREATE_NO_WINDOW
+            super().__init__(*args, **kwargs)
 
     subprocess.run = _silent_run
-    subprocess.Popen = _silent_popen
+    subprocess.Popen = _SilentPopen
+import asyncio  # noqa: F401  first import on the main thread, before any worker thread starts (see vision_oracle/frontend/workspace.py)
 import threading
 import shutil
 import webbrowser
@@ -3094,6 +3098,7 @@ class HeartSimpleApp(ctk.CTk):
             total_actions = min(12, max(6, len(clickable_elements)))
             defects_found = []
             pipeline_records = []
+            e2e_session_id = f"heart_e2e_{time.strftime('%Y%m%d_%H%M%S')}"  # groups this run's C3 verdicts
 
             for step_idx in range(total_actions):
                 if not getattr(self, "_e2e_pipeline_active", False):
@@ -3188,9 +3193,10 @@ class HeartSimpleApp(ctk.CTk):
                 # Component 3 Real Vision Oracle Defect Detection
                 has_defect = False
                 defect_type = "none"
-                oracle_conf = 1.0
+                oracle_conf = None
                 oracle_bbox = None
-                oracle_expl = "Screen Verified Clean ✅"
+                oracle_status = "unavailable"
+                oracle_expl = "C3 vision oracle not run."
 
                 if VISION_ORACLE_AVAILABLE:
                     try:
@@ -3198,15 +3204,20 @@ class HeartSimpleApp(ctk.CTk):
                         v_res = oracle_service.evaluate_device(
                             serial=dev_id,
                             action_context=f"e2e_step_{step_idx+1}_{target['name']}",
-                            enable_sahi=True
+                            # Link the verdict to the C2 tap that produced the screen (C3 requires the act_ prefix)
+                            action_id=f"act_{e2e_session_id}_step{step_idx+1}",
+                            session_id=e2e_session_id,
+                            enable_sahi=False  # tile views are not validated with the current adapter
                         )
                         v2 = v_res.get("verdict_v2", {})
-                        decision = v2.get("decision", "no_defect_detected")
+                        decision = v2.get("decision", "inconclusive")
+                        oracle_status = decision
+                        p_defect = (v2.get("metadata") or {}).get("defect_probability")
                         if decision == "defect_detected":
                             has_defect = True
                             primary = v2.get("primary_finding") or (v2.get("findings", [{}])[0] if v2.get("findings") else {})
-                            defect_type = str(primary.get("type", "COMPONENT_OVERLAP")).upper().replace("-", "_")
-                            oracle_conf = float(primary.get("confidence", 0.92))
+                            defect_type = str(primary.get("type", "other_defect")).upper().replace("-", "_")
+                            oracle_conf = primary.get("confidence", p_defect)
                             oracle_bbox = primary.get("bbox_xyxy")
                             oracle_expl = primary.get("explanation", f"Visual defect detected on widget '{target['name']}'.")
                             defects_found.append({
@@ -3216,61 +3227,25 @@ class HeartSimpleApp(ctk.CTk):
                                 "trigger": prof_data.get("name"),
                                 "explanation": oracle_expl,
                                 "confidence": oracle_conf,
-                                "bbox": oracle_bbox
+                                "bbox": oracle_bbox,
+                                "source": "c3_vision_oracle",
                             })
+                        elif decision == "no_defect_detected":
+                            oracle_expl = "No defect found by C3 in the inspected view (not a certification)."
                         else:
-                            has_defect = False
-                            defect_type = "none"
-                            oracle_expl = "Clean UI layout certified within active viewport."
+                            oracle_expl = "C3 result inconclusive."
                     except Exception as _oracle_err:
-                        self._append_log(f"[PIPELINE ORACLE NOTE] Real VLM pass fallback ({_oracle_err}).")
-                        if prof_data.get("cpu", 0) >= 90 and not is_hit:
-                            has_defect = True
-                            defect_type = "TEXT_TRUNCATION"
-                            defects_found.append({
-                                "id": f"VIS_DEFECT_{step_idx+1}",
-                                "type": "TEXT_TRUNCATION",
-                                "component": target["name"],
-                                "trigger": prof_data.get("name"),
-                                "explanation": f"UI widget '{target['name']}' text clipping and frame drop ({jank_pct}% jank) under 95% CPU contention.",
-                                "confidence": 0.94
-                            })
-                        elif "3G" in prof_data.get("name", "") and err_dist > 40:
-                            has_defect = True
-                            defect_type = "COMPONENT_OVERLAP"
-                            defects_found.append({
-                                "id": f"VIS_DEFECT_{step_idx+1}",
-                                "type": "COMPONENT_OVERLAP",
-                                "component": target["name"],
-                                "trigger": prof_data.get("name"),
-                                "explanation": f"Layout reflow overlap on '{target['name']}' due to 1850ms asynchronous cellular delay.",
-                                "confidence": 0.89
-                            })
-                else:
-                    if prof_data.get("cpu", 0) >= 90 and not is_hit:
-                        has_defect = True
-                        defect_type = "TEXT_TRUNCATION"
-                        defects_found.append({
-                            "id": f"VIS_DEFECT_{step_idx+1}",
-                            "type": "TEXT_TRUNCATION",
-                            "component": target["name"],
-                            "trigger": prof_data.get("name"),
-                            "explanation": f"UI widget '{target['name']}' text clipping and frame drop ({jank_pct}% jank) under 95% CPU contention.",
-                            "confidence": 0.94
-                        })
-                    elif "3G" in prof_data.get("name", "") and err_dist > 40:
-                        has_defect = True
-                        defect_type = "COMPONENT_OVERLAP"
-                        defects_found.append({
-                            "id": f"VIS_DEFECT_{step_idx+1}",
-                            "type": "COMPONENT_OVERLAP",
-                            "component": target["name"],
-                            "trigger": prof_data.get("name"),
-                            "explanation": f"Layout reflow overlap on '{target['name']}' due to 1850ms asynchronous cellular delay.",
-                            "confidence": 0.89
-                        })
+                        # Never substitute a simulated defect for a failed model run.
+                        oracle_status = "error"
+                        oracle_expl = f"C3 vision oracle failed: {_oracle_err}"
+                        self._append_log(f"[PIPELINE ORACLE NOTE] C3 inference failed; step recorded as inconclusive ({_oracle_err}).")
 
-                oracle_res_str = f"Defect: {defect_type}" if has_defect else "Screen Verified Clean ✅"
+                if has_defect:
+                    oracle_res_str = f"Defect: {defect_type}" + (f" (P={oracle_conf:.2f})" if isinstance(oracle_conf, (int, float)) else "")
+                elif oracle_status == "no_defect_detected":
+                    oracle_res_str = "No defect found (not a certification)"
+                else:
+                    oracle_res_str = f"Inconclusive ({oracle_status})"
                 self._append_log(f"[PIPELINE VERIFICATION #{step_idx+1}] Vision Oracle: {oracle_res_str} | FrameProbe Jank: {jank_pct}%")
 
                 ui_delay_ms = round(20.0 + (stress * 820.0) + (jank_pct * 12.0) + random.uniform(5.0, 30.0), 1)
@@ -3464,8 +3439,16 @@ class HeartSimpleApp(ctk.CTk):
     # =========================================================================
     def _build_vision_view(self, parent):
         from vision_oracle.frontend.workspace import C3Workspace
-        self.c3_workspace = C3Workspace(parent, handover_callback=self._receive_inspection)
+        self.c3_workspace = C3Workspace(parent, handover_callback=self._receive_inspection,
+                                        receiver_url_callback=self._offer_c3_url_to_c2)
         self.c3_workspace.pack(fill="both", expand=True)
+
+    def _offer_c3_url_to_c2(self, url):
+        """When C3's in-app receiver starts, fill C2's 'C3 Oracle URL' field if it is still empty."""
+        entry = getattr(self, "c2_oracle_entry", None)
+        if entry is not None and not entry.get().strip():
+            entry.insert(0, url)
+            self._append_log(f"[C3] Receiver listening at {url}; C2 will send each completed action there.")
 
     def _receive_inspection(self, payload):
         receiver = getattr(self, 'c4_receive_inspection', None)

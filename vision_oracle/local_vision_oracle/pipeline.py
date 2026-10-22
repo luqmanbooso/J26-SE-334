@@ -505,6 +505,32 @@ class OverlapDeduplicator:
         return clustered
 
 
+def _split_timings(view_calls: Dict[str, Dict[str, Any]]) -> Dict[str, float]:
+    """Verdict (defect/clean decision) and localization (type + box) time, summed over views."""
+    out: Dict[str, float] = {}
+    for key, name in (("verdict_ms", "verdict_ms"), ("localization_ms", "localization_ms")):
+        vals = [c.get(key) for c in view_calls.values() if isinstance(c.get(key), (int, float))]
+        if vals:
+            out[name] = round(float(sum(vals)), 2)
+    return out
+
+
+def _model_report(view_calls: Dict[str, Dict[str, Any]], planned_views: List[Any]) -> Dict[str, Any]:
+    """What the model read and scored for this screen; empty for backends that do not report."""
+    if not view_calls:
+        return {}
+    global_id = next((v.view_id for v in planned_views if v.is_global), None)
+    g = view_calls.get(global_id, {}) if global_id else {}
+    return {
+        "model_input": g.get("model_input", "screenshot"),
+        "hierarchy_used_by_model": g.get("model_input") == "screenshot+hierarchy",
+        "defect_probability": g.get("defect_probability"),
+        "decision_threshold": g.get("decision_threshold"),
+        "view_scores": {k: {"defect_probability": v.get("defect_probability"), "model_input": v.get("model_input")}
+                        for k, v in view_calls.items()},
+    }
+
+
 class AnalysisPipeline:
     """
     Canonical production inference pipeline.
@@ -515,6 +541,34 @@ class AnalysisPipeline:
     def __init__(self, backend: Any, model_run_id: str = "qwen2-vl-2b-instruct-local"):
         self.backend = backend
         self.model_run_id = model_run_id
+
+    @staticmethod
+    def _resolve_element_refs(findings: List[Finding], bundle: Any, width: int, height: int) -> Dict[str, Any]:
+        """Name the real layout element under each finding's region, when a layout was captured.
+
+        A screenshot-only model cannot know resource ids, so element_ref comes from the
+        captured hierarchy (or stays empty). Model-written ids not present in the layout are dropped.
+        """
+        from vision_oracle.local_vision_oracle.hierarchy_text import (
+            element_reference, parse_elements, resolve_element,
+        )
+        raw = getattr(bundle, "raw_hierarchy", None)
+        elements = parse_elements(raw) if raw else []
+        known = {e.element_id for e in elements if e.element_id}
+        refs: Dict[str, Any] = {}
+        for idx, f in enumerate(findings):
+            if f.element_ref and f.element_ref not in known:
+                findings[idx] = f = f.model_copy(update={"element_ref": None})
+            if f.element_ref or not f.bbox_xyxy or not elements:
+                continue
+            x1, y1, x2, y2 = f.bbox_xyxy
+            box = CoordinateMapper.pixels_to_model(x1, y1, x2, y2, width, height)
+            el, iou = resolve_element(box, elements)
+            if el is not None:
+                findings[idx] = f.model_copy(update={"element_ref": element_reference(el)})
+                refs[f.finding_id] = {"element_ref": element_reference(el), "source": "hierarchy_overlap",
+                                      "iou": round(iou, 3), "element_bounds_yxyx_1000": el.bounds}
+        return refs
 
     def analyze(
         self,
@@ -574,6 +628,16 @@ class AnalysisPipeline:
         t_preprocess_acc = 0.0
         t_inference_acc = 0.0
 
+        # Layout text reaches the model only if the loaded adapter was trained with it
+        # (its inference contract has a hierarchy prompt). Same formatter as training.
+        contract = getattr(self.backend, "inference_contract", None)
+        model_hierarchy_text = None
+        if contract and contract.get("hierarchy_prompt"):
+            from vision_oracle.local_vision_oracle.hierarchy_text import hierarchy_text as _hierarchy_text
+            source = bundle.raw_hierarchy if getattr(bundle, "raw_hierarchy", None) else None
+            model_hierarchy_text = _hierarchy_text(source) if source else None
+        view_calls: Dict[str, Dict[str, Any]] = {}
+
         sahi_oom_recovered = False
         for view in planned_views:
             t_p0 = time.perf_counter()
@@ -606,9 +670,16 @@ class AnalysisPipeline:
 
             t_i0 = time.perf_counter()
             try:
-                response_text = self.backend.generate(messages=messages, image=view_img)
+                if view.is_global and model_hierarchy_text:
+                    response_text = self.backend.generate(messages=messages, image=view_img,
+                                                          hierarchy_text=model_hierarchy_text)
+                else:
+                    response_text = self.backend.generate(messages=messages, image=view_img)
                 t_inference_acc += (time.perf_counter() - t_i0) * 1000.0
                 raw_responses[view.view_id] = response_text
+                last_call = getattr(self.backend, "last_call", None)
+                if isinstance(last_call, dict) and last_call:
+                    view_calls[view.view_id] = dict(last_call)
 
                 # Parse findings with strict validation
                 v_findings, v_errors = FindingParser.parse_findings(
@@ -654,6 +725,7 @@ class AnalysisPipeline:
 
         t_agg0 = time.perf_counter()
         deduped_findings = OverlapDeduplicator.deduplicate(raw_findings, iou_threshold=0.5)
+        element_refs = self._resolve_element_refs(deduped_findings, bundle, orig_w, orig_h)
         t_agg_ms = (time.perf_counter() - t_agg0) * 1000.0
 
         total_ms = (time.perf_counter() - t0) * 1000.0
@@ -719,6 +791,7 @@ class AnalysisPipeline:
                 "inference_ms": round(t_inference_acc, 2),
                 "aggregation_ms": round(t_agg_ms, 2),
                 "total_pipeline_ms": round(total_ms, 2),
+                **_split_timings(view_calls),
             },
             errors=errors,
             metadata={
@@ -729,5 +802,7 @@ class AnalysisPipeline:
                 "valid_views": valid_views,
                 "failed_views": len(planned_views) - valid_views,
                 "sahi_oom_recovered": sahi_oom_recovered,
+                **_model_report(view_calls, planned_views),
+                **({"element_refs": element_refs} if element_refs else {}),
             },
         )

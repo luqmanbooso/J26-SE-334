@@ -45,13 +45,14 @@ class AnalysisDecision(str, Enum):
 
 
 class FindingType(str, Enum):
-    """Supported 6-class academic non-crash defect taxonomy."""
+    """Supported non-crash defect taxonomy (includes every type the adapter is trained to output)."""
     COMPONENT_OVERLAP = "component_overlap"
     TEXT_TRUNCATION = "text_truncation"
     UNRENDERED_ASSET = "unrendered_asset"
     BROKEN_LAYOUT = "broken_layout"
     MISSING_COMPONENT = "missing_component"
     SUSPECTED_UNRESPONSIVE = "suspected_unresponsive"
+    DATA_BINDING_NULL = "data_binding_null"  # raw "null"/placeholder text; the adapter is trained to output it
 
 
 class ReviewStatus(str, Enum):

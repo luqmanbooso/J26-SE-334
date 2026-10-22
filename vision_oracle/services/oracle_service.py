@@ -14,8 +14,39 @@ import threading
 import time
 from collections import deque
 from pathlib import Path
-from typing import List, Optional, Dict, Any, Union
+from typing import List, Optional, Dict, Any, Tuple, Union
 from PIL import Image
+
+# An older copy of this package is pip-installed (editable) from
+# D:/university/Resesarch/local-vision-oracle. Without the next lines, any launch that
+# does not put vision_oracle/ first on sys.path silently loads that stale engine,
+# which lacks the inference contract fix.
+import sys as _sys
+
+_C3_DIR = str(Path(__file__).resolve().parents[1])
+
+
+def _norm(p: str) -> str:
+    return str(Path(p).resolve()).lower() if p else ""
+
+
+# Place vision_oracle/ just ahead of installed packages (where the stale copy lives), not at the
+# very front: other components put their own folders first (C1's "env testing" has a package
+# named `core`, as does vision_oracle/), and moving C3 to the front broke their imports.
+_paths = [_norm(p) for p in _sys.path]
+_first_installed = next((i for i, p in enumerate(_paths)
+                         if "site-packages" in p or "local-vision-oracle" in p), len(_sys.path))
+_mine = _paths.index(_norm(_C3_DIR)) if _norm(_C3_DIR) in _paths else None
+if _mine is None or _mine > _first_installed:
+    if _mine is not None:
+        del _sys.path[_mine]
+    _sys.path.insert(_first_installed, _C3_DIR)
+_stale = _sys.modules.get("local_vision_oracle")
+if _stale is not None and not str(getattr(_stale, "__file__", "")).startswith(_C3_DIR):
+    raise ImportError(
+        f"Stale local_vision_oracle already imported from {_stale.__file__}; expected {_C3_DIR}. "
+        "Run 'pip uninstall local-vision-oracle' or import vision_oracle.services first."
+    )
 
 from vision_oracle.core.config import (
     VERDICTS_DIR,
@@ -51,33 +82,45 @@ from vision_oracle.core.manifest import log_model_configuration
 logger = logging.getLogger("vision_oracle.service")
 
 
-def create_default_engine() -> OracleEngine:
+def create_default_engine(adapter_dir: Optional[Path] = None) -> OracleEngine:
     """
     Initializes production OracleEngine strictly with real 4-bit NF4 quantized Qwen2-VL-2B model + LoRA adapter.
+    ``adapter_dir`` overrides the configured default adapter (used by the desktop app's model selector).
     Raises RuntimeError immediately if weights not found or loading fails. Zero mock fallbacks.
     """
+    adapter = Path(adapter_dir) if adapter_dir else LORA_WEIGHTS_PATH
     if not (BASE_MODEL_PATH and BASE_MODEL_PATH.exists()):
         raise RuntimeError(
             f"C3 base model path not found: {BASE_MODEL_PATH}. "
             "Ensure RD/models/Qwen2-VL-2B-Instruct exists on disk."
         )
-    if not (LORA_WEIGHTS_PATH and LORA_WEIGHTS_PATH.exists()):
+    if not (adapter and adapter.exists()):
         raise RuntimeError(
-            f"C3 LoRA adapter path not found: {LORA_WEIGHTS_PATH}. "
-            "Ensure vision_oracle/models/c3_qwen2vl_2b_lora_step246 exists on disk."
+            f"C3 LoRA adapter path not found: {adapter}. "
+            "Ensure vision_oracle/models/c3_v3_vision_1ep exists on disk, or set C3_ADAPTER to an adapter folder."
         )
 
     logger.info(
         "Loading real 4-bit Qwen2-VL model from %s with LoRA from %s",
         BASE_MODEL_PATH,
-        LORA_WEIGHTS_PATH,
+        adapter,
     )
     backend = TransformersInferenceBackend(
         model_name_or_path=str(BASE_MODEL_PATH),
-        adapter_dir=str(LORA_WEIGHTS_PATH),
+        adapter_dir=str(adapter),
         quantization_bit=4,
         lazy_load=False,
     )
+    if backend.inference_contract is None:
+        logger.warning(
+            "C3 adapter %s has no inference_contract.json. It will receive a prompt and "
+            "resolution it was not trained on and will under-detect defects. See "
+            "vision_oracle/evidence/MODEL_V2_DECISIONS.md.", adapter,
+        )
+    else:
+        logger.info("C3 inference contract active: %s px, decision threshold %s",
+                    backend.inference_contract["image_max_pixels"],
+                    backend.inference_contract.get("decision_threshold"))
     return OracleEngine(
         backend=backend,
         engine_descriptor="qwen2-vl-2b-instruct+c3-lora-4bit",
@@ -92,7 +135,7 @@ class OracleService:
         engine: Optional[OracleEngine] = None,
         repository: Optional[OracleRepository] = None,
     ):
-        self._engine: OracleEngine = engine or create_default_engine()
+        self._engine: OracleEngine = engine or create_default_engine(_ADAPTER_OVERRIDE)
         self._repo: OracleRepository = repository or get_repository()
         self._inference_lock = threading.Lock()
         self._verdict_lock = threading.Lock()
@@ -121,6 +164,17 @@ class OracleService:
         # Start background job worker
         self._worker_thread = threading.Thread(target=self._job_worker_loop, daemon=True, name="OracleJobWorker")
         self._worker_thread.start()
+
+    def close(self) -> None:
+        """Stop the job worker (which otherwise keeps this service, and its model, alive) and unload the model."""
+        try:
+            self._job_queue.put_nowait(None)
+        except queue.Full:
+            pass
+        unload = getattr(getattr(self._engine, "backend", None), "unload", None)
+        if callable(unload):
+            with self._inference_lock:  # let a running forward pass finish first
+                unload()
 
     @property
     def engine(self) -> OracleEngine:
@@ -200,7 +254,7 @@ class OracleService:
         self,
         capture_id: str,
         session_id: Optional[str] = None,
-        policy: str = CoveragePolicy.GLOBAL_PLUS_TILES_V1.value,
+        policy: str = CoveragePolicy.GLOBAL_ONLY.value,
     ) -> Dict[str, Any]:
         """Submits capture for asynchronous analysis, returning job metadata immediately."""
         capture = self._repo.get_capture(capture_id)
@@ -272,7 +326,7 @@ class OracleService:
 
                 try:
                     img = Image.open(capture.artifact_path).convert("RGB")
-                    pol = CoveragePolicy(job["policy"]) if job.get("policy") in [p.value for p in CoveragePolicy] else CoveragePolicy.GLOBAL_PLUS_TILES_V1
+                    pol = CoveragePolicy(job["policy"]) if job.get("policy") in [p.value for p in CoveragePolicy] else CoveragePolicy.GLOBAL_ONLY
 
                     with self._inference_lock:
                         if job_id in self._cancelled_jobs:
@@ -315,7 +369,7 @@ class OracleService:
                     record = {
                         "verdict_id": verdict_v2.verdict_id,
                         "session_id": verdict_v2.session_id or "default_session",
-                        "timestamp": bundle.timestamp_utc,
+                        "timestamp": capture.timestamp_utc,  # was `bundle`, undefined here: every job flipped to FAILED
                         "verdict_v2": verdict_v2.model_dump(),
                         "c4_verdict": c4_dict,
                     }
@@ -325,6 +379,11 @@ class OracleService:
                 except Exception as exc:
                     err_msg = f"Job {job_id} inference failure: {exc}"
                     logger.error(err_msg, exc_info=True)
+                    current = self._repo.get_job(job_id)
+                    if current and current["state"] == JobState.COMPLETED.value:
+                        # The verdict is already saved; a later bookkeeping error must not hide it.
+                        logger.warning("Post-completion error for job %s ignored: %s", job_id, exc)
+                        continue
                     self._repo.update_job(job_id, JobState.FAILED, error_message=str(exc))
                     if "OutOfMemoryError" in type(exc).__name__ or "out of memory" in str(exc).lower():
                         import gc
@@ -396,7 +455,29 @@ class OracleService:
                 return json.loads(target_file.read_text(encoding="utf-8"))
             except Exception:
                 pass
-        return None
+        return self.get_latest_session_verdict(verdict_id)
+
+    def get_latest_session_verdict(self, session_id: str) -> Optional[Dict[str, Any]]:
+        """Most recent verdict of a session. C4's live client asks get_verdict(session_id),
+        which before 2026-10-21 never matched a verdict id, so C4 silently fell back to a
+        default verdict and lost C3's evidence."""
+        if not session_id:
+            return None
+        with self._verdict_lock:
+            for record in self._recent_verdicts:  # newest first
+                if record.get("session_id") == session_id:
+                    return record
+        verdicts = self._repo.list_session_verdicts(session_id)
+        if not verdicts:
+            return None
+        v_v2 = verdicts[0]  # list_session_verdicts is newest first
+        return {
+            "verdict_id": v_v2.verdict_id,
+            "session_id": v_v2.session_id,
+            "timestamp": "",
+            "verdict_v2": v_v2.model_dump(),
+            "c4_verdict": v_v2.to_c4_verdict().model_dump(),
+        }
 
     def evaluate(
         self,
@@ -404,7 +485,7 @@ class OracleService:
         raw_hierarchy: Optional[str] = None,
         screen_id: Optional[str] = None,
         action_context: Optional[str] = None,
-        enable_sahi: bool = True,
+        enable_sahi: bool = False,  # tile views not validated with the current adapter (see MODEL_V2_DECISIONS.md)
         session_id: Optional[str] = None,
         action_id: Optional[str] = None,
         capture_ms: float = 0.0,
@@ -463,11 +544,15 @@ class OracleService:
             if primary and primary.type in [d.value for d in DefectType]
             else (DefectType.OTHER if primary else DefectType.NONE)
         )
-        confidence = (
-            float(primary.confidence)
-            if primary and primary.confidence is not None
-            else (0.95 if verdict_v2.decision == AnalysisDecision.NO_DEFECT_DETECTED else 0.0)
-        )
+        # Legacy envelope needs a number. Use the model's own probability: P(defect) for a
+        # finding, 1 - P(defect) for a clean verdict, 0.0 when the model reported none.
+        p_defect = verdict_v2.metadata.get("defect_probability")
+        if primary and primary.confidence is not None:
+            confidence = float(primary.confidence)
+        elif verdict_v2.decision == AnalysisDecision.NO_DEFECT_DETECTED and isinstance(p_defect, (int, float)):
+            confidence = round(1.0 - float(p_defect), 4)
+        else:
+            confidence = 0.0
 
         norm_box = None
         if primary and primary.bbox_xyxy:
@@ -536,7 +621,7 @@ class OracleService:
         action_context: Optional[str] = None,
         session_id: Optional[str] = "live_device_session",
         device: Optional[Any] = None,
-        enable_sahi: bool = True,
+        enable_sahi: bool = False,  # tile views not validated with the current adapter (see MODEL_V2_DECISIONS.md)
         action_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Captures and evaluates screen from Android device via canonical AnalysisPipeline."""
@@ -593,23 +678,40 @@ class OracleService:
             else:
                 resolved_screens.append(s)
 
+        if len(resolved_screens) < 2:
+            raise ValueError("Temporal freeze analysis requires at least 2 screen frames.")
+        curr_hier = hierarchies[-1] if (hierarchies and len(hierarchies) >= len(resolved_screens)) else None
+        prev_hier = hierarchies[-2] if (hierarchies and len(hierarchies) >= len(resolved_screens)) else None
+
+        # 1. Temporal freeze rule (deterministic, CPU only).
         with self._inference_lock:
-            result = self._engine.evaluate_sequence(
-                screens=resolved_screens,
-                hierarchies=hierarchies,
-                time_delta_s=time_delta_s,
-                action_dispatched=action_dispatched,
-                action_context=action_context,
+            freeze = self._engine.freeze_detector.detect_freeze(
+                current_image=resolved_screens[-1], previous_image=resolved_screens[-2],
+                current_hierarchy=curr_hier, previous_hierarchy=prev_hier,
+                time_delta_s=time_delta_s, action_dispatched=action_dispatched,
             )
-        record = self.save_verdict_to_ledger(result, session_id=session_id)
-        return {
-            "oracle_result": result.to_dict(),
-            "c4_verdict": record["c4_verdict"],
-        }
+        if freeze.is_frozen:
+            with self._inference_lock:
+                result = self._engine.evaluate_sequence(
+                    screens=resolved_screens, hierarchies=hierarchies, time_delta_s=time_delta_s,
+                    action_dispatched=action_dispatched, action_context=action_context,
+                )
+            record = self.save_verdict_to_ledger(result, session_id=session_id)
+            return {"oracle_result": result.to_dict(), "c4_verdict": record["c4_verdict"]}
+
+        # 2. Not frozen: inspect the latest frame through the production pipeline (same as
+        # /evaluate). Before 2026-10-21 this used the legacy engine with tile views on, which
+        # disagreed with /evaluate on the same screen.
+        latest = resolved_screens[-1]
+        return self.evaluate(
+            image_input=latest if isinstance(latest, (str, Image.Image)) else Image.open(io.BytesIO(latest)),
+            raw_hierarchy=curr_hier, action_context=action_context, session_id=session_id, enable_sahi=False,
+        )
 
 
 # Singleton service instance
 _ORACLE_SERVICE: Optional[OracleService] = None
+_ADAPTER_OVERRIDE: Optional[Path] = None
 _SERVICE_INIT_LOCK = threading.Lock()
 
 
@@ -624,3 +726,49 @@ def get_oracle_service() -> OracleService:
 def set_oracle_service(service: OracleService) -> None:
     global _ORACLE_SERVICE
     _ORACLE_SERVICE = service
+
+
+_ADAPTER_LABELS = {
+    "c3_v3_vision_1ep": "Vision (default): screenshot only",
+    "c3_v3_fusion_1ep": "Fusion (experimental): screenshot + layout",
+    "c3_qwen2vl_2b_lora_step246": "Earlier version (v1)",
+}
+
+
+def available_adapters() -> List[Tuple[str, Path]]:
+    """Adapter folders next to the default one that carry weights and an inference contract: (label, folder)."""
+    root = (LORA_WEIGHTS_PATH.parent if LORA_WEIGHTS_PATH else None)
+    if root is None or not root.exists():
+        return []
+    found = [(_ADAPTER_LABELS.get(d.name, d.name), d) for d in sorted(root.iterdir())
+             if (d / "adapter_model.safetensors").exists() and (d / "inference_contract.json").exists()]
+    return sorted(found, key=lambda item: (item[1].name not in _ADAPTER_LABELS, list(_ADAPTER_LABELS).index(item[1].name)
+                                           if item[1].name in _ADAPTER_LABELS else 0, item[0]))
+
+
+def active_adapter() -> Optional[Path]:
+    """The adapter folder the next (or current) service uses."""
+    return _ADAPTER_OVERRIDE or LORA_WEIGHTS_PATH
+
+
+def switch_adapter(adapter_dir: Path) -> None:
+    """Use a different adapter from the next inspection on. Drops the loaded model so the 4 GB GPU holds only one."""
+    global _ORACLE_SERVICE, _ADAPTER_OVERRIDE
+    adapter_dir = Path(adapter_dir)
+    if not (adapter_dir / "adapter_model.safetensors").exists():
+        raise FileNotFoundError(f"No adapter weights in {adapter_dir}")
+    with _SERVICE_INIT_LOCK:
+        _ADAPTER_OVERRIDE = adapter_dir
+        old, _ORACLE_SERVICE = _ORACLE_SERVICE, None
+    close = getattr(old, "close", None)
+    if callable(close):
+        close()
+    del old, close
+    import gc
+    gc.collect()
+    try:
+        import torch
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+    except Exception:
+        pass
