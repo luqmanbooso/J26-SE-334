@@ -240,6 +240,12 @@ class TransformersInferenceBackend(InferenceBackend):
             self.model = PeftModel.from_pretrained(self.model, self.adapter_dir, local_files_only=True)
         self.model.eval()
 
+    def unload(self) -> None:
+        """Drop the model and processor and give the GPU memory back (used when another adapter is chosen)."""
+        self.model = None
+        self.processor = None
+        _release_cuda_cache()
+
     def generate(
         self,
         messages: List[Dict[str, Any]],

@@ -1,4 +1,6 @@
 """Component 3 workspace embedded in the HEART desktop application."""
+import asyncio  # noqa: F401  imported here on the main thread: torch pulls it in from a worker thread and, racing another
+# thread's first import of it, saw a half-initialised module ("NameError: name 'base_events' is not defined")
 import logging
 import tkinter as tk
 import json
