@@ -24,6 +24,9 @@ class ADBBridge:
     """
 
     def __init__(self, device_id=None, device=None, dump_max_age=0.0):
+        adb_std_path = os.path.expanduser(r"~\AppData\Local\Android\Sdk\platform-tools")
+        if os.path.exists(adb_std_path) and adb_std_path not in os.environ.get("PATH", ""):
+            os.environ["PATH"] = adb_std_path + os.pathsep + os.environ.get("PATH", "")
         self.device = device if device is not None else AdbDevice(serial=device_id)
         self.dump_max_age = dump_max_age
         print(f"[ADB] using device {self.device.serial}")
@@ -61,6 +64,52 @@ class ADBBridge:
             import time
             time.sleep(pre_delay)
         self.device.tap(x, y)
+
+    def execute_swipe(self, path, duration_s: float, pre_delay: float = 0.0):
+        """Dispatch a synthesized gesture.
+
+        `input swipe` replays only a straight endpoint-to-endpoint line, so
+        the distorted path's curvature reaches the device as its endpoints
+        and the (stress-distorted) duration; the full path is preserved in
+        the timeline and the IF-C2-to-Driver events. Replaying the curve
+        itself needs a uiautomator2/sendevent driver — a known, post-PP1 gap.
+        """
+        if pre_delay > 0:
+            import time
+            time.sleep(pre_delay)
+        (x1, y1), (x2, y2) = path[0][:2], path[-1][:2]
+        self.device.swipe(x1, y1, x2, y2, duration_ms=duration_s * 1000.0)
+
+    def press_back(self):
+        """Dispatch the Android system Back action (KEYCODE_BACK).
+
+        The explorer's way out of a screen a tap opened. Back is the one
+        app-agnostic "go back" — an in-app back button could be any element,
+        in any position, with any label — so the traversal never hunts for one.
+        """
+        self.device.run("shell", "input", "keyevent", "KEYCODE_BACK")
+
+    def set_text(self, x, y, text):
+        """Tap a text field and type into it — used by the explorer's optional
+        form-filling so a login/sign-up screen that only needs its boxes
+        non-empty can be passed. `input text` treats spaces specially, so they
+        are sent as %s.
+        """
+        self.device.run("shell", "input", "tap", str(int(x)), str(int(y)))
+        self.device.run("shell", "input", "text", str(text).replace(" ", "%s"))
+
+    def launch_package(self, package):
+        """Cold-launch an app: force-stop it, then start it via the launcher
+        intent (`monkey` needs only the package, no activity name).
+
+        The force-stop matters: a plain launcher intent *resumes* an existing
+        task, so without it a run — and every recovery relaunch — would begin
+        wherever the app was last left, not at its real start screen, and a
+        replayed route recorded from the start would no longer be valid.
+        """
+        self.device.run("shell", "am", "force-stop", package)
+        self.device.run("shell", "monkey", "-p", package,
+                        "-c", "android.intent.category.LAUNCHER", "1")
 
 
 __all__ = ["ADBBridge", "NoDeviceError"]

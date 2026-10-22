@@ -40,13 +40,15 @@ class SystemStressor(BaseStressor):
         self.is_active = True
 
         if not self.adb.is_simulated:
-            # On real Android shell: launch background CPU worker
-            worker_cmd = "sh -c 'for i in 1 2 3; do (while true; do :; done &); done; echo PID:$!'"
-            output = self.adb.run_shell(worker_cmd)
-            for line in output.splitlines():
-                if "PID:" in line:
-                    pid = line.split("PID:")[-1].strip()
-                    self.cpu_stress_pids.append(pid)
+            # On real Android hardware: spawn parallel workers according to core count
+            try:
+                core_out = self.adb.run_shell("nproc").strip()
+                cores = int(core_out) if core_out.isdigit() and int(core_out) > 0 else 8
+            except Exception:
+                cores = 8
+            num_workers = max(1, min(cores, round(cores * (target_pct / 100.0))))
+            worker_cmd = f"sh -c 'for i in $(seq 1 {num_workers}); do nohup yes >/dev/null 2>&1 & done'"
+            self.adb.run_shell(worker_cmd)
         else:
             self.adb.simulated_state["cpu_stress_active"] = True
 
@@ -77,6 +79,9 @@ class SystemStressor(BaseStressor):
                 self.adb.run_shell(f"kill -9 {pid}")
             self.cpu_stress_pids.clear()
 
+        if not self.adb.is_simulated:
+            self.adb.run_shell("killall yes")
+
         if self.adb.is_simulated:
             self.adb.simulated_state["cpu_stress_active"] = False
 
@@ -94,8 +99,8 @@ class SystemStressor(BaseStressor):
         else:
             trim_level = "RUNNING_MODERATE"
 
-        # Broadcast Android trim memory intent
-        self.adb.run_shell(f"am send-trim-memory {target} {trim_level}")
+        # Broadcast Android trim memory intent non-blocking
+        threading.Thread(target=self.adb.run_shell, args=(f"am send-trim-memory {target} {trim_level}",), daemon=True).start()
         self.logger.record("SYSTEM_RAM", "LMK_MEMORY_PRESSURE", {
             "ram_pct": pressure_pct,
             "trim_level": trim_level,
@@ -106,7 +111,7 @@ class SystemStressor(BaseStressor):
         """Broadcasts arbitrary Android trim memory intent directly."""
         target = target_package or "com.android.settings"
         clean_level = trim_level if trim_level.startswith("TRIM_MEMORY_") else f"TRIM_MEMORY_{trim_level}"
-        self.adb.run_shell(f"am send-trim-memory {target} {clean_level}")
+        threading.Thread(target=self.adb.run_shell, args=(f"am send-trim-memory {target} {clean_level}",), daemon=True).start()
         self.logger.record("SYSTEM_RAM", "LMK_TRIM_BROADCAST", {
             "trim_level": clean_level,
             "target_package": target
@@ -119,22 +124,35 @@ class SystemStressor(BaseStressor):
         self.logger.record("SYSTEM_IO", "DISK_IO_BOTTLENECK", {"bytes_mb": duration_mb})
 
     def set_battery(self, level: int = 5, unplugged: bool = True) -> None:
-        """Forces simulated battery level and charging state."""
+        """Forces simulated battery level and charging state on live hardware or AVD."""
         self.current_state["battery_level"] = level
         self.current_state["battery_unplugged"] = unplugged
 
-        if unplugged:
-            self.adb.run_shell("dumpsys battery unplug")
-        self.adb.run_shell(f"dumpsys battery set level {level}")
+        if not self.adb.is_simulated:
+            # Physical vs AVD handling: allow full low-battery testing down to 1-3%
+            is_emu = bool(self.adb.device_id and str(self.adb.device_id).startswith("emulator-"))
+            safe_level = max(1, level) if is_emu else max(2, level)
+            if unplugged:
+                self.adb.run_shell("dumpsys battery unplug")
+                self.adb.run_shell("dumpsys battery set status 3")
+            else:
+                self.adb.run_shell("dumpsys battery reset")
+            self.adb.run_shell(f"dumpsys battery set level {safe_level}")
+        else:
+            self.adb.simulated_state["battery_level"] = level
+            self.adb.simulated_state["battery_unplugged"] = unplugged
+
         self.logger.record("SYSTEM_POWER", "BATTERY_PRESSURE", {"level": level, "unplugged": unplugged})
 
     def set_thermal_state(self, state: Any = "Warn") -> None:
         """Triggers thermal throttling profiles: 'Normal' (35°C), 'Warn' (55°C), 'Critical' (80°C)."""
         temp_map = {
+            "Nominal": 32.0,
             "Normal": 35.0,
-            "Light": 42.0,
+            "Fair": 45.0,
             "Moderate": 50.0,
             "Warn": 55.0,
+            "Serious": 65.0,
             "Severe": 65.0,
             "Critical": 80.0
         }
@@ -146,7 +164,14 @@ class SystemStressor(BaseStressor):
         raw_temp = int(temp_c * 10)
 
         self.current_state["thermal_state"] = state
-        self.adb.run_shell(f"dumpsys battery set temp {raw_temp}")
+        if not self.adb.is_simulated:
+            is_emu = bool(self.adb.device_id and str(self.adb.device_id).startswith("emulator-"))
+            safe_temp_c = temp_c if is_emu else min(55.0, temp_c)
+            self.adb.run_shell(f"dumpsys battery set temp {int(safe_temp_c * 10)}")
+            self.adb.run_shell("dumpsys battery set status 3")
+        else:
+            self.adb.simulated_state["battery_temp"] = raw_temp
+
         self.logger.record("SYSTEM_THERMAL", "THERMAL_THROTTLE_PROFILE", {
             "state": state,
             "simulated_temp_c": temp_c
@@ -161,6 +186,16 @@ class SystemStressor(BaseStressor):
         self.current_state.clear()
         self.logger.record("SYSTEM_HARDWARE", "SYSTEM_RESET_NOMINAL", {})
         return True
+
+    def reset_battery(self) -> None:
+        """Resets battery state to nominal charging baseline."""
+        self.adb.run_shell("dumpsys battery reset")
+        self.current_state.pop("battery_level", None)
+        self.current_state.pop("battery_unplugged", None)
+        if self.adb.is_simulated:
+            self.adb.simulated_state["battery_level"] = 100
+            self.adb.simulated_state["battery_unplugged"] = False
+        self.logger.record("SYSTEM_POWER", "BATTERY_RESET", {})
 
     def reset(self) -> None:
         """Alias for revert() for backwards compatibility."""

@@ -16,6 +16,8 @@ __pycache__/
 # Local datasets and generated artifacts
 data/*
 !data/README.md
+evaluation/data/*
+!evaluation/data/README.md
 runs/*
 models/
 artifacts/
@@ -26,3 +28,20 @@ logs/
 *.egg-info/
 build/
 dist/
+
+runs*/
+
+# Local test configs and sample inputs
+/target_app.json
+/sentry*.json
+/decision.json
+/healed_check.*
+*.local.json
+
+# Local virtual environments
+.venv*/
+
+# Evaluation inputs and outputs (keep curated summaries in docs/evidence/)
+evaluation/input/
+evaluation/runs/
+evaluation/results/

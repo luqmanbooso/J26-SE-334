@@ -1,0 +1,16 @@
+"""
+HEART Desktop Studio - Main Application Launcher
+Enables running via: python heart_desktop.py
+Forwards execution to heart_desktop_app.py, the one desktop application.
+"""
+
+import sys
+import runpy
+from pathlib import Path
+
+if __name__ == "__main__":
+    app_script = Path(__file__).resolve().parent / "heart_desktop_app.py"
+    if not app_script.exists():
+        print(f"[!] Error: Cannot find desktop app script at {app_script}")
+        sys.exit(1)
+    runpy.run_path(str(app_script), run_name="__main__")

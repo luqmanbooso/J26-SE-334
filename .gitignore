@@ -4,9 +4,10 @@ frontend/node_modules/
 dist/
 frontend/dist/
 
-# OS metadata
+# OS & editor metadata
 .DS_Store
 Thumbs.db
+.obsidian/
 
 # Environment variables
 .env
@@ -19,10 +20,25 @@ Thumbs.db
 *.log
 /perturbation_event_log.json
 /environment_failure_attribution.json
-/results/
+/results/*
+!/results/*.py
+!/results/exp-02/
+# C2 run artifacts (live/replay timelines, plans, reports, figures) — not committed;
+# experiment subdirs (exp-03/04/05…) stay trackable.
+/biometry/results/*
+!/biometry/results/exp-*/
+scratch/
+
+# Vision Oracle Models
+# Base model (>4GB, download separately via scripts/download_base_model.py)
+/models/Qwen2-VL-2B-Instruct/
+models/Qwen2-VL-2B-Instruct/
+models/base/
+/models/base/
 
 # Large documents & binaries (>100MB exceeds GitHub limits)
 *.pdf
+*.zip
 
 # Python artifacts
 __pycache__/
@@ -34,4 +50,23 @@ env testing/uploads/*.apk
 
 # PyInstaller build artifacts
 build/
+dist_installer/
+platform-tools/
 *.spec
+!HEART_Studio.spec
+
+# Private Defense & Viva Preparation (Local Only)
+*viva_defense_script*
+
+.venv-ui/
+# Local documentation, evidence, and agent context maps (Local Only)
+context/
+.agents/
+docs/
+vision_oracle/evidence/
+evidence/
+
+# Local C3 models, generated results and agent organization
+/AGENTS.md
+/vision_oracle/models/
+/vision_oracle/results/

@@ -1,0 +1,40 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtual Environments
+.venv/
+venv/
+env/
+
+# Pytest / Coverage caches
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local Model Weights & Checkpoints (Heavy Binaries >100MB)
+models/
+weights/
+results/weights/
+**/checkpoint-*/
+*.bin
+*.safetensors
+*.pt
+*.pth
+*.onnx
+*.gguf
+*.zip
+
+# Notebook Checkpoints
+.ipynb_checkpoints/
+
+# Offline API Teacher Distillers & Secrets
+label_owleye_teacher.py
+local_vision_oracle/label_owleye_teacher.py
+*.key
+*.env
