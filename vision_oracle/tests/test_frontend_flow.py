@@ -1,4 +1,4 @@
-"""Pipeline-flow strip on the C3 workspace. Builds the real Tk window but never loads the model."""
+"""C3 workspace UI. Builds the real Tk window but never loads the model."""
 
 import pytest
 
@@ -28,44 +28,22 @@ def workspace(tk_root):
     ws.destroy()
 
 
-def status(ws, index):
-    return ws.stage_status[index].cget("text")
+def test_default_model_is_the_v3_vision_adapter(monkeypatch):
+    import os
+    import vision_oracle.services.oracle_service as svc
+    from vision_oracle.core.config import LORA_WEIGHTS_PATH
+    if os.getenv("C3_ADAPTER"):
+        pytest.skip("C3_ADAPTER overrides the default on this machine")
+    monkeypatch.setattr(svc, "_ADAPTER_OVERRIDE", None)
+    assert LORA_WEIGHTS_PATH is not None and LORA_WEIGHTS_PATH.name == "c3_v3_vision_1ep"
+    assert svc.active_adapter() == LORA_WEIGHTS_PATH
 
 
-def test_initial_state_marks_c3_ready_and_upstream_not_run(workspace):
-    assert [status(workspace, i) for i in range(4)] == ["Not run here", "Not run here", "Ready", "Waiting for a result"]
-
-
-@pytest.mark.parametrize("decision,findings,expected", [
-    ("defect_detected", [{}, {}], "2 findings"),
-    ("defect_detected", [{}], "1 finding"),
-    ("no_defect_detected", [], "No defect found"),
-    ("inconclusive", [], "Inconclusive"),
-])
-def test_result_updates_c3_card_and_readies_c4(workspace, decision, findings, expected):
-    workspace.flow_from_view({"verdict": {"decision": decision, "findings": findings}})
-    assert status(workspace, 2) == expected
-    assert status(workspace, 3) == "Review, then send"
-
-
-def test_clearing_a_result_resets_the_strip(workspace):
-    workspace.flow_from_view({"verdict": {"decision": "defect_detected", "findings": [{}]}})
-    workspace.clear_result()
-    assert status(workspace, 2) == "Ready" and status(workspace, 3) == "Waiting for a result"
-
-
-def test_delivery_receipt_marks_c4_done(workspace):
-    workspace.set_stage(3, "done", "Receipt received")
-    assert status(workspace, 3) == "Receipt received"
-
-
-def test_preview_walks_every_stage_then_restores(workspace):
-    workspace.preview_flow()
-    assert status(workspace, 0).startswith("Applies")
-    workspace.after_cancel(workspace.preview_job)
-    workspace.preview_job = None
-    workspace.reset_flow()
-    assert status(workspace, 0) == "Not run here"
+def test_score_bar_hidden_until_there_is_a_score(workspace):
+    workspace.draw_score(None, None)
+    assert not workspace.score_canvas.winfo_manager()
+    workspace.draw_score(0.5, 0.3)
+    assert workspace.score_canvas.winfo_manager() == "grid"
 
 
 def test_score_bar_draws_score_and_alert_level(workspace):
@@ -173,7 +151,7 @@ def test_history_names_where_a_result_came_from():
     assert C3Workspace.source_of({"metadata": {}}) == "screenshot file"
 
 
-def test_live_tab_explains_an_empty_list_and_the_strip_reflects_the_connection(workspace, monkeypatch):
+def test_live_tab_explains_an_empty_list(workspace, monkeypatch):
     import uvicorn
 
     class FakeServer:
@@ -188,9 +166,9 @@ def test_live_tab_explains_an_empty_list_and_the_strip_reflects_the_connection(w
     workspace.start_receiver()
     if workspace.receiver is None:
         pytest.skip(workspace.live_status.cget("text"))
-    assert "Connected" in workspace.flow_note.cget("text")
-    assert workspace.stage_status[1].cget("text").startswith("Connected")
+    assert workspace.live_progress.winfo_manager() == "pack"  # visible while the model loads
     workspace.show_live(True, [])
     assert "connect a phone" in workspace.live_empty.cget("text")
+    assert not workspace.live_progress.winfo_manager()
     workspace.stop_receiver()
-    assert workspace.stage_status[1].cget("text") == "Not run here"
+    assert workspace.live_button.cget("text") == "Start receiving"
