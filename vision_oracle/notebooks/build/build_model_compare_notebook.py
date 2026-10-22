@@ -119,7 +119,7 @@ print('saved', out / f'{stamp}_{IMAGE.stem}.json')"""),
 ]
 nb = nbf.v4.new_notebook(); nb.cells = cells
 nb.metadata["kernelspec"] = {"name": "python3", "display_name": "Python 3", "language": "python"}
-out = Path(__file__).with_name("C3_base_vs_finetuned.ipynb")
+out = Path(__file__).resolve().parents[1] / "C3_base_vs_finetuned.ipynb"
 with open(out, "w", encoding="utf-8", newline="\n") as fh:
     nbf.write(nb, fh)
 print(out)

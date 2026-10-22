@@ -96,4 +96,4 @@ if MY_SCREEN:
     print('score', r['metadata'].get('defect_probability'))"""))
 nb = nbf.v4.new_notebook(); nb.cells = cells
 nb.metadata["kernelspec"] = {"name": "python3", "display_name": "Python 3", "language": "python"}
-out = Path(__file__).with_name("C3_live_demo.ipynb"); nbf.write(nb, out); print(out)
+out = Path(__file__).resolve().parents[1] / "C3_live_demo.ipynb"; nbf.write(nb, out); print(out)

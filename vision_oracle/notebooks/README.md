@@ -9,6 +9,6 @@ Present from this folder. All four are executed and saved with their outputs.
 | [C3_live_demo_layout.ipynb](C3_live_demo_layout.ipynb) | Six Rico screens with their UI layout, with both adapters. |
 | [C3_base_vs_finetuned.ipynb](C3_base_vs_finetuned.ipynb) | One screen through the base model and the fine-tuned model, with timing. |
 
-Rebuild any of them with the matching `build_*.py` in this folder.
+Rebuild any of them with the matching script in [`build/`](build/) (for example `python vision_oracle/notebooks/build/build_v3_results_notebook.py`). The scripts are only needed to regenerate a notebook, not to open or run it.
 
 [`old/`](old/) holds earlier notebooks (v1 and v2 models, scratch files). They still open and run from there, but their numbers are out of date: do not present them.

@@ -5,7 +5,7 @@ the model decides from the screenshot, and the layout names the real element und
 Part B runs the fusion adapter, which reads the layout as text inside its prompt.
 Inputs come from demo_inputs/with_layout (see local_vision_oracle/layout_demo_inputs.py).
 
-    python vision_oracle/notebooks/build_layout_demo_notebook.py
+    python vision_oracle/notebooks/build/build_layout_demo_notebook.py
 """
 from pathlib import Path
 
@@ -139,6 +139,6 @@ print('Six screens are a demonstration, not an accuracy measure. See C3_v3_measu
 ]
 nb = nbf.v4.new_notebook(); nb.cells = cells
 nb.metadata["kernelspec"] = {"name": "python3", "display_name": "Python 3", "language": "python"}
-out = Path(__file__).with_name("C3_live_demo_layout.ipynb")
+out = Path(__file__).resolve().parents[1] / "C3_live_demo_layout.ipynb"
 out.write_bytes(nbf.writes(nb).encode("utf-8"))
 print(out)

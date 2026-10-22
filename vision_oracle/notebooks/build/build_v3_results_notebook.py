@@ -4,7 +4,7 @@ No model is loaded and no GPU is used. Cells for the fusion arm and the untraine
 automatically once their score files exist (see FILES in the first code cell); rerun this script after
 those evaluations to refresh the notebook.
 
-    python vision_oracle/notebooks/build_v3_results_notebook.py
+    python vision_oracle/notebooks/build/build_v3_results_notebook.py
 """
 from pathlib import Path
 
@@ -12,7 +12,7 @@ import nbformat as nbf
 from nbclient import NotebookClient
 
 md, code = nbf.v4.new_markdown_cell, nbf.v4.new_code_cell
-HERE = Path(__file__).resolve().parent
+HERE = Path(__file__).resolve().parents[1]   # the notebooks folder
 
 cells = [
     md("""# C3 results: retrained vision arm, fusion arm and baselines
