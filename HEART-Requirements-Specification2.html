@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HEART — Requirements Specification</title>
+<style>
+  :root{
+    --bg:#ffffff; --fg:#17202a; --muted:#5b6b7c; --line:#c7d3df; --rule:#e3eaf1;
+    --accent:#1168BD; --accent-soft:#eef5fc;
+    --c1:#B45309; --c2:#0E7C86; --c3:#6D28D9; --c4:#BE185D; --shared:#1168BD;
+    --bad:#C01919; --warn:#9A4A07; --ok:#14803A;
+    --code:#eef1f4;
+  }
+  :root:not([data-theme="light"]){ color-scheme: light; }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#11181f; --fg:#e6edf3; --muted:#9bacbd; --line:#2d3b4a; --rule:#223040;
+      --accent:#6aa9e9; --accent-soft:#16222f;
+      --c1:#e0a458; --c2:#4fc3c9; --c3:#b79cf0; --c4:#f07fb0;
+      --bad:#f08a8a; --warn:#e0a458; --ok:#6fd49a; --code:#1b2530;
+      color-scheme: dark;
+    }
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg); color:var(--fg); margin:0;
+       font:15px/1.6 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       -webkit-text-size-adjust:100%}
+  .wrap{max-width:1040px; margin:0 auto; padding:34px 16px 90px}
+  h1{font-size:30px; line-height:1.2; margin:0 0 6px; letter-spacing:-.4px}
+  h2{font-size:20px; margin:42px 0 12px; padding-bottom:7px; border-bottom:2px solid var(--accent)}
+  h3{font-size:16px; margin:26px 0 8px; color:var(--accent)}
+  h4{font-size:14px; margin:18px 0 6px}
+  p{margin:9px 0}
+  .lede{color:var(--muted); font-size:15px; margin:0 0 4px}
+  .meta{color:var(--muted); font-size:13px; margin:14px 0 0;
+        border-top:1px solid var(--rule); padding-top:10px}
+  table{border-collapse:collapse; width:100%; margin:12px 0; font-size:13.5px}
+  th{background:var(--accent-soft); border:1px solid var(--line); padding:7px 9px; text-align:left; font-weight:600}
+  td{border:1px solid var(--line); padding:7px 9px; vertical-align:top}
+  tbody tr:nth-child(even) td{background:color-mix(in srgb, var(--accent-soft) 45%, transparent)}
+  code{font-family:ui-monospace,Consolas,"SF Mono",monospace; font-size:.9em;
+       background:var(--code); padding:1px 5px; border-radius:3px}
+  ul,ol{margin:8px 0; padding-left:22px}
+  li{margin:4px 0}
+  .box{border:1px solid var(--line); border-left:4px solid var(--accent);
+       background:var(--accent-soft); padding:11px 14px; margin:14px 0; border-radius:0 5px 5px 0}
+  .box.bad{border-left-color:var(--bad); background:color-mix(in srgb,var(--bad) 8%,transparent)}
+  .box.ok{border-left-color:var(--ok); background:color-mix(in srgb,var(--ok) 8%,transparent)}
+  .box.warn{border-left-color:var(--warn); background:color-mix(in srgb,var(--warn) 9%,transparent)}
+  .bad{color:var(--bad); font-weight:600}
+  .warn{color:var(--warn); font-weight:600}
+  .ok{color:var(--ok); font-weight:600}
+  .muted{color:var(--muted)}
+  .c{text-align:center} .r{text-align:right} .nowrap{white-space:nowrap}
+  .pill{display:inline-block; font-size:11px; font-weight:700; padding:2px 7px;
+        border-radius:9px; color:#fff; letter-spacing:.2px}
+  .p-c1{background:var(--c1)} .p-c2{background:var(--c2)} .p-c3{background:var(--c3)}
+  .p-c4{background:var(--c4)} .p-sh{background:var(--shared)}
+  figure{margin:18px 0; padding:14px; border:1px solid var(--line); border-radius:6px; background:var(--bg); overflow-x:auto}
+  figcaption{color:var(--muted); font-size:12.5px; margin-top:10px; text-align:center}
+  svg{display:block; margin:0 auto; max-width:100%; height:auto}
+  pre{background:var(--code); border:1px solid var(--line); border-radius:5px;
+      padding:11px 13px; overflow-x:auto; font-size:12px; line-height:1.5; margin:10px 0}
+  pre code{background:none; padding:0; font-size:12px}
+  .toc{columns:2; column-gap:30px; font-size:13.5px}
+  .toc a{color:var(--accent); text-decoration:none}
+  .toc a:hover{text-decoration:underline}
+  @media (max-width:640px){ .toc{columns:1} h1{font-size:24px} .wrap{padding:22px 16px 60px} }
+  @media print{
+    body{font-size:10pt} .wrap{max-width:none; padding:0}
+    h2{page-break-after:avoid} table,figure,.box{page-break-inside:avoid}
+    a{color:inherit; text-decoration:none}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>HEART — Functional &amp; Technical Requirements Specification</h1>
+<p class="lede"><b>H</b>uman &amp; <b>E</b>nvironment <b>A</b>ware <b>R</b>obustness <b>T</b>esting Framework for Mobile Applications</p>
+<p class="meta">
+Project <b>J26-SE-334</b> · IT4010 Research Project · SLIIT Faculty of Computing<br>
+C1 G.L.S. Chanlaka (IT23151260) · C2 L.T. Jayawardhana (IT23156760) ·
+C3 M.L. Booso (IT23452916) · C4 H.N. Madubashini (IT23192300)<br>
+Version 0.1 (draft) · 14 October 2026 · Author: C2 · <span class="warn">Requires group review</span><br>
+Baseline: repository <code>J26-SE-334</code> @ <code>19ae15d</code> plus branches
+<code>feat/c1-environmental-perturbation-engine</code>, <code>feature/c4-full-pipeline</code>
+</p>
+
+<div class="box bad">
+<b>Read this first.</b> HEART is a <b>desktop testing tool</b>. It is not a web application and not
+a mobile application — <b>the mobile app is the system under test, never the deliverable</b>. Every
+requirement below follows from that. See <a href="#s2">§2</a>.
+</div>
+
+<h2 id="toc">Contents</h2>
+<div class="toc">
+<a href="#s1">1. Purpose &amp; scope</a><br>
+<a href="#s2">2. Product definition — what HEART is and is not</a><br>
+<a href="#s3">3. Stakeholders &amp; users</a><br>
+<a href="#s4">4. System context (L1)</a><br>
+<a href="#s5">5. Container architecture (L2)</a><br>
+<a href="#s6">6. Functional requirements</a><br>
+<a href="#s7">7. Non-functional requirements</a><br>
+<a href="#s8">8. Technical stack specification</a><br>
+<a href="#s9">9. Interface contracts</a><br>
+<a href="#s10">10. Current implementation status</a><br>
+<a href="#s11">11. What must change</a><br>
+<a href="#s12">12. Data requirements</a><br>
+<a href="#s13">13. Constraints, risks &amp; out of scope</a><br>
+<a href="#s14">14. Traceability</a><br>
+</div>
+
+<h2 id="s1">1. Purpose &amp; scope</h2>
+<p>This document specifies what HEART must do (functional requirements), how well it must do it
+(non-functional requirements), and the technology it is built from. It is written against the
+<b>actual state of the repository</b>, not an idealised design: <a href="#s10">§10</a> records what
+exists today and <a href="#s11">§11</a> records what must change and when.</p>
+<p>Scope covers all four student components plus the shared infrastructure that joins them. It does
+<b>not</b> specify the research experiments — those live in the project research vault
+(<code>research/experiments/</code>) and are referenced only where a requirement exists to support
+one.</p>
+
+<div class="box warn">
+<b>Status of this draft.</b> Component owners C1, C3 and C4 have not yet reviewed it. Requirements
+attributed to their components were derived from the architecture notes, their README files and
+their committed code — <b>each owner must confirm or correct their own section</b> before this
+version is treated as agreed.
+</div>
+
+<h2 id="s2">2. Product definition — what HEART is and is not</h2>
+
+<table>
+<tr><th style="width:50%">HEART <span class="ok">IS</span></th><th style="width:50%">HEART is <span class="bad">NOT</span></th></tr>
+<tr><td>A <b>desktop application</b> a QA engineer installs on a Windows or Linux workstation</td><td>A website, a hosted service, or a SaaS product</td></tr>
+<tr><td>A <b>native desktop GUI</b> and a <b>Python CLI</b>, both producing a self-contained HTML report</td><td>A web application of any kind — no SPA, no server, no <code>node_modules</code>, no login</td></tr>
+<tr><td>A tool that drives a <b>physically attached Android device</b> over ADB</td><td>An Android app installed on that device</td></tr>
+<tr><td>Fully <b>offline</b> — no screenshot or app data leaves the machine</td><td>A client for a cloud vision or LLM API</td></tr>
+<tr><td>A <b>test generator, executor, oracle and repairer</b> for other people's apps</td><td>The app being tested</td></tr>
+</table>
+
+<div class="box">
+<b>The distinction that matters for the viva.</b> There are two pieces of software in every
+sentence about this project: <b>HEART</b> (what you build, runs on the laptop) and the
+<b>App Under Test</b> (what you point it at, runs on the phone, written by somebody else — for
+development this is the stock Android Calculator or Dialer). Confusing them makes the entire
+architecture unexplainable.
+</div>
+
+<p>The offline constraint is not a preference — it is load-bearing for the research. CLAIM-03
+asserts that a <i>localized</i> quantized vision-language model can serve as a GUI oracle, closing
+the gap left by cloud-dependent visual oracles. A cloud deployment would refute the project's own
+claim. Everything else in the stack follows from that single decision, recorded as RDR-0009.</p>
+
+<h2 id="s3">3. Stakeholders &amp; users</h2>
+<table>
+<tr><th style="width:20%">Actor</th><th style="width:24%">Role</th><th style="width:56%">What they need from HEART</th></tr>
+<tr><td><b>QA engineer</b></td><td>Primary user</td><td>Configure a campaign, pick a device and target app, start a run, watch it live, read the failure report. Never needs to open a Python file.</td></tr>
+<tr><td><b>Mobile developer</b></td><td>Secondary user</td><td>A reproducible failure: the exact input sequence, the stress state at the moment of failure, the environment conditions, and a screenshot with the defect region marked.</td></tr>
+<tr><td><b>CI pipeline</b></td><td>Automated consumer</td><td>Headless CLI invocation, machine-readable results, non-zero exit on regression. <span class="muted">(Future scope.)</span></td></tr>
+<tr><td><b>Research panel</b></td><td>Assessor</td><td>Evidence that each component works, is individually owned, and supports a stated research claim.</td></tr>
+</table>
+
+<h2 id="s4">4. System context (L1)</h2>
+<figure>
+<svg viewBox="0 0 860 430" role="img" aria-labelledby="l1title l1desc">
+  <title id="l1title">HEART system context diagram</title>
+  <desc id="l1desc">A QA engineer operates HEART on a workstation. HEART drives an Android device
+  over ADB, reads crash telemetry from Sentry and Crashlytics export files, and produces failure
+  reports and repaired test scripts.</desc>
+  <defs>
+    <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g font-family="-apple-system, Segoe UI, Roboto, sans-serif" font-size="12.5">
+
+    <!-- QA engineer -->
+    <circle cx="80" cy="118" r="19" fill="none" stroke="currentColor" stroke-width="1.6"/>
+    <path d="M80 137 v32 M62 150 h36 M80 169 l-13 22 M80 169 l13 22" fill="none" stroke="currentColor" stroke-width="1.6"/>
+    <text x="80" y="213" text-anchor="middle" font-weight="600">QA engineer</text>
+    <text x="80" y="229" text-anchor="middle" fill="#5b6b7c" font-size="11">primary user</text>
+
+    <!-- HEART -->
+    <rect x="258" y="78" width="300" height="168" rx="9" fill="#1168BD" stroke="#0d5091" stroke-width="1.5"/>
+    <text x="408" y="112" text-anchor="middle" fill="#fff" font-size="17" font-weight="700">HEART</text>
+    <text x="408" y="134" text-anchor="middle" fill="#dce9f7" font-size="12">Robustness Testing Framework</text>
+    <text x="408" y="160" text-anchor="middle" fill="#fff" font-size="11.5">Desktop application · Python CLI + HTML report</text>
+    <text x="408" y="179" text-anchor="middle" fill="#dce9f7" font-size="11">runs entirely on the QA engineer's</text>
+    <text x="408" y="195" text-anchor="middle" fill="#dce9f7" font-size="11">workstation — Windows or Linux</text>
+    <text x="408" y="221" text-anchor="middle" fill="#9ec8ef" font-size="10.5" font-style="italic">no cloud services · no network egress</text>
+
+    <!-- Android device -->
+    <rect x="672" y="60" width="120" height="186" rx="12" fill="none" stroke="#0E7C86" stroke-width="2"/>
+    <rect x="684" y="80" width="96" height="140" rx="3" fill="#0E7C86" opacity=".1" stroke="#0E7C86" stroke-width="1"/>
+    <circle cx="732" cy="233" r="6" fill="none" stroke="#0E7C86" stroke-width="1.5"/>
+    <text x="732" y="128" text-anchor="middle" font-weight="600" fill="#0E7C86">App Under</text>
+    <text x="732" y="145" text-anchor="middle" font-weight="600" fill="#0E7C86">Test</text>
+    <text x="732" y="167" text-anchor="middle" font-size="10.5" fill="#5b6b7c">any Android app;</text>
+    <text x="732" y="182" text-anchor="middle" font-size="10.5" fill="#5b6b7c">NOT built by us</text>
+    <text x="732" y="272" text-anchor="middle" font-size="11" fill="#5b6b7c">Android device</text>
+    <text x="732" y="287" text-anchor="middle" font-size="11" fill="#5b6b7c">or emulator</text>
+
+    <!-- Telemetry source -->
+    <rect x="258" y="312" width="300" height="62" rx="7" fill="none" stroke="#BE185D" stroke-width="1.6" stroke-dasharray="5 3"/>
+    <text x="408" y="338" text-anchor="middle" font-weight="600" fill="#BE185D">Production crash telemetry</text>
+    <text x="408" y="357" text-anchor="middle" font-size="11" fill="#5b6b7c">Sentry / Firebase Crashlytics — exported files</text>
+
+    <!-- Outputs -->
+    <rect x="30" y="312" width="190" height="62" rx="7" fill="none" stroke="currentColor" stroke-width="1.4"/>
+    <text x="125" y="338" text-anchor="middle" font-weight="600">Failure reports</text>
+    <text x="125" y="357" text-anchor="middle" font-size="11" fill="#5b6b7c">+ repaired test scripts</text>
+
+    <!-- Arrows -->
+    <g stroke="currentColor" fill="none" stroke-width="1.5" color="#5b6b7c">
+      <path d="M112 150 L250 155" marker-end="url(#a1)"/>
+      <path d="M560 140 L664 132" marker-end="url(#a1)"/>
+      <path d="M664 196 L560 200" marker-end="url(#a1)"/>
+      <path d="M408 304 L408 254" marker-end="url(#a1)"/>
+      <path d="M256 220 L160 304" marker-end="url(#a1)"/>
+    </g>
+    <text x="178" y="128" text-anchor="middle" font-size="10.5" fill="#5b6b7c">configures,</text>
+    <text x="178" y="141" text-anchor="middle" font-size="10.5" fill="#5b6b7c">starts, monitors</text>
+    <text x="612" y="112" text-anchor="middle" font-size="10.5" fill="#5b6b7c">taps, gestures,</text>
+    <text x="612" y="125" text-anchor="middle" font-size="10.5" fill="#5b6b7c">stressors (ADB)</text>
+    <text x="612" y="222" text-anchor="middle" font-size="10.5" fill="#5b6b7c">screenshots, UI XML,</text>
+    <text x="612" y="235" text-anchor="middle" font-size="10.5" fill="#5b6b7c">logcat (ADB)</text>
+    <text x="446" y="283" text-anchor="start" font-size="10.5" fill="#5b6b7c">real user journeys</text>
+    <text x="150" y="268" text-anchor="middle" font-size="10.5" fill="#5b6b7c">produces</text>
+  </g>
+</svg>
+<figcaption>Figure 1 — L1 system context. HEART sits on the workstation; the app under test sits on
+the phone. Nothing crosses the internet.</figcaption>
+</figure>
+
+<h2 id="s5">5. Container architecture (L2)</h2>
+<figure>
+<svg viewBox="0 0 920 600" role="img" aria-labelledby="l2title l2desc">
+  <title id="l2title">HEART container architecture</title>
+  <desc id="l2desc">Inside the workstation boundary a Typer command line interface drives an
+  in-process campaign orchestrator, which dispatches profiles to four engines: C1 environmental
+  perturbation, C2 stress-aware interaction, C3 vision oracle and C4 self-healing synthesis. The
+  engines feed a shared execution driver that talks to the Android device over ADB, and a SQLite
+  results store. A report generator turns the store into a self-contained HTML file, and the store
+  also feeds back into C4 as a replay and heal loop.</desc>
+  <defs>
+    <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g font-family="-apple-system, Segoe UI, Roboto, sans-serif" font-size="12">
+
+    <rect x="14" y="14" width="702" height="560" rx="10" fill="none" stroke="#5b6b7c"
+          stroke-width="1.4" stroke-dasharray="7 5"/>
+    <text x="32" y="38" font-size="11.5" fill="#5b6b7c" font-weight="700" letter-spacing=".4">
+      WORKSTATION — Windows / Linux · one Python process · no server, no browser, no JavaScript</text>
+
+    <rect x="40" y="56" width="146" height="62" rx="7" fill="#1168BD" opacity=".13" stroke="#1168BD" stroke-width="1.6"/>
+    <text x="113" y="76" text-anchor="middle" font-weight="700" fill="#1168BD" font-size="12">Desktop GUI</text>
+    <text x="113" y="92" text-anchor="middle" font-size="9.5" fill="#5b6b7c">CustomTkinter + ttk</text>
+    <text x="113" y="106" text-anchor="middle" font-size="9.5" fill="#5b6b7c">setup · live status · report</text>
+
+    <rect x="196" y="56" width="146" height="62" rx="7" fill="#1168BD" opacity=".13" stroke="#1168BD" stroke-width="1.6"/>
+    <text x="269" y="76" text-anchor="middle" font-weight="700" fill="#1168BD" font-size="12">heart — CLI</text>
+    <text x="269" y="92" text-anchor="middle" font-size="9.5" fill="#5b6b7c">Typer + Rich live view</text>
+    <text x="269" y="106" text-anchor="middle" font-size="9.5" fill="#5b6b7c">headless · CI</text>
+
+    <rect x="432" y="56" width="238" height="62" rx="7" fill="#1168BD" opacity=".13" stroke="#1168BD" stroke-width="1.6"/>
+    <text x="551" y="78" text-anchor="middle" font-weight="700" fill="#1168BD">Campaign Orchestrator</text>
+    <text x="551" y="95" text-anchor="middle" font-size="10.5" fill="#5b6b7c">plain Python module · in-process</text>
+    <text x="551" y="110" text-anchor="middle" font-size="10" fill="#5b6b7c">schedules runs · dispatches profiles</text>
+
+    <path d="M344 86 L426 86" stroke="#5b6b7c" fill="none" stroke-width="1.4" marker-end="url(#a2)" color="#5b6b7c"/>
+    <path d="M113 120 L113 134 L460 134 L460 122" stroke="#5b6b7c" fill="none" stroke-width="1.4" marker-end="url(#a2)" color="#5b6b7c"/>
+    <text x="386" y="80" text-anchor="middle" font-size="9" fill="#5b6b7c">in-process</text>
+    <text x="300" y="147" text-anchor="middle" font-size="9" fill="#5b6b7c">both call the same functions — no HTTP, no server</text>
+
+    <g stroke="#1168BD" fill="none" stroke-width="1.3" color="#1168BD" opacity=".8">
+      <path d="M551 120 L551 156 L110 156 L110 160" marker-end="url(#a2)"/>
+      <path d="M276 156 L276 160" marker-end="url(#a2)"/>
+      <path d="M442 156 L442 160" marker-end="url(#a2)"/>
+      <path d="M608 156 L608 160" marker-end="url(#a2)"/>
+    </g>
+    <text x="702" y="151" text-anchor="end" font-size="9.5" fill="#1168BD" font-weight="600">profiles &amp; scenarios</text>
+
+    <rect x="40" y="166" width="140" height="96" rx="7" fill="#B45309" opacity=".12" stroke="#B45309" stroke-width="1.7"/>
+    <text x="110" y="188" text-anchor="middle" font-weight="700" fill="#B45309" font-size="12.5">C1 · Environment</text>
+    <text x="110" y="206" text-anchor="middle" font-size="10" fill="#5b6b7c">Perturbation Engine</text>
+    <text x="110" y="224" text-anchor="middle" font-size="9.5" fill="#5b6b7c">network · device</text>
+    <text x="110" y="238" text-anchor="middle" font-size="9.5" fill="#5b6b7c">context · interruptions</text>
+    <text x="110" y="254" text-anchor="middle" font-size="9.5" fill="#B45309" font-weight="600">+ App State Monitor</text>
+
+    <rect x="206" y="166" width="140" height="96" rx="7" fill="#0E7C86" opacity=".12" stroke="#0E7C86" stroke-width="1.7"/>
+    <text x="276" y="188" text-anchor="middle" font-weight="700" fill="#0E7C86" font-size="12.5">C2 · Interaction</text>
+    <text x="276" y="206" text-anchor="middle" font-size="10" fill="#5b6b7c">Stress-Aware Engine</text>
+    <text x="276" y="224" text-anchor="middle" font-size="9.5" fill="#5b6b7c">cognitive state → s</text>
+    <text x="276" y="238" text-anchor="middle" font-size="9.5" fill="#5b6b7c">spatial · temporal</text>
+    <text x="276" y="254" text-anchor="middle" font-size="9.5" fill="#0E7C86" font-weight="600">gesture distortion</text>
+
+    <rect x="372" y="166" width="140" height="96" rx="7" fill="#6D28D9" opacity=".12" stroke="#6D28D9" stroke-width="1.7"/>
+    <text x="442" y="188" text-anchor="middle" font-weight="700" fill="#6D28D9" font-size="12.5">C3 · Oracle</text>
+    <text x="442" y="206" text-anchor="middle" font-size="10" fill="#5b6b7c">Vision-Semantic Oracle</text>
+    <text x="442" y="224" text-anchor="middle" font-size="9.5" fill="#5b6b7c">Qwen2-VL quantized</text>
+    <text x="442" y="238" text-anchor="middle" font-size="9.5" fill="#5b6b7c">screenshot + UI XML</text>
+    <text x="442" y="254" text-anchor="middle" font-size="9.5" fill="#6D28D9" font-weight="600">runs offline</text>
+
+    <rect x="538" y="166" width="140" height="96" rx="7" fill="#BE185D" opacity=".12" stroke="#BE185D" stroke-width="1.7"/>
+    <text x="608" y="188" text-anchor="middle" font-weight="700" fill="#BE185D" font-size="12.5">C4 · Healing</text>
+    <text x="608" y="206" text-anchor="middle" font-size="10" fill="#5b6b7c">Test Synthesis Engine</text>
+    <text x="608" y="224" text-anchor="middle" font-size="9.5" fill="#5b6b7c">telemetry → journeys</text>
+    <text x="608" y="238" text-anchor="middle" font-size="9.5" fill="#5b6b7c">SBERT locator healing</text>
+    <text x="608" y="254" text-anchor="middle" font-size="9.5" fill="#BE185D" font-weight="600">emits test scripts</text>
+
+    <path d="M182 212 L203 212" stroke="#C01919" fill="none" stroke-width="1.8" stroke-dasharray="4 3" marker-end="url(#a2)" color="#C01919"/>
+    <path d="M348 212 L369 212" stroke="#5b6b7c" fill="none" stroke-width="1.4" marker-end="url(#a2)" color="#5b6b7c"/>
+    <path d="M514 212 L535 212" stroke="#5b6b7c" fill="none" stroke-width="1.4" marker-end="url(#a2)" color="#5b6b7c"/>
+    <text x="193" y="286" text-anchor="middle" font-size="9.5" fill="#C01919" font-weight="700">perf signals</text>
+    <text x="193" y="298" text-anchor="middle" font-size="9.5" fill="#C01919" font-weight="700">NO PRODUCER</text>
+    <text x="359" y="286" text-anchor="middle" font-size="9.5" fill="#5b6b7c">action done</text>
+    <text x="525" y="286" text-anchor="middle" font-size="9.5" fill="#5b6b7c">verdict JSON</text>
+
+    <rect x="186" y="330" width="330" height="58" rx="7" fill="#1168BD" opacity=".13" stroke="#1168BD" stroke-width="1.6"/>
+    <text x="351" y="352" text-anchor="middle" font-weight="700" fill="#1168BD">Test Execution Driver</text>
+    <text x="351" y="370" text-anchor="middle" font-size="10" fill="#5b6b7c">uiautomator2 · ADB — the only path to the device, held constant across generators</text>
+
+    <g stroke="#5b6b7c" fill="none" stroke-width="1.3" color="#5b6b7c">
+      <path d="M110 264 L110 352 L180 352" marker-end="url(#a2)"/>
+      <path d="M442 264 L442 324" marker-end="url(#a2)"/>
+      <path d="M608 264 L608 310 L490 310 L490 324" marker-end="url(#a2)"/>
+    </g>
+    <path d="M276 264 L276 324" stroke="#0E7C86" fill="none" stroke-width="1.8" marker-end="url(#a2)" color="#0E7C86"/>
+    <text x="286" y="318" text-anchor="start" font-size="9.5" fill="#0E7C86" font-weight="700">motion events</text>
+    <text x="684" y="300" text-anchor="end" font-size="9.5" fill="#5b6b7c">replay steps</text>
+
+    <path d="M351 390 L351 418" stroke="#5b6b7c" fill="none" stroke-width="1.3" marker-end="url(#a2)" color="#5b6b7c"/>
+
+    <rect x="186" y="424" width="330" height="76" rx="7" fill="#1168BD" opacity=".13" stroke="#1168BD" stroke-width="1.6"/>
+    <text x="351" y="447" text-anchor="middle" font-weight="700" fill="#1168BD">Test Results Store</text>
+    <text x="351" y="465" text-anchor="middle" font-size="10.5" fill="#5b6b7c">SQLite 3 + local artifact directory</text>
+    <text x="351" y="482" text-anchor="middle" font-size="9.5" fill="#5b6b7c">runs · verdicts · screenshots · env timelines (C1) · stress timelines (C2)</text>
+
+    <rect x="538" y="424" width="140" height="76" rx="7" fill="#14803A" opacity=".12" stroke="#14803A" stroke-width="1.7"/>
+    <text x="608" y="447" text-anchor="middle" font-weight="700" fill="#14803A" font-size="12">Report Generator</text>
+    <text x="608" y="464" text-anchor="middle" font-size="9.5" fill="#5b6b7c">Jinja2 + matplotlib SVG</text>
+    <text x="608" y="481" text-anchor="middle" font-size="9.5" fill="#14803A" font-weight="600">→ report.html</text>
+    <text x="608" y="494" text-anchor="middle" font-size="9" fill="#5b6b7c">opened by GUI or CLI</text>
+    <path d="M518 462 L534 462" stroke="#14803A" fill="none" stroke-width="1.5" marker-end="url(#a2)" color="#14803A"/>
+
+    <path d="M351 502 L351 524 L700 524 L700 240 L686 240" stroke="#BE185D" fill="none" stroke-width="1.5"
+          stroke-dasharray="5 3" marker-end="url(#a2)" color="#BE185D"/>
+    <text x="520" y="519" text-anchor="middle" font-size="9.5" fill="#BE185D" font-weight="600">replay &amp; heal loop</text>
+
+    <rect x="742" y="166" width="146" height="334" rx="10" fill="none" stroke="#0E7C86" stroke-width="1.6"/>
+    <text x="815" y="192" text-anchor="middle" font-size="11" fill="#0E7C86" font-weight="700">ANDROID DEVICE</text>
+    <rect x="764" y="212" width="102" height="150" rx="6" fill="#0E7C86" opacity=".1" stroke="#0E7C86" stroke-width="1.2"/>
+    <text x="815" y="278" text-anchor="middle" font-weight="700" fill="#0E7C86" font-size="12.5">App Under</text>
+    <text x="815" y="296" text-anchor="middle" font-weight="700" fill="#0E7C86" font-size="12.5">Test</text>
+    <text x="815" y="322" text-anchor="middle" font-size="9.5" fill="#5b6b7c">not built by us</text>
+    <text x="815" y="408" text-anchor="middle" font-size="10" fill="#5b6b7c">UIAutomator</text>
+    <text x="815" y="424" text-anchor="middle" font-size="10" fill="#5b6b7c">logcat · dumpsys</text>
+    <text x="815" y="440" text-anchor="middle" font-size="10" fill="#5b6b7c">input · settings</text>
+
+    <path d="M518 348 L736 330" stroke="#0E7C86" fill="none" stroke-width="1.8" marker-end="url(#a2)" color="#0E7C86"/>
+    <path d="M736 368 L518 382" stroke="#0E7C86" fill="none" stroke-width="1.5" marker-end="url(#a2)" color="#0E7C86"/>
+    <text x="627" y="326" text-anchor="middle" font-size="10" fill="#0E7C86" font-weight="700">ADB / USB</text>
+    <text x="627" y="394" text-anchor="middle" font-size="9.5" fill="#5b6b7c">screenshots · hierarchy · logs</text>
+
+    <g font-size="10">
+      <rect x="40" y="538" width="470" height="28" rx="5" fill="none" stroke="#c7d3df" stroke-width="1"/>
+      <line x1="56" y1="553" x2="82" y2="553" stroke="#5b6b7c" stroke-width="1.4"/>
+      <text x="88" y="556" fill="#5b6b7c">in-process call</text>
+      <line x1="184" y1="553" x2="210" y2="553" stroke="#C01919" stroke-width="1.8" stroke-dasharray="4 3"/>
+      <text x="216" y="556" fill="#C01919" font-weight="700">contract at risk</text>
+      <line x1="326" y1="553" x2="352" y2="553" stroke="#BE185D" stroke-width="1.5" stroke-dasharray="5 3"/>
+      <text x="358" y="556" fill="#5b6b7c">feedback loop</text>
+    </g>
+  </g>
+</svg>
+<figcaption>Figure 2 — L2 container architecture. Blue containers are shared infrastructure; coloured
+containers are the four student-owned engines. The red dashed link is specified but has no producer
+today (see <a href="#s9">§9</a>). C4's script repository and its Sentry/Crashlytics input are
+C4-internal and omitted for clarity. Note that there is no web server and no browser in this
+picture — the interfaces are a terminal and a generated file.</figcaption>
+</figure>
+
+<div class="box bad">
+<b>The one broken link in this picture.</b> <code>IF-C1-to-C2</code> promises C2 a live feed of
+<code>latency_ms</code>, <code>frame_drops</code> and <code>anr_flag</code>. C1's committed code
+logs only the perturbations it <i>applies</i> — nothing measures the app's response, so the payload
+has no producer. Mitigated by RDR-0008: C2 measures its own signals and this interface is demoted
+to an optional secondary input.
+</div>
+
+<h2 id="s6">6. Functional requirements</h2>
+<p>Priority: <b>M</b> = must have for the research to stand · <b>S</b> = should have ·
+<b>C</b> = could have. Status reflects the repository on 14 Oct 2026.</p>
+
+<h3><span class="pill p-c1">C1</span> Environmental Perturbation Engine <span class="muted">— owner IT23151260</span></h3>
+<table>
+<tr><th style="width:11%">ID</th><th style="width:55%">Requirement</th><th class="c" style="width:7%">Pri</th><th style="width:27%">Status</th></tr>
+<tr><td>FR-C1-01</td><td>Inject network perturbations: Wi-Fi↔mobile transitions, latency spikes, packet loss, bandwidth throttling</td><td class="c">M</td><td class="ok">Implemented</td></tr>
+<tr><td>FR-C1-02</td><td>Inject device stress: battery level and unplugged state, thermal throttling, memory and CPU pressure</td><td class="c">M</td><td class="ok">Implemented</td></tr>
+<tr><td>FR-C1-03</td><td>Inject interruptions: incoming call, notification, app switch</td><td class="c">M</td><td class="ok">Implemented</td></tr>
+<tr><td>FR-C1-04</td><td>Inject context changes: orientation, dark/light theme, locale, font scale</td><td class="c">S</td><td class="ok">Implemented</td></tr>
+<tr><td>FR-C1-05</td><td>Schedule perturbations against named test steps rather than wall-clock only</td><td class="c">M</td><td class="warn">Partial — orchestrator present</td></tr>
+<tr><td>FR-C1-06</td><td>Write a timestamped environment timeline for failure attribution</td><td class="c">M</td><td class="ok">Implemented (<code>EventLogger</code>)</td></tr>
+<tr><td>FR-C1-07</td><td><b>Measure and emit app-response telemetry</b> — UI latency, frame drops, ANR flag, error count — for consumption by C2 and C3</td><td class="c">M</td><td class="bad">NOT IMPLEMENTED — see §11.1</td></tr>
+<tr><td>FR-C1-08</td><td>Constrain perturbation overhead so injection does not itself dominate measured latency</td><td class="c">S</td><td class="warn">Asserted in commit; unverified</td></tr>
+</table>
+
+<h3><span class="pill p-c2">C2</span> Stress-Aware Interaction Engine <span class="muted">— owner IT23156760</span></h3>
+<table>
+<tr><th style="width:11%">ID</th><th style="width:55%">Requirement</th><th class="c" style="width:7%">Pri</th><th style="width:27%">Status</th></tr>
+<tr><td>FR-C2-01</td><td>Maintain a cognitive state as a Markov machine over calm → impatient → frustrated, with decay, emitting a single stress scalar <code>s ∈ [0,1]</code></td><td class="c">M</td><td class="bad">NOT IMPLEMENTED — <code>stress.py</code> is a clamped float</td></tr>
+<tr><td>FR-C2-02</td><td><b>Advance that state from runtime app performance</b> — the app degrades, stress rises (the adaptation pillar)</td><td class="c">M</td><td class="bad">NOT IMPLEMENTED</td></tr>
+<tr><td>FR-C2-03</td><td>Distort touch position: variance decomposition per FFitts so scatter grows as target width shrinks, sampled from a Gaussian rotated to the approach angle and elongated along movement</td><td class="c">M</td><td class="warn">Partial — rotation done, width-dependence missing</td></tr>
+<tr><td>FR-C2-04</td><td>Distort timing: right-skewed inter-action delays, hesitation gaps, rage-click bursts whose probability rises with <code>s</code></td><td class="c">M</td><td class="warn">Partial — symmetric Gaussian only</td></tr>
+<tr><td>FR-C2-05</td><td>Distort gestures: Bézier-path deviation, shaky swipes, early-release drags</td><td class="c">S</td><td class="bad">NOT IMPLEMENTED</td></tr>
+<tr><td>FR-C2-06</td><td>Scale <b>all three</b> distortion modules from the <b>one</b> stress value — the coupling term <code>(1 + α·s)</code></td><td class="c">M</td><td class="bad">NOT IMPLEMENTED as a shared term</td></tr>
+<tr><td>FR-C2-07</td><td>Compile distorted actions into ordered motion events (coordinate-based, never <code>element.click()</code>)</td><td class="c">M</td><td class="warn">Partial — direct ADB tap, no event stream</td></tr>
+<tr><td>FR-C2-08</td><td>Log a stress and input timeline for failure↔behaviour correlation</td><td class="c">M</td><td class="bad">NOT IMPLEMENTED</td></tr>
+<tr><td>FR-C2-09</td><td>Accept named behaviour profiles (calm / rushed / tremor) from the orchestrator</td><td class="c">S</td><td class="bad">NOT IMPLEMENTED</td></tr>
+<tr><td>FR-C2-10</td><td>Resolve target elements from a UIAutomator hierarchy by text, content-description or resource-id</td><td class="c">M</td><td class="ok">Implemented</td></tr>
+<tr><td>FR-C2-11</td><td>Run end-to-end against saved hierarchy dumps with <b>no device attached</b></td><td class="c">M</td><td class="warn">Partial — simulator yes, pipeline no</td></tr>
+</table>
+
+<h3><span class="pill p-c3">C3</span> Vision-Semantic Oracle <span class="muted">— owner IT23452916</span></h3>
+<table>
+<tr><th style="width:11%">ID</th><th style="width:55%">Requirement</th><th class="c" style="width:7%">Pri</th><th style="width:27%">Status</th></tr>
+<tr><td>FR-C3-01</td><td>Capture screenshot plus accessibility view hierarchy after each completed action</td><td class="c">M</td><td class="bad">Notebook only</td></tr>
+<tr><td>FR-C3-02</td><td>Fuse visual and structural evidence to suppress visual false positives</td><td class="c">M</td><td class="bad">Notebook only</td></tr>
+<tr><td>FR-C3-03</td><td>Classify non-crash GUI defects — overlap, occlusion, truncation, missing widget, layout distortion — using a quantized Qwen2-VL</td><td class="c">M</td><td class="bad">Notebook only</td></tr>
+<tr><td>FR-C3-04</td><td>Detect temporal freeze (screen unchanged beyond threshold while work is expected)</td><td class="c">S</td><td class="bad">Not started</td></tr>
+<tr><td>FR-C3-05</td><td>Emit a verdict conforming to the versioned C3 verdict JSON Schema</td><td class="c">M</td><td class="warn">Schema exists — written by C4, not C3</td></tr>
+<tr><td>FR-C3-06</td><td><b>Operate with zero network egress</b> — no screenshot leaves the machine</td><td class="c">M</td><td class="bad">Unverified</td></tr>
+</table>
+
+<h3><span class="pill p-c4">C4</span> Self-Healing Test Synthesis Engine <span class="muted">— owner IT23192300</span></h3>
+<table>
+<tr><th style="width:11%">ID</th><th style="width:55%">Requirement</th><th class="c" style="width:7%">Pri</th><th style="width:27%">Status</th></tr>
+<tr><td>FR-C4-01</td><td>Ingest production crash telemetry from Sentry and Firebase Crashlytics exports</td><td class="c">M</td><td class="ok">Implemented</td></tr>
+<tr><td>FR-C4-02</td><td>Normalise and deduplicate telemetry events</td><td class="c">M</td><td class="ok">Implemented</td></tr>
+<tr><td>FR-C4-03</td><td>Group events into deterministic user sessions and extract failure journeys</td><td class="c">M</td><td class="ok">Implemented</td></tr>
+<tr><td>FR-C4-04</td><td>Synthesise test steps from a journey using a local LLM</td><td class="c">M</td><td class="warn">Client + prompt builder done</td></tr>
+<tr><td>FR-C4-05</td><td>Emit executable Appium scripts into a versioned repository</td><td class="c">M</td><td class="warn">Rewriter present, repository not</td></tr>
+<tr><td>FR-C4-06</td><td>Heal broken locators via AST analysis plus Sentence-BERT semantic matching, re-emitting repaired scripts</td><td class="c">M</td><td class="ok">Implemented</td></tr>
+<tr><td>FR-C4-07</td><td>Consume C3 verdicts through a typed client with a mock for offline development</td><td class="c">S</td><td class="ok">Implemented — the only real contract in the repo</td></tr>
+</table>
+
+<h3><span class="pill p-sh">SHARED</span> Infrastructure <span class="muted">— owner: group, unassigned</span></h3>
+<table>
+<tr><th style="width:11%">ID</th><th style="width:55%">Requirement</th><th class="c" style="width:7%">Pri</th><th style="width:27%">Status</th></tr>
+<tr><td>FR-S-01</td><td>Orchestrate a campaign from the command line: schedule a run, dispatch behaviour and environment profiles to the engines in-process, aggregate results</td><td class="c">M</td><td class="bad">NOT STARTED — <span class="bad">no owner</span></td></tr>
+<tr><td>FR-S-02</td><td>Execute humanized event streams and regression scripts on the device through one driver, held constant across all input generators</td><td class="c">M</td><td class="bad">NOT STARTED — <span class="bad">no owner</span></td></tr>
+<tr><td>FR-S-03</td><td>Persist runs, verdicts, screenshots, environment timelines and stress timelines in one queryable store</td><td class="c">M</td><td class="bad">NOT STARTED — <span class="bad">no owner</span></td></tr>
+<tr><td>FR-S-04</td><td>Correlate failure ↔ behaviour ↔ environment on a common run and time axis</td><td class="c">M</td><td class="bad">NOT STARTED</td></tr>
+<tr><td>FR-S-05</td><td>Show live run state in the terminal — cognitive state, stress <code>s</code>, actions executed, failures found</td><td class="c">S</td><td class="bad">NOT STARTED</td></tr>
+<tr><td>FR-S-08</td><td><b>Provide a native desktop GUI</b> for campaign setup, start/stop, live status and opening the report — thin by design; results browsing belongs to the report</td><td class="c">S</td><td class="warn">Launcher started by C1 (CustomTkinter)</td></tr>
+<tr><td>FR-S-07</td><td><b>Generate a self-contained HTML report</b> at the end of a run: config, figures, stress and environment timelines, failure gallery with marked-up screenshots, healing diffs</td><td class="c">M</td><td class="bad">NOT STARTED — replaces the dashboard (RDR-0010)</td></tr>
+<tr><td>FR-S-06</td><td>Package and distribute as a single-file desktop executable</td><td class="c">C</td><td class="warn">PyInstaller launcher started</td></tr>
+</table>
+
+<div class="box bad">
+<b>The largest structural risk in the project.</b> Every <code>FR-S-*</code> requirement is
+unowned. Four engines exist in varying states and <b>nothing joins them</b> — no orchestrator, no
+shared driver, no results store. Each member has optimised for their own component, which is
+exactly what individual assessment rewards; but the integrated system that the group claims to be
+building does not exist in any form. <b>This must be assigned to a named owner at the next group
+meeting.</b>
+</div>
+
+<h2 id="s7">7. Non-functional requirements</h2>
+<table>
+<tr><th style="width:11%">ID</th><th style="width:21%">Attribute</th><th style="width:68%">Requirement</th></tr>
+<tr><td>NFR-01</td><td><b>Locality / privacy</b></td><td>No component may transmit screenshots, UI hierarchies, app data or telemetry to any external service during a run. This is load-bearing for CLAIM-03 — a cloud call refutes the research claim, it is not merely a preference.</td></tr>
+<tr><td>NFR-02</td><td><b>Deployment</b></td><td>A single workstation with Python 3.10+, Android SDK platform-tools and one attached device. No database server, no message broker, no container runtime required.</td></tr>
+<tr><td>NFR-03</td><td><b>Reproducibility</b></td><td>A run must be repeatable from a recorded seed and profile. Stochastic components must accept an explicit RNG seed — without this, the ablation experiment cannot isolate the coupling term.</td></tr>
+<tr><td>NFR-04</td><td><b>Experimental validity</b></td><td>The execution driver, oracle, device and time budget must be held constant when comparing input generators; only the generator may vary.</td></tr>
+<tr><td>NFR-05</td><td><b>Explainability</b></td><td>Cognitive model parameters must be inspectable and literature-traceable rather than learned, so that any generated behaviour can be defended. (Per RDR-0001.)</td></tr>
+<tr><td>NFR-06</td><td><b>Testability offline</b></td><td>Every component must be exercisable against saved fixtures with no device attached — required for CI, and the fallback demonstration path.</td></tr>
+<tr><td>NFR-07</td><td><b>Portability</b></td><td>Windows and Linux. Paths must not assume a drive letter or a POSIX root.</td></tr>
+<tr><td>NFR-08</td><td><b>Interface stability</b></td><td>Every inter-component payload carries a <code>schema_version</code> and validates against a published JSON Schema before use.</td></tr>
+<tr><td>NFR-09</td><td><b>Observability</b></td><td>Every run writes a timeline that permits a failure to be traced back to the input, stress state and environment condition that produced it.</td></tr>
+<tr><td>NFR-10</td><td><b>Performance</b></td><td class="muted">Thresholds not yet set. Oracle inference latency per action and perturbation overhead must be measured before targets are fixed — no number is asserted here because none has been measured.</td></tr>
+</table>
+
+<h2 id="s8">8. Technical stack specification</h2>
+<p>This section is <b>prescriptive</b> — it states the stack HEART should be built on, chosen on
+merit rather than inherited from what happens to be in the repository today. <a href="#s10">§10</a>
+records the current state and <a href="#s11">§11</a> the delta. Decided in RDR-0009 and RDR-0010.</p>
+
+<div class="box">
+<b>Three principles behind every choice below.</b>
+<b>(1) Offline by construction</b> — nothing may call out to a network, so no CDN, no hosted model,
+no cloud database. <b>(2) Explainable in a viva</b> — prefer a boring library you can describe over
+a clever one you cannot. <b>(3) One process, one language</b> — four students have one semester;
+every extra runtime is a tax paid at integration time.
+</div>
+
+<h3>8.1 &nbsp;Languages &amp; runtime</h3>
+<table>
+<tr><th style="width:21%">Concern</th><th style="width:25%">Choice</th><th style="width:13%">Version floor</th><th style="width:41%">Why this one</th></tr>
+<tr><td>Application language</td><td><b>Python</b></td><td><code>3.11</code></td><td>The only language with first-class libraries for all four problem domains at once — device automation, numerical sampling, local model inference and NLP. 3.11 for the faster interpreter and far better tracebacks.</td></tr>
+<tr><td>Query language</td><td>SQL — SQLite dialect</td><td>—</td><td>The failure ↔ behaviour ↔ environment correlation in FR-S-04 is a join. Writing it as SQL is shorter and more defensible than reimplementing joins in Python.</td></tr>
+<tr><td>Report templating</td><td><b>Jinja2</b></td><td><code>3.1</code></td><td>Renders the static HTML report. Already the de facto Python templating engine.</td></tr>
+<tr><td>JavaScript / TypeScript</td><td class="bad"><b>None</b></td><td>—</td><td class="warn"><b>Deliberate.</b> No SPA, no bundler, no <code>node_modules</code>, no CDN. See §8.6 and RDR-0010.</td></tr>
+<tr><td>Shell</td><td><code>adb</code> via <code>subprocess</code></td><td>—</td><td>Platform-tools is an external binary, not a Python package. Treat it as a system prerequisite.</td></tr>
+</table>
+
+<h3>8.2 &nbsp;Database &amp; persistence</h3>
+<table>
+<tr><th style="width:21%">Concern</th><th style="width:25%">Choice</th><th style="width:54%">Rationale</th></tr>
+<tr><td><b>Database</b></td><td><b>SQLite 3</b> via the stdlib <code>sqlite3</code> module</td><td>One file on disk, zero servers, zero configuration, ships inside Python. A single-user offline desktop tool must not require a running database process — that would make installation harder than the tool itself. Handles this data volume without effort.</td></tr>
+<tr><td>Access layer</td><td><b>Hand-written SQL + Pydantic v2 models</b></td><td>Five tables do not justify an ORM. Raw SQL is completely explainable under questioning; ORM-generated queries are not. Pydantic validates rows on the way in and out, so the same model serves as the DB row <i>and</i> the interface contract.</td></tr>
+<tr><td>Migrations</td><td>A <code>schema_version</code> table + numbered <code>.sql</code> files</td><td>Alembic and SQLAlchemy are a heavy dependency for a schema that changes a handful of times. Numbered scripts are auditable and trivial.</td></tr>
+<tr><td><b>Binary artifacts</b></td><td>Filesystem directory; DB stores the <b>path</b></td><td>Screenshots must never be written into the database as blobs — the file would grow to gigabytes and become slow and unbackupable. <code>runs/&lt;run_id&gt;/screenshots/&lt;action_id&gt;.png</code>.</td></tr>
+<tr><td>Interchange format</td><td>JSON validated by JSON Schema</td><td>Every cross-component payload (§9), each carrying <code>schema_version</code>.</td></tr>
+<tr><td class="muted">Considered and rejected</td><td class="muted">PostgreSQL · SQLModel · SQLAlchemy · MongoDB</td><td class="muted">PostgreSQL needs a server (RDR-0009 supersedes it). SQLModel/SQLAlchemy add an ORM layer and a dependency tree for no benefit at this scale. MongoDB is schemaless, which is the opposite of what NFR-08 requires.</td></tr>
+</table>
+
+<h4>Proposed schema</h4>
+<pre><code>run(run_id PK, started_at, finished_at, app_package, device_serial,
+    profile_id, seed, engine_variant, heart_version)
+event(event_id PK, run_id FK, t_ms, kind, x, y, target_element_id,
+      hit_flag, stress_s, cognitive_state)          -- C2 timeline
+env_event(env_id PK, run_id FK, t_ms, category, action, params_json)  -- C1 timeline
+perf_sample(sample_id PK, run_id FK, t_ms, ui_delay_ms, frame_jank_pct,
+            anr_flag, no_change_flag)               -- the adaptation input
+verdict(verdict_id PK, run_id FK, event_id FK, has_gui_defect, defect_type,
+        confidence, screenshot_path, regions_json)  -- C3 output
+heal(heal_id PK, run_id FK, script_path, locator_before, locator_after,
+     similarity, accepted)                          -- C4 output</code></pre>
+<p class="muted">One <code>run_id</code> and one <code>t_ms</code> axis across all six tables is
+what makes FR-S-04 a single query rather than a research project of its own.</p>
+
+<h3>8.3 &nbsp;Device control</h3>
+<table>
+<tr><th style="width:21%">Concern</th><th style="width:25%">Choice</th><th style="width:13%">Floor</th><th style="width:41%">Rationale</th></tr>
+<tr><td><b>Device driver</b></td><td><b><code>uiautomator2</code></b></td><td><code>3.0</code></td><td>Pure Python, talks to the device directly. <b>Requires no Node.js server</b>, unlike Appium — one less runtime, one less thing to install on a demo machine. Supports timed multi-point gesture paths, which is what C2's distorted swipes need.</td></tr>
+<tr><td>Raw device access</td><td><code>adb</code> (platform-tools)</td><td>—</td><td>Hierarchy dumps, <code>logcat</code>, <code>dumpsys</code>, settings changes and C1's stressors. Wrapped once in <code>common/adb.py</code> — <b>never three times</b> (§11.3).</td></tr>
+<tr><td>Script export</td><td>Appium-compatible output</td><td>—</td><td class="warn"><b>Export format only.</b> C4 emits HEART's neutral JSON step format internally; an Appium exporter exists so customers can run the generated suite in their own CI. HEART itself never depends on an Appium server.</td></tr>
+<tr><td class="muted">Considered and rejected</td><td class="muted">Appium as the primary driver</td><td class="muted">—</td><td class="muted">Requires a Node.js server process alongside Python. Adds a runtime, a port and a failure mode for no capability gain at this scale.</td></tr>
+</table>
+
+<h3>8.4 &nbsp;Machine learning &amp; inference</h3>
+<div class="box warn">
+<b>Two runtimes, deliberately — not one.</b> An earlier draft of this document proposed Ollama for
+both C3 and C4. That was wrong: <b>C3's design includes a fine-tuning lane</b> (Rico/Themis →
+fine-tune → quantize → deploy) and <b>Ollama does not fine-tune</b>. A model C3 has adapted must be
+trained and quantized in the Hugging Face ecosystem, so C3 lives there end to end. C4 performs
+inference only on a general instruct model and keeps Ollama.
+</div>
+<table>
+<tr><th style="width:21%">Concern</th><th style="width:25%">Choice</th><th style="width:13%">Floor</th><th style="width:41%">Rationale</th></tr>
+<tr><td><b>C3 — model &amp; runtime</b></td><td><b><code>transformers</code></b> + <code>accelerate</code></td><td><code>4.40</code></td><td>Loads Qwen2-VL, runs the fine-tune, and serves inference from the adapted checkpoint. The only path that supports all three stages of C3's offline lane.</td></tr>
+<tr><td>C3 — fine-tuning</td><td><code>peft</code> (LoRA)</td><td><code>0.10</code></td><td>Adapter-based tuning fits a 2B vision-language model on student hardware; full fine-tuning does not.</td></tr>
+<tr><td>C3 — quantization</td><td><code>bitsandbytes</code> <span class="muted">(or AWQ)</span></td><td><code>0.43</code></td><td>4-bit/8-bit load so the adapted model runs locally. <code>bitsandbytes</code> is the lower-friction option; AWQ gives better quality per bit if time allows.</td></tr>
+<tr><td><b>C4 — runtime</b></td><td><b>Ollama</b></td><td>—</td><td>Inference only, on a stock instruct model, for test-step synthesis. One binary, local HTTP endpoint, no Python model-loading code. Keep it.</td></tr>
+<tr><td>C4 — semantic matching</td><td><code>sentence-transformers</code></td><td><code>2.7</code></td><td>SBERT embeddings for locator healing — matching UI elements by meaning, not string equality.</td></tr>
+<tr><td>Tensor backend</td><td><code>torch</code></td><td><code>2.2</code></td><td>Shared by C3 and sentence-transformers. CPU build is sufficient for inference; a CUDA build makes C3's fine-tune far more comfortable.</td></tr>
+<tr><td class="muted">Considered and rejected</td><td class="muted">Ollama for C3</td><td class="muted">—</td><td class="muted">Cannot fine-tune, and serving a custom adapted checkpoint through it adds a conversion step for no benefit. Rejected once the fine-tuning lane was accounted for.</td></tr>
+</table>
+<p class="muted"><b>Citation note:</b> the Qwen2-VL, LoRA and AWQ literature notes are all currently
+<code>verified: false</code>. The tools may be used; <b>the papers may not be cited</b> in any
+deliverable until someone opens the PDFs and confirms them.</p>
+
+<h3>8.5 &nbsp;Scientific computing &amp; analysis</h3>
+<table>
+<tr><th style="width:21%">Concern</th><th style="width:25%">Choice</th><th style="width:13%">Floor</th><th style="width:41%">Rationale</th></tr>
+<tr><td>Sampling &amp; linear algebra</td><td><code>numpy</code></td><td><code>1.26</code></td><td>Gaussian sampling, the rotation matrix, seeded RNG via <code>default_rng</code> — which is how NFR-03 reproducibility is actually delivered.</td></tr>
+<tr><td><b>Statistics</b></td><td><code>scipy</code></td><td><code>1.11</code></td><td>Distribution fitting and goodness-of-fit tests. <b>Required for the realism check</b> — comparing a generated distribution against a published one is a statistical test, not an eyeball.</td></tr>
+<tr><td>Results analysis</td><td><code>pandas</code></td><td><code>2.1</code></td><td>Loading run tables out of SQLite and aggregating across runs for the experiments.</td></tr>
+<tr><td>Figures</td><td><code>matplotlib</code></td><td><code>3.8</code></td><td>Every figure in the report and in the thesis. Export <b>SVG</b> for embedding and PDF for print — both vector, both publication quality.</td></tr>
+</table>
+
+<h3>8.6 &nbsp;User interface</h3>
+<div class="box ok">
+<b>Three entry points, one orchestrator, no web stack.</b> A <b>native desktop GUI</b> for
+interactive use, a <b>CLI</b> for headless and CI runs, and a <b>generated HTML report</b> for
+results. All three call the same in-process Python functions — there is no server, no browser and
+no JavaScript anywhere in the product.
+</div>
+<p><b>Keep the GUI thin.</b> Campaign setup, start/stop, live status, and a button that opens the
+report. The expensive parts of a results UI — sortable failure tables, the screenshot gallery with
+C3's overlay regions, drill-down into a run — belong in the <b>report</b>, not in the window. Built
+once in HTML and SVG they are also portable: a report can be emailed, archived and attached to the
+thesis, whereas evidence locked inside an application only its author can run is weak evidence.
+<b>If someone proposes building the failure gallery inside the GUI, the answer is that it goes in
+the report.</b></p>
+<table>
+<tr><th style="width:21%">Concern</th><th style="width:25%">Choice</th><th style="width:13%">Floor</th><th style="width:41%">Rationale</th></tr>
+<tr><td><b>Desktop GUI</b></td><td><b><code>customtkinter</code></b></td><td><code>5.2</code></td><td>Themed widgets over Tk, which ships with Python. Pure Python, no extra runtime, and a <b>PyInstaller bundle in the tens of megabytes</b> rather than the hundreds — itself part of the commercialisation argument. Owned by C1.</td></tr>
+<tr><td>Tables in the GUI</td><td><code>tkinter.ttk.Treeview</code></td><td>stdlib</td><td>CustomTkinter has no table widget; ttk's Treeview is a genuine sortable tree-table and costs nothing. One table is enough — recent runs. Anything richer goes in the report.</td></tr>
+<tr><td>Live chart in the GUI</td><td><code>matplotlib</code> via <code>FigureCanvasTkAgg</code></td><td><code>3.8</code></td><td>The stress timeline redrawn at ~1–2&nbsp;Hz, which Tk handles comfortably. <b>Reuses the same figure code</b> that produces the report and thesis figures — one plotting stack, three outputs, no duplicated chart logic.</td></tr>
+<tr><td><b>CLI framework</b></td><td><b><code>typer</code></b></td><td><code>0.12</code></td><td>Commands are type-annotated Python functions; help and parsing generated from the signatures. The headless path, and what CI calls.</td></tr>
+<tr><td><b>Live terminal view</b></td><td><b><code>rich</code></b></td><td><code>13.7</code></td><td>A <code>Live</code> panel showing cognitive state, stress <code>s</code>, actions executed and failures found — the CLI's equivalent of the GUI status panel, for runs with no display attached.</td></tr>
+<tr><td><b>Report rendering</b></td><td><code>jinja2</code> + embedded SVG + hand-written CSS</td><td><code>3.1</code></td><td>One <code>report.html</code>: figures inlined as SVG, CSS inlined in a <code>&lt;style&gt;</code> block. Opens anywhere, survives being emailed, prints to PDF, needs no server and no internet.</td></tr>
+<tr><td>CSS framework</td><td class="bad">None</td><td>—</td><td>Tailwind and Bootstrap each mean a CDN link or a build step. Both break NFR-01.</td></tr>
+<tr><td>Charting library</td><td class="bad">None — matplotlib pre-renders</td><td>—</td><td>Charts are generated as SVG and embedded. No Chart.js, no Recharts, no runtime JavaScript.</td></tr>
+<tr><td class="muted">Considered and rejected</td><td class="muted">PySide6 + pyqtgraph</td><td class="muted">—</td><td class="muted">Technically the strongest option — <code>QGraphicsView</code> is purpose-built for screenshot-plus-overlay, <code>QTableView</code> scales to thousands of rows, pyqtgraph beats matplotlib for real-time plots, and PySide6 is LGPL so commercial use is clean. <b>Rejected because the thin-GUI split removes the need for all three</b>, at a cost of a ~150–250&nbsp;MB bundle and a steeper learning curve. <b>This is the option to switch to if the GUI ever becomes the product and the report becomes secondary.</b></td></tr>
+<tr><td class="muted">Also rejected</td><td class="muted">Dear PyGui · Flet · NiceGUI / Streamlit / Gradio</td><td class="muted">—</td><td class="muted">Dear PyGui has the best live plotting but an unusual immediate-mode model and an engineering-tool look. Flet bundles a Flutter runtime. The browser-based toolkits all run a local server — excluded by RDR-0010.</td></tr>
+</table>
+
+<h3>8.7 &nbsp;Quality, tooling &amp; distribution</h3>
+<table>
+<tr><th style="width:21%">Concern</th><th style="width:25%">Choice</th><th style="width:13%">Floor</th><th style="width:41%">Rationale</th></tr>
+<tr><td>Test framework</td><td><code>pytest</code></td><td><code>8.0</code></td><td>Every component ships tests; statistical samplers get property-style tests over many samples.</td></tr>
+<tr><td>Coverage</td><td><code>pytest-cov</code></td><td><code>5.0</code></td><td>Coverage output is directly presentable as testing evidence.</td></tr>
+<tr><td><b>Lint + format</b></td><td><b><code>ruff</code></b></td><td><code>0.4</code></td><td>One fast tool replacing flake8, isort and black. A single <code>ruff check</code> in CI is the cheapest possible "standards and best practices" evidence.</td></tr>
+<tr><td>Type checking</td><td><code>mypy</code> <span class="muted">(optional)</span></td><td><code>1.9</code></td><td>Worth enabling on the contract modules, where a type error becomes an integration bug.</td></tr>
+<tr><td>Dependency management</td><td><code>pip</code> + <code>venv</code>, <code>pyproject.toml</code></td><td>—</td><td>Baseline that works everywhere. <code>uv</code> is a drop-in faster alternative if the team wants it.</td></tr>
+<tr><td>Build backend</td><td><code>setuptools</code></td><td><code>68</code></td><td>Each component is an installable package with a <code>src/</code> layout.</td></tr>
+<tr><td>Distribution</td><td><code>PyInstaller</code></td><td><code>6.0</code></td><td>Single-file desktop bundle for the commercialisation artefact.</td></tr>
+<tr><td>CI</td><td>GitHub Actions</td><td>—</td><td>Run <code>ruff</code> and <code>pytest</code> on push. Device tests skip without hardware — which is exactly what NFR-06 is for.</td></tr>
+</table>
+
+<h3>8.8 &nbsp;Repository layout</h3>
+<pre><code>heart/
+├── pyproject.toml                 # workspace root
+├── src/
+│   ├── common/                    # shared — no component may duplicate this
+│   │   ├── adb.py                 # THE adb wrapper (one, not three)
+│   │   ├── contracts/             # Pydantic models + JSON Schema per interface
+│   │   ├── store.py               # SQLite access layer
+│   │   └── models.py
+│   ├── c1_environment/            # Perturbation Engine      (IT23151260)
+│   ├── c2_interaction/            # Stress-Aware Engine      (IT23156760)
+│   ├── c3_oracle/                 # Vision-Semantic Oracle   (IT23452916)
+│   ├── c4_healing/                # Self-Healing Synthesis   (IT23192300)
+│   ├── orchestrator/              # campaign scheduling, profile dispatch
+│   ├── driver/                    # the single path to the device
+│   ├── report/                    # Jinja2 templates + figure builders
+│   ├── gui/                       # CustomTkinter desktop app (C1)
+│   └── cli.py                     # typer entry point -> `heart`
+├── tests/
+├── fixtures/hierarchies/          # saved UI dumps — device-free testing (NFR-06)
+├── migrations/                    # 001_init.sql, 002_...
+└── runs/                          # gitignored: SQLite db + artifacts + reports</code></pre>
+<p class="muted">Package names are lowercase with underscores — a hard Python requirement, and the
+reason the current folder names must change (§11.2).</p>
+
+<h3>8.9 &nbsp;Consolidated dependency manifest</h3>
+<pre><code>[project]
+requires-python = "&gt;=3.11"
+dependencies = [
+  "pydantic&gt;=2.5,&lt;3",        # contracts and validation
+  "typer&gt;=0.12",             # CLI
+  "rich&gt;=13.7",              # live terminal UI
+  "customtkinter&gt;=5.2",     # desktop GUI (C1)
+  "jinja2&gt;=3.1",             # HTML report
+  "uiautomator2&gt;=3.0",       # device driver
+  "numpy&gt;=1.26",             # sampling
+  "scipy&gt;=1.11",             # statistical tests
+  "pandas&gt;=2.1",             # results analysis
+  "matplotlib&gt;=3.8",         # figures
+  "sentence-transformers&gt;=2.7",  # C4 locator matching
+  "transformers&gt;=4.40",     # C3 model load + inference
+  "accelerate&gt;=0.29",       # C3 device placement
+  "peft&gt;=0.10",             # C3 LoRA fine-tune
+  "bitsandbytes&gt;=0.43",     # C3 4-bit / 8-bit quantization
+  "torch&gt;=2.2",             # shared tensor backend
+]
+[project.optional-dependencies]
+dev = ["pytest&gt;=8", "pytest-cov&gt;=5", "ruff&gt;=0.4", "mypy&gt;=1.9"]
+dist = ["pyinstaller&gt;=6"]
+
+[project.scripts]
+heart = "cli:app"</code></pre>
+<p class="muted"><b>External prerequisites</b> (not pip-installable): Android SDK platform-tools
+(<code>adb</code>) · Ollama runtime + a general instruct model for C4 · optionally
+<code>scrcpy</code> to mirror the device during a demonstration. C3's model is a Python
+dependency, not an external one.</p>
+
+<div class="box warn">
+<b>Version floors are indicative.</b> They are minimums believed current at the time of writing, not
+verified against a live index. Resolve and pin actual versions in a lockfile at first install.
+</div>
+
+<h2 id="s9">9. Interface contracts</h2>
+<table>
+<tr><th style="width:15%">ID</th><th style="width:15%">Producer</th><th style="width:15%">Consumer</th><th style="width:33%">Payload</th><th style="width:22%">Status</th></tr>
+<tr><td><b>IF-Orch→C2</b></td><td>Orchestrator</td><td>C2 profiles</td><td><code>persona_id, stress_baseline, skill, tolerance, test_goals, exploration_strategy</code> — in-process Pydantic object, not REST</td><td class="warn">Agreed; schema unfixed until the orchestrator exists</td></tr>
+<tr><td><b>IF-C1→C2</b></td><td>C1 App State Monitor</td><td>C2 feedback controller</td><td><code>latency_ms, ui_delay_ms, frame_drops, anr_flag, error_count, timestamp</code></td><td class="bad">AT RISK — no producer. Demoted to optional by RDR-0008</td></tr>
+<tr><td><b>IF-C2→Driver</b></td><td>C2 event compiler</td><td>Execution driver</td><td>ordered motion events — <code>type, x, y, t_ms, pointer_down/up</code>, intermediate path points</td><td class="warn">Agreed; driver not built</td></tr>
+<tr><td><b>IF-C2→C3</b></td><td>C2 event compiler</td><td>C3 oracle</td><td><code>action_id, gesture_type, completed_at, final_point, stress_s</code></td><td class="warn">Agreed; neither end built</td></tr>
+<tr><td><b>IF-C2→Store</b></td><td>C2 event compiler</td><td>Results store</td><td><code>run_id, persona_id, event(type,x,y,t), stress_s, cognitive_state, target_element_id, hit_flag</code></td><td class="warn">Agreed; store not built</td></tr>
+<tr><td><b>IF-C3→C4</b></td><td>C3 oracle</td><td>C4 synthesiser</td><td><code>schema_version, verdict_id, session_id, has_gui_defect, defect_type, confidence, screenshot, regions, evidence, metadata</code></td><td class="ok">Specified as JSON Schema with a mock client — <b>the reference implementation</b></td></tr>
+</table>
+
+<div class="box">
+<b>Make <code>IF-C3→C4</code> the template.</b> It is the only contract in the project with a
+machine-checkable schema, a typed client and a mock that lets the consumer develop before the
+producer exists. Every remaining interface should be rewritten to match that shape — it is also
+what lets four students work in parallel without blocking on each other.
+</div>
+
+<h2 id="s10">10. Current implementation status</h2>
+<p>Measured from the repository on 14 October 2026. "Python LOC" counts committed
+<code>.py</code> files, excluding notebooks and the frontend.</p>
+
+<table>
+<tr><th style="width:9%">Comp.</th><th style="width:21%">Location</th><th class="c" style="width:9%">LOC</th><th class="c" style="width:9%">Commits<br>by owner</th><th class="c" style="width:12%">Importable<br>package?</th><th style="width:40%">Assessment</th></tr>
+<tr><td><span class="pill p-c1">C1</span></td><td><code>env testing/</code></td><td class="c">~350</td><td class="c ok">15</td><td class="c bad">No</td><td>Four stressor families working; orchestrator and FastAPI server on a branch. <b>Gap:</b> measures nothing it injects (FR-C1-07).</td></tr>
+<tr><td><span class="pill p-c2">C2</span></td><td><code>biometry/</code></td><td class="c">~450</td><td class="c bad">0</td><td class="c bad">No</td><td>Spatial sampler and ADB bridge genuine. <b>Gap:</b> the entire cognitive layer — the research novelty — is absent. Entry point raises <code>TypeError</code>.</td></tr>
+<tr><td><span class="pill p-c3">C3</span></td><td><code>Component3(…)/</code></td><td class="c bad">0</td><td class="c warn">3</td><td class="c bad">No</td><td>README and one notebook. <b>No Python module exists.</b> Highest-risk component by distance.</td></tr>
+<tr><td><span class="pill p-c4">C4</span></td><td><code>component4/src/c4/</code></td><td class="c">~518</td><td class="c ok">18</td><td class="c ok"><b>Yes</b></td><td class="ok">Ingestion, dedupe, sessionisation, SBERT healing, Ollama client, contract tests. <b>Correct layout — the template for everyone else.</b></td></tr>
+<tr><td><span class="pill p-sh">Shared</span></td><td>—</td><td class="c bad">0</td><td class="c">—</td><td class="c">—</td><td class="bad">Orchestrator, driver and results store do not exist.</td></tr>
+<tr><td><span class="pill p-sh">UI</span></td><td><code>frontend/</code></td><td class="c">—</td><td class="c">—</td><td class="c">—</td><td class="warn">React SPA with a telemetry monitor and an <b>auth modal</b> — built against a misreading of the product. <b>Descoped by RDR-0010</b>; retained in-repo as a documented prototype.</td></tr>
+</table>
+
+<h2 id="s11">11. What must change</h2>
+<p>Ordered by consequence. <b>None of §11.2–§11.5 should be attempted before PP1 on 22 October</b> —
+a repository-wide refactor that week would break every member's demonstration.</p>
+
+<h3>11.1 &nbsp;Close the measurement gap <span class="bad">(blocking a research claim)</span></h3>
+<p>The adaptation pillar requires a signal describing how the app is behaving, and nothing produces
+one. Two options, not mutually exclusive:</p>
+<ul>
+<li><b>C1 implements FR-C1-07</b> — the App State Monitor polls <code>dumpsys gfxinfo</code> and
+logcat and publishes real telemetry. Correct long-term, but it is C1's schedule, not C2's.</li>
+<li><b>C2 measures its own</b> (RDR-0008, adopted) — wall-clock time from tap dispatch until the UI
+hierarchy changes, plus a no-change flag. ~40 lines on the existing ADB bridge, no new
+dependency, and it <i>is</i> the <code>ui_delay_ms</code> field of the contract.</li>
+</ul>
+<p>Adopting the second unblocks C2 immediately and leaves the first as a C1 improvement that enriches
+the signal rather than enabling it.</p>
+
+<h3>11.2 &nbsp;Make the components importable</h3>
+<p>Folder names containing spaces and parentheses are not valid Python module names. <b>Today the
+four components physically cannot import one another</b>; each runs only as a loose script from
+inside its own directory. No orchestrator can be written until this is fixed.</p>
+<table>
+<tr><th style="width:36%">Today</th><th style="width:30%">Target</th><th style="width:34%">Package</th></tr>
+<tr><td><code>env testing/</code></td><td><code>src/c1_environment/</code></td><td><code>heart-component1</code></td></tr>
+<tr><td><code>biometry/</code></td><td><code>src/c2_interaction/</code></td><td><code>heart-component2</code></td></tr>
+<tr><td><code>Component3(local vision oracle)/</code></td><td><code>src/c3_oracle/</code></td><td><code>heart-component3</code></td></tr>
+<tr><td><code>self heal telemetry/</code> + <code>component4/</code></td><td><code>src/c4_healing/</code></td><td><code>heart-component4</code> <span class="ok">(already correct)</span></td></tr>
+</table>
+<p class="muted">Use <code>git mv</code> so history follows the files — that history is individual
+contribution evidence and must not be lost. One coordinated commit, everyone pulls immediately
+after.</p>
+
+<h3>11.3 &nbsp;Collapse the three ADB wrappers into one</h3>
+<p><code>env testing/core/adb_client.py</code>, <code>self heal telemetry/core/adb_client.py</code>
+and <code>biometry/bridge/adb_bridge.py</code> solve the same problem three ways and are already
+diverging. Replace with a single <code>src/common/adb.py</code> providing device discovery,
+hierarchy dump, element lookup, tap/swipe injection and logcat reading. C2's bridge is the most
+complete starting point.</p>
+
+<h3>11.4 &nbsp;Build the shared layer and give it an owner</h3>
+<p>The orchestrator, execution driver and results store are the entire integration story and have no
+owner. Minimum viable versions:</p>
+<ul>
+<li><b>Results store</b> — one SQLite file, tables <code>run</code>, <code>event</code>,
+<code>verdict</code>, <code>env_timeline</code>, <code>stress_timeline</code>, plus an artifact
+directory for screenshots. A day's work and it unblocks FR-S-04 correlation.</li>
+<li><b>Execution driver</b> — thin wrapper over the shared ADB module that accepts a motion-event
+stream and emits an action-complete event. Must be the <i>only</i> path to the device so that
+NFR-04 holds.</li>
+<li><b>Orchestrator</b> — a plain Python module invoked by the CLI
+(<code>heart run --profile rushed --app com.x</code>). <b>No HTTP layer at all</b> — the engines are
+called in-process, which removes a server, a port and an entire class of integration bug.</li>
+<li><b>Report generator</b> — Jinja2 template plus matplotlib SVG, producing one self-contained
+<code>report.html</code> per run. Roughly a day's work, and it replaces the dashboard as the
+project's presentation layer (RDR-0010).</li>
+</ul>
+
+<h3>11.5 &nbsp;Put every interface behind a versioned schema</h3>
+<p>Promote C4's <code>c3_interface</code> pattern to a shared <code>src/common/contracts/</code>:
+a Pydantic model and JSON Schema per interface in §9, each with <code>schema_version</code>, each
+with a mock producer. This is what allows C3 to be behind without blocking C4, and C1 to be behind
+without blocking C2.</p>
+
+<h3>11.7 &nbsp;Stack migration — where the code and §8 disagree</h3>
+<p>§8 is the target. This is the honest delta, verified against the repository on 14 Oct 2026.
+Most rows are <b>"not built yet"</b> rather than <b>"built differently"</b> — you cannot be
+misaligned on a results store that does not exist. Only the shaded rows are real divergences where
+working code goes another way.</p>
+<table>
+<tr><th style="width:20%">§8 choice</th><th style="width:28%">What the code does today</th><th class="c" style="width:12%">Gap type</th><th style="width:16%">Effort</th><th style="width:24%">When</th></tr>
+<tr><td>Python 3.11 floor</td><td>C4 pins <code>&gt;=3.10</code>; nobody else pins anything</td><td class="c">Config</td><td>Minutes</td><td>With the rename</td></tr>
+<tr><td>SQLite 3 results store</td><td class="bad">No store at all — loose JSON files per component</td><td class="c">Not built</td><td>~1 day</td><td>Post-PP1</td></tr>
+<tr><td>Pydantic v2 contracts</td><td>C4 only; C1, C2, C3 have none</td><td class="c">Partial</td><td>~1 day</td><td>Post-PP1</td></tr>
+<tr style="background:color-mix(in srgb,var(--warn) 10%,transparent)"><td><b>uiautomator2 driver</b></td><td class="warn">Three hand-rolled <code>subprocess</code>→<code>adb</code> wrappers (C1, C2, C4). No uiautomator2 anywhere</td><td class="c warn"><b>Divergent</b></td><td>~1 day</td><td class="ok">Post-PP1 — raw adb is sufficient for taps; only multi-point gestures (FR-C2-05) need it</td></tr>
+<tr style="background:color-mix(in srgb,var(--warn) 10%,transparent)"><td><b>C3: transformers + PEFT + bitsandbytes</b></td><td class="ok">C3's README already specifies AWQ/GPTQ/bitsandbytes — <b>the code was right and the earlier draft of this document was wrong</b></td><td class="c ok">Aligned</td><td>None</td><td>—</td></tr>
+<tr><td>C4: Ollama</td><td class="ok">Ollama client implemented</td><td class="c ok">Aligned</td><td>None</td><td>—</td></tr>
+<tr style="background:color-mix(in srgb,var(--warn) 10%,transparent)"><td><b>numpy for sampling</b></td><td class="warn">C2 uses the stdlib <code>random</code> module. Its README tells you to install numpy and opencv; the code imports neither</td><td class="c warn"><b>Divergent</b></td><td>~30 min</td><td class="bad">Before PP1 — see below</td></tr>
+<tr><td>scipy for goodness-of-fit</td><td class="bad">Absent everywhere</td><td class="c">Not built</td><td>Hours</td><td>With EXP-03</td></tr>
+<tr><td>pandas for analysis</td><td class="bad">Absent</td><td class="c">Not built</td><td>Minutes</td><td>With EXP-03</td></tr>
+<tr><td>matplotlib figures</td><td class="ok">C2 uses it</td><td class="c ok">Aligned</td><td>None</td><td>—</td></tr>
+<tr><td>sentence-transformers</td><td class="ok">C4 uses it</td><td class="c ok">Aligned</td><td>None</td><td>—</td></tr>
+<tr><td>Typer CLI</td><td class="bad">None. Not even <code>argparse</code> — loose scripts run as <code>python main.py</code></td><td class="c">Not built</td><td>~2 hours</td><td>Post-PP1</td></tr>
+<tr><td>Rich live terminal view</td><td class="bad">Bare <code>print()</code></td><td class="c">Not built</td><td>~2 hours</td><td>Post-PP1</td></tr>
+<tr><td>Jinja2 HTML report</td><td class="bad">Absent</td><td class="c">Not built</td><td>~1 day</td><td>Post-PP1</td></tr>
+<tr style="background:color-mix(in srgb,var(--warn) 10%,transparent)"><td><b>Zero JavaScript</b></td><td class="warn">React 18 + Vite SPA with Recharts, Framer Motion, three.js and an auth modal</td><td class="c warn"><b>Divergent</b></td><td>None — stop work</td><td>Descoped (RDR-0010); kept as prototype</td></tr>
+<tr><td><b>CustomTkinter desktop GUI</b></td><td class="ok">C1 has a CustomTkinter + ttk launcher and a PyInstaller spec</td><td class="c ok">Aligned</td><td>None</td><td>—</td></tr>
+<tr style="background:color-mix(in srgb,var(--warn) 10%,transparent)"><td><b>No HTTP layer</b></td><td class="warn">C1 built a FastAPI server on a branch</td><td class="c warn"><b>Divergent</b></td><td>None — stop work</td><td>Descoped (RDR-0010)</td></tr>
+<tr><td>pytest + ruff</td><td>pytest in C4 only; ruff nowhere</td><td class="c">Partial</td><td>~1 hour</td><td>Post-PP1</td></tr>
+<tr><td><code>src/</code> layout + pyproject</td><td>C4 only</td><td class="c">Partial</td><td>~1 hour</td><td>Post-PP1 (§11.2)</td></tr>
+</table>
+
+<div class="box bad">
+<b>The one stack change worth making before PP1.</b> C2 samples from the stdlib <code>random</code>
+module, which seeds a single hidden global generator. NFR-03 requires a run to be reproducible from
+a recorded seed, and the coupling ablation compares two runs that must differ <i>only</i> in the
+engine variant. That comparison is not sound unless both runs draw from an explicitly seeded,
+independent generator — <code>numpy.random.default_rng(seed)</code> passed into the sampler. It is
+roughly a thirty-minute change, it is in C2's own code, and it is the difference between an
+experiment that proves something and one that does not.
+</div>
+
+<div class="box ok">
+<b>Everything else can wait, and should.</b> Fourteen of the eighteen rows above are "not built
+yet" or already aligned. Of the four genuine divergences, two are resolved by stopping work
+(the SPA and the HTTP server), one is a thirty-minute fix, and one — uiautomator2 — is only needed
+for gesture distortion, which is a <i>should-have</i> and not in the pre-PP1 plan. <b>No refactor
+is required before 22 October.</b>
+</div>
+
+<h3>11.6 &nbsp;Correct the architecture notes</h3>
+<ul>
+<li>Results store: <b>PostgreSQL → SQLite</b> (RDR-0009).</li>
+<li><code>IF-C1-to-C2</code> status: <b>agreed → at-risk</b>, with RDR-0008 recorded as the mitigation.</li>
+<li>C1, C3 and C4 component notes still read <code>path: TBD by owner</code> although code exists —
+each owner should set the real path and status.</li>
+</ul>
+
+<div class="box warn">
+<b>Suggested sequencing.</b> 11.1 is already resolved for C2 and can proceed now. 11.2 and 11.3
+are one person's afternoon and should be the first thing after PP1 — ideally 23–24 October, while
+everyone still has the code in their head. 11.4 is the Semester 2 critical path and needs an owner
+named before PP1 so that the panel hears a plan rather than a silence.
+</div>
+
+<h2 id="s12">12. Data requirements</h2>
+<table>
+<tr><th style="width:20%">Dataset</th><th style="width:14%">Used by</th><th style="width:38%">Purpose</th><th style="width:28%">Status</th></tr>
+<tr><td>Published touch-distribution curves</td><td>C2</td><td>Baseline for validating that generated scatter matches human data</td><td class="warn">In verified literature notes; values not yet extracted</td></tr>
+<tr><td>UIAutomator hierarchy dumps</td><td>C2, C3</td><td>Device-free execution and testing (NFR-06)</td><td class="bad">One file exists; a corpus is needed</td></tr>
+<tr><td>Rico UI corpus</td><td>C3</td><td>Fine-tuning and target-geometry statistics</td><td class="bad">Literature note is <code>verified: false</code> — <b>not citable until the paper is opened and confirmed</b></td></tr>
+<tr><td>Themis benchmark</td><td>C1, C2, C4</td><td>Reproducible Android bugs for baseline comparison</td><td class="warn">Chosen; not acquired</td></tr>
+<tr><td>Production telemetry export</td><td>C4</td><td>Real user journeys to synthesise tests from</td><td class="ok">Ingestion implemented</td></tr>
+</table>
+
+<h2 id="s13">13. Constraints, risks &amp; out of scope</h2>
+<table>
+<tr><th style="width:9%">ID</th><th style="width:40%">Risk or constraint</th><th style="width:51%">Response</th></tr>
+<tr><td>R-01</td><td>Shared infrastructure unowned — four components, no integration</td><td class="bad">Assign an owner at the next group meeting. Highest structural risk in the project.</td></tr>
+<tr><td>R-02</td><td>C3 has no Python implementation and is a dependency of C4</td><td>C4's mock client already decouples them. C3's notebook must become a module before integration.</td></tr>
+<tr><td>R-03</td><td>Components cannot import one another (§11.2)</td><td>Rename after PP1, using <code>git mv</code> to preserve authorship history.</td></tr>
+<tr><td>R-04</td><td>Local VLM inference may be too slow for per-action oracle calls on student hardware</td><td>Measure before fixing NFR-10. Fallbacks: sample actions rather than all, or batch verdicts post-run.</td></tr>
+<tr><td>R-05</td><td>Individual assessment rewards isolated work; the research claim requires integration</td><td>Keep components independently demonstrable <i>and</i> schema-compatible. §11.5 is how both are satisfied at once.</td></tr>
+<tr><td>C-01</td><td>No cloud services permitted (NFR-01)</td><td>Hard constraint from CLAIM-03. Rules out hosted VLM APIs entirely.</td></tr>
+<tr><td>C-02</td><td>Physical Android device or emulator required for live runs</td><td>NFR-06 keeps every component testable without one.</td></tr>
+</table>
+
+<h4>Out of scope</h4>
+<ul>
+<li>iOS, tablet and wearable targets — Android only.</li>
+<li>Multi-user, authentication, tenancy or any hosted deployment.</li>
+<li><b>Any <i>web</i> user interface.</b> No SPA, no HTTP server, no JavaScript toolchain — descoped by RDR-0010. A <i>native</i> desktop GUI is in scope and is C1-owned.</li>
+<li>A full results browser inside the GUI — sortable failure tables, screenshot gallery, run drill-down. That is the report's job (§8.6).</li>
+<li>Instrumenting or modifying the app under test — HEART is strictly black-box over ADB.</li>
+<li>Any mobile application written by this team. <b>There is none, by design.</b></li>
+</ul>
+
+<h2 id="s14">14. Traceability</h2>
+<table>
+<tr><th style="width:14%">Claim</th><th style="width:12%">Component</th><th style="width:36%">Requirements that realise it</th><th style="width:38%">Current state</th></tr>
+<tr><td><b>CLAIM-01</b><br><span class="muted">coupled cognitive + biomechanical model</span></td><td><span class="pill p-c2">C2</span></td><td>FR-C2-01, 02, 03, 04, 06, 08</td><td class="bad">Neither pillar implemented. The spatial sampler alone does not demonstrate the claim.</td></tr>
+<tr><td><b>CLAIM-02</b><br><span class="muted">systematic environmental injection</span></td><td><span class="pill p-c1">C1</span></td><td>FR-C1-01 … 06</td><td class="ok">Substantially implemented</td></tr>
+<tr><td><b>CLAIM-03</b><br><span class="muted">on-device VLM oracle</span></td><td><span class="pill p-c3">C3</span></td><td>FR-C3-01 … 06, NFR-01</td><td class="bad">Notebook only</td></tr>
+<tr><td><b>CLAIM-04</b><br><span class="muted">telemetry-driven self-healing tests</span></td><td><span class="pill p-c4">C4</span></td><td>FR-C4-01 … 07</td><td class="ok">Substantially implemented</td></tr>
+</table>
+
+<div class="box">
+<b>Read the traceability table as a priority list.</b> Two claims have working code behind them and
+two do not. The two that do not — C2's coupling and C3's oracle — are also the two that carry the
+project's novelty. Effort spent anywhere else before those two have a running vertical slice is
+effort spent in the wrong place.
+</div>
+
+<p class="meta">
+<b>Change control.</b> This specification is versioned with the project. Any change to a
+<code>FR-</code>, <code>NFR-</code> or <code>IF-</code> entry requires agreement from both the
+producing and consuming owners and a Research Decision Record. Source:
+<code>PP1/HEART-Requirements-Specification.html</code>. Decisions:
+<code>research/methodology/decisions/</code>. Architecture notes:
+<code>research/system/</code>.<br><br>
+<b>Open actions:</b> C1, C3 and C4 owners to confirm or correct their sections · shared
+infrastructure to be assigned an owner · PP1 presentation 22 October 2026.
+</p>
+
+</div>
+</body>
+</html>
