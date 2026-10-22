@@ -44,8 +44,8 @@
   "seconds": 8.0
  },
  {
-  "file": "05_missing_widget_synthetic.jpg",
-  "layout": "05_missing_widget_synthetic_layout.json",
+  "file": "05_missing_widget_inserted.jpg",
+  "layout": "05_missing_widget_inserted_layout.json",
   "expected": "defect / missing_component",
   "app_result": "defect / missing_component",
   "score": 0.9185,
@@ -55,8 +55,8 @@
   "seconds": 8.1
  },
  {
-  "file": "06_overlap_synthetic.jpg",
-  "layout": "06_overlap_synthetic_layout.json",
+  "file": "06_overlap_inserted.jpg",
+  "layout": "06_overlap_inserted_layout.json",
   "expected": "defect / component_overlap",
   "app_result": "defect / component_overlap",
   "score": 0.6406,

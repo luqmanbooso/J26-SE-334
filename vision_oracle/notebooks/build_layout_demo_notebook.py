@@ -13,24 +13,22 @@ import nbformat as nbf
 
 md, code = nbf.v4.new_markdown_cell, nbf.v4.new_code_cell
 cells = [
-    md("""# C3 live demo: screenshot + UI hierarchy (Rico screens)
+    md("""# C3 live demo: screenshot + UI layout (Rico screens)
 
-Each Rico screen comes with its **UI hierarchy**: a list of every element (type, id, text, position). This notebook runs six held-out test screens two ways:
+Each Rico screen comes with its **UI layout**: every element's type, id, text and position. Six held-out test screens are run two ways:
 
 | | Adapter | How the layout is used |
 |---|---|---|
-| **Part A** | `c3_v3_vision_1ep` (the app's default) | The model decides from the screenshot. The layout file names the real element under each finding. |
-| **Part B** | `c3_v3_fusion_1ep` | The layout is given to the model **as text inside its prompt**, so the model reads both. |
+| **Part A** | `c3_v3_vision_1ep` (the app's default) | Decides from the screenshot; the layout names the real element under each finding. |
+| **Part B** | `c3_v3_fusion_1ep` | The layout is read by the model as text in its prompt. |
 
-**How the screens were chosen:** the first test screen of each defect type in file order, plus the first two clean test screens. This rule was fixed before running, so the screens are not picked by result. Neither adapter trained on them.
+The screens were fixed before running: the first test screen of each defect type, plus the first two clean ones.
 
-**Read the results honestly:**
-- On the full test set the vision adapter is the stronger model (AUC 0.814 vs 0.753 for fusion). Fusion gave a small, uncertain box gain on Rico screens only.
-- These four defects are synthetic. Their layout file describes the **original** screen before the defect was added, so the layout cannot reveal the defect. It can only say where elements are.
+**Read it honestly:** on the full test set the vision adapter is stronger (AUC 0.814 vs 0.753). The four defects here were inserted into clean screens, and their layout describes the screen *before* the defect, so it cannot reveal the defect, only where elements are.
 
-**Green** = true defect region. **Red** = vision adapter. **Orange** = fusion adapter. **Thin blue** = layout elements.
+**Green** = true region. **Red** = vision adapter. **Orange** = fusion adapter. **Thin blue** = layout elements.
 
-Run top to bottom. Each part loads its model once (about 30-40 s). Close the HEART app and any other notebook holding the model first (4 GB GPU)."""),
+Run top to bottom (about 30-40 s per model load). Close the HEART app and other notebooks holding the model first (4 GB GPU)."""),
     code("""import sys, json, gc, time
 from pathlib import Path
 C3 = next(p for p in [Path.cwd().resolve(), *Path.cwd().resolve().parents] if (p / 'demo_inputs' / 'with_layout').exists())

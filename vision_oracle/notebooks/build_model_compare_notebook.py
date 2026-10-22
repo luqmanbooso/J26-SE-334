@@ -6,22 +6,19 @@ md, code = nbf.v4.new_markdown_cell, nbf.v4.new_code_cell
 cells = [
     md("""# C3: base model vs fine-tuned model on one screen
 
-The same screenshot is analysed three ways so you can see **what each part changes**:
+One screenshot, three ways:
 
 | Arm | Weights | How the screen is fed and read |
 |---|---|---|
-| **A** base, default path | Qwen2-VL-2B, 4-bit | shrunk to fit 720x1280, answer decoded freely (up to 256 tokens) |
-| **B** base, contract path | the same base weights | resized to the adapter's pixel budget, verdict read from **one token**, decoding stops after the box |
-| **C** fine-tuned | base + LoRA adapter | the contract path, as shipped in the app |
+| **A** base, default path | Qwen2-VL-2B, 4-bit | image shrunk to fit 720x1280, free-text answer (up to 256 tokens) |
+| **B** base, contract path | same base weights | image cut to the adapter's pixel budget, one-token verdict, stops after the box |
+| **C** fine-tuned | base + LoRA adapter | the contract path, as in the app |
 
-**How to read the result**
-* **A to B (speed):** any difference comes from the *inference design*: fewer image pixels, one-token verdict, early stop. Nothing here is trained.
-* **B to C (quality):** fine-tuning is what makes the verdict and the answer usable. It is **not** a speed claim: the adapter adds a little computation, so C is not faster than B. Compare what each arm *answers*, not only how long it takes.
-* The **model load time** (cold start) is shown separately, because a first run that includes loading the model is much slower than later screens.
+**A to B** shows what the input handling changes (speed). **B to C** shows what fine-tuning changes (the answer; the adapter adds computation, so it is not a speed gain). Load time is shown separately because a cold start is much slower than later screens.
 
-This notebook measures **one screen on this computer**. It shows speed and what each model says. It is **not** accuracy evidence: that is in `C3_v3_measured_results.ipynb` (AUC 0.594 to 0.814 on 425 screens).
+This is **one screen on one computer**: an illustration, not the accuracy result (see `C3_v3_measured_results.ipynb`: AUC 0.594 to 0.814 on 425 screens).
 
-Close the HEART app and any other notebook holding the model first (4 GB GPU). Run the cells from top to bottom; expect about 2 minutes in total."""),
+Close the HEART app and other notebooks holding the model first (4 GB GPU). About 2 minutes."""),
     code("""import sys, json, time, gc
 from pathlib import Path
 C3 = next(p for p in [Path.cwd().resolve(), *Path.cwd().resolve().parents] if (p / 'demo_inputs').exists())

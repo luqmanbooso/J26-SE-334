@@ -6,13 +6,11 @@ md, code = nbf.v4.new_markdown_cell, nbf.v4.new_code_cell
 cells = [
     md("""# C3 Vision Oracle: live demo
 
-Each screen below is analysed **live** by the shipped model, through the same service the HEART app's *Inspect screenshot* button uses (global view, retrained adapter `c3_v3_vision_1ep`, decision threshold 0.30 read from the adapter's own contract). All nine screens are in the held-out test split of the retrained dataset, so the model never trained on them.
+Each screen is analysed **live** by the shipped model (`c3_v3_vision_1ep`), through the same service as the app's *Inspect screenshot* button. All nine screens are in the held-out test split, so the model never trained on them.
 
 **Red box** = the region the model flagged (approximate). **Green box** = where the defect really is.
 
-These are selected screens that show behaviour. For accuracy, quote the held-out test only: AUC 0.81, F1 0.78, precision 68%, recall 90% on 425 screens. At this threshold about half of clean screens are also flagged, so a clean screen shown as flagged below is expected behaviour, not a surprise.
-
-Run the cells from top to bottom. The first cell loads the model (about 20–40 s). Each screen then takes about 1 s if clean, or 8–10 s if a defect is found."""),
+Run the cells top to bottom. Loading takes about 20-40 s; each screen then takes about 1 s if clean, 5-10 s if a defect is found. For accuracy, quote the 425-screen test (AUC 0.81, F1 0.78), not these selected screens. About half of clean screens are also flagged, so a flagged clean screen is expected."""),
     code("""import sys, time
 from pathlib import Path
 C3 = next(p for p in [Path.cwd().resolve(), *Path.cwd().resolve().parents] if (p / 'demo_inputs').exists())
@@ -30,14 +28,14 @@ service = svc_mod.get_oracle_service()
 print(f'Model loaded in {time.perf_counter() - t:.0f} s')
 DEMO = C3 / 'demo_inputs'
 
-# Expected answers and true defect regions [ymin, xmin, ymax, xmax] in 0-1000 (relabelled by eye).
+# Expected answers and true defect regions [ymin, xmin, ymax, xmax] in 0-1000 (checked by eye).
 EXPECTED = {
     '01_overlap_team_names.jpg': ('component_overlap', [200, 0, 340, 1000]),
     '02_overlap_title.jpg': ('component_overlap', [240, 150, 300, 560]),
     '03_null_text.jpg': ('data_binding_null', [262, 450, 295, 560]),
     '04_missing_icons.jpg': ('missing_component', [294, 80, 380, 250]),
-    '05_missing_widget_synthetic.jpg': ('missing_component', None),
-    '06_overlap_synthetic.jpg': ('component_overlap', None),
+    '05_missing_widget_inserted.jpg': ('missing_component', None),
+    '06_overlap_inserted.jpg': ('component_overlap', None),
     '07_clean_owleye.jpg': ('none', None),
     '08_clean_rico.jpg': ('none', None),
     '09_known_miss_truncation.jpg': ('text_truncation', [190, 0, 215, 350]),
@@ -78,8 +76,8 @@ screens = [
     ("Real bug: title drawn over the description", "02_overlap_title.jpg", None),
     ("Real bug: the word 'null' shown to the user", "03_null_text.jpg", None),
     ("Real bug: icons not rendered", "04_missing_icons.jpg", None),
-    ("Synthetic bug: grey placeholder replaces a widget", "05_missing_widget_synthetic.jpg", None),
-    ("Synthetic bug with layout file: the result names the real element", "06_overlap_synthetic.jpg", "06_overlap_synthetic_layout.json"),
+    ("Inserted defect: grey placeholder replaces a widget", "05_missing_widget_inserted.jpg", None),
+    ("Inserted defect with layout file: the result names the real element", "06_overlap_inserted.jpg", "06_overlap_inserted_layout.json"),
     ("Clean screen: should not be flagged", "07_clean_owleye.jpg", None),
     ("Clean screen: should not be flagged", "08_clean_rico.jpg", None),
     ("Known limitation: thin clipped text is missed", "09_known_miss_truncation.jpg", None),

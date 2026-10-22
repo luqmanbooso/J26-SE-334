@@ -17,12 +17,11 @@ HERE = Path(__file__).resolve().parent
 cells = [
     md("""# C3 results: retrained vision arm, fusion arm and baselines
 
-Everything here is read from saved evaluation files in `evidence/15_model_v3/`. Nothing is re-run, so the notebook opens instantly and every number can be traced to a file.
+Every number is read from saved files in `evidence/15_model_v3/`; nothing is re-run.
 
-**How the numbers were produced**
-- Threshold chosen on the **validation** set (424 screens), the **test** set (425 screens) scored **once** per model.
-- Test screens are never trained on. Splits are grouped by app for Rico, and OwlEye screens were checked against near-duplicates.
-- AUC is threshold-free. F1, precision and recall depend on the operating threshold, so read them together with the threshold sweep below.
+- Alert level chosen on the **validation** set (424 screens); the **test** set (425 screens) scored **once** per model.
+- No test screen was trained on. Rico splits are grouped by app; OwlEye screens were checked for near-duplicates.
+- AUC does not depend on the alert level. F1, precision and recall do, so read them with the threshold sweep.
 """),
     code("""import json, os
 from pathlib import Path
@@ -217,12 +216,11 @@ for ax, img in zip(axes.ravel(), pick):
     ax.set_title(f"{'OwlEye' if 'OwlEye' in img else 'Rico'} | IoU vision {E['vision'][img]['iou'] or 0:.2f}, fusion {E['fusion'][img]['iou'] or 0:.2f}", fontsize=8)
 plt.tight_layout(); plt.show()"""),
     md("""## 9. What this does and does not show
-- **Fine-tuning helped a lot.** Retrained vision arm vs the untrained base model: AUC +0.22 (95% CI +0.16 to +0.27). vs the earlier model: +0.08 (+0.04 to +0.12). The base model flags only about one defect in ten and names the type correctly 2% of the time.
-- **Fusion (adding layout text) did not improve detection in this first attempt.** AUC fell from 0.814 to 0.753 (difference -0.06, CI -0.095 to -0.026), including on OwlEye screens that carry no layout, so part of the gap may be run-to-run variation (one run, one seed).
-- **A hint that layout helps boxes on synthetic screens:** tight boxes on Rico rose from 17.5% to 25%, but with only 40 screens this is within noise. On real OwlEye screens fusion was worse.
-- **For synthetic defects the layout describes the original, unmutated screen,** so it cannot reveal the defect. It can only say where elements are. This is a limit of the design and a PP2 question.
-- At the chosen threshold about half of clean screens are flagged. In real use defects are rare, so precision would be lower than shown here.
-- Boxes are in the right area but rarely tight on real screens. One epoch, one seed, model-assisted labels. These are limits, not hidden details.
+- **Fine-tuning helped a lot.** Vision arm vs the untrained base model: AUC +0.22 (95% CI +0.16 to +0.27); vs the earlier model: +0.08 (+0.04 to +0.12). The base model flags about one defect in ten and names the type correctly 2% of the time.
+- **Adding the layout as text did not improve detection.** AUC fell from 0.814 to 0.753 (-0.06, CI -0.095 to -0.026). One run, one seed, so part of the gap may be run-to-run variation.
+- **Layout and boxes:** tight boxes on Rico rose from 17.5% to 25%, but on only 40 screens that is within noise; on OwlEye screens, which have no layout, fusion was worse. For inserted defects the layout describes the screen before the defect, so it cannot reveal it.
+- About half of clean screens are flagged at this alert level, and real defects are rare, so real-world precision would be lower than shown.
+- Boxes are in the right area but rarely tight on real screens. One epoch, one seed, model-assisted labels.
 """),
 ]
 nb = nbf.v4.new_notebook(); nb.cells = cells
