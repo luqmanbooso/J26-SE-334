@@ -29,7 +29,7 @@ class EvaluateRequest(BaseModel):
     screen_id: Optional[str] = Field(default=None, description="Explicit screen identifier.")
     session_id: Optional[str] = Field(default="live_session", description="Session identifier.")
     action_context: Optional[str] = Field(default=None, description="Contextual description of action.")
-    enable_sahi: bool = Field(default=True, description="Enable SAHI multi-slice tiling for tall screens.")
+    enable_sahi: bool = Field(default=False, description="Experimental multi-slice tiling. Not validated with the current adapter; off by default.")
 
 
 class SequenceEvaluateRequest(BaseModel):

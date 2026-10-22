@@ -27,6 +27,7 @@ class PrunedNode:
     raw_bounds: Optional[List[int]] = None  # [x1, y1, x2, y2]
     bbox: Optional[List[int]] = None
     depth: int = 0
+    path: tuple = ()  # child-index path from the root; ancestors are prefixes
 
     def __post_init__(self):
         if self.bounds is None and self.bbox is not None:
@@ -198,7 +199,7 @@ class HierarchyPruner:
         else:
             return []
 
-        def traverse(node: ET.Element):
+        def traverse(node: ET.Element, path: tuple = ()):
             self.raw_node_count += 1
             attrib = node.attrib
             bounds_str = attrib.get("bounds", "")
@@ -235,11 +236,12 @@ class HierarchyPruner:
                             clickable=clickable,
                             scrollable=scrollable,
                             raw_bounds=[x1, y1, x2, y2],
+                            path=path,
                         )
                     )
 
-            for child in node:
-                traverse(child)
+            for idx, child in enumerate(node):
+                traverse(child, path + (idx,))
 
         traverse(root)
 
@@ -270,10 +272,18 @@ class HierarchyPruner:
         else:
             return []
 
-        root = data.get("root", data)
+        # Rico stores the tree under activity.root (bug before 2026-10-21: the whole
+        # file was treated as the root, so every Rico screen produced zero nodes).
+        root = (data.get("activity") or {}).get("root") or data.get("root") or data
+        if root.get("bounds") and len(root["bounds"]) == 4 and root["bounds"][2] == 1440:
+            # Rico bounds are in 1440x2560 device pixels even when the root view is shorter.
+            self.screen_width, self.screen_height = 1440, 2560
 
-        def traverse(node: Dict[str, Any]):
+        def traverse(node: Dict[str, Any], path: tuple = ()):
             self.raw_node_count += 1
+            # Hidden views (and their subtrees) are not drawn, so they cannot collide.
+            if node.get("visibility", "visible") != "visible" or node.get("visible-to-user") is False:
+                return
             bounds = node.get("bounds", [0, 0, 0, 0])
             if len(bounds) == 4:
                 x1, y1, x2, y2 = bounds
@@ -284,7 +294,10 @@ class HierarchyPruner:
 
             class_name = node.get("class", "android.view.View")
             text = (node.get("text") or "").strip()
-            desc = (node.get("content-description") or "").strip()
+            raw_desc = node.get("content-desc", node.get("content-description"))
+            if isinstance(raw_desc, list):
+                raw_desc = next((d for d in raw_desc if d), "")
+            desc = (raw_desc or "").strip()
             clickable = bool(node.get("clickable", False))
             scrollable = bool(node.get("scrollable-horizontal", False) or node.get("scrollable-vertical", False))
             elem_id = (node.get("resource-id") or "").strip()
@@ -306,12 +319,13 @@ class HierarchyPruner:
                             clickable=clickable,
                             scrollable=scrollable,
                             raw_bounds=[x1, y1, x2, y2],
+                            path=path,
                         )
                     )
 
-            for child in node.get("children", []):
+            for idx, child in enumerate(node.get("children", []) or []):
                 if isinstance(child, dict):
-                    traverse(child)
+                    traverse(child, path + (idx,))
 
         traverse(root)
 
@@ -375,6 +389,12 @@ class HierarchyPruner:
                 iy2 = min(ay2, by2)
                 ix2 = min(ax2, bx2)
 
+                # A view drawn inside its own parent is layout, not a collision.
+                pa, pb = node_a.path, node_b.path
+                if pa and pb and (pa == pb[:len(pa)] or pb == pa[:len(pb)]):
+                    continue
+                if node_a.scrollable or node_b.scrollable:
+                    continue
                 if iy2 > iy1 and ix2 > ix1:
                     inter_area = (iy2 - iy1) * (ix2 - ix1)
                     min_area = min(area_a, area_b)

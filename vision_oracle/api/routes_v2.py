@@ -44,7 +44,7 @@ class JobSubmitRequest(BaseModel):
     """Payload to submit an asynchronous analysis job."""
     capture_id: str = Field(..., description="ID of previously registered capture")
     session_id: Optional[str] = Field(default=None)
-    policy: CoveragePolicy = Field(default=CoveragePolicy.GLOBAL_PLUS_TILES_V1)
+    policy: CoveragePolicy = Field(default=CoveragePolicy.GLOBAL_ONLY)  # tiles are opt-in, not yet validated
 
 
 class ReviewSubmitRequest(BaseModel):

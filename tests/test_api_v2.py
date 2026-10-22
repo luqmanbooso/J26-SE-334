@@ -253,12 +253,12 @@ def test_v2_job_queue_backpressure_and_idempotency(test_client):
     capture_id = cap_resp.json()["capture_id"]
 
     # 1. First job submission
-    job_resp1 = test_client.post("/v2/jobs", json={"capture_id": capture_id, "policy": "global_only_v1"})
+    job_resp1 = test_client.post("/v2/jobs", json={"capture_id": capture_id, "policy": "global_only"})
     assert job_resp1.status_code == 202
     job_id1 = job_resp1.json()["job_id"]
 
     # 2. Resubmission of identical active job is idempotent
-    job_resp2 = test_client.post("/v2/jobs", json={"capture_id": capture_id, "policy": "global_only_v1"})
+    job_resp2 = test_client.post("/v2/jobs", json={"capture_id": capture_id, "policy": "global_only"})
     assert job_resp2.status_code == 202
     assert job_resp2.json()["job_id"] == job_id1
 
