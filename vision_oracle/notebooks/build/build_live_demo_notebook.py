@@ -1,10 +1,10 @@
-"""Builds C3_live_demo.ipynb: runs each demo screen through the real app service and shows it."""
+"""Builds Live_Demo.ipynb: runs each demo screen through the real app service and shows it."""
 from pathlib import Path
 import nbformat as nbf
 
 md, code = nbf.v4.new_markdown_cell, nbf.v4.new_code_cell
 cells = [
-    md("""# C3 Vision Oracle: live demo
+    md("""# Live demo: nine screens through the shipped model
 
 Each screen is analysed **live** by the shipped model (`c3_v3_vision_1ep`), through the same service as the app's *Inspect screenshot* button. All nine screens are in the held-out test split, so the model never trained on them.
 
@@ -96,4 +96,4 @@ if MY_SCREEN:
     print('score', r['metadata'].get('defect_probability'))"""))
 nb = nbf.v4.new_notebook(); nb.cells = cells
 nb.metadata["kernelspec"] = {"name": "python3", "display_name": "Python 3", "language": "python"}
-out = Path(__file__).resolve().parents[1] / "C3_live_demo.ipynb"; nbf.write(nb, out); print(out)
+out = Path(__file__).resolve().parents[1] / "Live_Demo.ipynb"; nbf.write(nb, out); print(out)

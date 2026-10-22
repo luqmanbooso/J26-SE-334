@@ -1,11 +1,11 @@
-"""Builds C3_live_demo_layout.ipynb: Rico screens analysed with their UI hierarchy, by both adapters.
+"""Builds Live_Demo_Layout.ipynb: Rico screens analysed with their UI hierarchy, by both adapters.
 
 Part A runs the app's default (vision) adapter through the real service with the layout file attached:
 the model decides from the screenshot, and the layout names the real element under each finding.
 Part B runs the fusion adapter, which reads the layout as text inside its prompt.
 Inputs come from demo_inputs/with_layout (see local_vision_oracle/layout_demo_inputs.py).
 
-    python vision_oracle/notebooks/build/build_layout_demo_notebook.py
+    python vision_oracle/notebooks/build/build_live_demo_layout_notebook.py
 """
 from pathlib import Path
 
@@ -13,7 +13,7 @@ import nbformat as nbf
 
 md, code = nbf.v4.new_markdown_cell, nbf.v4.new_code_cell
 cells = [
-    md("""# C3 live demo: screenshot + UI layout (Rico screens)
+    md("""# Live demo with layout: six Rico screens
 
 Each Rico screen comes with its **UI layout**: every element's type, id, text and position. Six held-out test screens are run two ways:
 
@@ -135,10 +135,10 @@ for s in SCREENS:
 print()
 print('vision type correct:', sum(A[s['image']]['type'] == s['expected'] for s in SCREENS), 'of', len(SCREENS))
 print('fusion type correct:', sum(B[s['image']]['type'] == s['expected'] for s in SCREENS), 'of', len(SCREENS))
-print('Six screens are a demonstration, not an accuracy measure. See C3_v3_measured_results.ipynb for the test-set comparison.')"""),
+print('Six screens are a demonstration, not an accuracy measure. See Full_Statistics.ipynb for the test-set comparison.')"""),
 ]
 nb = nbf.v4.new_notebook(); nb.cells = cells
 nb.metadata["kernelspec"] = {"name": "python3", "display_name": "Python 3", "language": "python"}
-out = Path(__file__).resolve().parents[1] / "C3_live_demo_layout.ipynb"
+out = Path(__file__).resolve().parents[1] / "Live_Demo_Layout.ipynb"
 out.write_bytes(nbf.writes(nb).encode("utf-8"))
 print(out)

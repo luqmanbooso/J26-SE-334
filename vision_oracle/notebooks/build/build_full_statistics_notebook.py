@@ -1,10 +1,10 @@
-"""Builds and executes C3_v3_measured_results.ipynb from the saved evaluation files in evidence/15_model_v3.
+"""Builds and executes Full_Statistics.ipynb from the saved evaluation files in evidence/15_model_v3.
 
 No model is loaded and no GPU is used. Cells for the fusion arm and the untrained base model appear
 automatically once their score files exist (see FILES in the first code cell); rerun this script after
 those evaluations to refresh the notebook.
 
-    python vision_oracle/notebooks/build/build_v3_results_notebook.py
+    python vision_oracle/notebooks/build/build_full_statistics_notebook.py
 """
 from pathlib import Path
 
@@ -15,7 +15,7 @@ md, code = nbf.v4.new_markdown_cell, nbf.v4.new_code_cell
 HERE = Path(__file__).resolve().parents[1]   # the notebooks folder
 
 cells = [
-    md("""# C3 results: retrained vision arm, fusion arm and baselines
+    md("""# Full statistics: every model, every test
 
 Every number is read from saved files in `evidence/15_model_v3/`; nothing is re-run.
 
@@ -225,7 +225,7 @@ plt.tight_layout(); plt.show()"""),
 ]
 nb = nbf.v4.new_notebook(); nb.cells = cells
 nb.metadata["kernelspec"] = {"name": "python3", "display_name": "Python 3", "language": "python"}
-out = HERE / "C3_v3_measured_results.ipynb"
+out = HERE / "Full_Statistics.ipynb"
 NotebookClient(nb, timeout=600, kernel_name="python3", resources={"metadata": {"path": str(HERE.parent)}}).execute()
 out.write_bytes(nbf.writes(nb).encode("utf-8"))  # LF line endings, as Jupyter writes them
 print(out)

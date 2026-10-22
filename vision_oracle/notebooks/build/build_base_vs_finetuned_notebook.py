@@ -1,10 +1,10 @@
-"""Builds C3_base_vs_finetuned.ipynb: one screenshot through the base model and a fine-tuned adapter, with timing."""
+"""Builds Base_vs_FineTuned_Speed.ipynb: one screenshot through the base model and a fine-tuned adapter, with timing."""
 from pathlib import Path
 import nbformat as nbf
 
 md, code = nbf.v4.new_markdown_cell, nbf.v4.new_code_cell
 cells = [
-    md("""# C3: base model vs fine-tuned model on one screen
+    md("""# Base vs fine-tuned: speed on one screen
 
 One screenshot, three ways:
 
@@ -16,7 +16,7 @@ One screenshot, three ways:
 
 **A to B** shows what the input handling changes (speed). **B to C** shows what fine-tuning changes (the answer; the adapter adds computation, so it is not a speed gain). Load time is shown separately because a cold start is much slower than later screens.
 
-This is **one screen on one computer**: an illustration, not the accuracy result (see `C3_v3_measured_results.ipynb`: AUC 0.594 to 0.814 on 425 screens).
+This is **one screen on one computer**: an illustration, not the accuracy result (see `Full_Statistics.ipynb`: AUC 0.594 to 0.814 on 425 screens).
 
 Close the HEART app and other notebooks holding the model first (4 GB GPU). About 2 minutes."""),
     code("""import sys, json, time, gc
@@ -119,7 +119,7 @@ print('saved', out / f'{stamp}_{IMAGE.stem}.json')"""),
 ]
 nb = nbf.v4.new_notebook(); nb.cells = cells
 nb.metadata["kernelspec"] = {"name": "python3", "display_name": "Python 3", "language": "python"}
-out = Path(__file__).resolve().parents[1] / "C3_base_vs_finetuned.ipynb"
+out = Path(__file__).resolve().parents[1] / "Base_vs_FineTuned_Speed.ipynb"
 with open(out, "w", encoding="utf-8", newline="\n") as fh:
     nbf.write(nb, fh)
 print(out)
