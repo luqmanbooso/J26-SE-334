@@ -14,13 +14,16 @@ if sys.platform == "win32":
             kwargs["creationflags"] = _CREATE_NO_WINDOW
         return _orig_subprocess_run(*args, **kwargs)
 
-    def _silent_popen(*args, **kwargs):
-        if "creationflags" not in kwargs:
-            kwargs["creationflags"] = _CREATE_NO_WINDOW
-        return _orig_subprocess_popen(*args, **kwargs)
+    # A subclass, not a function: asyncio (imported later by torch/uvicorn) subclasses subprocess.Popen, and a plain
+    # function there raised "TypeError: function() argument 'code' must be code, not str", which broke every inspection.
+    class _SilentPopen(_orig_subprocess_popen):
+        def __init__(self, *args, **kwargs):
+            if "creationflags" not in kwargs:
+                kwargs["creationflags"] = _CREATE_NO_WINDOW
+            super().__init__(*args, **kwargs)
 
     subprocess.run = _silent_run
-    subprocess.Popen = _silent_popen
+    subprocess.Popen = _SilentPopen
 import asyncio  # noqa: F401  first import on the main thread, before any worker thread starts (see vision_oracle/frontend/workspace.py)
 import threading
 import shutil
