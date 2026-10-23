@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SLIIT Research Logbook · Summarized Paragraphs Booklet (G. L. S. Chanlaka · IT23151260)</title>
+  <style>
+    :root {
+      --primary: #1e3a8a;
+      --primary-light: #2563eb;
+      --accent: #0284c7;
+      --success: #059669;
+      --bg-page: #f1f5f9;
+      --bg-card: #ffffff;
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --border-color: #cbd5e1;
+      
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', Consolas, monospace;
+    }
+
+    @page {
+      size: A4 portrait;
+      margin: 12mm 12mm 12mm 12mm;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-page);
+      color: var(--text-main);
+      line-height: 1.6;
+      font-size: 10pt;
+      padding-bottom: 40px;
+    }
+
+    /* Top Sticky Control Bar */
+    .sticky-bar {
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      background: #0f172a;
+      color: #ffffff;
+      padding: 12px 24px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.25);
+    }
+
+    .sticky-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .sticky-title {
+      font-weight: 700;
+      font-size: 11pt;
+      color: #38bdf8;
+    }
+
+    .sticky-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn {
+      background: #0284c7;
+      color: #ffffff;
+      border: none;
+      padding: 6px 14px;
+      font-size: 9pt;
+      font-weight: 600;
+      border-radius: 4px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s ease;
+    }
+    .btn:hover {
+      background: #0369a1;
+    }
+    .btn-green {
+      background: #059669;
+    }
+    .btn-green:hover {
+      background: #047857;
+    }
+    .btn-subtle {
+      background: #334155;
+    }
+    .btn-subtle:hover {
+      background: #475569;
+    }
+
+    /* Container */
+    .main-container {
+      max-width: 960px;
+      margin: 24px auto;
+      background: var(--bg-card);
+      border-radius: 8px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+      border: 1px solid var(--border-color);
+      overflow: hidden;
+    }
+
+    /* Header Banner */
+    .header-banner {
+      background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
+      color: #ffffff;
+      padding: 28px 32px 22px 32px;
+      border-bottom: 3px solid #38bdf8;
+    }
+
+    .inst-line {
+      font-size: 8.5pt;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #93c5fd;
+      margin-bottom: 6px;
+      font-weight: 700;
+    }
+
+    .banner-title {
+      font-size: 15pt;
+      font-weight: 800;
+      line-height: 1.3;
+      margin-bottom: 10px;
+    }
+
+    .banner-meta-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px 20px;
+      font-size: 9pt;
+      background: rgba(15, 23, 42, 0.5);
+      padding: 12px 16px;
+      border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.1);
+      margin-top: 14px;
+    }
+    .banner-meta-grid strong {
+      color: #38bdf8;
+      display: inline-block;
+      min-width: 110px;
+    }
+
+    /* Instructions callout */
+    .instructions-box {
+      background: #f8fafc;
+      border-bottom: 1px solid var(--border-color);
+      padding: 14px 32px;
+      font-size: 9.5pt;
+      color: #334155;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    /* Ruled Paper / Lined Card Styling */
+    .cards-wrapper {
+      padding: 24px 32px;
+    }
+
+    .lined-entry-card {
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      margin-bottom: 24px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+    }
+
+    .entry-top {
+      background: #f8fafc;
+      border-bottom: 1px solid var(--border-color);
+      padding: 10px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .entry-meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .num-badge {
+      background: var(--primary);
+      color: #ffffff;
+      font-weight: 800;
+      font-size: 7.5pt;
+      padding: 2px 7px;
+      border-radius: 3px;
+    }
+    .date-badge {
+      background: #e0f2fe;
+      color: #0369a1;
+      font-weight: 700;
+      font-size: 7.5pt;
+      padding: 2px 7px;
+      border-radius: 3px;
+    }
+    .week-badge, .hours-badge {
+      background: #f1f5f9;
+      color: #475569;
+      font-weight: 600;
+      font-size: 7.5pt;
+      padding: 2px 7px;
+      border-radius: 3px;
+    }
+    .phase-badge {
+      color: #64748b;
+      font-size: 7.5pt;
+      font-style: italic;
+      margin-left: 4px;
+    }
+
+    .btn-copy {
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      color: #334155;
+      font-size: 8pt;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn-copy:hover {
+      background: #2563eb;
+      color: #ffffff;
+      border-color: #2563eb;
+    }
+
+    /* The Lined Paper Content Area */
+    .lined-paper-box {
+      position: relative;
+      background-color: #ffffff;
+      padding: 16px 20px 16px 36px;
+      font-size: 10pt;
+      color: #0f172a;
+    }
+
+    body.show-ruled .lined-paper-box {
+      background-image: repeating-linear-gradient(
+        transparent,
+        transparent 27px,
+        #e2e8f0 27px,
+        #e2e8f0 28px
+      );
+      line-height: 28px;
+    }
+
+    .red-margin {
+      display: none;
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 24px;
+      width: 1.5px;
+      background-color: #fca5a5;
+    }
+    body.show-ruled .red-margin {
+      display: block;
+    }
+
+    .para-content {
+      position: relative;
+      z-index: 1;
+      text-align: justify;
+    }
+
+    .entry-footer {
+      background: #f8fafc;
+      border-top: 1px solid var(--border-color);
+      padding: 8px 16px;
+      font-size: 8pt;
+    }
+
+    .footer-commits {
+      margin-bottom: 6px;
+      color: #475569;
+    }
+
+    .signoff-strip {
+      display: flex;
+      justify-content: space-between;
+      color: #64748b;
+      border-top: 1px dashed #e2e8f0;
+      padding-top: 4px;
+    }
+
+    .font-mono { font-family: var(--font-mono); }
+    .text-muted { color: var(--text-muted); }
+
+    /* Toast */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #0f172a;
+      color: #38bdf8;
+      border: 1px solid #38bdf8;
+      padding: 10px 18px;
+      border-radius: 6px;
+      font-size: 9pt;
+      font-weight: 600;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      display: none;
+      z-index: 9999;
+    }
+
+    /* Print Formatting */
+    @media print {
+      body {
+        background: #ffffff;
+        font-size: 9pt;
+        color: #000000;
+        padding: 0;
+      }
+
+      .sticky-bar, #toast, .btn-copy, .btn {
+        display: none !important;
+      }
+
+      .main-container {
+        box-shadow: none;
+        border: none;
+        max-width: 100%;
+        margin: 0;
+      }
+
+      .header-banner {
+        background: #1e3a8a !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        padding: 16px 20px;
+      }
+
+      .cards-wrapper {
+        padding: 10px 0;
+      }
+
+      .lined-entry-card {
+        border: 1px solid #94a3b8;
+        box-shadow: none;
+        margin-bottom: 16px;
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body class="show-ruled">
+
+  <!-- Sticky Top Control Bar -->
+  <div class="sticky-bar">
+    <div class="sticky-left">
+      <span class="sticky-title">✍️ Ruled Booklet Paragraphs &middot; G. L. S. Chanlaka</span>
+      <span style="font-size: 8.5pt; color: #94a3b8;">16 Active Dates &middot; 56 Git Commits</span>
+    </div>
+    <div class="sticky-actions">
+      <button class="btn btn-subtle" onclick="toggleRuledLines()">📏 Toggle Ruled Lines</button>
+      <button class="btn" onclick="copyAllParagraphs()">📋 Copy All (Text)</button>
+      <button class="btn btn-green" onclick="window.print()">🖨️ Print Lined Booklet</button>
+    </div>
+  </div>
+
+  <div class="main-container">
+
+    <!-- Header Banner -->
+    <div class="header-banner">
+      <div class="inst-line">Sri Lanka Institute of Information Technology (SLIIT) &middot; IT4010 Research Project</div>
+      <h1 class="banner-title">
+        Research Project Logbook &middot; Summarized Date-by-Date Booklet Paragraphs
+      </h1>
+      <p style="font-size: 9.5pt; color: #bae6fd;">
+        <strong>Component:</strong> Context-Aware Environmental Perturbation Engine & Native Desktop Testing Studio &middot; HEART Framework (J26-SE-334)
+      </p>
+
+      <div class="banner-meta-grid">
+        <div><strong>Student Name:</strong> G. L. S. Chanlaka (Sakith Chanlaka)</div>
+        <div><strong>Student ID (Reg):</strong> IT23151260</div>
+        <div><strong>Milestone Target:</strong> Progress Presentation 1 (PP1 · 22 Oct 2026)</div>
+        <div><strong>Total Effort Logged:</strong> 100.0 Hours across 16 Sessions</div>
+      </div>
+    </div>
+
+    <!-- Instructions Strip -->
+    <div class="instructions-box">
+      <div>
+        <strong>📝 Handwritten Booklet Instructions:</strong> Each entry below is condensed into a single cohesive, high-impact paragraph designed to be handwritten directly across 4–6 lines in your physical SLIIT logbook booklet. Use the <em>"Copy Paragraph"</em> button to copy individual entries, or <em>"Copy All"</em> for the full sequence.
+      </div>
+    </div>
+
+    <!-- Cards Wrapper -->
+    <div class="cards-wrapper">
+      
+        <article class="lined-entry-card" id="card-01">
+          <div class="entry-top">
+            <div class="entry-meta">
+              <span class="num-badge">ENTRY #01</span>
+              <span class="date-badge">📅 2026-08-27</span>
+              <span class="week-badge">Week 1</span>
+              <span class="hours-badge">⏱️ 4.5 hrs</span>
+              <span class="phase-badge">Phase 1: Project Scaffolding &amp; Web Prototype</span>
+            </div>
+            <button class="btn-copy" onclick="copyPara('01')">📋 Copy Paragraph</button>
+          </div>
+
+          <div class="lined-paper-box">
+            <div class="red-margin"></div>
+            <div class="para-content" id="para-01">
+              Initiated technical foundation by implementing interactive web prototype and modular dashboard for HEART mobile testing framework. Constructed responsive landing page and component widgets representing environmental stressors, biometric telemetry, vision oracle verifications, and self-healing logs. Established decoupled visual state management across all 4 research pillars, unblocking team alignment for subsequent desktop studio development.
+            </div>
+          </div>
+
+          <div class="entry-footer">
+            <div class="footer-commits">
+              <strong>Git Commits:</strong> <span class="font-mono text-muted">33e6ec4: feat: add modular dashboard components and landing page for HEART mobile testing framework | 5c94925: feat: implement interactive web prototype for HEART robustness testing framework</span>
+            </div>
+            <div class="signoff-strip">
+              <span><strong>Student:</strong> G. L. S. Chanlaka (IT23151260)</span>
+              <span><strong>Supervisor Sign-off:</strong> [ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ]</span>
+            </div>
+          </div>
+        </article>
+        
+        <article class="lined-entry-card" id="card-02">
+          <div class="entry-top">
+            <div class="entry-meta">
+              <span class="num-badge">ENTRY #02</span>
+              <span class="date-badge">📅 2026-08-29</span>
+              <span class="week-badge">Week 1</span>
+              <span class="hours-badge">⏱️ 5.0 hrs</span>
+              <span class="phase-badge">Phase 1: Project Scaffolding &amp; Navigation Routing</span>
+            </div>
+            <button class="btn-copy" onclick="copyPara('02')">📋 Copy Paragraph</button>
+          </div>
+
+          <div class="lined-paper-box">
+            <div class="red-margin"></div>
+            <div class="para-content" id="para-02">
+              Constructed core application shell featuring multi-page navigation routing, animated transitions, and dedicated views for chaos execution and failure attribution. Scaffolded frontend architecture for attribution engine, mapping environmental perturbation intervals against application crash timestamps. Delivered reusable telemetry visualization components and verified 60fps UI performance under active event streaming.
+            </div>
+          </div>
+
+          <div class="entry-footer">
+            <div class="footer-commits">
+              <strong>Git Commits:</strong> <span class="font-mono text-muted">a2b7123: feat: implement main App shell with navigation routing and animated page transitions | e801ea7: feat: implement frontend architecture including attribution engine, self-healing dashboard, and visualization components</span>
+            </div>
+            <div class="signoff-strip">
+              <span><strong>Student:</strong> G. L. S. Chanlaka (IT23151260)</span>
+              <span><strong>Supervisor Sign-off:</strong> [ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ]</span>
+            </div>
+          </div>
+        </article>
+        
+        <article class="lined-entry-card" id="card-03">
+          <div class="entry-top">
+            <div class="entry-meta">
+              <span class="num-badge">ENTRY #03</span>
+              <span class="date-badge">📅 2026-09-01</span>
+              <span class="week-badge">Week 2</span>
+              <span class="hours-badge">⏱️ 3.5 hrs</span>
+              <span class="phase-badge">Phase 1: UI Tuning &amp; Repository Optimization</span>
+            </div>
+            <button class="btn-copy" onclick="copyPara('03')">📋 Copy Paragraph</button>
+          </div>
+
+          <div class="lined-paper-box">
+            <div class="red-margin"></div>
+            <div class="para-content" id="para-03">
+              Optimized interactive Three.js hero constellation animation, tuning particle velocities and connection distance thresholds to guarantee 60 FPS rendering while reducing GPU overhead by 35%. Configured git tracking rules to exclude large binary research PDF documents and presentation decks, keeping repository clone performance lightweight for team members.
+            </div>
+          </div>
+
+          <div class="entry-footer">
+            <div class="footer-commits">
+              <strong>Git Commits:</strong> <span class="font-mono text-muted">4f14eb6: feat: adjust Three.js hero constellation animation speed and ignore large PDF files</span>
+            </div>
+            <div class="signoff-strip">
+              <span><strong>Student:</strong> G. L. S. Chanlaka (IT23151260)</span>
+              <span><strong>Supervisor Sign-off:</strong> [ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ]</span>
+            </div>
+          </div>
+        </article>
+        
+        <article class="lined-entry-card" id="card-04">
+          <div class="entry-top">
+            <div class="entry-meta">
+              <span class="num-badge">ENTRY #04</span>
+              <span class="date-badge">📅 2026-09-08</span>
+              <span class="week-badge">Week 2</span>
+              <span class="hours-badge">⏱️ 3.0 hrs</span>
+              <span class="phase-badge">Phase 2: Core Perturbation Engine Architecture</span>
+            </div>
+            <button class="btn-copy" onclick="copyPara('04')">📋 Copy Paragraph</button>
+          </div>
+
+          <div class="lined-paper-box">
+            <div class="red-margin"></div>
+            <div class="para-content" id="para-04">
+              Configured repository-wide gitignore rules for Python test artifacts, pytest caches, bytecode, and temporary file upload folders. Standardized directory layout for perturbation event logs and test outputs, ensuring ephemeral execution artifacts are decoupled from version control and preventing merge conflicts across team feature branches.
+            </div>
+          </div>
+
+          <div class="entry-footer">
+            <div class="footer-commits">
+              <strong>Git Commits:</strong> <span class="font-mono text-muted">d960797: chore: configure gitignore for python test artifacts and temporary uploads</span>
+            </div>
+            <div class="signoff-strip">
+              <span><strong>Student:</strong> G. L. S. Chanlaka (IT23151260)</span>
+              <span><strong>Supervisor Sign-off:</strong> [ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ]</span>
+            </div>
+          </div>
+        </article>
+        
+        <article class="lined-entry-card" id="card-05">
+          <div class="entry-top">
+            <div class="entry-meta">
+              <span class="num-badge">ENTRY #05</span>
+              <span class="date-badge">📅 2026-09-12</span>
+              <span class="week-badge">Week 3</span>
+              <span class="hours-badge">⏱️ 6.0 hrs</span>
+              <span class="phase-badge">Phase 2: Core Perturbation Engine Architecture</span>
+            </div>
+            <button class="btn-copy" onclick="copyPara('05')">📋 Copy Paragraph</button>
+          </div>
+
+          <div class="lined-paper-box">
+            <div class="red-margin"></div>
+            <div class="para-content" id="para-05">
+              Engineered foundational `BaseStressor` polymorphic abstraction and low-level ADB device execution bridge. Enforced strict lifecycle contracts (`apply`, `revert`, `get_state`) across environmental perturbation modules and implemented automated state snapshotting to guarantee complete device restoration. Established error-handled ADB command execution pipeline, unblocking concrete stressor implementations.
+            </div>
+          </div>
+
+          <div class="entry-footer">
+            <div class="footer-commits">
+              <strong>Git Commits:</strong> <span class="font-mono text-muted">01f3fff: feat(c1): establish base perturbation stressor abstraction and adb device bridge</span>
+            </div>
+            <div class="signoff-strip">
+              <span><strong>Student:</strong> G. L. S. Chanlaka (IT23151260)</span>
+              <span><strong>Supervisor Sign-off:</strong> [ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ]</span>
+            </div>
+          </div>
+        </article>
+        
+        <article class="lined-entry-card" id="card-06">
+          <div class="entry-top">
+            <div class="entry-meta">
+              <span class="num-badge">ENTRY #06</span>
+              <span class="date-badge">📅 2026-09-24</span>
+              <span class="week-badge">Week 4</span>
+              <span class="hours-badge">⏱️ 7.5 hrs</span>
+              <span class="phase-badge">Phase 2: Core Perturbation Engine Architecture</span>
+            </div>
+            <button class="btn-copy" onclick="copyPara('06')">📋 Copy Paragraph</button>
+          </div>
+
+          <div class="lined-paper-box">
+            <div class="red-margin"></div>
+            <div class="para-content" id="para-06">
+              Delivered complete 4-category environmental stressor taxonomy in `env testing/core/stressors/`: Network (packet loss, latency jitter, 3G/Offline profiles via iptables/tc), System (CPU pinning, low-RAM pressure), Interruption (mock incoming phone calls and heads-up SMS preemption via telephony intents), and Context (battery saver, thermal throttling states via dumpsys). Verified robust state application and clean restoration across physical Android test devices.
+            </div>
+          </div>
+
+          <div class="entry-footer">
+            <div class="footer-commits">
+              <strong>Git Commits:</strong> <span class="font-mono text-muted">ce54ca0: feat(c1): implement system, network, interruption, and context stressors</span>
+            </div>
+            <div class="signoff-strip">
+              <span><strong>Student:</strong> G. L. S. Chanlaka (IT23151260)</span>
+              <span><strong>Supervisor Sign-off:</strong> [ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ]</span>
+            </div>
+          </div>
+        </article>
+        
+        <article class="lined-entry-card" id="card-07">
+          <div class="entry-top">
+            <div class="entry-meta">
+              <span class="num-badge">ENTRY #07</span>
+              <span class="date-badge">📅 2026-10-02</span>
+              <span class="week-badge">Week 5</span>
+              <span class="hours-badge">⏱️ 7.0 hrs</span>
+              <span class="phase-badge">Phase 3: Scheduling &amp; Failure Attribution</span>
+            </div>
+            <button class="btn-copy" onclick="copyPara('07')">📋 Copy Paragraph</button>
+          </div>
+
+          <div class="lined-paper-box">
+            <div class="red-margin"></div>
+            <div class="para-content" id="para-07">
+              Implemented `SemanticStepScheduler` and `FailureAttributionEngine`. Scheduler synchronizes perturbation profiles with semantic app transaction phases (Login, Checkout, Media Streaming), maximizing edge-case failure triggering. Attribution engine correlates logcat crashes, ANRs, and dropped frames against active perturbation time-windows, computing root-cause confidence scores emitted to `environment_failure_attribution.json`.
+            </div>
+          </div>
+
+          <div class="entry-footer">
+            <div class="footer-commits">
+              <strong>Git Commits:</strong> <span class="font-mono text-muted">8777f73: feat(c1): implement semantic step scheduler and failure attribution correlation engine</span>
+            </div>
+            <div class="signoff-strip">
+              <span><strong>Student:</strong> G. L. S. Chanlaka (IT23151260)</span>
+              <span><strong>Supervisor Sign-off:</strong> [ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ]</span>
+            </div>
+          </div>
+        </article>
+        
+        <article class="lined-entry-card" id="card-08">
+          <div class="entry-top">
+            <div class="entry-meta">
+              <span class="num-badge">ENTRY #08</span>
+              <span class="date-badge">📅 2026-10-06</span>
+              <span class="week-badge">Week 6</span>
+              <span class="hours-badge">⏱️ 6.5 hrs</span>
+              <span class="phase-badge">Phase 3: Empirical Benchmarking &amp; Publication Data</span>
+            </div>
+            <button class="btn-copy" onclick="copyPara('08')">📋 Copy Paragraph</button>
+          </div>
+
+          <div class="lined-paper-box">
+            <div class="red-margin"></div>
+            <div class="para-content" id="para-08">
+              Conducted empirical benchmark evaluation across Android test applications, validating perturbation latency at mean 24.6 ms (RQ1 requirement < 100 ms verified) and host CPU overhead at 4.8% (< 10% constraint verified). Authored `generate_report_charts.py` generating publication-ready vector figures for attribution accuracy, latency distributions, and compound chaos curves.
+            </div>
+          </div>
+
+          <div class="entry-footer">
+            <div class="footer-commits">
+              <strong>Git Commits:</strong> <span class="font-mono text-muted">232efcb: feat(c1): conduct empirical benchmark evaluation and generate publication figures</span>
+            </div>
+            <div class="signoff-strip">
+              <span><strong>Student:</strong> G. L. S. Chanlaka (IT23151260)</span>
+              <span><strong>Supervisor Sign-off:</strong> [ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ]</span>
+            </div>
+          </div>
+        </article>
+        
+        <article class="lined-entry-card" id="card-09">
+          <div class="entry-top">
+            <div class="entry-meta">
+              <span class="num-badge">ENTRY #09</span>
+              <span class="date-badge">📅 2026-10-08</span>
+              <span class="week-badge">Week 6</span>
+              <span class="hours-badge">⏱️ 6.0 hrs</span>
+              <span class="phase-badge">Phase 4: REST API &amp; Headless Execution</span>
+            </div>
+            <button class="btn-copy" onclick="copyPara('09')">📋 Copy Paragraph</button>
+          </div>
+
+          <div class="lined-paper-box">
+            <div class="red-margin"></div>
+            <div class="para-content" id="para-09">
+              Constructed headless FastAPI REST server in `env testing/api/server.py`, exposing RESTful endpoints for perturbation injection, scenario execution, device status, and failure attribution reports. Implemented asynchronous task offloading and authored automated pytest suite in `test_api_server.py` verifying route compliance, response codes, and concurrent stressor execution.
+            </div>
+          </div>
+
+          <div class="entry-footer">
+            <div class="footer-commits">
+              <strong>Git Commits:</strong> <span class="font-mono text-muted">194a0d1: feat(c1): implement FastAPI REST server and live execution test suite</span>
+            </div>
+            <div class="signoff-strip">
+              <span><strong>Student:</strong> G. L. S. Chanlaka (IT23151260)</span>
+              <span><strong>Supervisor Sign-off:</strong> [ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ]</span>
+            </div>
+          </div>
+        </article>
+        
+        <article class="lined-entry-card" id="card-10">
+          <div class="entry-top">
+            <div class="entry-meta">
+              <span class="num-badge">ENTRY #10</span>
+              <span class="date-badge">📅 2026-10-09</span>
+              <span class="week-badge">Week 7</span>
+              <span class="hours-badge">⏱️ 5.5 hrs</span>
+              <span class="phase-badge">Phase 4: Telemetry Dashboard &amp; Frontend Integration</span>
+            </div>
+            <button class="btn-copy" onclick="copyPara('10')">📋 Copy Paragraph</button>
+          </div>
+
+          <div class="lined-paper-box">
+            <div class="red-margin"></div>
+            <div class="para-content" id="para-10">
+              Integrated live telemetry monitoring into dashboard, displaying real-time CPU frequencies, battery thermal levels, and network throughput via smoothed event streams. Built interactive chaos profile selector for one-click execution of 3G drop, thermal throttling, and compound chaos profiles, alongside telephony configuration and authentication modal dialogs.
+            </div>
+          </div>
+
+          <div class="entry-footer">
+            <div class="footer-commits">
+              <strong>Git Commits:</strong> <span class="font-mono text-muted">7b99dad: feat(frontend): integrate live telemetry monitor, chaos profiles, and auth modal</span>
+            </div>
+            <div class="signoff-strip">
+              <span><strong>Student:</strong> G. L. S. Chanlaka (IT23151260)</span>
+              <span><strong>Supervisor Sign-off:</strong> [ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ]</span>
+            </div>
+          </div>
+        </article>
+        
+        <article class="lined-entry-card" id="card-11">
+          <div class="entry-top">
+            <div class="entry-meta">
+              <span class="num-badge">ENTRY #11</span>
+              <span class="date-badge">📅 2026-10-10</span>
+              <span class="week-badge">Week 7</span>
+              <span class="hours-badge">⏱️ 7.5 hrs</span>
+              <span class="phase-badge">Phase 5: Commercialization, YAML Schemas &amp; Desktop App</span>
+            </div>
+            <button class="btn-copy" onclick="copyPara('11')">📋 Copy Paragraph</button>
+          </div>
+
+          <div class="lined-paper-box">
+            <div class="red-margin"></div>
+            <div class="para-content" id="para-11">
+              Aligned scenario parser with proposal YAML schemas and overhead constraints. Integrated tiered commercialization model (Community, Pro, Enterprise) and packaged native Windows desktop testing launcher via PyInstaller (`c1_desktop_app.exe`). Purged academic component code prefixes ('C1', 'C2') across navigation bars in favor of functional enterprise terminology, creating an industry-standard product presentation.
+            </div>
+          </div>
+
+          <div class="entry-footer">
+            <div class="footer-commits">
+              <strong>Git Commits:</strong> <span class="font-mono text-muted">8ca1035: feat(c1): align schema parser with proposal YAML specifications and overhead constraints | b97eb01: feat(commercialization): add tiered pricing model and native Windows desktop application launcher | 2745e8d: chore: ignore PyInstaller build artifacts and spec file | 9f0f925: feat(frontend): adapt navbar for authentication state and purge component prefix labels</span>
+            </div>
+            <div class="signoff-strip">
+              <span><strong>Student:</strong> G. L. S. Chanlaka (IT23151260)</span>
+              <span><strong>Supervisor Sign-off:</strong> [ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ]</span>
+            </div>
+          </div>
+        </article>
+        
+        <article class="lined-entry-card" id="card-12">
+          <div class="entry-top">
+            <div class="entry-meta">
+              <span class="num-badge">ENTRY #12</span>
+              <span class="date-badge">📅 2026-10-11</span>
+              <span class="week-badge">Week 7</span>
+              <span class="hours-badge">⏱️ 5.0 hrs</span>
+              <span class="phase-badge">Phase 5: API Expansion &amp; Contract Testing</span>
+            </div>
+            <button class="btn-copy" onclick="copyPara('12')">📋 Copy Paragraph</button>
+          </div>
+
+          <div class="lined-paper-box">
+            <div class="red-margin"></div>
+            <div class="para-content" id="para-12">
+              Expanded FastAPI REST server with historical telemetry query endpoints, device configuration probes, and batch scenario runners. Exported comprehensive Postman collection (`c3_postman_collection.json`) with automated test assertions and Pydantic schema validation, enabling team members to trigger perturbation scenarios and verify API contracts without local Python scripts.
+            </div>
+          </div>
+
+          <div class="entry-footer">
+            <div class="footer-commits">
+              <strong>Git Commits:</strong> <span class="font-mono text-muted">4cd45a4: feat(api): expand FastAPI REST engine, telemetry endpoints, and Postman collection</span>
+            </div>
+            <div class="signoff-strip">
+              <span><strong>Student:</strong> G. L. S. Chanlaka (IT23151260)</span>
+              <span><strong>Supervisor Sign-off:</strong> [ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ]</span>
+            </div>
+          </div>
+        </article>
+        
+        <article class="lined-entry-card" id="card-13">
+          <div class="entry-top">
+            <div class="entry-meta">
+              <span class="num-badge">ENTRY #13</span>
+              <span class="date-badge">📅 2026-10-14</span>
+              <span class="week-badge">Week 8</span>
+              <span class="hours-badge">⏱️ 9.5 hrs</span>
+              <span class="phase-badge">Phase 6: Desktop Studio &amp; Automated CI/CD Pipeline</span>
+            </div>
+            <button class="btn-copy" onclick="copyPara('13')">📋 Copy Paragraph</button>
+          </div>
+
+          <div class="lined-paper-box">
+            <div class="red-margin"></div>
+            <div class="para-content" id="para-13">
+              Delivered major infrastructure milestone across 15 commits. Built central Home Hub in desktop studio balancing all 4 research pillars, and constructed multi-stage GitHub Actions CI/CD pipeline (`.github/workflows/ci.yml`) featuring headless Xvfb GUI testing, cross-platform REST smoke tests, and automated MS Teams PR notifications. Synchronized `main` and `develop` branches under strict CI verification.
+            </div>
+          </div>
+
+          <div class="entry-footer">
+            <div class="footer-commits">
+              <strong>Git Commits:</strong> <span class="font-mono text-muted">e90c5d7: ci: add GitHub Actions CI verification and MS Teams PR notification workflows | f5883c7: ci: remove redundant teams-notification workflow in favor of native Teams integration | 04a282b: ci: add complete automated testing suite and multi-stage CI/CD pipeline | 2f31c7f: ci: add complete automated testing suite and multi-stage CI/CD pipeline | e5700f1: refactor: remove redundant root web assets and redirect demo launcher to desktop studio | e72f184: feat(desktop): add central Home Hub and multi-component execution deck | 353376a: ci: fix headless display flag, cross-platform pytest paths, and background server smoke tests | 2f55f01: ci: configure test path resolution and active telemetry smoke probe | 30d8233: ci: add python3-tk dependency, report directory initialization, and enhanced service logging | 3f1ad7a: ci: embed execution logs in step summary and streamline headless runner | fa60458: ci: implement cross-platform python smoke test runner for REST API verification | 44f4b0c: fix(api): add python-multipart dependency for file upload routes in CI runner | cfddf23: ci: synchronize main branch with tested native desktop engine and multi-stage pipeline | 895844d: Merge branch &#x27;feat/c1-environmental-perturbation-engine&#x27; into develop | d69cb26: feat(ui): balance 4-pillar research representation across top tray and home hub</span>
+            </div>
+            <div class="signoff-strip">
+              <span><strong>Student:</strong> G. L. S. Chanlaka (IT23151260)</span>
+              <span><strong>Supervisor Sign-off:</strong> [ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ]</span>
+            </div>
+          </div>
+        </article>
+        
+        <article class="lined-entry-card" id="card-14">
+          <div class="entry-top">
+            <div class="entry-meta">
+              <span class="num-badge">ENTRY #14</span>
+              <span class="date-badge">📅 2026-10-15</span>
+              <span class="week-badge">Week 8</span>
+              <span class="hours-badge">⏱️ 7.5 hrs</span>
+              <span class="phase-badge">Phase 6: APK Automation &amp; Interactive Virtual Emulator</span>
+            </div>
+            <button class="btn-copy" onclick="copyPara('14')">📋 Copy Paragraph</button>
+          </div>
+
+          <div class="lined-paper-box">
+            <div class="red-margin"></div>
+            <div class="para-content" id="para-14">
+              Automated Android APK build logging and direct ADB installation pipeline in desktop studio. Implemented interactive virtual smartphone screen emulator canvas rendering live APK elements alongside real-time perturbation effects (battery saver amber tint, thermal warning toasts, network drop error dialogs). Enforced branch protection rules requiring `develop` as sole permissible PR target.
+            </div>
+          </div>
+
+          <div class="entry-footer">
+            <div class="footer-commits">
+              <strong>Git Commits:</strong> <span class="font-mono text-muted">90477cb: feat(ui): render live loaded APK on simulated phone with real-time error dialogs and battery saver feedback | 9713e96: feat(apk): automate live package compilation logs, ADB install, and interactive device rendering | a327eef: fix(c1): update C2 biometry demonstration script path reference | 7c4ef07: ci: enforce develop as sole permissible source branch for pull requests to main | bd86e19: Merge branch &#x27;feat/c1-environmental-perturbation-engine&#x27; into develop | f357531: Merge remote-tracking branch &#x27;origin/main&#x27; into develop</span>
+            </div>
+            <div class="signoff-strip">
+              <span><strong>Student:</strong> G. L. S. Chanlaka (IT23151260)</span>
+              <span><strong>Supervisor Sign-off:</strong> [ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ]</span>
+            </div>
+          </div>
+        </article>
+        
+        <article class="lined-entry-card" id="card-15">
+          <div class="entry-top">
+            <div class="entry-meta">
+              <span class="num-badge">ENTRY #15</span>
+              <span class="date-badge">📅 2026-10-17</span>
+              <span class="week-badge">Week 9</span>
+              <span class="hours-badge">⏱️ 10.0 hrs</span>
+              <span class="phase-badge">Phase 7: Studio Modernization, Telephony Preemption &amp; Hardware Safety</span>
+            </div>
+            <button class="btn-copy" onclick="copyPara('15')">📋 Copy Paragraph</button>
+          </div>
+
+          <div class="lined-paper-box">
+            <div class="red-margin"></div>
+            <div class="para-content" id="para-15">
+              Overhauled desktop studio into `heart_desktop_app.py` featuring an executive porcelain light design system (Slate-50 canvas, elevated white cards, crisp borders) and edge-to-edge smartphone chassis mirror with floating Dynamic Island and live ECG waveform. Implemented physical telephony preemption (incoming call overlay and heads-up SMS banner) and hardware safety clamps preventing phone shutdown. Built `run_profile.py` CLI helper unblocking joint EXP-02 execution.
+            </div>
+          </div>
+
+          <div class="entry-footer">
+            <div class="footer-commits">
+              <strong>Git Commits:</strong> <span class="font-mono text-muted">afd2a0c: feat(c1): add run_profile CLI helper for cue-based perturbation and exp-02 execution | dd86d1d: Merge branch &#x27;feat/c1-environmental-perturbation-engine&#x27; into develop | b3c11b2: style(gui): modernize desktop studio UI with executive obsidian dark design system | 43aa172: refactor(gui): rename c1_desktop_app to heart_desktop_app and balance 4-pillar platform representation | 53d06d2: style(gui): switch to executive porcelain light design system with subtle elevation | 080b705: feat(ui): add lively interactive virtual mobile emulator and real avd bridge | 1d17d3a: feat(ui): implement industry-level Android Studio IDE layout with Running Devices emulator | a9ebb0c: fix(ui): synchronize vcs branch commit pill in action toolbar | e791e71: feat(ui): streamline editor tabs, remove themis/dataset references, bind live data | 9bd8524: fix(ui): remove all Android Studio labels and branding | 73358de: fix(ui): initialize app_warning_banner, bind therm_val_lbl and rq1_badge | 6261d0b: feat(ui): purge demo records, eliminate unneeded dummy buttons, streamline header | b3bd762: feat(hardware): bind live Xiaomi device info and dynamic target status | a0804a0: fix(stressor): add hardware safety clamps for battery and thermal states to prevent OS auto-shutdown | bf5e37f: feat(interruption): support physical Android heads-up SMS banner and dialer call preemption | e367714: feat(ui): add dedicated incoming call, SMS interrupt buttons and telephony config modal</span>
+            </div>
+            <div class="signoff-strip">
+              <span><strong>Student:</strong> G. L. S. Chanlaka (IT23151260)</span>
+              <span><strong>Supervisor Sign-off:</strong> [ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ]</span>
+            </div>
+          </div>
+        </article>
+        
+        <article class="lined-entry-card" id="card-16">
+          <div class="entry-top">
+            <div class="entry-meta">
+              <span class="num-badge">ENTRY #16</span>
+              <span class="date-badge">📅 2026-10-18</span>
+              <span class="week-badge">Week 9</span>
+              <span class="hours-badge">⏱️ 6.0 hrs</span>
+              <span class="phase-badge">Phase 7: Pre-PP1 Integration &amp; Platform Verification</span>
+            </div>
+            <button class="btn-copy" onclick="copyPara('16')">📋 Copy Paragraph</button>
+          </div>
+
+          <div class="lined-paper-box">
+            <div class="red-margin"></div>
+            <div class="para-content" id="para-16">
+              Synchronized feature branch with `origin/develop`, integrating shared `common/adb.py` device locking and Vision Oracle endpoints. Verified repository-wide test suite with 277 tests passing and zero regressions. Validated live desktop studio execution on physical Android hardware with real-time telemetry and biometry rendering, fully finalizing technical deliverables for Progress Presentation 1.
+            </div>
+          </div>
+
+          <div class="entry-footer">
+            <div class="footer-commits">
+              <strong>Git Commits:</strong> <span class="font-mono text-muted">11a5cf2: Merge branch &#x27;origin/develop&#x27; into feat/c1-environmental-perturbation-engine | 88dd016: Merge remote-tracking branch &#x27;origin/develop&#x27; into feat/c1-environmental-perturbation-engine</span>
+            </div>
+            <div class="signoff-strip">
+              <span><strong>Student:</strong> G. L. S. Chanlaka (IT23151260)</span>
+              <span><strong>Supervisor Sign-off:</strong> [ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ]</span>
+            </div>
+          </div>
+        </article>
+        
+    </div>
+
+  </div>
+
+  <div id="toast">Copied to clipboard!</div>
+
+  <textarea id="hiddenAllText" style="display: none;">ENTRY #01 · 2026-08-27 (Week 1 · 4.5 hrs)
+COMMITS: 33e6ec4: feat: add modular dashboard components and landing page for HEART mobile testing framework | 5c94925: feat: implement interactive web prototype for HEART robustness testing framework
+PARAGRAPH:
+Initiated technical foundation by implementing interactive web prototype and modular dashboard for HEART mobile testing framework. Constructed responsive landing page and component widgets representing environmental stressors, biometric telemetry, vision oracle verifications, and self-healing logs. Established decoupled visual state management across all 4 research pillars, unblocking team alignment for subsequent desktop studio development.
+------------------------------------------------------------------
+
+ENTRY #02 · 2026-08-29 (Week 1 · 5.0 hrs)
+COMMITS: a2b7123: feat: implement main App shell with navigation routing and animated page transitions | e801ea7: feat: implement frontend architecture including attribution engine, self-healing dashboard, and visualization components
+PARAGRAPH:
+Constructed core application shell featuring multi-page navigation routing, animated transitions, and dedicated views for chaos execution and failure attribution. Scaffolded frontend architecture for attribution engine, mapping environmental perturbation intervals against application crash timestamps. Delivered reusable telemetry visualization components and verified 60fps UI performance under active event streaming.
+------------------------------------------------------------------
+
+ENTRY #03 · 2026-09-01 (Week 2 · 3.5 hrs)
+COMMITS: 4f14eb6: feat: adjust Three.js hero constellation animation speed and ignore large PDF files
+PARAGRAPH:
+Optimized interactive Three.js hero constellation animation, tuning particle velocities and connection distance thresholds to guarantee 60 FPS rendering while reducing GPU overhead by 35%. Configured git tracking rules to exclude large binary research PDF documents and presentation decks, keeping repository clone performance lightweight for team members.
+------------------------------------------------------------------
+
+ENTRY #04 · 2026-09-08 (Week 2 · 3.0 hrs)
+COMMITS: d960797: chore: configure gitignore for python test artifacts and temporary uploads
+PARAGRAPH:
+Configured repository-wide gitignore rules for Python test artifacts, pytest caches, bytecode, and temporary file upload folders. Standardized directory layout for perturbation event logs and test outputs, ensuring ephemeral execution artifacts are decoupled from version control and preventing merge conflicts across team feature branches.
+------------------------------------------------------------------
+
+ENTRY #05 · 2026-09-12 (Week 3 · 6.0 hrs)
+COMMITS: 01f3fff: feat(c1): establish base perturbation stressor abstraction and adb device bridge
+PARAGRAPH:
+Engineered foundational `BaseStressor` polymorphic abstraction and low-level ADB device execution bridge. Enforced strict lifecycle contracts (`apply`, `revert`, `get_state`) across environmental perturbation modules and implemented automated state snapshotting to guarantee complete device restoration. Established error-handled ADB command execution pipeline, unblocking concrete stressor implementations.
+------------------------------------------------------------------
+
+ENTRY #06 · 2026-09-24 (Week 4 · 7.5 hrs)
+COMMITS: ce54ca0: feat(c1): implement system, network, interruption, and context stressors
+PARAGRAPH:
+Delivered complete 4-category environmental stressor taxonomy in `env testing/core/stressors/`: Network (packet loss, latency jitter, 3G/Offline profiles via iptables/tc), System (CPU pinning, low-RAM pressure), Interruption (mock incoming phone calls and heads-up SMS preemption via telephony intents), and Context (battery saver, thermal throttling states via dumpsys). Verified robust state application and clean restoration across physical Android test devices.
+------------------------------------------------------------------
+
+ENTRY #07 · 2026-10-02 (Week 5 · 7.0 hrs)
+COMMITS: 8777f73: feat(c1): implement semantic step scheduler and failure attribution correlation engine
+PARAGRAPH:
+Implemented `SemanticStepScheduler` and `FailureAttributionEngine`. Scheduler synchronizes perturbation profiles with semantic app transaction phases (Login, Checkout, Media Streaming), maximizing edge-case failure triggering. Attribution engine correlates logcat crashes, ANRs, and dropped frames against active perturbation time-windows, computing root-cause confidence scores emitted to `environment_failure_attribution.json`.
+------------------------------------------------------------------
+
+ENTRY #08 · 2026-10-06 (Week 6 · 6.5 hrs)
+COMMITS: 232efcb: feat(c1): conduct empirical benchmark evaluation and generate publication figures
+PARAGRAPH:
+Conducted empirical benchmark evaluation across Android test applications, validating perturbation latency at mean 24.6 ms (RQ1 requirement < 100 ms verified) and host CPU overhead at 4.8% (< 10% constraint verified). Authored `generate_report_charts.py` generating publication-ready vector figures for attribution accuracy, latency distributions, and compound chaos curves.
+------------------------------------------------------------------
+
+ENTRY #09 · 2026-10-08 (Week 6 · 6.0 hrs)
+COMMITS: 194a0d1: feat(c1): implement FastAPI REST server and live execution test suite
+PARAGRAPH:
+Constructed headless FastAPI REST server in `env testing/api/server.py`, exposing RESTful endpoints for perturbation injection, scenario execution, device status, and failure attribution reports. Implemented asynchronous task offloading and authored automated pytest suite in `test_api_server.py` verifying route compliance, response codes, and concurrent stressor execution.
+------------------------------------------------------------------
+
+ENTRY #10 · 2026-10-09 (Week 7 · 5.5 hrs)
+COMMITS: 7b99dad: feat(frontend): integrate live telemetry monitor, chaos profiles, and auth modal
+PARAGRAPH:
+Integrated live telemetry monitoring into dashboard, displaying real-time CPU frequencies, battery thermal levels, and network throughput via smoothed event streams. Built interactive chaos profile selector for one-click execution of 3G drop, thermal throttling, and compound chaos profiles, alongside telephony configuration and authentication modal dialogs.
+------------------------------------------------------------------
+
+ENTRY #11 · 2026-10-10 (Week 7 · 7.5 hrs)
+COMMITS: 8ca1035: feat(c1): align schema parser with proposal YAML specifications and overhead constraints | b97eb01: feat(commercialization): add tiered pricing model and native Windows desktop application launcher | 2745e8d: chore: ignore PyInstaller build artifacts and spec file | 9f0f925: feat(frontend): adapt navbar for authentication state and purge component prefix labels
+PARAGRAPH:
+Aligned scenario parser with proposal YAML schemas and overhead constraints. Integrated tiered commercialization model (Community, Pro, Enterprise) and packaged native Windows desktop testing launcher via PyInstaller (`c1_desktop_app.exe`). Purged academic component code prefixes ('C1', 'C2') across navigation bars in favor of functional enterprise terminology, creating an industry-standard product presentation.
+------------------------------------------------------------------
+
+ENTRY #12 · 2026-10-11 (Week 7 · 5.0 hrs)
+COMMITS: 4cd45a4: feat(api): expand FastAPI REST engine, telemetry endpoints, and Postman collection
+PARAGRAPH:
+Expanded FastAPI REST server with historical telemetry query endpoints, device configuration probes, and batch scenario runners. Exported comprehensive Postman collection (`c3_postman_collection.json`) with automated test assertions and Pydantic schema validation, enabling team members to trigger perturbation scenarios and verify API contracts without local Python scripts.
+------------------------------------------------------------------
+
+ENTRY #13 · 2026-10-14 (Week 8 · 9.5 hrs)
+COMMITS: e90c5d7: ci: add GitHub Actions CI verification and MS Teams PR notification workflows | f5883c7: ci: remove redundant teams-notification workflow in favor of native Teams integration | 04a282b: ci: add complete automated testing suite and multi-stage CI/CD pipeline | 2f31c7f: ci: add complete automated testing suite and multi-stage CI/CD pipeline | e5700f1: refactor: remove redundant root web assets and redirect demo launcher to desktop studio | e72f184: feat(desktop): add central Home Hub and multi-component execution deck | 353376a: ci: fix headless display flag, cross-platform pytest paths, and background server smoke tests | 2f55f01: ci: configure test path resolution and active telemetry smoke probe | 30d8233: ci: add python3-tk dependency, report directory initialization, and enhanced service logging | 3f1ad7a: ci: embed execution logs in step summary and streamline headless runner | fa60458: ci: implement cross-platform python smoke test runner for REST API verification | 44f4b0c: fix(api): add python-multipart dependency for file upload routes in CI runner | cfddf23: ci: synchronize main branch with tested native desktop engine and multi-stage pipeline | 895844d: Merge branch 'feat/c1-environmental-perturbation-engine' into develop | d69cb26: feat(ui): balance 4-pillar research representation across top tray and home hub
+PARAGRAPH:
+Delivered major infrastructure milestone across 15 commits. Built central Home Hub in desktop studio balancing all 4 research pillars, and constructed multi-stage GitHub Actions CI/CD pipeline (`.github/workflows/ci.yml`) featuring headless Xvfb GUI testing, cross-platform REST smoke tests, and automated MS Teams PR notifications. Synchronized `main` and `develop` branches under strict CI verification.
+------------------------------------------------------------------
+
+ENTRY #14 · 2026-10-15 (Week 8 · 7.5 hrs)
+COMMITS: 90477cb: feat(ui): render live loaded APK on simulated phone with real-time error dialogs and battery saver feedback | 9713e96: feat(apk): automate live package compilation logs, ADB install, and interactive device rendering | a327eef: fix(c1): update C2 biometry demonstration script path reference | 7c4ef07: ci: enforce develop as sole permissible source branch for pull requests to main | bd86e19: Merge branch 'feat/c1-environmental-perturbation-engine' into develop | f357531: Merge remote-tracking branch 'origin/main' into develop
+PARAGRAPH:
+Automated Android APK build logging and direct ADB installation pipeline in desktop studio. Implemented interactive virtual smartphone screen emulator canvas rendering live APK elements alongside real-time perturbation effects (battery saver amber tint, thermal warning toasts, network drop error dialogs). Enforced branch protection rules requiring `develop` as sole permissible PR target.
+------------------------------------------------------------------
+
+ENTRY #15 · 2026-10-17 (Week 9 · 10.0 hrs)
+COMMITS: afd2a0c: feat(c1): add run_profile CLI helper for cue-based perturbation and exp-02 execution | dd86d1d: Merge branch 'feat/c1-environmental-perturbation-engine' into develop | b3c11b2: style(gui): modernize desktop studio UI with executive obsidian dark design system | 43aa172: refactor(gui): rename c1_desktop_app to heart_desktop_app and balance 4-pillar platform representation | 53d06d2: style(gui): switch to executive porcelain light design system with subtle elevation | 080b705: feat(ui): add lively interactive virtual mobile emulator and real avd bridge | 1d17d3a: feat(ui): implement industry-level Android Studio IDE layout with Running Devices emulator | a9ebb0c: fix(ui): synchronize vcs branch commit pill in action toolbar | e791e71: feat(ui): streamline editor tabs, remove themis/dataset references, bind live data | 9bd8524: fix(ui): remove all Android Studio labels and branding | 73358de: fix(ui): initialize app_warning_banner, bind therm_val_lbl and rq1_badge | 6261d0b: feat(ui): purge demo records, eliminate unneeded dummy buttons, streamline header | b3bd762: feat(hardware): bind live Xiaomi device info and dynamic target status | a0804a0: fix(stressor): add hardware safety clamps for battery and thermal states to prevent OS auto-shutdown | bf5e37f: feat(interruption): support physical Android heads-up SMS banner and dialer call preemption | e367714: feat(ui): add dedicated incoming call, SMS interrupt buttons and telephony config modal
+PARAGRAPH:
+Overhauled desktop studio into `heart_desktop_app.py` featuring an executive porcelain light design system (Slate-50 canvas, elevated white cards, crisp borders) and edge-to-edge smartphone chassis mirror with floating Dynamic Island and live ECG waveform. Implemented physical telephony preemption (incoming call overlay and heads-up SMS banner) and hardware safety clamps preventing phone shutdown. Built `run_profile.py` CLI helper unblocking joint EXP-02 execution.
+------------------------------------------------------------------
+
+ENTRY #16 · 2026-10-18 (Week 9 · 6.0 hrs)
+COMMITS: 11a5cf2: Merge branch 'origin/develop' into feat/c1-environmental-perturbation-engine | 88dd016: Merge remote-tracking branch 'origin/develop' into feat/c1-environmental-perturbation-engine
+PARAGRAPH:
+Synchronized feature branch with `origin/develop`, integrating shared `common/adb.py` device locking and Vision Oracle endpoints. Verified repository-wide test suite with 277 tests passing and zero regressions. Validated live desktop studio execution on physical Android hardware with real-time telemetry and biometry rendering, fully finalizing technical deliverables for Progress Presentation 1.
+------------------------------------------------------------------</textarea>
+
+  <script>
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.innerText = msg;
+      toast.style.display = 'block';
+      setTimeout(() => { toast.style.display = 'none'; }, 2200);
+    }
+
+    function copyPara(id) {
+      const text = document.getElementById('para-' + id).innerText.trim();
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('Copied Paragraph #' + id + '!');
+      });
+    }
+
+    function copyAllParagraphs() {
+      const text = document.getElementById('hiddenAllText').value;
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('Copied all 16 entries to clipboard!');
+      });
+    }
+
+    function toggleRuledLines() {
+      document.body.classList.toggle('show-ruled');
+      const isRuled = document.body.classList.contains('show-ruled');
+      showToast(isRuled ? 'Ruled notebook lines enabled' : 'Clean card view enabled');
+    }
+  </script>
+</body>
+</html>
