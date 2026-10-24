@@ -1,0 +1,1063 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>How C2 Touches an App</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+/* Layout: single reading column (68ch) for prose; figures, tables and code break
+   out to a wider measure and scroll inside their own container. */
+:root{
+  --bg:#f6f7f8;
+  --surface:#ffffff;
+  --fg:#14181c;
+  --muted:#59636f;
+  --rule:#dbe0e6;
+  --accent:#0e5c6e;        /* structure, data flow */
+  --stress:#b2400c;        /* the stress / feedback path only */
+  --ok:#1d6b4a;
+  --code-bg:#f0f2f4;
+  --font-display:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --font-body:"Source Serif 4",Georgia,"Times New Roman",serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0e1216; --surface:#161b21; --fg:#e4e9ee; --muted:#95a1ad;
+    --rule:#262f38; --accent:#4ec8dc; --stress:#f0905a; --ok:#54c98f;
+    --code-bg:#11161b; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0e1216; --surface:#161b21; --fg:#e4e9ee; --muted:#95a1ad;
+  --rule:#262f38; --accent:#4ec8dc; --stress:#f0905a; --ok:#54c98f;
+  --code-bg:#11161b; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--bg); color:var(--fg);
+  font-family:var(--font-body); font-size:17px; line-height:1.62;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:0 5rem;
+}
+.wrap{max-width:60rem;margin:0 auto}
+.col{max-width:34rem}
+header.head{border-bottom:1px solid var(--rule);padding-block:3rem 1.6rem;margin-bottom:2.5rem}
+.eyebrow{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.13em;text-transform:uppercase;color:var(--accent);margin:0 0 .9rem}
+h1{font-family:var(--font-display);font-weight:700;font-size:clamp(2rem,5vw,2.9rem);line-height:1.08;letter-spacing:-.02em;margin:0 0 .8rem;text-wrap:balance}
+.standfirst{font-size:1.1rem;color:var(--muted);margin:0;max-width:34rem}
+.meta{font-family:var(--font-mono);font-size:.74rem;color:var(--muted);margin-top:1.4rem;display:flex;flex-wrap:wrap;gap:.4rem 1.4rem}
+h2{font-family:var(--font-display);font-weight:600;font-size:1.5rem;letter-spacing:-.01em;line-height:1.2;margin:3.4rem 0 .4rem;text-wrap:balance}
+h2 .num{font-family:var(--font-mono);font-size:.78rem;font-weight:500;color:var(--accent);display:block;letter-spacing:.1em;margin-bottom:.45rem}
+h3{font-family:var(--font-display);font-weight:600;font-size:1.08rem;margin:2.1rem 0 .3rem;letter-spacing:-.005em}
+h4{font-family:var(--font-mono);font-weight:500;font-size:.82rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:1.6rem 0 .3rem}
+p{margin:.75rem 0}
+a{color:var(--accent)}
+strong{font-weight:600}
+code{font-family:var(--font-mono);font-size:.86em;background:var(--code-bg);padding:.1em .32em;border-radius:3px;border:1px solid var(--rule)}
+.lede{font-size:1.05rem}
+ul,ol{padding-left:1.25rem;margin:.7rem 0;max-width:34rem}
+li{margin:.3rem 0}
+ol.steps{list-style:none;padding-left:0;counter-reset:s}
+ol.steps>li{counter-increment:s;position:relative;padding-left:2.3rem;margin:.85rem 0}
+ol.steps>li::before{content:counter(s);position:absolute;left:0;top:.08em;font-family:var(--font-mono);font-size:.74rem;width:1.5rem;height:1.5rem;line-height:1.5rem;text-align:center;border:1px solid var(--rule);border-radius:50%;color:var(--accent);background:var(--surface)}
+figure{margin:1.8rem 0;padding:0}
+figure svg{display:block;width:100%;max-width:100%;height:auto;color:var(--fg)}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+figcaption{font-family:var(--font-mono);font-size:.76rem;line-height:1.5;color:var(--muted);margin-top:.7rem;max-width:40rem}
+.srcline{font-family:var(--font-mono);font-size:.72rem;color:var(--muted);letter-spacing:.02em;margin:1.4rem 0 .3rem}
+.srcline b{color:var(--accent);font-weight:500}
+pre{background:var(--code-bg);border:1px solid var(--rule);border-radius:5px;padding:.85rem 1rem;overflow-x:auto;margin:.3rem 0 1rem;min-width:0}
+pre code{font-size:.79rem;line-height:1.55;background:none;border:0;padding:0}
+table{border-collapse:collapse;width:100%;font-family:var(--font-mono);font-size:.78rem;margin:.4rem 0 1.2rem}
+th,td{text-align:left;padding:.42rem .7rem;border-bottom:1px solid var(--rule);vertical-align:top;white-space:nowrap}
+th{font-weight:500;color:var(--muted);text-transform:uppercase;font-size:.68rem;letter-spacing:.07em}
+td.wrap-cell{white-space:normal;font-family:var(--font-body);font-size:.92rem}
+.num-col{text-align:right;font-variant-numeric:tabular-nums}
+.callout{border-left:2px solid var(--accent);background:var(--surface);padding:.85rem 1.1rem;margin:1.3rem 0;max-width:36rem;border-radius:0 4px 4px 0}
+.callout.warn{border-left-color:var(--stress)}
+.callout p{margin:.35rem 0;font-size:.96rem}
+.callout .tag{font-family:var(--font-mono);font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:.3rem}
+.callout.warn .tag{color:var(--stress)}
+.pill{display:inline-block;font-family:var(--font-mono);font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;padding:.14em .5em;border-radius:3px;border:1px solid currentColor}
+.pill.yes{color:var(--ok)}
+.pill.no{color:var(--stress)}
+.pill.part{color:var(--muted)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));gap:1rem 1.6rem;margin:1rem 0}
+.grid2>div{min-width:0}
+.kv{font-family:var(--font-mono);font-size:.79rem;color:var(--muted)}
+hr{border:0;border-top:1px solid var(--rule);margin:3rem 0}
+footer{border-top:1px solid var(--rule);margin-top:3.5rem;padding-top:1.3rem;font-family:var(--font-mono);font-size:.74rem;color:var(--muted)}
+.toc{background:var(--surface);border:1px solid var(--rule);border-radius:5px;padding:1rem 1.2rem;margin:2rem 0;max-width:36rem}
+.toc ol{list-style:none;padding:0;margin:0;counter-reset:t}
+.toc li{counter-increment:t;margin:.22rem 0;font-family:var(--font-mono);font-size:.8rem}
+.toc li::before{content:counter(t,decimal-leading-zero) "  ";color:var(--accent)}
+.toc a{text-decoration:none}
+.toc a:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="head">
+  <p class="eyebrow">Component 2 · Code-level walkthrough</p>
+  <h1>How C2 touches an app</h1>
+  <p class="standfirst">Every step from "a phone is plugged in" to "a distorted tap landed and the engine got angrier about it" — read out of the actual source, with file and line references.</p>
+  <div class="meta">
+    <span>Repo: <code>J26-SE-334/biometry</code></span>
+    <span>Read 2026-10-16 · updated 2026-10-17 against the live-device build</span>
+    <span>Ground truth: the code, not the notes</span>
+  </div>
+</header>
+
+<div class="col">
+<p class="lede">The short answer to "how does it know what buttons to touch" is that it asks Android. Android's own accessibility layer will hand over every widget on the current screen, with pixel bounds, and C2 filters that list down to things a finger would plausibly aim at. Choosing <em>which</em> of them to press is, today, deliberately dumb — round-robin, or a name lookup. The research work is in the step after: <strong>how</strong> the finger lands on the chosen widget, and how that changes as the app misbehaves.</p>
+</div>
+
+<nav class="toc">
+  <ol>
+    <li><a href="#overview">The loop in one picture</a></li>
+    <li><a href="#see">Seeing the screen — the dump</a></li>
+    <li><a href="#parse">Turning XML into targets</a></li>
+    <li><a href="#pick">Picking which target to press</a></li>
+    <li><a href="#act">One action, seven steps</a></li>
+    <li><a href="#where">Where the finger lands</a></li>
+    <li><a href="#when">When the finger moves</a></li>
+    <li><a href="#react">Reading the app's reaction</a></li>
+    <li><a href="#mind">Escalating the mood</a></li>
+    <li><a href="#record">What comes out</a></li>
+    <li><a href="#ablation">The control arm</a></li>
+    <li><a href="#device">The device layer</a></li>
+    <li><a href="#run">Running it</a></li>
+    <li><a href="#status">Verified, and not</a></li>
+    <li><a href="#plan">What's left to build</a></li>
+  </ol>
+</nav>
+
+<!-- ===================== 1 ===================== -->
+<h2 id="overview"><span class="num">01</span>The loop in one picture</h2>
+<div class="col">
+<p>Six things happen per action, in a cycle. The screen is read, a target is chosen, the current stress value bends the touch away from the target's centre, the touch goes out over ADB, the probe reads the frame statistics the device kept while the action landed, and what they say about rendering becomes a provocation value that moves the cognitive state — which sets the stress for the next action.</p>
+<p>The one arrow that makes this a research contribution rather than a tap script is the orange one: the app's behaviour feeding back into <em>how</em> the next touch is physically performed.</p>
+</div>
+
+<figure>
+<div class="scroll">
+<svg viewBox="0 0 900 400" role="img" aria-label="The C2 action cycle: hierarchy dump to target filter to tap distortion to ADB dispatch to app, then frame probe to provocation to cognitive model and back into the distortion step as stress" font-family="IBM Plex Mono, monospace">
+  <defs>
+    <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,1 L9,5 L0,9 z" fill="currentColor"/>
+    </marker>
+    <marker id="a1s" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,1 L9,5 L0,9 z" fill="var(--stress)"/>
+    </marker>
+  </defs>
+
+  <!-- top row -->
+  <g stroke="currentColor" fill="none" stroke-width="1.2">
+    <rect x="8"   y="52" width="156" height="54" rx="4"/>
+    <rect x="212" y="52" width="156" height="54" rx="4"/>
+    <rect x="416" y="52" width="156" height="54" rx="4"/>
+    <rect x="620" y="52" width="140" height="54" rx="4"/>
+  </g>
+  <g fill="currentColor" font-size="12.5" text-anchor="middle">
+    <text x="86"  y="74">uiautomator</text><text x="86"  y="91">dump</text>
+    <text x="290" y="74">tappable_</text><text x="290" y="91">targets()</text>
+    <text x="494" y="74">simulate_tap()</text><text x="494" y="91">spatial + timing</text>
+    <text x="690" y="74">input tap</text><text x="690" y="91">x y</text>
+  </g>
+  <g fill="var(--muted)" font-size="10" text-anchor="middle">
+    <text x="86"  y="42">common/adb.py</text>
+    <text x="290" y="42">hierarchy.py</text>
+    <text x="494" y="42">simulator.py</text>
+    <text x="690" y="42">adb_bridge.py</text>
+  </g>
+  <!-- app under test -->
+  <rect x="800" y="40" width="92" height="300" rx="6" fill="none" stroke="var(--accent)" stroke-width="1.4"/>
+  <g fill="var(--accent)" font-size="12.5" text-anchor="middle">
+    <text x="846" y="178">app</text><text x="846" y="196">under</text><text x="846" y="214">test</text>
+  </g>
+
+  <g stroke="currentColor" stroke-width="1.2" marker-end="url(#a1)" fill="none">
+    <line x1="164" y1="79" x2="206" y2="79"/>
+    <line x1="368" y1="79" x2="410" y2="79"/>
+    <line x1="572" y1="79" x2="614" y2="79"/>
+    <line x1="760" y1="79" x2="794" y2="79"/>
+  </g>
+  <g fill="var(--muted)" font-size="10" text-anchor="middle">
+    <text x="185" y="70">XML</text>
+    <text x="389" y="70">x,y,w,h</text>
+    <text x="593" y="63">x',y'</text><text x="593" y="74">delay</text>
+  </g>
+
+  <!-- bottom row, right to left -->
+  <g stroke="currentColor" fill="none" stroke-width="1.2">
+    <rect x="620" y="232" width="140" height="54" rx="4"/>
+    <rect x="416" y="232" width="156" height="54" rx="4"/>
+    <rect x="160" y="232" width="208" height="54" rx="4"/>
+  </g>
+  <g fill="currentColor" font-size="12.5" text-anchor="middle">
+    <text x="690" y="254">probe.observe()</text><text x="690" y="271">read gfxinfo</text>
+    <text x="494" y="254">provocation()</text><text x="494" y="271">map to [0,1]</text>
+    <text x="264" y="254">CognitiveStateModel</text><text x="264" y="271">.update()</text>
+  </g>
+  <g fill="var(--muted)" font-size="10" text-anchor="middle">
+    <text x="690" y="302">frame_probe.py</text>
+    <text x="494" y="302">frame_probe.py</text>
+    <text x="264" y="302">cognitive.py</text>
+  </g>
+
+  <line x1="846" y1="246" x2="768" y2="258" stroke="currentColor" stroke-width="1.2" marker-end="url(#a1)"/>
+  <text x="806" y="238" fill="var(--muted)" font-size="10" text-anchor="middle">screen</text>
+  <g stroke="currentColor" stroke-width="1.2" marker-end="url(#a1)" fill="none">
+    <line x1="620" y1="259" x2="578" y2="259"/>
+    <line x1="416" y1="259" x2="374" y2="259"/>
+  </g>
+  <g fill="var(--muted)" font-size="10" text-anchor="middle">
+    <text x="599" y="250">ui_delay_ms</text>
+    <text x="395" y="250">0…1</text>
+  </g>
+
+  <!-- feedback edge -->
+  <path d="M264 232 L264 170 L494 170 L494 112" fill="none" stroke="var(--stress)" stroke-width="2" marker-end="url(#a1s)"/>
+  <text x="379" y="161" fill="var(--stress)" font-size="12" text-anchor="middle">stress  s ∈ [0,1]</text>
+
+  <!-- record -->
+  <rect x="8" y="330" width="156" height="46" rx="4" fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="4 3"/>
+  <text x="86" y="350" fill="currentColor" font-size="12.5" text-anchor="middle">ActionRecord</text>
+  <text x="86" y="366" fill="var(--muted)" font-size="10" text-anchor="middle">→ timeline JSON</text>
+  <g stroke="var(--muted)" stroke-width="1" stroke-dasharray="3 3" fill="none" marker-end="url(#a1)">
+    <line x1="494" y1="112" x2="170" y2="344"/>
+    <line x1="160" y1="259" x2="110" y2="328"/>
+  </g>
+</svg>
+</div>
+<figcaption>One <code>act()</code> call. Everything on the top row happens before the touch leaves the machine; everything on the bottom row happens after it lands. The orange edge is the only thing separating this from an open-loop noise generator.</figcaption>
+</figure>
+
+<!-- ===================== 2 ===================== -->
+<h2 id="see"><span class="num">02</span>Seeing the screen — the dump</h2>
+<div class="col">
+<p>C2 never looks at pixels to find a button. It asks Android's UIAutomator service to serialise the whole view tree to a file on the device, then reads that file back. Two shell commands:</p>
+</div>
+
+<p class="srcline"><b>common/adb.py</b> : 160–184 · <code>AdbDevice.dump_hierarchy()</code></p>
+<pre><code>with DeviceLock(self.serial, self._lock_timeout):
+    subprocess.run(self._argv(["shell", "uiautomator", "dump",
+                               "/sdcard/window_dump.xml"]), ...)
+    raw = subprocess.run(self._argv(["exec-out", "cat",
+                               "/sdcard/window_dump.xml"]), ...).stdout
+self._dumps += 1
+text = raw.replace("\r\r\n", "\n").replace("\r\n", "\n")
+match = re.search(r"(&lt;hierarchy[\s\S]*?&lt;/hierarchy&gt;)", text)
+if not match:
+    raise RuntimeError("no &lt;hierarchy&gt; element in the device dump")</code></pre>
+
+<div class="col">
+<p>Four implementation details in those eight lines that matter more than they look:</p>
+<ul>
+  <li><code>exec-out cat</code> rather than <code>adb pull</code> — the bytes come back on stdout, so nothing lands in the working directory to be clobbered by another component.</li>
+  <li>The line-ending scrub exists because ADB mangles <code>\n</code> into <code>\r\r\n</code> on some hosts, which breaks the XML parser.</li>
+  <li>The regex throws away anything UIAutomator printed around the XML (it prints a status line), keeping only <code>&lt;hierarchy&gt;…&lt;/hierarchy&gt;</code>.</li>
+  <li>Everything runs under a <strong>cross-process</strong> file lock keyed by device serial. Three components in this project drive the same phone from three separate OS processes, and <code>uiautomator dump</code> is exclusive — so a thread lock would not have been enough.</li>
+</ul>
+<p>The result is cached with a timestamp. <code>dump_hierarchy(max_age_s=0.3)</code> hands back the previous dump if it is younger than 300 ms instead of paying for another one; <code>max_age_s=0.0</code>, the default, always forces a fresh read.</p>
+</div>
+
+<!-- ===================== 3 ===================== -->
+<h2 id="parse"><span class="num">03</span>Turning XML into targets</h2>
+<div class="col">
+<p>A dump is a tree of <code>&lt;node&gt;</code> elements, each carrying a <code>bounds</code> attribute of the form <code>[x1,y1][x2,y2]</code> in device pixels, plus <code>text</code>, <code>content-desc</code>, <code>resource-id</code> and <code>clickable</code>. The parser reduces each node to the five numbers the engine needs and a human-readable name.</p>
+</div>
+
+<figure>
+<div class="scroll">
+<svg viewBox="0 0 900 330" role="img" aria-label="A UIAutomator XML node is converted into a UiElement with centre and size, then filtered by three conditions, reducing 117 parsed nodes to 18 tappable targets" font-family="IBM Plex Mono, monospace">
+  <defs>
+    <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,1 L9,5 L0,9 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <!-- left: the xml -->
+  <text x="8" y="22" fill="var(--muted)" font-size="10">one &lt;node&gt; in the dump</text>
+  <rect x="8" y="30" width="270" height="118" rx="4" fill="none" stroke="currentColor" stroke-width="1.2"/>
+  <g fill="currentColor" font-size="11">
+    <text x="20" y="50">bounds="[374,1204][706,1374]"</text>
+    <text x="20" y="68">text="2"</text>
+    <text x="20" y="86">content-desc="2, ABC"</text>
+    <text x="20" y="104">resource-id=".../two"</text>
+    <text x="20" y="122">clickable="true"</text>
+  </g>
+  <line x1="278" y1="89" x2="320" y2="89" stroke="currentColor" stroke-width="1.2" marker-end="url(#a2)"/>
+  <text x="299" y="80" fill="var(--muted)" font-size="10" text-anchor="middle">_element()</text>
+
+  <!-- middle: the geometry -->
+  <rect x="330" y="30" width="250" height="118" rx="4" fill="none" stroke="var(--accent)" stroke-width="1.3"/>
+  <rect x="368" y="52" width="174" height="74" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="3 3"/>
+  <line x1="441" y1="89" x2="469" y2="89" stroke="var(--accent)" stroke-width="1.4"/>
+  <line x1="455" y1="75" x2="455" y2="103" stroke="var(--accent)" stroke-width="1.4"/>
+  <g fill="var(--muted)" font-size="10">
+    <text x="368" y="48">x1,y1</text>
+    <text x="516" y="140">x2,y2</text>
+  </g>
+  <g fill="var(--accent)" font-size="10.5">
+    <text x="462" y="68">centre (540, 1289)</text>
+    <text x="368" y="140">332 × 170 px</text>
+  </g>
+  <text x="330" y="22" fill="var(--muted)" font-size="10">UiElement</text>
+
+  <line x1="580" y1="89" x2="622" y2="89" stroke="currentColor" stroke-width="1.2" marker-end="url(#a2)"/>
+  <!-- right: the filter -->
+  <text x="632" y="22" fill="var(--muted)" font-size="10">tappable_targets()</text>
+  <rect x="632" y="30" width="260" height="118" rx="4" fill="none" stroke="currentColor" stroke-width="1.2"/>
+  <g fill="currentColor" font-size="11.5">
+    <text x="646" y="54">clickable == "true"</text>
+    <text x="646" y="78">min(w, h) ≥ 20 px</text>
+    <text x="646" y="102">max(w, h) ≤ 900 px</text>
+    <text x="646" y="130" fill="var(--muted)" font-size="10">all three, or it is not a target</text>
+  </g>
+
+  <!-- funnel -->
+  <g font-size="12" fill="currentColor">
+    <text x="8" y="196" fill="var(--muted)" font-size="10">committed dialer dump · biometry/window_dump.xml</text>
+    <rect x="8" y="206" width="420" height="30" rx="3" fill="none" stroke="currentColor" stroke-width="1.2"/>
+    <text x="218" y="226" text-anchor="middle">117 nodes parsed</text>
+    <rect x="8" y="256" width="64" height="30" rx="3" fill="none" stroke="var(--accent)" stroke-width="1.6"/>
+    <text x="40" y="276" text-anchor="middle" fill="var(--accent)">18</text>
+    <text x="84" y="276" fill="var(--muted)" font-size="11">tappable targets — sizes from 147×144 to 786×144</text>
+    <path d="M8 236 L8 256 M428 236 L72 256" fill="none" stroke="var(--muted)" stroke-width="1" stroke-dasharray="3 3"/>
+  </g>
+  <text x="8" y="312" fill="var(--muted)" font-size="10">Containers spanning the screen are clickable but are not what a user aims at; zero-area nodes cannot be hit at all.</text>
+</svg>
+</div>
+<figcaption>Node to target. The centre is the arithmetic midpoint of the bounds — the engine aims at geometric centres, not at anything the app declares. Counts verified by running the parser over the committed dump.</figcaption>
+</figure>
+
+<p class="srcline"><b>biometry/bridge/hierarchy.py</b> : 48–64 · the name fallback chain</p>
+<pre><code>text  = (node.get("text") or "").strip()
+desc  = (node.get("content-desc") or "").strip()
+resource_id = node.get("resource-id") or ""
+label = text or desc or resource_id.rsplit("/", 1)[-1] or "unnamed"</code></pre>
+
+<div class="col">
+<p>That label becomes <code>element_id</code>, and it is what appears in the output timeline as <code>target_element_id</code>. It is a convenience for reading a run back, not an identity — two unnamed widgets both become <code>"unnamed"</code>.</p>
+<p>Three functions make up the whole of this file, and none of them touches a device:</p>
+</div>
+
+<div class="scroll">
+<table>
+<thead><tr><th>Function</th><th>Takes</th><th>Gives</th></tr></thead>
+<tbody>
+<tr><td>parse_bounds</td><td><code>"[x1,y1][x2,y2]"</code></td><td>4 ints, or <code>ValueError</code></td></tr>
+<tr><td>parse_hierarchy</td><td>path, raw XML, or an ElementTree root</td><td><code>list[UiElement]</code></td></tr>
+<tr><td>tappable_targets</td><td>elements, min_side=20, max_side=900</td><td>the aimable subset</td></tr>
+<tr><td>load_corpus</td><td>a directory of <code>*.xml</code> dumps</td><td><code>{screen name → targets}</code></td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="callout">
+<span class="tag">Why it is built this way</span>
+<p>Accepting a saved file as readily as a live dump is what lets the entire engine run with no phone attached, against real screen layouts. That matters for more than convenience: real screens have a <em>spread</em> of widget sizes, and the spatial model's whole width-dependence only gets exercised by that spread. One synthetic rectangle exercises none of it.</p>
+</div>
+
+<!-- ===================== 4 ===================== -->
+<h2 id="pick"><span class="num">04</span>Picking which target to press</h2>
+<div class="col">
+<p>This is the part that is intentionally not clever, and it is worth being blunt about it. Three strategies exist in the repository, and none of them understands what a button means.</p>
+
+<h3>a. Round-robin over everything tappable</h3>
+<p>What the live entry point and the offline demonstration both do:</p>
+</div>
+
+<p class="srcline"><b>biometry/run_live_adaptive.py</b> : 33–37, 50–52</p>
+<pre><code>bridge  = ADBBridge(device_id=args.device)
+targets = tappable_targets(parse_hierarchy(bridge.dump_ui_hierarchy()))
+if not targets:
+    raise SystemExit("no tappable elements on the current screen")
+
+for i in range(args.actions):
+    target = targets[i % len(targets)]
+    record = controller.act(target.as_target())</code></pre>
+
+<div class="col">
+<p>Sixty actions over eighteen targets means each one gets pressed three or four times, in dump order, which is roughly top-to-bottom reading order of the view tree.</p>
+</div>
+
+<div class="callout warn">
+<span class="tag">Consequence to know about</span>
+<p>The target list is read <strong>once</strong>, before the loop, and never refreshed. If a tap navigates the app to another screen, the engine carries on tapping the coordinates of widgets that are no longer there. For a keypad that is fine — the dialer keypad does not move — and for the stress experiment it is arguably the point, since the independent variable is the touch distortion rather than the route through the app. It is not fine for anything that navigates, and it is the first thing to fix before a real hardware run.</p>
+</div>
+
+<div class="col">
+<h3>b. Lookup by name</h3>
+<p>When a script needs a specific button, it asks for one by text. The matcher is a substring test, case-insensitive, across three attributes at once:</p>
+</div>
+
+<p class="srcline"><b>biometry/bridge/adb_bridge.py</b> : 39–48 · <code>find_element_by_text()</code></p>
+<pre><code>needle = text_query.lower()
+for node in self.dump_ui_hierarchy().iter("node"):
+    text   = node.get("text", "")
+    desc   = node.get("content-desc", "")
+    res_id = node.get("resource-id", "")
+    if needle in text.lower() or needle in desc.lower() or needle in res_id.lower():
+        return self._parse_bounds(node.get("bounds", ""), text or desc, res_id)
+raise ValueError(f"UI element matching {text_query!r} not found on the current screen.")</code></pre>
+
+<div class="col">
+<p>First match wins, in document order. Because vendors label the same dial-pad key differently, the dialer demo tries a ladder of queries per digit and takes whichever hits first:</p>
+</div>
+
+<p class="srcline"><b>biometry/demo_live_dialer.py</b> : 25–38</p>
+<pre><code>word_map = {"0":"zero", "1":"one", ..., "9":"nine"}
+queries  = [digit, word, f"digit_{digit}", f"key_{digit}"]
+for query in queries:
+    try:
+        return bridge.find_element_by_text(query)
+    except ValueError:
+        continue
+raise ValueError(f"Could not locate dialer key for digit '{digit}' on screen.")</code></pre>
+
+<div class="col">
+<p>So pressing <kbd>7</kbd> tries <code>"7"</code>, then <code>"seven"</code>, then <code>"digit_7"</code>, then <code>"key_7"</code>. Each attempt costs a hierarchy dump, and a substring search is loose enough to match the wrong thing — <code>"1"</code> matches a phone number containing a 1 before it matches the key, which is visible in the committed dump where one target is labelled <code>"1 (590"</code>.</p>
+
+<h3>c. Visual verification</h3>
+<p><code>demo_live_pixel_detector.py</code> exists purely so a human can check the geometry. It captures <code>screencap</code> alongside the dump and draws every detected element's bounding box in green, with a red crosshair at the centre the engine would aim at, writing <code>detected_pixels.png</code>. It does no detection from the image itself — the boxes come from the XML.</p>
+
+<div class="callout">
+<span class="tag">The honest scope line</span>
+<p>There is no goal-directed target selection anywhere in C2, and that is by design rather than by omission. The gap this component addresses is about adapting <em>how</em> an action is performed, not <em>which</em> action is chosen; existing testing tools already choose actions from feedback. A sequence of intended actions is meant to arrive from outside — that is the <code>IF-Orchestrator-to-C2</code> interface, which is specified and not implemented. Until it exists, round-robin is the stand-in.</p>
+</div>
+</div>
+
+<!-- ===================== 5 ===================== -->
+<h2 id="act"><span class="num">05</span>One action, seven steps</h2>
+<div class="col">
+<p>Everything above is setup. This is the engine. <code>AdaptiveFeedbackController.act(target)</code> is 35 lines and does seven things in a fixed order.</p>
+</div>
+
+<p class="srcline"><b>biometry/engine/controller.py</b> : 87–124 · <code>act()</code>, abridged</p>
+<pre><code>stress = self.cognitive.stress                      # 1. read the mood
+prev_x, prev_y = self._previous_point or (None, None)
+tap = self.simulator.simulate_tap(                  # 2. bend the touch
+    target["x"], target["y"], target["width"], target["height"],
+    stress, prev_x=prev_x, prev_y=prev_y)
+
+before = self.probe.read_signature()                # 3. fingerprint the screen
+self.dispatch(tap["actual"]["x"], tap["actual"]["y"], tap["delay"])   # 4. touch
+observation  = self.probe.observe(before=before)    # 5. time the reaction
+provocation  = self.probe.provocation(observation)  # 6. score the annoyance
+
+state_before = getattr(self.cognitive, "state", None)
+self.cognitive.update(provocation)                  # 7. move the mood
+
+record = ActionRecord(...)                          #    write it all down
+self.timeline.append(record)
+self._previous_point = (tap["actual"]["x"], tap["actual"]["y"])
+return record</code></pre>
+
+<div class="col">
+<ol class="steps">
+  <li><strong>Read the mood.</strong> <code>self.cognitive.stress</code>, a float in [0,1]. Read, never computed here.</li>
+  <li><strong>Bend the touch.</strong> The target's centre and size go in; a landing point, a delay and a hit flag come out. Covered in §06 and §07.</li>
+  <li><strong>Fingerprint the screen</strong> before touching it, so there is something to compare against afterwards.</li>
+  <li><strong>Dispatch.</strong> <code>dispatch</code> is an injected callable taking <code>(x, y, pre_delay)</code>. In production it is <code>AdbDispatcher</code>; in tests it is a lambda that records and returns.</li>
+  <li><strong>Time the reaction</strong> by polling the fingerprint until it changes or the timeout expires.</li>
+  <li><strong>Score the annoyance</strong> — map that measurement onto [0,1].</li>
+  <li><strong>Move the mood.</strong> One Markov step, then the stress eases towards the new state's target. The state recorded is the state the action was performed <em>in</em> (<code>state_before</code>), not the one it caused.</li>
+</ol>
+<p>The landing point is remembered as <code>_previous_point</code>, which is what gives the next action an approach direction. The engine therefore models a finger travelling between the places it actually landed, not between the places it was aiming.</p>
+</div>
+
+<div class="callout">
+<span class="tag">The seam that makes it testable</span>
+<p><code>dispatch</code>, <code>probe</code>, <code>cognitive</code> and <code>clock</code> are all constructor arguments. There is no branch anywhere in the controller for "offline mode". An offline run and a live run differ only in which objects were passed in — which is why the offline path is a credible stand-in rather than a second program.</p>
+</div>
+
+<!-- ===================== 6 ===================== -->
+<h2 id="where"><span class="num">06</span>Where the finger lands</h2>
+<div class="col">
+<p>Given a target centre, a width and a height, and a stress value, produce a point. Four stages.</p>
+
+<h4>Stage 1 — the approach angle</h4>
+<p>θ is the direction of travel from the last landing point to this target: <code>atan2(dy, dx)</code>. With no previous point it defaults to π/4 (a bottom-right thumb reach); if the finger is already exactly on the target, a uniform random angle stands in for resting drift.</p>
+
+<h4>Stage 2 — how wide the scatter should be</h4>
+<p>The spread before stress comes from the FFitts variance decomposition: an observed touch spread is a relative term that grows with the target plus an absolute finger-imprecision floor that does not.</p>
+</div>
+
+<p class="srcline"><b>biometry/models/spatial.py</b> : 59–64 · <code>base_sigma()</code></p>
+<pre><code>width_mm = min(width, height) / self.px_per_mm      # the dimension deciding a hit
+sigma_relative_mm = self.relative_coeff * math.sqrt(width_mm)
+sigma_mm = math.hypot(sigma_relative_mm, self.sigma_absolute_mm)
+return sigma_mm * self.px_per_mm</code></pre>
+
+<div class="col">
+<p>Three constants, two of them calibrated against published 2D touch data rather than chosen: <code>sigma_absolute_mm = 1.50</code>, <code>relative_coeff = 0.493</code> (the <var>k</var> in <var>k</var>·√W), and <code>px_per_mm = 16.0</code>, which approximates a ~400 ppi phone. The provenance and the goodness-of-fit live with EXP-03 on the research side.</p>
+<p>Because the floor does not shrink with the target while the relative term grows only as √W, small targets are effectively smaller than their nominal bounds — which is the mechanism behind miss rate rising as widgets shrink. Note that lengths are millimetres internally; <code>px_per_mm</code> is the only bridge to pixels, and it <strong>must be measured per device</strong> or the calibration means nothing.</p>
+
+<h4>Stage 3 — split across two axes, then rotate</h4>
+<p>The offset is drawn in the frame of the approach vector: one axis along travel (<var>u</var>), one lateral (<var>v</var>), the lateral one narrower by <code>aspect_ratio = 0.45</code>. Stress widens both, the major axis more than the minor. Then a plain rotation matrix turns <var>(u,v)</var> into screen coordinates.</p>
+</div>
+
+<p class="srcline"><b>biometry/models/spatial.py</b> : 84–101 · <code>generate_touch()</code>, the core</p>
+<pre><code>sigma_base = self.base_sigma(width, height)
+sigma_u = sigma_base * self.ANISOTROPY_NORM * self.coupling.factor(stress, 1.00)
+sigma_v = (sigma_base * self.ANISOTROPY_NORM * 0.45) * self.coupling.factor(stress, 0.48)
+
+delta_u = self.rng.normal(0.0, sigma_u)
+delta_v = self.rng.normal(0.0, sigma_v)
+
+dx = delta_u * math.cos(theta) - delta_v * math.sin(theta)
+dy = delta_u * math.sin(theta) + delta_v * math.cos(theta)
+return target_x + dx, target_y + dy, theta</code></pre>
+
+<div class="col">
+<p><code>ANISOTROPY_NORM = √(2/(1+r²)) = 1.2897</code> exists so that squashing one axis does not quietly shrink the delivered bivariate spread below the calibrated value. With it, <code>SDxy = √((σ_u² + σ_v²)/2)</code> comes back out equal to <code>base_sigma</code> at zero stress. Unit tests could not catch the omission, because every axis test still passed; the distribution-level realism check did.</p>
+</div>
+
+<figure>
+<div class="scroll">
+<svg viewBox="0 0 900 340" role="img" aria-label="A target rectangle with an approach vector arriving from the lower left; a small scatter ellipse at calm stress fits inside the target, while a large ellipse elongated along the approach direction at high stress extends well outside it" font-family="IBM Plex Mono, monospace">
+  <defs>
+    <marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,1 L9,5 L0,9 z" fill="var(--accent)"/>
+    </marker>
+  </defs>
+  <!-- target -->
+  <rect x="320" y="118" width="160" height="80" rx="3" fill="none" stroke="currentColor" stroke-width="1.5"/>
+  <text x="400" y="110" fill="var(--muted)" font-size="10" text-anchor="middle">target widget  332 × 170 px</text>
+  <circle cx="400" cy="158" r="2.5" fill="currentColor"/>
+  <!-- approach vector -->
+  <line x1="150" y1="290" x2="392" y2="166" stroke="var(--accent)" stroke-width="1.6" marker-end="url(#a3)"/>
+  <circle cx="150" cy="290" r="3" fill="var(--accent)"/>
+  <text x="150" y="308" fill="var(--accent)" font-size="10.5" text-anchor="middle">previous landing point</text>
+  <path d="M400 158 L330 158 A70 70 0 0 0 352 198" fill="none" stroke="var(--muted)" stroke-width="1" stroke-dasharray="3 2"/>
+  <text x="318" y="186" fill="var(--muted)" font-size="11">θ</text>
+  <!-- calm ellipse -->
+  <ellipse cx="400" cy="158" rx="24" ry="10" fill="none" stroke="var(--ok)" stroke-width="1.8" transform="rotate(-27 400 158)"/>
+  <!-- stressed ellipse -->
+  <ellipse cx="400" cy="158" rx="71" ry="20" fill="none" stroke="var(--stress)" stroke-width="2" transform="rotate(-27 400 158)"/>
+  <!-- landed point outside -->
+  <circle cx="462" cy="122" r="3.5" fill="var(--stress)"/>
+  <line x1="455" y1="115" x2="469" y2="129" stroke="var(--stress)" stroke-width="1.2"/>
+  <line x1="469" y1="115" x2="455" y2="129" stroke="var(--stress)" stroke-width="1.2"/>
+  <text x="478" y="112" fill="var(--stress)" font-size="10.5">landed outside → MISS</text>
+  <!-- legend -->
+  <g font-size="11">
+    <line x1="560" y1="200" x2="590" y2="200" stroke="var(--ok)" stroke-width="1.8"/>
+    <text x="598" y="204" fill="currentColor">1σ at s = 0.05  (calm)</text>
+    <line x1="560" y1="224" x2="590" y2="224" stroke="var(--stress)" stroke-width="2"/>
+    <text x="598" y="228" fill="currentColor">1σ at s = 0.90  (frustrated)</text>
+  </g>
+  <!-- axis labels -->
+  <text x="300" y="248" fill="var(--muted)" font-size="10.5">σ_u along travel · sensitivity 1.00</text>
+  <text x="300" y="264" fill="var(--muted)" font-size="10.5">σ_v lateral · sensitivity 0.48 · ×0.45 narrower</text>
+  <text x="300" y="286" fill="var(--muted)" font-size="10.5">offsets drawn in (u,v), then rotated by θ into screen x,y</text>
+</svg>
+</div>
+<figcaption>The scatter ellipse points the way the finger travelled, and stress stretches it mostly along that direction. Both ellipses are 1σ; a 332×170 key at <code>px_per_mm=16</code>, drawn to scale against the widget.</figcaption>
+</figure>
+
+<div class="col">
+<p>All of the stress scaling goes through one object, <code>StressCoupling</code>, which is a frozen dataclass holding a single number:</p>
+</div>
+
+<p class="srcline"><b>biometry/models/coupling.py</b> : 22–25</p>
+<pre><code>def factor(self, stress, sensitivity=1.0):
+    if not 0.0 &lt;= stress &lt;= 1.0:
+        raise ValueError(f"stress must be in [0,1], got {stress}")
+    return 1.0 + self.alpha * sensitivity * stress</code></pre>
+
+<div class="col">
+<p>With <code>alpha = 2.5</code>, that is the whole coupling: every distortion module multiplies its nominal spread by <code>1 + 2.5·sensitivity·s</code>. Modules differ only in their sensitivity weights. Setting <code>alpha = 0</code> disables stress everywhere in the engine at once, which is exactly what the noise-only ablation variant needs.</p>
+<p>Worked through for two real widgets from the committed dialer dump — arithmetic from the formula above at <code>px_per_mm=16</code>, <code>alpha=2.5</code>, not measured output:</p>
+</div>
+
+<div class="scroll">
+<table>
+<thead><tr><th>Widget</th><th class="num-col">base σ</th><th>stress</th><th class="num-col">factor u / v</th><th class="num-col">σ_u</th><th class="num-col">σ_v</th><th class="num-col">half-minor</th></tr></thead>
+<tbody>
+<tr><td>332×170 key</td><td class="num-col">35.2 px</td><td>0.05 calm</td><td class="num-col">1.12 / 1.06</td><td class="num-col">51.0</td><td class="num-col">21.6</td><td class="num-col">85 px</td></tr>
+<tr><td></td><td class="num-col"></td><td>0.45 impatient</td><td class="num-col">2.12 / 1.54</td><td class="num-col">96.4</td><td class="num-col">31.4</td><td class="num-col">85 px</td></tr>
+<tr><td></td><td class="num-col"></td><td>0.90 frustrated</td><td class="num-col">3.25 / 2.08</td><td class="num-col">147.4</td><td class="num-col">42.5</td><td class="num-col">85 px</td></tr>
+<tr><td>147×144 icon</td><td class="num-col">33.7 px</td><td>0.05 calm</td><td class="num-col">1.12 / 1.06</td><td class="num-col">48.9</td><td class="num-col">20.7</td><td class="num-col">72 px</td></tr>
+<tr><td></td><td class="num-col"></td><td>0.90 frustrated</td><td class="num-col">3.25 / 2.08</td><td class="num-col">141.3</td><td class="num-col">40.7</td><td class="num-col">72 px</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="col">
+<h4>Stage 4 — did it land on the thing?</h4>
+<p>The hit test is an axis-aligned box check against the nominal bounds, and the error is plain Euclidean distance from the centre:</p>
+</div>
+
+<p class="srcline"><b>biometry/simulation/simulator.py</b> : 43–54</p>
+<pre><code>error_distance = math.sqrt((actual_x - target_x)**2 + (actual_y - target_y)**2)
+half_w, half_h = width / 2.0, height / 2.0
+is_hit = ((target_x - half_w &lt;= actual_x &lt;= target_x + half_w) and
+          (target_y - half_h &lt;= actual_y &lt;= target_y + half_h))</code></pre>
+
+<div class="col">
+<p>This is the engine's own bookkeeping, not the device's verdict. The tap is dispatched to the distorted coordinates regardless, so on a real phone the app decides what was actually pressed — possibly the neighbouring key, possibly nothing. <code>hit_flag</code> records whether the engine believes it hit, which is what makes miss rate measurable offline.</p>
+</div>
+
+<div class="callout">
+<span class="tag">Reproducibility</span>
+<p><code>BiometricSimulator.__init__</code> creates <strong>one</strong> seeded <code>numpy.default_rng</code> and hands the same generator to both models, and <strong>one</strong> <code>StressCoupling</code> and hands that to both too. A whole run is therefore reproducible from <code>seed</code> alone, and two engine variants can be compared on identical random draws. No module ever calls module-level <code>random</code>.</p>
+</div>
+
+<!-- ===================== 7 ===================== -->
+<h2 id="when"><span class="num">07</span>When the finger moves</h2>
+<div class="col">
+<p>Each action also carries a pre-action delay, drawn from a log-normal — positive by construction, right-skewed at every stress level, which a Gaussian cannot be. Stress does two separate things to it through the same coupling term:</p>
+</div>
+
+<p class="srcline"><b>biometry/models/timing.py</b> : 42–47 · <code>generate_delay()</code></p>
+<pre><code>median    = self.base_time / self.coupling.factor(stress, 0.60)   # haste
+sigma_log = self.shape * self.coupling.factor(stress, 1.20)       # inconsistency
+delay = self.rng.lognormal(mean=math.log(median), sigma=sigma_log)
+return max(self.MIN_DELAY, delay)                                 # 0.05 s floor</code></pre>
+
+<div class="col">
+<p>The median is <em>divided</em> by the factor, so a hurried user acts sooner; the log-space spread is <em>multiplied</em>, so a hurried user is less consistent. The right tail survives both, which is how hesitation and haste coexist in one distribution rather than needing two modes. The 50 ms floor is there because the device coalesces events below it.</p>
+<p>From <code>base_time = 0.3</code>, <code>shape = 0.18</code> — again arithmetic from the formula:</p>
+</div>
+
+<div class="scroll">
+<table>
+<thead><tr><th>stress</th><th class="num-col">median delay</th><th class="num-col">σ in log space</th><th class="num-col">mean delay</th></tr></thead>
+<tbody>
+<tr><td>0.05 calm</td><td class="num-col">0.279 s</td><td class="num-col">0.207</td><td class="num-col">0.285 s</td></tr>
+<tr><td>0.45 impatient</td><td class="num-col">0.179 s</td><td class="num-col">0.423</td><td class="num-col">0.196 s</td></tr>
+<tr><td>0.90 frustrated</td><td class="num-col">0.128 s</td><td class="num-col">0.666</td><td class="num-col">0.159 s</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="col">
+<p>The delay is not slept off inside the model. It is returned as a number, travels through <code>act()</code> as <code>tap["delay"]</code>, and is slept off by whoever dispatches — <code>ADBBridge.execute_tap</code> does <code>time.sleep(pre_delay)</code> immediately before <code>input tap</code>. In tests the dispatcher ignores it and the clock is fake, so a 120-action run completes instantly.</p>
+<p>Two explicit behaviours sit on top of the distribution since 2026-10-17. <code>hesitation_gap()</code> occasionally adds a long pause — its <em>probability</em> rises with stress through the same coupling, and its length is a multiple of the resting median, so it reads as a stall rather than a slow action. <code>rage_burst()</code> occasionally repeats the tap at the same point with 80–160&nbsp;ms gaps; the chance of a burst, not the taps themselves, is what stress scales. Both travel into the timeline as <code>hesitation_s</code> and <code>rage_taps</code>. Fitts movement time remains unimplemented.</p>
+</div>
+
+<!-- ===================== 8 ===================== -->
+<h2 id="react"><span class="num">08</span>Reading the app's reaction</h2>
+<div class="col">
+<p>The loop needs a number saying "the app just behaved badly". The agreed interface promises latency, frame drops and ANR flags from C1, and nothing produces them, so C2 measures the app's reaction itself. <strong>How</strong> it measures changed on first contact with hardware, and the story is worth keeping because the discarded instrument explains the one that replaced it.</p>
+
+<h4>The first instrument, and why it died</h4>
+<p>The first probe timed the wall-clock gap between dispatching a touch and the UI hierarchy changing, by fingerprinting the screen and polling the fingerprint in a loop:</p>
+</div>
+
+<p class="srcline"><b>biometry/bridge/latency_probe.py</b> · <code>observe()</code> — now the fallback</p>
+<pre><code>while True:
+    signature, cost = self._timed_read()      # hash of a uiautomator dump
+    if signature != before:
+        return ...                            # changed: the gap is the delay
+    if elapsed &gt;= self.timeout:
+        return ...                            # gave up
+    self.sleep(self.poll_interval)            # look again in 80 ms</code></pre>
+
+<div class="col">
+<p>The probe times its own reads and raises <code>contended</code> when one read costs more than the poll interval — at which point the measurement is about the tooling, not the app. On the first hardware run <strong>that flag fired on all 25 samples</strong>: a <code>uiautomator dump</code> costs about 2413&nbsp;ms on the test device, while a calculator tap responds in roughly 50&nbsp;ms. The ruler's smallest mark was fifty times the thing being measured, so every answer came back as either "already changed" or "timed out", nothing in between. No value of <code>poll_interval</code> or <code>timeout</code> fixes that — the cost is in looking at all.</p>
+
+<h4>The replacement: ask the renderer, not the screen</h4>
+<p>Android already measures its own rendering. <code>dumpsys gfxinfo &lt;package&gt;</code> reports, per process, how many frames were drawn, how many missed their deadline ("janky"), and the frame-time percentiles — and reading it costs about 58&nbsp;ms, near the 28&nbsp;ms bare-ADB floor. Passing <code>reset</code> zeroes the counters as it prints, which turns two reads into a <em>measurement window</em>:</p>
+</div>
+
+<p class="srcline"><b>biometry/bridge/frame_probe.py</b> · <code>read_signature()</code> / <code>observe()</code></p>
+<pre><code>def read_signature(self):
+    self.snapshot()          # zero the counters; discard the reading
+    return None              # there is no fingerprint — the window is open
+
+def snapshot(self):
+    text = self.device.shell("dumpsys", "gfxinfo", self.package, "reset")
+    return FrameStats.parse(text), cost
+
+def observe(self, before=None):
+    window, cost = self.snapshot()           # one read, no loop
+    stalled = window.total_frames == 0       # the app did not react at all</code></pre>
+
+<figure>
+<div class="scroll">
+<svg viewBox="0 0 900 150" role="img" aria-label="A timeline: reset zeroes the frame counters, the tap is dispatched, one read collects everything the app rendered in between. No polling." font-family="IBM Plex Mono, monospace">
+  <defs>
+    <marker id="a4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,1 L9,5 L0,9 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <line x1="40" y1="80" x2="870" y2="80" stroke="currentColor" stroke-width="1.2" marker-end="url(#a4)"/>
+  <g stroke="currentColor" stroke-width="1.5">
+    <line x1="110" y1="64" x2="110" y2="96"/>
+    <line x1="320" y1="64" x2="320" y2="96"/>
+    <line x1="700" y1="64" x2="700" y2="96"/>
+  </g>
+  <text x="110" y="52" fill="currentColor" font-size="11" text-anchor="middle">gfxinfo reset</text>
+  <text x="110" y="114" fill="var(--muted)" font-size="10" text-anchor="middle">counters → 0</text>
+  <text x="320" y="52" fill="var(--accent)" font-size="11" text-anchor="middle">input tap</text>
+  <text x="700" y="52" fill="currentColor" font-size="11" text-anchor="middle">gfxinfo reset</text>
+  <text x="700" y="114" fill="var(--muted)" font-size="10" text-anchor="middle">read the window, re-zero</text>
+  <path d="M120 132 L690 132" stroke="var(--stress)" stroke-width="1.5"/>
+  <path d="M120 128 L120 136 M690 128 L690 136" stroke="var(--stress)" stroke-width="1.5"/>
+  <text x="405" y="146" fill="var(--stress)" font-size="10" text-anchor="middle">everything the app rendered in this window — frames, jank, percentiles — measured by the platform itself</text>
+</svg>
+</div>
+<figcaption>No <code>poll_interval</code>, no <code>timeout</code>: there is nothing to tune because there is no loop. Two ~58&nbsp;ms calls bracket the action.</figcaption>
+</figure>
+
+<div class="col">
+<h4>Three readings that are not what they look like</h4>
+<p>All three were found by running it, not by reading the docs. <strong>Without <code>reset</code> the percentiles are lifetime figures</strong> — a first run showed p95 barely moving across forty actions because it described the whole process, not the action just performed. <strong>An empty window reports 4950&nbsp;ms in every percentile</strong> — the top histogram bucket used as an empty-set sentinel, not a latency anyone measured; <code>ui_delay_ms</code> returns <code>None</code> for a stalled window rather than report it. And <strong>a jank ratio over a handful of frames is noise</strong> — one janky frame out of two is not a 50% jank rate; below <code>MIN_FRAMES_FOR_JANK = 8</code> the ratio is not computed at all.</p>
+
+<h4>From rendering to annoyance</h4>
+</div>
+
+<p class="srcline"><b>biometry/bridge/frame_probe.py</b> · <code>provocation()</code></p>
+<pre><code>if observation.stalled:
+    return 1.0                                # nothing rendered: maximal
+slowness = (frame_ms - self.smooth_ms) / (self.intolerable_ms - self.smooth_ms)
+jank     = observation.jank_pct / self.jank_tolerance
+return min(1.0, max(0.0, max(slowness, jank)))</code></pre>
+
+<div class="col">
+<p>Zero at one 60&nbsp;Hz frame (<code>smooth_ms = 16.7</code>), one at a visible stutter (<code>intolerable_ms = 250</code>) or at 20% janky frames (<code>jank_tolerance = 0.20</code>), whichever is worse; a window in which nothing rendered at all is maximally provoking. This maps what a user <em>perceives</em> — stutter, sluggishness, a dead screen — rather than a point latency below their perceptual floor. The three thresholds are explicit constructor arguments and are the section's honest placeholders: flagged in the source as pending calibration.</p>
+</div>
+
+<div class="callout">
+<span class="tag">The prediction that paid out</span>
+<p>An earlier revision of this section warned, before any device was attached, that each poll forces a fresh dump, that a dump "costs a few hundred milliseconds on real hardware", and that <code>contended</code> would likely fire on every observation. That is exactly what happened — except the dump cost 2413&nbsp;ms, worse than feared. The <code>contended</code> flag, built for a different failure, is what surfaced it instead of letting it average into the stress curve. The fix was not a faster poll; it was the realisation that the platform already measured what the poll was reconstructing. <code>LatencyProbe</code> is kept only for devices without usable gfxinfo, and the decision trail is RDR-0008 on the research side.</p>
+</div>
+
+<!-- ===================== 9 ===================== -->
+<h2 id="mind"><span class="num">09</span>Escalating the mood</h2>
+<div class="col">
+<p>Three states on a ladder, one rung per transition, and a stress value that eases towards the current state's target rather than jumping to it.</p>
+</div>
+
+<figure>
+<div class="scroll">
+<svg viewBox="0 0 900 300" role="img" aria-label="Three cognitive states — calm at stress 0.05, impatient at 0.45, frustrated at 0.90 — connected by escalate and settle transitions one rung at a time, with the emitted stress easing twenty-five percent of the way to the current target each step" font-family="IBM Plex Mono, monospace">
+  <defs>
+    <marker id="a5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,1 L9,5 L0,9 z" fill="var(--stress)"/>
+    </marker>
+    <marker id="a5b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,1 L9,5 L0,9 z" fill="var(--ok)"/>
+    </marker>
+  </defs>
+  <!-- states -->
+  <g stroke="currentColor" fill="none" stroke-width="1.3">
+    <rect x="40" y="200" width="150" height="52" rx="4"/>
+    <rect x="300" y="128" width="150" height="52" rx="4"/>
+    <rect x="560" y="56" width="150" height="52" rx="4"/>
+  </g>
+  <g fill="currentColor" font-size="13" text-anchor="middle">
+    <text x="115" y="223">CALM</text>
+    <text x="375" y="151">IMPATIENT</text>
+    <text x="635" y="79">FRUSTRATED</text>
+  </g>
+  <g fill="var(--muted)" font-size="10.5" text-anchor="middle">
+    <text x="115" y="241">target s = 0.05</text>
+    <text x="375" y="169">target s = 0.45</text>
+    <text x="635" y="97">target s = 0.90</text>
+  </g>
+  <!-- escalate -->
+  <path d="M190 210 L296 148" fill="none" stroke="var(--stress)" stroke-width="1.8" marker-end="url(#a5)"/>
+  <path d="M450 138 L556 76" fill="none" stroke="var(--stress)" stroke-width="1.8" marker-end="url(#a5)"/>
+  <!-- settle -->
+  <path d="M300 170 L194 232" fill="none" stroke="var(--ok)" stroke-width="1.8" marker-end="url(#a5b)"/>
+  <path d="M560 98 L454 160" fill="none" stroke="var(--ok)" stroke-width="1.8" marker-end="url(#a5b)"/>
+  <g font-size="10.5">
+    <text x="196" y="160" fill="var(--stress)">p_up = 0.55 · provocation</text>
+    <text x="456" y="88" fill="var(--stress)">p_up</text>
+    <text x="196" y="260" fill="var(--ok)">p_down = 0.35 · (1 − provocation)</text>
+    <text x="470" y="188" fill="var(--ok)">p_down</text>
+  </g>
+  <text x="730" y="56" fill="var(--muted)" font-size="10">p_up = 0 at the top rung</text>
+  <text x="40" y="282" fill="var(--muted)" font-size="10">p_down = 0 at the bottom rung · one draw from rng.random() decides up, down or stay</text>
+  <!-- easing inset -->
+  <text x="730" y="130" fill="var(--muted)" font-size="10">emitted stress eases,</text>
+  <text x="730" y="144" fill="var(--muted)" font-size="10">it does not jump:</text>
+  <text x="730" y="164" fill="currentColor" font-size="10.5">s += (target − s) × 0.25</text>
+  <polyline points="730,240 748,228 766,218 784,210 802,204 820,200 838,197 856,195" fill="none" stroke="var(--accent)" stroke-width="1.6"/>
+  <line x1="730" y1="246" x2="860" y2="246" stroke="var(--muted)" stroke-width="1"/>
+  <line x1="730" y1="192" x2="860" y2="192" stroke="var(--muted)" stroke-width="1" stroke-dasharray="3 3"/>
+  <text x="862" y="196" fill="var(--muted)" font-size="9.5">target</text>
+  <text x="730" y="262" fill="var(--muted)" font-size="9.5">≈ 9 actions to close most of the gap</text>
+</svg>
+</div>
+<figcaption>Three states with inspectable parameters, not a learned policy — chosen so that when the engine produces a mis-tap it is possible to say which state it was in and why it got there. The ladder is never skipped: calm cannot become frustrated without passing through impatience.</figcaption>
+</figure>
+
+<p class="srcline"><b>biometry/models/cognitive.py</b> : 85–96 · <code>update()</code></p>
+<pre><code>p_up, p_down = self.transition_probabilities(provocation)
+draw = self.rng.random()
+if draw &lt; p_up:
+    self.state = LADDER[self.rung + 1]
+elif draw &lt; p_up + p_down:
+    self.state = LADDER[self.rung - 1]
+
+target = TARGET_STRESS[self.state]
+self.stress += (target - self.stress) * min(1.0, self.ease * dt)
+self.stress = float(np.clip(self.stress, 0.0, 1.0))
+return self.stress</code></pre>
+
+<div class="col">
+<p>One random draw decides all three outcomes — escalate, settle, or stay — which keeps the whole transition reproducible from one seed. The easing is what makes the stress timeline read as a curve rather than a staircase, and it is also why the state recorded alongside an action is the state the action was performed in: by the time <code>update()</code> has run, the mood belongs to the next action.</p>
+</div>
+
+<!-- ===================== 10 ===================== -->
+<h2 id="record"><span class="num">10</span>What comes out</h2>
+<div class="col">
+<p>One <code>ActionRecord</code> per action, appended to a <code>StressTimeline</code>, written as JSON. Field names deliberately match the <code>IF-C2-to-Store</code> contract so the timeline persists without translation. Here is record zero of the committed offline run, verbatim:</p>
+</div>
+
+<p class="srcline"><b>biometry/results/adaptive_loop_timeline.json</b> · records[0] of 120</p>
+<pre><code>{
+  "t_ms": 0.0,                      // since the first action
+  "target_element_id": "More options",
+  "x": 42.55, "y": 1066.1,          // where it actually landed
+  "hit_flag": true,
+  "error_px": 39.1,                 // distance from the target centre
+  "delay_s": 0.1885,                // the pre-action delay used
+  "stress_s": 0.05,                 // the mood it was performed in
+  "cognitive_state": "calm",
+  "ui_delay_ms": 0.0,               // how long the screen took to change
+  "responded": true,
+  "provocation": 0.0,               // what that did to the mood
+  "contended": false                // was the measurement trustworthy
+}</code></pre>
+
+<div class="col">
+<p>Twelve numbers that let a run be re-read as a story: the mood, the physical consequence of the mood, and the app behaviour that caused the mood. <code>engine/visualise.py</code> plots a timeline and an adaptive-versus-static comparison from exactly these fields.</p>
+<p>The contract has two known gaps: there is no <code>schema_version</code> field and no JSON Schema, and the shared store it is supposed to write into does not exist yet — so today the consumer is a file path.</p>
+</div>
+
+<!-- ===================== 11 ===================== -->
+<h2 id="ablation"><span class="num">11</span>The control arm</h2>
+<div class="col">
+<p>The experiment needs a version of the engine with the feedback switched off. That is one constructor argument, not a second code path:</p>
+</div>
+
+<p class="srcline"><b>biometry/run_live_adaptive.py</b> : 69–81</p>
+<pre><code>simulator, source = build_engine(args.profile, seed=args.seed, px_per_mm=px_per_mm)
+if args.static:
+    source = StaticStress(args.stress)   # &lt;-- the only difference between the two arms
+
+controller = AdaptiveFeedbackController(
+    simulator=simulator,
+    cognitive=source,
+    probe=FrameProbe(bridge.device, package),
+    dispatch=AdbDispatcher(bridge),
+    run_id=f"live-{'static' if args.static else 'adaptive'}",
+    persona_id=args.profile)</code></pre>
+
+<figure>
+<div class="scroll">
+<svg viewBox="0 0 900 230" role="img" aria-label="Two copies of the same loop side by side. On the left the cognitive state model closes the feedback edge from provocation back into the touch distortion. On the right static stress replaces it and the feedback edge is cut, leaving an open loop with a constant stress value." font-family="IBM Plex Mono, monospace">
+  <defs>
+    <marker id="a6" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,1 L9,5 L0,9 z" fill="var(--stress)"/>
+    </marker>
+    <marker id="a6g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,1 L9,5 L0,9 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <!-- adaptive -->
+  <text x="8" y="20" fill="var(--stress)" font-size="11">adaptive arm — feedback closed</text>
+  <g stroke="currentColor" fill="none" stroke-width="1.2">
+    <rect x="8" y="34" width="120" height="44" rx="4"/>
+    <rect x="178" y="34" width="120" height="44" rx="4"/>
+    <rect x="178" y="138" width="190" height="44" rx="4"/>
+  </g>
+  <g fill="currentColor" font-size="11.5" text-anchor="middle">
+    <text x="68" y="55">simulate_tap</text><text x="68" y="70">+ dispatch</text>
+    <text x="238" y="55">probe</text><text x="238" y="70">provocation</text>
+    <text x="273" y="155">CognitiveStateModel</text><text x="273" y="171">.update()</text>
+  </g>
+  <line x1="128" y1="56" x2="172" y2="56" stroke="currentColor" stroke-width="1.2" marker-end="url(#a6g)"/>
+  <path d="M238 138 L238 108 L68 108 L68 82" fill="none" stroke="var(--stress)" stroke-width="2" marker-end="url(#a6)"/>
+  <text x="152" y="102" fill="var(--stress)" font-size="10.5" text-anchor="middle">stress rises and falls</text>
+  <text x="8" y="208" fill="var(--muted)" font-size="10">s: 0.05 → 0.90 → back, driven by the app</text>
+
+  <line x1="450" y1="14" x2="450" y2="214" stroke="var(--rule)" stroke-width="1"/>
+
+  <!-- static -->
+  <text x="476" y="20" fill="var(--muted)" font-size="11">control arm — feedback cut</text>
+  <g stroke="currentColor" fill="none" stroke-width="1.2">
+    <rect x="476" y="34" width="120" height="44" rx="4"/>
+    <rect x="646" y="34" width="120" height="44" rx="4"/>
+    <rect x="646" y="138" width="190" height="44" rx="4" stroke-dasharray="4 3"/>
+  </g>
+  <g fill="currentColor" font-size="11.5" text-anchor="middle">
+    <text x="536" y="55">simulate_tap</text><text x="536" y="70">+ dispatch</text>
+    <text x="706" y="55">probe</text><text x="706" y="70">provocation</text>
+  </g>
+  <g fill="var(--muted)" font-size="11.5" text-anchor="middle">
+    <text x="741" y="155">StaticStress(0.05)</text><text x="741" y="171">ignores provocation</text>
+  </g>
+  <line x1="596" y1="56" x2="640" y2="56" stroke="currentColor" stroke-width="1.2" marker-end="url(#a6g)"/>
+  <path d="M706 138 L706 112" fill="none" stroke="var(--muted)" stroke-width="1.6" stroke-dasharray="4 3"/>
+  <g stroke="var(--stress)" stroke-width="1.8">
+    <line x1="698" y1="104" x2="714" y2="120"/><line x1="714" y1="104" x2="698" y2="120"/>
+  </g>
+  <path d="M620 108 L536 108 L536 82" fill="none" stroke="var(--muted)" stroke-width="1.6" marker-end="url(#a6g)"/>
+  <text x="590" y="102" fill="var(--muted)" font-size="10.5" text-anchor="middle">constant s</text>
+  <text x="476" y="208" fill="var(--muted)" font-size="10">s = 0.05 for every action · identical random draws</text>
+</svg>
+</div>
+<figcaption>Same engine, same seed, same targets, same draws. <code>StaticStress</code> exposes the same <code>update()</code> / <code>.stress</code> surface and throws provocation away, so the comparison is a substitution of one object for another rather than a branch. A third variant comes free: <code>alpha = 0</code> keeps the cognitive chain running but disconnects it from every distortion module at once.</figcaption>
+</figure>
+
+<!-- ===================== 12 ===================== -->
+<h2 id="device"><span class="num">12</span>The device layer</h2>
+<div class="col">
+<p>Below everything above sits one file, <code>common/adb.py</code>, which is now the only ADB connection in the repository. Three components used to open their own, with nothing coordinating them. The consequence was not just duplication: a dump issued by one component while the probe was timing the device turned that timing into a measurement of contention.</p>
+</div>
+
+<div class="grid2">
+  <div>
+    <h4>Exclusive access</h4>
+    <p class="kv">A lock file in the system temp directory, keyed by device serial, taken with <code>flock</code> (or <code>msvcrt.locking</code> on Windows) plus a thread lock. The components run as separate OS processes, so a thread lock alone could not serialise them.</p>
+  </div>
+  <div>
+    <h4>One dump per cycle</h4>
+    <p class="kv"><code>dump_hierarchy(max_age_s=…)</code> returns a cached dump when a fresh enough one exists, so N callers in a cycle cost one dump instead of N. <code>dump_count</code> exposes the real cost an instance imposed.</p>
+  </div>
+  <div>
+    <h4>No silent fallback</h4>
+    <p class="kv">A missing <code>adb</code> binary, no device, an ambiguous choice of two devices — each raises <code>NoDeviceError</code> with an actionable message. A run that injected nothing must never be indistinguishable from a clean one.</p>
+  </div>
+  <div>
+    <h4>No shell strings</h4>
+    <p class="kv">Every command is an argument list. A locator containing a semicolon stays one argument instead of becoming a second shell command.</p>
+  </div>
+</div>
+
+<div class="col">
+<p><code>ADBBridge</code> is now a thin adapter over that: <code>dump_ui_hierarchy()</code> returns an ElementTree root, <code>find_element_by_text()</code> does the name lookup, <code>execute_tap()</code> sleeps the pre-delay then taps. And two small adapters in <code>bridge/device.py</code> are the entire difference between an offline and a live run:</p>
+</div>
+
+<p class="srcline"><b>biometry/bridge/device.py</b> · the whole file, minus docstrings</p
+><pre><code>class AdbDispatcher:
+    def __init__(self, bridge):
+        self.bridge = bridge
+        self.dispatched = 0
+    def __call__(self, x, y, pre_delay=0.0):
+        self.bridge.execute_tap(x, y, pre_delay)
+        self.dispatched += 1
+
+    def swipe(self, path, duration_s, pre_delay=0.0):
+        self.bridge.execute_swipe(path, duration_s, pre_delay)
+        self.dispatched += 1
+
+def live_probe(bridge, **kwargs):
+    """Fallback for devices without gfxinfo — see §08."""
+    return LatencyProbe(lambda: hierarchy_signature(bridge), **kwargs)</code></pre>
+
+<div class="col">
+<h4>The Driver that isn't there</h4>
+<p>The group architecture puts a shared <strong>Test Execution Driver</strong> between every engine and the phone: C2 <em>decides</em> a touch and writes it as ordered motion events; the Driver <em>performs</em> it. That component was never built — and a list of events nobody performs does nothing: no tap lands, the app never reacts, the probe has nothing to read, the adaptive loop cannot close. So <code>AdbDispatcher</code> above is a deliberate <strong>15-line stand-in</strong> for it, carrying taps and straight swipes over <code>adb shell input</code>, while <code>engine/events.py</code> keeps producing the formal hand-off format the real Driver will consume.</p>
+<p>The separation survives because the controller never knows who performs — <code>dispatch</code> is an injected callable:</p>
+</div>
+
+<pre><code>AdaptiveFeedbackController(..., dispatch=AdbDispatcher(bridge))   # today
+AdaptiveFeedbackController(..., dispatch=the_real_driver)         # the day it exists
+AdaptiveFeedbackController(..., dispatch=recording_stub)          # in all 167 tests</code></pre>
+
+<div class="col">
+<p>What the stand-in costs, precisely: <strong>one feature, zero claims.</strong> <code>input swipe</code> draws straight lines, so a synthesized gesture's curved, trembling path reaches the device as its endpoints and duration — the curve itself is preserved in the timeline and the event list, waiting for a sendevent/uiautomator2 driver to replay it. Nothing in the demo, EXP-02 or CLAIM-01 depends on that. The real Driver has exactly three future customers: C2 (curved-path replay with real timing fidelity — <code>input</code> costs a ~28&nbsp;ms round trip per event, so burst gaps are approximate), C4 (replaying healed scripts <em>is</em> executing recorded event streams), and the evaluation (EXP-01 must hold the execution instrument constant across input generators). For everything the current experiments need, nobody needs it — which is why carrying the stand-in, rather than waiting, was the right call.</p>
+</div>
+
+<!-- ===================== 13 ===================== -->
+<h2 id="run"><span class="num">13</span>Running it</h2>
+<div class="col">
+<p>Both entry points run from inside <code>biometry/</code>, because the imports are package-relative to that directory.</p>
+
+<h4>No device required</h4>
+</div>
+<pre><code>cd J26-SE-334/biometry
+python demo_adaptive_loop.py</code></pre>
+<div class="col">
+<p>Targets come from the committed <code>window_dump.xml</code>; the app under test is a <code>DegradingApp</code> stub scripted to stay responsive for the first quarter of the run, degrade to roughly 25 poll intervals of lag by 70%, then recover. The clock is fake, so it finishes instantly. It runs the adaptive and static arms on the same seed and writes both figures plus the timeline JSON into <code>results/</code>.</p>
+
+<h4>Against a real device</h4>
+</div>
+<pre><code>adb devices                      # must list exactly one, or pass --device
+cd J26-SE-334/biometry
+python run_live_adaptive.py --actions 60 --seed 2026 --profile rushed
+python run_live_adaptive.py --actions 60 --seed 2026 --static --stress 0.05</code></pre>
+<div class="col">
+<p>Flags are <code>--actions</code>, <code>--seed</code>, <code>--device</code>, <code>--static</code>, <code>--stress</code>, <code>--profile</code>, <code>--package</code>, <code>--px-per-mm</code>, <code>--out</code>. When <code>--package</code> or <code>--px-per-mm</code> is omitted it is read from the device itself — the foreground window and <code>wm density</code> respectively — because the spatial calibration is in millimetres and means nothing at an assumed scale. Launching the app under test is the operator's job.</p>
+</div>
+
+<div class="callout">
+<span class="tag">Prerequisite</span>
+<p>The repository carries its own interpreter at <code>J26-SE-334/.venv</code> with numpy and scipy installed; run everything through it (<code>../.venv/bin/python</code> from inside <code>biometry/</code>). <code>adb</code> comes from Android platform-tools.</p>
+</div>
+
+<!-- ===================== 14 ===================== -->
+<h2 id="status"><span class="num">14</span>Verified, and not</h2>
+<div class="col">
+<p>What the test suite actually covers versus what has only ever been reasoned about. 167 tests cover C2, all of them runnable with no device attached, against saved hierarchy dumps — and the live path has now also run against a real phone (2026-10-17, Samsung SM-A226B).</p>
+</div>
+
+<div class="scroll">
+<table>
+<thead><tr><th>Piece</th><th>State</th><th class="wrap-cell" style="white-space:normal">Note</th></tr></thead>
+<tbody>
+<tr><td>hierarchy parsing + filter</td><td><span class="pill yes">tested</span></td><td class="wrap-cell">Re-verified today: 117 nodes → 18 targets from the committed dump.</td></tr>
+<tr><td>spatial model</td><td><span class="pill yes">tested</span></td><td class="wrap-cell">Calibrated constants; distribution-level check lives with EXP-03.</td></tr>
+<tr><td>coupling</td><td><span class="pill yes">tested</span></td><td class="wrap-cell">Rejects out-of-range stress.</td></tr>
+<tr><td>timing model</td><td><span class="pill yes">tested</span></td><td class="wrap-cell">Hesitation gaps and rage bursts added 2026-10-17; Fitts movement time still out.</td></tr>
+<tr><td>gesture synthesizer</td><td><span class="pill yes">tested</span></td><td class="wrap-cell">Bézier bow, tremor, min-jerk timing, early release — all stress-coupled. Distribution-level check lives with EXP-05 (structure + stress monotonicity). Not yet exercised on hardware.</td></tr>
+<tr><td>motion events</td><td><span class="pill yes">tested</span></td><td class="wrap-cell">DOWN/MOVE*/UP compilation — the IF-C2-to-Driver producer.</td></tr>
+<tr><td>behaviour profiles</td><td><span class="pill yes">tested</span></td><td class="wrap-cell">calm / rushed / tremor as frozen parameter bundles; reproducible from (profile, seed).</td></tr>
+<tr><td>cognitive chain</td><td><span class="pill yes">tested</span></td><td class="wrap-cell">Ladder, clipping at both ends, easing.</td></tr>
+<tr><td>controller loop</td><td><span class="pill yes">tested</span></td><td class="wrap-cell">With a recording dispatch stub and a fake clock.</td></tr>
+<tr><td>frame probe</td><td><span class="pill yes">tested</span></td><td class="wrap-cell">Parsing, sentinel handling, jank floor, provocation mapping — against captured gfxinfo text.</td></tr>
+<tr><td>latency probe</td><td><span class="pill part">fallback</span></td><td class="wrap-cell">Still tested, kept only for devices without usable gfxinfo (§08).</td></tr>
+<tr><td>reproducibility</td><td><span class="pill yes">tested</span></td><td class="wrap-cell">Same seed → same run.</td></tr>
+<tr><td>live run on hardware</td><td><span class="pill yes">run</span></td><td class="wrap-cell">Adaptive loop has run on a real device with the frame probe; taps only so far — swipes not yet dispatched live.</td></tr>
+<tr><td>px_per_mm</td><td><span class="pill yes">measured</span></td><td class="wrap-cell">The live entry point reads <code>wm density</code> and derives it per device; 16.0 remains the offline default.</td></tr>
+<tr><td>probe thresholds</td><td><span class="pill no">placeholder</span></td><td class="wrap-cell"><code>smooth_ms</code> 16.7, <code>intolerable_ms</code> 250, <code>jank_tolerance</code> 0.20 — explicit arguments, pending calibration.</td></tr>
+<tr><td>IF-C2-to-Driver, to-C3</td><td><span class="pill part">half</span></td><td class="wrap-cell">Driver payload producer built (<code>engine/events.py</code>) with no consumer yet — live dispatch still goes out as <code>input tap</code>/<code>input swipe</code>. to-C3 specified only.</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="col">
+<h3>Two inconsistencies in the code worth fixing</h3>
+<ul>
+  <li><code>c1_desktop_app.py</code> re-derives the spatial model inline, with different coefficients, and never imports <code>RotationalSpatialModel</code>. Two models of the same thing in one repository.</li>
+  <li><code>demo_live_dialer.py</code> still uses the older scalar <code>StressModel</code> and bypasses the controller entirely — no feedback loop, stress hard-coded as a list of four levels. It is a bridge demonstration, not the engine.</li>
+</ul>
+</div>
+
+<!-- ===================== 15 ===================== -->
+<h2 id="plan"><span class="num">15</span>What's left to build</h2>
+<div class="col">
+<p>Of the ten items this list held on 2026-10-16, seven are done — the interpreter, the per-device <code>px_per_mm</code>, the probe (replaced rather than fixed, §08), the first hardware runs, the gesture synthesizer, the timing behaviours and the behaviour profiles. What remains, in dependency order:</p>
+<ol class="steps">
+  <li><strong>Calibrate the frame probe's thresholds</strong> — <code>smooth_ms</code>, <code>intolerable_ms</code>, <code>jank_tolerance</code> — against something defensible rather than leaving the placeholders in the output.</li>
+  <li><strong>Re-read the hierarchy per action</strong>, so the engine stops tapping stale coordinates after the screen changes, and give target choice a named policy object instead of <code>i % len(targets)</code>.</li>
+  <li><strong>Exercise gestures live.</strong> Swipes dispatch as endpoint + duration over <code>input swipe</code>; replaying the curved path itself needs a <code>sendevent</code>/uiautomator2 driver — which is also what would consume the motion events of IF-C2-to-Driver.</li>
+  <li><strong>Escalate on repetition</strong>: consecutive stalls are counted and carried but provocation does not yet rise with them — the measured shape of rage-clicking, still unused by the cognitive layer.</li>
+  <li><strong>Version the output contract</strong>: add <code>schema_version</code> and a JSON Schema, so the timeline is still readable when the shared store finally exists.</li>
+  <li><strong>Fitts movement time</strong> in the timing model.</li>
+  <li><strong>EXP-02</strong>, the coupling ablation on an app made to misbehave (C1's stressors), then <strong>EXP-01</strong> against a baseline tool — the experiments that would move CLAIM-01 past <em>proposed</em>.</li>
+</ol>
+</div>
+
+<footer>
+  Read from source on 2026-10-16, updated 2026-10-17 · Component 2, <code>J26-SE-334/biometry</code> · Where a note and the code disagreed, the code is what is reported here.
+</footer>
+
+</div>
+</body>
+</html>
