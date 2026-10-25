@@ -1,0 +1,98 @@
+{
+  "experiment": "EXP-02 coupling ablation",
+  "session": "mon-joint-session",
+  "stressor": "Compound Chaos (3G Drop + CPU Throttling)",
+  "package": "com.google.android.dialer",
+  "device": "pixel-7-pro-physical-baseline",
+  "seed": 2026,
+  "arms": {
+    "noise-only": {
+      "actions": 60,
+      "mean_stress": 0.0,
+      "final_stress": 0.0,
+      "miss_rate": 0.0,
+      "mean_error_px": 41.1,
+      "stalls": 4,
+      "rage_bursts": 1,
+      "rage_extra_taps": 1,
+      "hesitations": 1,
+      "mean_ui_delay_ms": 373.7,
+      "contended": 15,
+      "fixed_stress": 0.0,
+      "c1_governing_profile": {
+        "profile_name": "Compound Chaos (3G Drop + CPU Throttling)",
+        "chaos_score": 78,
+        "applied_t_offset_s": -8.0
+      },
+      "c1_events_during_arm": [],
+      "c1_resets_during_arm": 0
+    },
+    "static-stress": {
+      "actions": 60,
+      "mean_stress": 0.45,
+      "final_stress": 0.45,
+      "miss_rate": 0.083,
+      "mean_error_px": 76.5,
+      "stalls": 4,
+      "rage_bursts": 4,
+      "rage_extra_taps": 8,
+      "hesitations": 6,
+      "mean_ui_delay_ms": 373.7,
+      "contended": 15,
+      "fixed_stress": 0.45,
+      "c1_governing_profile": {
+        "profile_name": "Compound Chaos (3G Drop + CPU Throttling)",
+        "chaos_score": 78,
+        "applied_t_offset_s": -53.8
+      },
+      "c1_events_during_arm": [],
+      "c1_resets_during_arm": 0
+    },
+    "full-adaptive": {
+      "actions": 60,
+      "mean_stress": 0.598,
+      "final_stress": 0.816,
+      "miss_rate": 0.167,
+      "mean_error_px": 90.1,
+      "stalls": 4,
+      "rage_bursts": 3,
+      "rage_extra_taps": 5,
+      "hesitations": 7,
+      "mean_ui_delay_ms": 373.7,
+      "contended": 15,
+      "fixed_stress": null,
+      "c1_governing_profile": {
+        "profile_name": "Compound Chaos (3G Drop + CPU Throttling)",
+        "chaos_score": 78,
+        "applied_t_offset_s": -102.5
+      },
+      "c1_events_during_arm": [
+        {
+          "t_offset_s": 6.0,
+          "action": "LATENCY_INJECTED",
+          "category": "NETWORK_LATENCY"
+        },
+        {
+          "t_offset_s": 15.0,
+          "action": "CPU_LOAD_INJECTED",
+          "category": "SYSTEM_CPU"
+        },
+        {
+          "t_offset_s": 22.0,
+          "action": "PACKET_LOSS_SIMULATED",
+          "category": "NETWORK_PACKET_LOSS"
+        }
+      ],
+      "c1_resets_during_arm": 0
+    }
+  },
+  "comparison": {
+    "adaptive_vs_noise": {
+      "stress_separation": 0.598,
+      "miss_rate_delta": 0.167,
+      "error_px_delta": 49.0,
+      "bursts_delta": 2,
+      "error_mannwhitney_p": 8.017e-08
+    }
+  }
+}
