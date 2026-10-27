@@ -46,3 +46,42 @@ Limits: names, addresses, and free-form identifiers are not detected, and IP
 addresses are not masked because app versions look the same. A locator whose
 text is personal data is masked, so a test generated from it targets the
 placeholder instead of the original value.
+
+## Neutral trace format (`--source trace`)
+
+For datasets that are not Sentry or Crashlytics exports (bug-report
+reproductions, crash logs with steps, recorded UI traces), write one record per
+trace and select the `trace` source. A file may hold one record, a JSON array
+of records, or JSONL.
+
+```json
+{
+  "trace_id": "t1",
+  "app_version": "2.1.0",
+  "device": "Pixel 7",
+  "os_version": "14",
+  "steps": [
+    {"timestamp": "2026-01-01T00:00:01Z", "action": "tap", "text": "Network and internet", "screen": "Home"},
+    {"timestamp": "2026-01-01T00:00:02Z", "action": "input", "resource_id": "com.app:id/search", "value": "wifi"}
+  ],
+  "failure": {"type": "IllegalStateException", "message": "boom", "timestamp": "2026-01-01T00:00:03Z"}
+}
+```
+
+- Each trace is its own session (`trace_id`). Steps keep their order by
+  timestamp.
+- `action` accepts the canonical vocabulary (`tap`, `input`, `navigate`,
+  `scroll`, `back`) and its aliases. Locator fields are `text`, `resource_id`,
+  `content_desc`, `accessibility_id`, and `xpath`. `value` is kept for inputs.
+- A step without an `action` or `timestamp` is quarantined. No timestamp is
+  invented. The failure timestamp defaults to the last step.
+- A trace without a `failure` yields events but no journey.
+- Redaction, deduplication, sessionization, and the journey seed export apply
+  exactly as for the other sources, and the journey origin is `trace`.
+
+Use it from the CLI (`c4 run --source trace`, `c4 journeys --source trace`) or
+the synthesis evaluation (`python -m evaluation.run_synthesis_eval --source trace`).
+
+No converter for AndroR2, ReCBench, or AITW is included and none of them has been
+evaluated. Each needs a small script that maps its records into this format, and
+that mapping must be checked against the dataset's real files.

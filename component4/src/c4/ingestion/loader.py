@@ -9,6 +9,7 @@ from typing import Any
 
 from c4.ingestion.crashlytics import CrashlyticsAdapter
 from c4.ingestion.sentry import SentryAdapter
+from c4.ingestion.trace import TraceAdapter
 from c4.schemas import EventSource, IngestionReport, NormalizedEvent
 
 
@@ -23,6 +24,7 @@ class TelemetryIngestionService:
         self._adapters = {
             EventSource.SENTRY: SentryAdapter(),
             EventSource.CRASHLYTICS: CrashlyticsAdapter(),
+            EventSource.TRACE: TraceAdapter(),
         }
 
     def parse(

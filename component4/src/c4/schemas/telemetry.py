@@ -14,6 +14,7 @@ class EventSource(str, Enum):
 
     SENTRY = "sentry"
     CRASHLYTICS = "crashlytics"
+    TRACE = "trace"
 
 
 class EventKind(str, Enum):

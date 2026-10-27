@@ -41,6 +41,7 @@ def collect_journeys(
     telemetry_dir: str | Path,
     *,
     limit: int | None = None,
+    source: EventSource | str = EventSource.SENTRY,
 ) -> list[FailureJourney]:
     """Load and sessionize all JSON telemetry files in deterministic order."""
     ingestion = TelemetryIngestionService()
@@ -54,7 +55,7 @@ def collect_journeys(
     for path in paths:
         journeys.extend(
             sessionization.process(
-                ingestion.parse_file(path, EventSource.SENTRY)
+                ingestion.parse_file(path, source)
             )
         )
     journeys.sort(key=lambda item: (item.failure.timestamp, item.journey_id))
@@ -199,7 +200,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         args = parser.parse_args(argv)
         target = load_target_config(args.config)
-        journeys = collect_journeys(args.telemetry_dir, limit=args.limit)
+        journeys = collect_journeys(args.telemetry_dir, limit=args.limit, source=args.source)
         llm = OllamaQwenClient(base_url=args.ollama_url, model=args.model)
         synthesis = SynthesisService(llm, target=target, use_c3=not args.no_c3)
         execution = (
@@ -230,6 +231,7 @@ def main(argv: list[str] | None = None) -> int:
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="python -m evaluation.run_synthesis_eval")
     parser.add_argument("--telemetry-dir", required=True)
+    parser.add_argument("--source", choices=("sentry", "crashlytics", "trace"), default="sentry")
     parser.add_argument("--config", required=True)
     parser.add_argument("--runs-dir", required=True)
     parser.add_argument("--model", default="qwen3:8b")

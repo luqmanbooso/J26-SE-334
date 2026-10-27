@@ -158,7 +158,8 @@ python -m c4 run --telemetry crash.json --source crashlytics `
 Useful options: `--dry-run`, `--no-c3` (disable the C3 stage for offline
 runs), `--c3-strict`, `--limit`, `--model`, `--ollama-url`, `--heal-threshold`,
 `--max-heal-rounds`, `--capture-baseline`, `--baseline-dir`. `--source`
-defaults to `sentry`.
+defaults to `sentry`; `crashlytics` and the neutral step format `trace` (see
+[`docs/ingestion-field-assumptions.md`](docs/ingestion-field-assumptions.md)) are also accepted.
 
 ### Offline healing (no device, no LLM)
 
