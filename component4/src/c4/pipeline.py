@@ -16,7 +16,7 @@ from c4.c3_interface.contract import C3Verdict
 from c4.c3_interface.normalize import normalize_verdict
 from c4.config import TargetAppConfig
 from c4.execution.service import ExecutionService
-from c4.execution.models import ExecutionResult, FailureKind
+from c4.execution.models import ExecutionResult, ExecutionStatus, FailureKind
 from c4.healing.baseline import BaselineStore
 from c4.healing.service import HealingOutcome, HealingService
 from c4.ingestion.loader import TelemetryIngestionService
@@ -182,14 +182,20 @@ class Pipeline:
                     c3_verdict, c3_status = handoff
                     if self.c3_strict and c3_status in {"unavailable", "invalid"}:
                         record_status = "error"
+            baseline_store = getattr(self.healer, "baseline_store", None)
+            if (
+                capture_baseline
+                and execution.status is ExecutionStatus.PASSED
+                and isinstance(baseline_store, BaselineStore)
+            ):
+                # Only a passing run describes the previous release; a failing
+                # run captures the changed screen and would hide every change.
+                baseline_store.save_from_run(safe_id, root / safe_id)
             if (
                 self.healer is not None
                 and execution.failure is not None
                 and execution.failure.kind is FailureKind.LOCATOR_NOT_FOUND
             ):
-                baseline_store = getattr(self.healer, "baseline_store", None)
-                if isinstance(baseline_store, BaselineStore):
-                    baseline_store.save_from_run(safe_id, root / safe_id)
                 healing = self.healer.heal_and_rerun(
                     result, execution, root / safe_id, safe_id
                 )

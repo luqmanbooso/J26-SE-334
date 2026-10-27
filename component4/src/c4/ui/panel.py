@@ -271,7 +271,9 @@ def build_c4_view(parent, theme: dict, log: Callable[[str], None] = print, root=
             f"{result.status}: {result.original_locator} -> {result.healed_locator}\n"
             f"confidence={result.confidence} threshold={result.threshold} margin={result.margin}\n"
             f"candidates={result.candidates_total} -> {result.candidates_after_narrowing}\n"
-            f"rules={result.rule_counts}\n\n{result.healed_script_diff}"
+            f"rules={result.rule_counts}\n"
+            f"baseline: {'previous passing run used, unchanged elements removed (R6)' if result.baseline_used else 'none, rule R6 skipped'}"
+            f"\n\n{result.healed_script_diff}"
         )
         healing_box.configure(state="normal")
         healing_box.delete("1.0", "end")

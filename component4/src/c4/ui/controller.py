@@ -16,7 +16,7 @@ from c4.c3_interface.inbox_client import InboxC3Client, inbox_path, list_inbox
 from c4.execution.models import ExecutionResult
 from c4.execution.service import ExecutionService
 from c4.healing.engine import HealingEngine
-from c4.execution.models import FailureKind
+from c4.execution.models import ExecutionStatus, FailureKind
 from c4.healing.baseline import BaselineStore
 from c4.healing.models import HealingConfig
 from c4.healing.service import HealingService
@@ -101,6 +101,7 @@ class HealView:
     top_candidates: list[dict[str, Any]] = field(default_factory=list)
     healed_script_diff: str = ""
     rerun_status: str | None = None
+    baseline_used: bool = False
     verified: bool = False
     versions: list[int] = field(default_factory=list)
     reason: str | None = None
@@ -252,8 +253,11 @@ class C4DemoController:
                 return RunView("error", error=synthesis.reason or f"Synthesis status: {synthesis.status}")
             target = load_target_config(config_path)
             service = self.execution_service or ExecutionService(target=target)
-            result = service.execute(synthesis, runs_dir=runs_dir)
+            result = service.execute(synthesis, runs_dir=runs_dir, capture_baseline=True)
             folder = str(Path(runs_dir) / result.run_id)
+            if result.status is ExecutionStatus.PASSED and (Path(folder) / "baseline").is_dir():
+                # A passing run describes the current release; later failing runs heal against it.
+                BaselineStore(Path(runs_dir) / "baselines").save_from_run(self._safe_id(journey_id), Path(folder))
             artifacts = [str(path) for path in Path(folder).glob("*")] if Path(folder).exists() else []
             return RunView(
                 result.status.value,
@@ -284,9 +288,15 @@ class C4DemoController:
             config = HealingConfig(embedder=selected.name, confidence_threshold=threshold)
             engine = HealingEngine(config, selected)
             if not verify:
+                baseline_xml = None
+                if run_view.run_folder:
+                    baseline_xml = BaselineStore(Path(run_view.run_folder).parent / "baselines").load(
+                        self._safe_id(test_id or synthesis.journey_id), failure.step_index or 0, synthesis.script
+                    )
                 decision = engine.heal(
                     synthesis.script or "", failure.step_index or 0,
                     Path(failure.page_source_path).read_text(encoding="utf-8"),
+                    baseline_hierarchy_xml=baseline_xml,
                 )
                 view = self._heal_view(decision, synthesis.script or "")
                 view.rerun_status = "not_run"
@@ -300,8 +310,9 @@ class C4DemoController:
                 TestRepository(runs_root / "repository"),
                 config,
             )
-            safe_id = re.sub(r"[^A-Za-z0-9_.-]+", "_", test_id or synthesis.journey_id).strip("._") or "journey"
-            outcome = service.heal_and_rerun(synthesis, result, run_dir, safe_id)
+            outcome = service.heal_and_rerun(
+                synthesis, result, run_dir, self._safe_id(test_id or synthesis.journey_id)
+            )
             if not outcome.rounds:
                 return HealView(outcome.final_status, rerun_status=outcome.final_status,
                                 reason="No healing round was attempted")
@@ -366,6 +377,10 @@ class C4DemoController:
             return False
 
     @staticmethod
+    def _safe_id(value: str) -> str:
+        return re.sub(r"[^A-Za-z0-9_.-]+", "_", value).strip("._") or "journey"
+
+    @staticmethod
     def _heal_view(decision: Any, original: str) -> HealView:
         healed = decision.healed_script or ""
         top = [
@@ -380,4 +395,5 @@ class C4DemoController:
             dict(decision.rule_counts), top,
             "".join(difflib.unified_diff(original.splitlines(True), healed.splitlines(True),
                                          fromfile="original", tofile="healed")) if healed else "",
+            baseline_used=decision.r6_applied,
         )

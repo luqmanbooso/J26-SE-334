@@ -29,6 +29,9 @@ class BaselineStore:
             "script_sha256": hashlib.sha256(script.read_bytes()).hexdigest()
             if script.exists()
             else None,
+            "script_text_sha256": script_digest(script.read_text(encoding="utf-8"))
+            if script.exists()
+            else None,
             "app_package": package,
             "step_count": steps,
         }
@@ -36,10 +39,28 @@ class BaselineStore:
             json.dumps(index, indent=2, sort_keys=True), encoding="utf-8"
         )
 
-    def load(self, test_id: str, step_index: int) -> str | None:
-        """Load one baseline hierarchy by test id and step index."""
+    def load(self, test_id: str, step_index: int, script: str | None = None) -> str | None:
+        """Load one baseline hierarchy by test id and step index.
+
+        When ``script`` is given, the baseline is returned only if it was captured
+        from that same script, so step indexes cannot drift between versions.
+        """
         path = self.root / test_id / f"step_{step_index}.xml"
-        return path.read_text(encoding="utf-8") if path.is_file() else None
+        if not path.is_file():
+            return None
+        if script is not None:
+            try:
+                recorded = json.loads((self.root / test_id / "index.json").read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                return None
+            if recorded.get("script_text_sha256") != script_digest(script):
+                return None
+        return path.read_text(encoding="utf-8")
+
+
+def script_digest(script: str) -> str:
+    """Hash script text independent of platform line endings."""
+    return hashlib.sha256(script.replace("\r\n", "\n").encode("utf-8")).hexdigest()
 
 
 def _read_package(script: Path) -> str | None:

@@ -176,10 +176,15 @@ for the real semantic model.
 ### Baseline snapshots
 
 `--capture-baseline` saves the hierarchy before every step into the run folder.
-Baseline comparison (rule R6 removes elements that did not change between the
-old and new screen) is evaluated offline through `c4 heal --baseline-hierarchy`
-and the evaluation harness. Reusing a baseline across app releases through the
-pipeline is a known limitation, see [Limitations](#limitations).
+A baseline is stored (under `<runs>/baselines/<test id>`) only from a run that
+passed, because that run describes the previous release; a failing run captures
+the changed screen and would hide every change. When a later run of the same
+script fails with a locator error, healing loads that baseline and rule R6
+removes the elements that did not change. A baseline is used only for the script
+it was captured from, so step indexes cannot drift. The desktop panel captures
+and reuses baselines automatically, and the healing result states whether one
+was used. Baseline comparison can also be run offline with
+`c4 heal --baseline-hierarchy` and through the evaluation harness.
 
 ### Evaluation
 
@@ -336,8 +341,8 @@ original script, and every accepted repair is stored as a new version. Details:
   reproduced; telemetry alone does not contain the application bug.
 - Evaluation telemetry that comes from datasets or hand-written files is
   synthesized, not genuine production data.
-- Baselines are not yet reused across releases inside the pipeline; baseline
-  comparison is evaluated offline.
+- A baseline exists only after a passing run of the same script on the earlier
+  release; without one, rule R6 is skipped.
 - There is no shared results store or REST bus in the repository; C4 writes
   files.
 - Live operation of the C3 link requires the C3 service to be running and to

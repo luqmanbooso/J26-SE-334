@@ -98,7 +98,7 @@ A suggested repair that has not been re-run is reported as suggested only.
 
 ## Limitations and future scope
 
-- The desktop demo runs the lexical embedder and captures no baseline, so rule
-  R6 is skipped there.
+- The desktop panel runs the lexical embedder. It reuses a baseline only after
+  a passing run of the same script; otherwise rule R6 is skipped.
 - Healing does not cover timing, element-state, or flow changes such as an
   inserted screen. Each would need its own repair and safety rule.

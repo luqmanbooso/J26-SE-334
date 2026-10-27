@@ -119,7 +119,7 @@ class HealingService:
                 )
             new_xml = page_source.read_text(encoding="utf-8")
             baseline_xml = (
-                self.baseline_store.load(test_id, failure.step_index)
+                self.baseline_store.load(test_id, failure.step_index, synthesis_result.script)
                 if self.baseline_store and failure.step_index is not None
                 else None
             )
