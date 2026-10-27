@@ -66,12 +66,13 @@ def make_report(
     events: list[NormalizedEvent],
     quarantined: list[QuarantinedRecord],
 ):
-    """Deduplicate accepted events and return an ingestion report."""
+    """Redact, deduplicate accepted events, and return an ingestion report."""
     from c4.ingestion.dedupe import deduplicate
+    from c4.ingestion.redaction import redact_event, redact_quarantined
 
-    unique, deduped_count = deduplicate(events)
+    unique, deduped_count = deduplicate([redact_event(event) for event in events])
     return IngestionReport(
         events=unique,
-        quarantined=quarantined,
+        quarantined=[redact_quarantined(record) for record in quarantined],
         deduped_count=deduped_count,
     )

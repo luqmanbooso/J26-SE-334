@@ -28,3 +28,21 @@ representative exports before production use.
 
 These assumptions should be updated when real Sentry Android and Crashlytics
 exports are added to `tests/fixtures/`.
+
+## Redaction
+
+Every event is redacted in `make_report`, before deduplication, so all
+adapters and file formats share one path (`src/c4/ingestion/redaction.py`).
+Free-text fields (`name`, `screen`, locator values, `attributes`, `error`,
+`raw`) and quarantined records are masked. Event ids, session ids, timestamps,
+and device fields are kept.
+
+Masked patterns: email addresses, phone numbers with a `+` prefix or a
+3-3-4 layout, card numbers that pass a Luhn check, JWTs, bearer tokens,
+`password`/`token`/`secret`/`api_key`/`authorization` pairs, and any string
+stored under a sensitive key such as `email` or `password`.
+
+Limits: names, addresses, and free-form identifiers are not detected, and IP
+addresses are not masked because app versions look the same. A locator whose
+text is personal data is masked, so a test generated from it targets the
+placeholder instead of the original value.
