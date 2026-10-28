@@ -77,6 +77,7 @@ def test_script_steps_keep_order_locators_values_and_phases() -> None:
         ("input", {"text": "Body"}),
         ("scroll", {}),
         ("back", {}),
+        ("tap", {"text": "odd"}),
     ]
     steps = trace["steps"]
     assert [s["phase"] for s in steps[:2]] == ["setup", "bug"] and steps[1]["name"] == "Click next"
@@ -95,7 +96,6 @@ def test_unconvertible_ui_actions_are_reported_and_non_actions_are_ignored() -> 
         "coordinate tap",
         "pressRecentApps has no C4 action",
         "startActivityFromHomeScreen has no C4 action",
-        "findObject argument is not a UiSelector chain",
     ])
     assert not any("sleep" in item["statement"] or "assert" in item["statement"] for item in dropped)
 
@@ -117,7 +117,7 @@ def test_evaluation_keeps_early_steps_of_long_traces(tmp_path) -> None:
     kept = collect_journeys(tmp_path, source="trace", max_actions=30)[0]
 
     assert default.metadata["truncated"] is True and len(default.events) == 10
-    assert kept.metadata["truncated"] is False and len(kept.events) == 11
+    assert kept.metadata["truncated"] is False and len(kept.events) == 12
 
 
 def _dataset(tmp_path, reports):
@@ -145,7 +145,7 @@ def test_dataset_conversion_filters_failure_types_and_reports_coverage(tmp_path)
 
     assert [t["trace_id"] for t in traces] == ["andror2-7"]
     assert report["scripts_read"] == 2 and report["traces_written"] == 1 and report["fully_converted"] == 0
-    assert report["steps_converted"] == 11 and report["steps_dropped"] == 6
+    assert report["steps_converted"] == 12 and report["steps_dropped"] == 5
     assert report["skipped"] == {
         "8": "failure_type 'output' not selected", "9": "script file not found",
         "10": "metadata is not a readable dict", "11": "no convertible steps",
@@ -198,5 +198,92 @@ def test_coverage_counts_every_script_read_even_when_filtering_incomplete_ones(t
     traces, report = convert_dataset(root, only_complete=True)
 
     assert [t["trace_id"] for t in traces] == ["andror2-9"]
-    assert report["steps_converted"] == 13 and report["steps_dropped"] == 6
+    assert report["steps_converted"] == 14 and report["steps_dropped"] == 5
     assert sum(report["dropped_reasons"].values()) == report["steps_dropped"]
+
+
+JAVA_OBJECTS = '''
+public class Script12 {
+    private static final String BASIC_SAMPLE_PACKAGE = "org.example.app";
+    private static final String NAME = "Ada";
+
+    @Test
+    public void t() throws Exception {
+        //Click plus
+        UiObject2 Plus = mDevice.wait(Until.findObject(By.res(BASIC_SAMPLE_PACKAGE, "fab")), 2000);
+        Plus.click();
+        //Allow
+        UiObject2 Allow = mDevice.wait(Until.findObject(By.res("com.android.packageinstaller", "allow")), 2000);
+        Allow.click();
+        UiObject2 Back = mDevice.wait(Until.findObject(By.desc( "Navigate up")), 2000);
+        Back.click();
+        //Type name
+        UiObject2 field = mDevice.findObject(By.res("org.example.app:id/name"));
+        field.setText(NAME);
+        Next = mDevice.wait(Until.findObject(By.text("Next")), 2000);
+        Next.clickAndWaitForNewWindow(3000);
+        UiObject back = mDevice.findObject(new UiSelector().className("android.widget.ImageButton").instance(0));
+        try { back.click();
+        } catch (Exception e) { }
+        mDevice.wait(Until.findObject(By.text("Done")), 2000).click();
+        Plus.click(2000);
+        Missing.click();
+        UiObject2 gone = mDevice.wait(Until.findObject(By.res(UNKNOWN_CONSTANT, "x")), 2000);
+        gone.click();
+    }
+}
+'''
+
+
+def test_objects_bound_to_variables_and_by_selectors_convert() -> None:
+    trace = convert_script(JAVA_OBJECTS, {**METADATA, "id": "12"})
+
+    assert _steps(trace) == [
+        ("tap", {"resource_id": "org.example.app:id/fab"}),
+        ("tap", {"resource_id": "com.android.packageinstaller:id/allow"}),
+        ("tap", {"content_desc": "Navigate up"}),
+        ("input", {"resource_id": "org.example.app:id/name"}),
+        ("tap", {"text": "Next"}),
+        ("tap", {"xpath": "(//android.widget.ImageButton)[1]"}),
+        ("tap", {"text": "Done"}),
+    ]
+    assert trace["steps"][3]["value"] == "Ada"
+    assert trace["steps"][0]["name"] == "Click plus"
+    assert trace["steps"][0]["selector"] == 'By.res(BASIC_SAMPLE_PACKAGE, "fab")'
+
+
+def test_variable_uses_that_cannot_be_resolved_are_reported() -> None:
+    reasons = [item["reason"] for item in convert_script(JAVA_OBJECTS, {**METADATA, "id": "12"})["conversion"]["dropped"]]
+
+    assert reasons == [
+        "click with an argument (long press)",
+        "unrecognized UI statement",
+        "variable has no resolved locator",
+    ]
+
+
+JAVA_MORE = '''
+public class Script13 {
+    @Test
+    public void t() throws Exception {
+        uiDevice.findObject(new UiSelector().className("android.widget.EditText")).legacySetText("t");
+        uiDevice.findObject(new UiSelector().scrollable(true)).swipeUp(10);
+        UiObject2 Switch = mDevice.findObject(By.res("a:id/sw"));
+        if (Switch.isChecked()){ Switch.click();
+        }
+    }
+}
+'''
+
+
+def test_legacy_set_text_selector_swipes_and_conditional_clicks() -> None:
+    trace = convert_script(JAVA_MORE, {**METADATA, "id": "13"})
+
+    assert [(s["action"], s.get("value")) for s in trace["steps"]] == [("input", "t"), ("scroll", None)]
+    assert trace["steps"][0]["xpath"] == "(//android.widget.EditText)[1]"
+    assert [item["reason"] for item in trace["conversion"]["dropped"]] == ["conditional action"]
+    typed = convert_script(
+        'class S { @Test void t() { mDevice.findObject(new UiSelector().text("Name")).legacySetText("t"); } }',
+        METADATA,
+    )
+    assert [(s["action"], s["value"]) for s in typed["steps"]] == [("input", "t")]

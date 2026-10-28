@@ -29,6 +29,34 @@ _UI_ACTION_CALLS = ("pressHome", "pressRecentApps", "pressEnter", "pressMenu", "
 _IGNORED = re.compile(r"^(?:TimeUnit\.\w+\.sleep|Thread\.sleep|\w+\.sleep|assert\w*|\w+\.wait|\w+\.waitForIdle)\b")
 _CONSTANT = re.compile(r'(?:static\s+)?final\s+String\s+(\w+)\s*=\s*"((?:[^"\\]|\\.)*)"\s*;')
 _PACKAGE = re.compile(r'(?:PACKAGE_NAME|BASIC_SAMPLE_PACKAGE)\s*=\s*"([^"]+)"')
+_BINDING = re.compile(r"^(?:(?:final\s+)?[\w.<>\[\]]+\s+)?(\w+)\s*=\s*(.+)$", re.S)
+_CONTROL = re.compile(r"^(?:try\b|finally\b|catch\s*\([^)]*\)|[{}])\s*")
+_Target = tuple[dict[str, str], bool, str]  # locator, approximate, selector text
+
+
+def _split_arguments(text: str) -> list[str]:
+    """Split call arguments at top-level commas, ignoring commas inside strings or parentheses."""
+    parts: list[str] = []
+    depth, quote, start, index = 0, False, 0, 0
+    while index < len(text):
+        char = text[index]
+        if quote:
+            if char == "\\":
+                index += 1
+            elif char == '"':
+                quote = False
+        elif char == '"':
+            quote = True
+        elif char in "([":
+            depth += 1
+        elif char in ")]":
+            depth -= 1
+        elif char == "," and depth == 0:
+            parts.append(text[start:index].strip())
+            start = index + 1
+        index += 1
+    last = text[start:].strip()
+    return [*parts, last] if last or parts else []
 
 
 def convert_dataset(
@@ -88,6 +116,7 @@ def convert_script(java: str, metadata: dict[str, Any]) -> dict[str, Any]:
     package = next(iter(_PACKAGE.findall(java)), None)
     steps: list[dict[str, Any]] = []
     dropped: list[dict[str, str]] = []
+    variables: dict[str, _Target | None] = {}
     phase = "setup"
     comment = ""
     for kind, text in _tokens("\n".join(_test_bodies(java))):
@@ -101,7 +130,11 @@ def convert_script(java: str, metadata: dict[str, Any]) -> dict[str, Any]:
                 phase = "assertions"
             comment = text
             continue
-        converted, reason = _statement(text, constants)
+        binding = _binding(text, constants)
+        if binding is not None:
+            variables[binding[0]] = binding[1]
+            continue
+        converted, reason = _statement(text, constants, variables)
         if converted is not None:
             index = len(steps)
             step = {
@@ -129,37 +162,105 @@ def convert_script(java: str, metadata: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _statement(text: str, constants: dict[str, str]) -> tuple[dict[str, Any] | None, str | None]:
-    """Return a converted step, or ``(None, reason)`` for a UI action that cannot be represented."""
-    text = _squash(text)
-    if not text or _IGNORED.match(text):
-        return None, None
-    match = re.match(r"^(\w+)\.findObject\((.*)\)\.(click|clickAndWaitForNewWindow|setText)\((.*)\)$", text, re.S)
-    if match:
-        selector = _selector(match.group(2))
-        if selector is None:
-            return None, "findObject argument is not a UiSelector chain"
-        locator, approximate = _locator(selector)
+def _binding(text: str, constants: dict[str, str]) -> tuple[str, _Target | None] | None:
+    """Recognise ``Type name = dev.findObject(...)`` and ``name = dev.wait(Until.findObject(...), n)``."""
+    match = _BINDING.match(_strip_control(_squash(text)))
+    if not match:
+        return None
+    right = match.group(2).strip()
+    inner = (re.fullmatch(r"\w+\.wait\(\s*Until\.findObject\((.*)\)\s*,\s*\w+\s*\)", right, re.S)
+             or re.fullmatch(r"\w+\.findObject\((.*)\)", right, re.S))
+    if not inner:
+        return None
+    target = _target(inner.group(1), constants)
+    return match.group(1), (None if isinstance(target, str) else target)
+
+
+def _target(expression: str, constants: dict[str, str]) -> _Target | str:
+    """Resolve a ``UiSelector`` chain or ``By.res/desc/text`` to a locator, or return the reason it fails."""
+    expression = expression.strip()
+    if expression.startswith("new UiSelector()"):
+        calls = _selector(expression)
+        if calls is None:
+            return "findObject argument is not a UiSelector chain"
+        locator, approximate = _locator(calls)
         if not locator:
-            return None, "selector has no text, id, description, or instance-only form"
-        step: dict[str, Any] = {"selector": _squash(match.group(2)), **locator}
-        if approximate:
-            step["approximate_locator"] = True
-        if match.group(3) == "setText":
-            value = _value(match.group(4), constants)
-            if value is None:
-                return None, "typed value is not a string literal or constant"
-            return {**step, "action": "input", "value": value}, None
-        return {**step, "action": "tap"}, None
+            return "selector has no text, id, description, or instance-only form"
+        return locator, approximate, _squash(expression)
+    match = re.fullmatch(r"By\.(res|desc|text)\((.*)\)", expression, re.S)
+    if not match:
+        return "findObject argument is not a UiSelector chain"
+    values = [_value(argument, constants) for argument in _split_arguments(match.group(2))]
+    if not values or None in values or len(values) > 2:
+        return "By selector argument is not a string literal or constant"
+    if match.group(1) == "res":
+        resource = values[0] if len(values) == 1 else f"{values[0]}:id/{values[1]}"
+        return {"resource_id": resource}, False, _squash(expression)
+    return {"content_desc" if match.group(1) == "desc" else "text": values[0]}, False, _squash(expression)
+
+
+def _step(target: _Target, method: str, argument: str, constants: dict[str, str]) -> tuple[dict[str, Any] | None, str | None]:
+    locator, approximate, selector = target
+    step: dict[str, Any] = {"selector": selector, **locator}
+    if approximate:
+        step["approximate_locator"] = True
+    if method in ("setText", "legacySetText"):
+        value = _value(argument, constants)
+        if value is None:
+            return None, "typed value is not a string literal or constant"
+        return {**step, "action": "input", "value": value}, None
+    if method == "click" and argument.strip():
+        return None, "click with an argument (long press)"
+    return {**step, "action": "tap"}, None
+
+
+def _strip_control(text: str) -> str:
+    """Drop leading ``try``, ``catch (...)``, ``finally`` and braces that wrap a statement."""
+    text = text.strip()
+    while True:
+        stripped = _CONTROL.sub("", text, count=1).strip()
+        if stripped == text:
+            return text
+        text = stripped
+
+
+def _statement(
+    text: str, constants: dict[str, str], variables: dict[str, _Target | None] | None = None
+) -> tuple[dict[str, Any] | None, str | None]:
+    """Return a converted step, or ``(None, reason)`` for a UI action that cannot be represented."""
+    text = _strip_control(_squash(text))
+    if not text:
+        return None, None
+    match = re.match(r"^\w+\.findObject\((.*)\)\.(click|clickAndWaitForNewWindow|setText|legacySetText)\((.*)\)$", text, re.S)
+    if match is None:
+        match = re.match(r"^\w+\.wait\(\s*Until\.findObject\((.*)\)\s*,\s*\w+\s*\)\.(click|clickAndWaitForNewWindow|setText|legacySetText)\((.*)\)$",
+                         text, re.S)
+    if match:
+        target = _target(match.group(1), constants)
+        if isinstance(target, str):
+            return None, target
+        return _step(target, match.group(2), match.group(3), constants)
+    match = re.match(r"^(\w+)\.(click|clickAndWaitForNewWindow|setText|legacySetText)\((.*)\)$", text, re.S)
+    if match and variables is not None and match.group(1) in variables:
+        target = variables[match.group(1)]
+        if target is None:
+            return None, "variable has no resolved locator"
+        return _step(target, match.group(2), match.group(3), constants)
+    if _IGNORED.match(text):
+        return None, None
     if re.match(r"^\w+\.click\(\s*-?\d+\s*,\s*-?\d+\s*\)$", text):
         return None, "coordinate tap"
-    if re.match(r"^\w+\.swipe\(", text):
+    if re.match(r"^\w+\.swipe\(", text) or re.match(
+        r"^\w+\.findObject\(.*\)\.(?:swipe(?:Up|Down|Left|Right)|scrollForward|scrollBackward|fling\w*)\(", text, re.S
+    ):
         return {"action": "scroll"}, None
     if re.match(r"^\w+\.pressBack\(\)$", text):
         return {"action": "back"}, None
     call = re.match(r"^(?:\w+\.)?(\w+)\(", text)
     if call and call.group(1) in _UI_ACTION_CALLS:
         return None, f"{call.group(1)} has no C4 action"
+    if re.match(r"^if\s*\(", text) and (".click(" in text or ".setText(" in text):
+        return None, "conditional action"
     if ".findObject(" in text or ".click(" in text:
         return None, "unrecognized UI statement"
     return None, None
