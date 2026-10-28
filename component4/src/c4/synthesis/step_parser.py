@@ -94,6 +94,37 @@ class StepParser:
         return steps
 
 
+    def validate_coverage(self, steps: list[SynthStep], journey: FailureJourney) -> list[SynthStep]:
+        """Require the steps to cover every replayable journey event, in order.
+
+        An event is replayable when it has a supported action and, for tap, input and
+        navigate, a locator. The steps may use fewer locator keys than the event has, but
+        every value must come from that event.
+        """
+        expected = [
+            (action, set(event.locator.values()), event.event_id)
+            for event in journey.events
+            for action in [canonicalize_action(event.action)]
+            if action is not CanonicalAction.UNKNOWN
+            and (event.locator or action in {CanonicalAction.SCROLL, CanonicalAction.BACK})
+        ]
+        position, missing = 0, []
+        for action, values, event_id in expected:
+            for index in range(position, len(steps)):
+                step = steps[index]
+                if step.action == action.value and set(step.target.values()) <= values:
+                    position = index + 1
+                    break
+            else:
+                missing.append(event_id)
+        if missing:
+            raise StepParsingError(
+                f"Steps omit {len(missing)} of {len(expected)} journey events "
+                f"(output one step per event, in order); missing: {', '.join(missing[:8])}"
+            )
+        return steps
+
+
 def _extract_json(response: str) -> Any:
     cleaned = re.sub(r"<think>.*?</think>", "", response, flags=re.IGNORECASE | re.DOTALL)
     cleaned = re.sub(r"```(?:json)?", "", cleaned, flags=re.IGNORECASE).replace("```", "")

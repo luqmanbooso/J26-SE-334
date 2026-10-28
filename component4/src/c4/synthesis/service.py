@@ -140,6 +140,7 @@ class SynthesisService:
                 previous_response = response
                 steps = self.parser.parse(response)
                 steps = self.parser.validate_grounding(steps, journey)
+                steps = self.parser.validate_coverage(steps, journey)
                 script = self.generator.generate(
                     steps,
                     appium_url=self.target.appium_url if self.target else "http://127.0.0.1:4723",
