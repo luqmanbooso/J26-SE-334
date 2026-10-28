@@ -25,6 +25,7 @@ class SynthesisAttempt(BaseModel):
     attempt: int
     error: str | None = None
     response_chars: int = Field(ge=0)
+    part: str | None = None
 
 
 class SynthesisResult(BaseModel):
@@ -60,9 +61,12 @@ class SynthesisService:
         max_attempts: int = 3,
         target: TargetAppConfig | None = None,
         c3_strict: bool = False,
+        chunk_size: int | None = 8,
     ) -> None:
         if max_attempts < 1:
             raise ValueError("max_attempts must be at least one")
+        if chunk_size is not None and chunk_size < 1:
+            raise ValueError("chunk_size must be at least one")
         self.llm = llm
         self.prompt_builder = prompt_builder or PromptBuilder()
         self.parser = parser or StepParser()
@@ -72,6 +76,7 @@ class SynthesisService:
         self.max_attempts = max_attempts
         self.target = target
         self.c3_strict = c3_strict
+        self.chunk_size = chunk_size
         self.last_c3_verdict: C3Verdict | None = None
         self.last_c3_status = "not_requested"
 
@@ -122,8 +127,52 @@ class SynthesisService:
         self.last_c3_verdict = verdict
         self.last_c3_status = c3_status
         # Only real evidence enters the prompt; a placeholder no-evidence verdict must not.
-        base_prompt = self.prompt_builder.build(journey, verdict if c3_status == "used" else None)
+        prompt_verdict = verdict if c3_status == "used" else None
+        parts = self._parts(journey)
         attempts: list[SynthesisAttempt] = []
+        steps: list[SynthStep] = []
+        for number, part in enumerate(parts, start=1):
+            label = f"part {number} of {len(parts)}" if len(parts) > 1 else None
+            part_steps, error = self._generate(part, prompt_verdict, attempts, label)
+            if part_steps is None:
+                return self._result(
+                    journey, "failed", [], attempts, c3_status == "used", started,
+                    model=model, reason=f"{label}: {error}" if label else error,
+                    c3_status=c3_status, c3_verdict=verdict,
+                )
+            steps.extend(part_steps)
+        steps = [step.model_copy(update={"index": index}) for index, step in enumerate(steps)]
+        try:
+            script = self._script(steps)
+        except (ValueError, SyntaxError) as error:
+            return self._result(
+                journey, "failed", [], attempts, c3_status == "used", started,
+                model=model, reason=str(error), c3_status=c3_status, c3_verdict=verdict,
+            )
+        return self._result(
+            journey, "generated", steps, attempts, c3_status == "used", started,
+            script=script, c3_status=c3_status, c3_verdict=verdict, model=model,
+        )
+
+    def _parts(self, journey: FailureJourney) -> list[FailureJourney]:
+        """Split a long journey into ordered parts so no single request grows with its length."""
+        size = self.chunk_size
+        if not size or len(journey.events) <= size:
+            return [journey]
+        return [
+            journey.model_copy(update={"events": journey.events[start:start + size]})
+            for start in range(0, len(journey.events), size)
+        ]
+
+    def _generate(
+        self,
+        part: FailureJourney,
+        verdict: C3Verdict | None,
+        attempts: list[SynthesisAttempt],
+        label: str | None,
+    ) -> tuple[list[SynthStep] | None, str | None]:
+        """Ask the model for one part until its steps pass every check, or attempts run out."""
+        base_prompt = self.prompt_builder.build(part, verdict)
         previous_response = ""
         last_error: str | None = None
         for attempt_number in range(1, self.max_attempts + 1):
@@ -139,54 +188,30 @@ class SynthesisService:
                 response = self.llm.generate(prompt)
                 previous_response = response
                 steps = self.parser.parse(response)
-                steps = self.parser.validate_grounding(steps, journey)
-                steps = self.parser.validate_coverage(steps, journey)
-                script = self.generator.generate(
-                    steps,
-                    appium_url=self.target.appium_url if self.target else "http://127.0.0.1:4723",
-                    capabilities=self.target.capabilities() if self.target else None,
-                )
-                compile(script, "<generated_appium_test>", "exec")
+                steps = self.parser.validate_grounding(steps, part)
+                steps = self.parser.validate_coverage(steps, part)
+                self._script(steps)
             except (QwenClientError, StepParsingError, ValueError, SyntaxError) as error:
                 last_error = str(error)
-                attempts.append(
-                    SynthesisAttempt(
-                        attempt=attempt_number,
-                        error=last_error,
-                        response_chars=len(response),
-                    )
-                )
+                attempts.append(SynthesisAttempt(
+                    attempt=attempt_number, error=last_error,
+                    response_chars=len(response), part=label,
+                ))
                 continue
-            attempts.append(
-                SynthesisAttempt(
-                    attempt=attempt_number,
-                    response_chars=len(response),
-                )
-            )
-            return self._result(
-                journey,
-                "generated",
-                steps,
-                attempts,
-                c3_status == "used",
-                started,
-                script=script,
-                c3_status=c3_status,
-                c3_verdict=verdict,
-                model=model,
-            )
-        return self._result(
-            journey,
-            "failed",
-            [],
-            attempts,
-            c3_status == "used",
-            started,
-            model=model,
-            reason=last_error,
-            c3_status=c3_status,
-            c3_verdict=verdict,
+            attempts.append(SynthesisAttempt(
+                attempt=attempt_number, response_chars=len(response), part=label,
+            ))
+            return steps, None
+        return None, last_error
+
+    def _script(self, steps: list[SynthStep]) -> str:
+        script = self.generator.generate(
+            steps,
+            appium_url=self.target.appium_url if self.target else "http://127.0.0.1:4723",
+            capabilities=self.target.capabilities() if self.target else None,
         )
+        compile(script, "<generated_appium_test>", "exec")
+        return script
 
     def synthesize_many(self, journeys: list[FailureJourney]) -> list[SynthesisResult]:
         """Synthesize journeys in input order."""
