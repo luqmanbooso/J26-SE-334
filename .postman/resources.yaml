@@ -1,0 +1,14 @@
+# Use this workspace to collaborate
+workspace:
+  id: 3f022ec0-5281-4356-82a9-e58528af679d
+
+localResources:
+  collections:
+    - ../c3_postman_collection.json
+    - ../env testing/HEART_API_Collection.postman_collection.json
+  environments:
+    - ../env testing/HEART_API_Environment.postman_environment.json
+
+cloudResources:
+  collections:
+    ../postman/collections/HEART - Environmental Perturbation Engine REST API: a9ff1293-4653-4098-8953-f62b5941398e

@@ -1,0 +1,12 @@
+name: HEART Engine Environment (Localhost)
+values:
+  - key: baseUrl
+    value: 'http://127.0.0.1:8001'
+  - key: authToken
+    value: ''
+  - key: targetPackage
+    value: de.k3b.android.androFotoFinder
+  - key: themisBugId
+    value: THEMIS-ANKI-01
+  - key: templateName
+    value: 3g_network_drop.yaml
