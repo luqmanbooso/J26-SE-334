@@ -70,9 +70,10 @@ def make_report(
     from c4.ingestion.dedupe import deduplicate
     from c4.ingestion.redaction import redact_event, redact_quarantined
 
-    unique, deduped_count = deduplicate([redact_event(event) for event in events])
+    # Deduplicate on the original values so events that differ only in masked data stay distinct.
+    unique, deduped_count = deduplicate(events)
     return IngestionReport(
-        events=unique,
+        events=[redact_event(event) for event in unique],
         quarantined=[redact_quarantined(record) for record in quarantined],
         deduped_count=deduped_count,
     )

@@ -55,3 +55,26 @@ def test_ingestion_redacts_events_and_journeys_keep_order_and_ids(tmp_path) -> N
     assert [e.locator.get("text") for e in journey.events] == ["Network and internet", "Pay"]
     assert journey.session_id and journey.metadata["source"] == "sentry"
     assert "[REDACTED:EMAIL]" in json.dumps(journey.failure.model_dump(mode="json"))
+
+
+def test_underscore_prefixed_credential_names_are_masked() -> None:
+    text = "access_token=abc123xyz client_secret: s3cr3t id_token=zzz refresh_token=qqq"
+    result = redact_text(text)
+    for leaked in ("abc123xyz", "s3cr3t", "zzz", "qqq"):
+        assert leaked not in result
+    assert redact_text("a note about tokens and secrets") == "a note about tokens and secrets"
+
+
+def test_events_that_differ_only_in_masked_values_are_not_deduplicated() -> None:
+    from c4.schemas import EventSource
+
+    trace = {
+        "trace_id": "t",
+        "steps": [
+            {"timestamp": "2026-01-01T00:00:01Z", "action": "tap", "text": "a@b.co"},
+            {"timestamp": "2026-01-01T00:00:01Z", "action": "tap", "text": "c@d.org"},
+        ],
+    }
+    report = TelemetryIngestionService().parse_report(trace, EventSource.TRACE)
+    assert len(report.events) == 2 and report.deduped_count == 0
+    assert {event.locator["text"] for event in report.events} == {"[REDACTED:EMAIL]"}

@@ -43,7 +43,7 @@ class TraceAdapter:
         for index, step in enumerate(steps):
             try:
                 events.append(self._step(step, index, trace_id, context))
-            except (TypeError, ValueError) as error:
+            except (TypeError, ValueError, OverflowError, OSError) as error:
                 quarantined.append(QuarantinedRecord(
                     record_index=index, reason=str(error), raw=dict(step) if isinstance(step, Mapping) else {},
                 ))
@@ -51,7 +51,7 @@ class TraceAdapter:
         if isinstance(failure, Mapping):
             try:
                 events.append(self._failure(failure, trace_id, context, events))
-            except (TypeError, ValueError) as error:
+            except (TypeError, ValueError, OverflowError, OSError) as error:
                 quarantined.append(QuarantinedRecord(record_index=-1, reason=str(error), raw=dict(failure)))
         return make_report(events, quarantined)
 

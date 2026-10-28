@@ -118,3 +118,13 @@ def test_cli_exports_trace_journeys_with_trace_origin(tmp_path) -> None:
 def test_unknown_source_is_still_rejected() -> None:
     with pytest.raises(TelemetryIngestionError):
         TelemetryIngestionService().parse({}, "carrier-pigeon")
+
+
+def test_out_of_range_timestamps_quarantine_one_step_not_the_trace() -> None:
+    trace = _trace()
+    trace["steps"][1]["timestamp"] = 10 ** 30
+    trace["failure"]["timestamp"] = 10 ** 30
+
+    report = TelemetryIngestionService().parse_report(trace, EventSource.TRACE)
+
+    assert len(report.events) == 4 and len(report.quarantined) == 2

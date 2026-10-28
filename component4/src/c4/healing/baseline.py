@@ -44,6 +44,8 @@ class BaselineStore:
 
         When ``script`` is given, the baseline is returned only if it was captured
         from that same script, so step indexes cannot drift between versions.
+        Baselines saved without a script hash (before this check existed) are
+        ignored: they were captured from failing runs and show the changed screen.
         """
         path = self.root / test_id / f"step_{step_index}.xml"
         if not path.is_file():
