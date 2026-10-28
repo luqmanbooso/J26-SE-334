@@ -1,0 +1,2 @@
+$kind: collection
+description: Comprehensive Postman Test Collection for HEART (Context-Aware Environmental Perturbation Engine). Covers multi-factor fault injection, ADB device bridge, hardware starvation, network chaos, OS interruptions, declarative YAML scenarios, Themis ground-truth benchmarks, and RQ1 latency validation.

@@ -1,0 +1,3 @@
+$kind: collection
+description: Endpoints for device connectivity status, telemetry snapshots, audit event log, and RQ1 latency metrics.
+order: 1000

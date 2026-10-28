@@ -1,0 +1,28 @@
+$kind: http-request
+description: Retrieves live sensor telemetry (CPU %, RAM %, Latency, Packet Loss, Chaos Score, Thermal state).
+url: "{{baseUrl}}/api/perturbation/telemetry"
+method: GET
+headers:
+  Content-Type: application/json
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 200 OK", function () {
+          pm.response.to.have.status(200);
+      });
+      pm.test("Response time is acceptable (< 500ms)", function () {
+          pm.expect(pm.response.responseTime).to.be.below(500);
+      });
+      pm.test("Response has valid JSON format", function () {
+          var data = pm.response.json();
+          pm.expect(data).to.be.an("object");
+      });
+
+      pm.test("Contains Chaos Score and hardware metrics", function () {
+          var data = pm.response.json();
+          pm.expect(data).to.have.property("chaos_score");
+          pm.expect(data).to.have.property("latency_ms");
+          pm.expect(data).to.have.property("cpu_stress");
+      });
+    language: text/javascript
+order: 2000

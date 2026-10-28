@@ -1,0 +1,29 @@
+$kind: http-request
+description: Applies standardized pre-configured empirical research stress profile.
+url: "{{baseUrl}}/api/perturbation/profile?profile_name=Mid-Transaction%20Stress%20Test"
+method: POST
+headers:
+  Content-Type: application/json
+queryParams:
+  profile_name: Mid-Transaction%20Stress%20Test
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 200 OK", function () {
+          pm.response.to.have.status(200);
+      });
+      pm.test("Response time is acceptable (< 500ms)", function () {
+          pm.expect(pm.response.responseTime).to.be.below(500);
+      });
+      pm.test("Response has valid JSON format", function () {
+          var data = pm.response.json();
+          pm.expect(data).to.be.an("object");
+      });
+
+      pm.test("Profile applied successfully", function () {
+          var data = pm.response.json();
+          pm.expect(data.status).to.eql("APPLIED");
+          pm.expect(data.profile.name).to.eql("Mid-Transaction Stress Test");
+      });
+    language: text/javascript
+order: 2000
