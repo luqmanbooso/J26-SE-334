@@ -210,7 +210,10 @@ def main(argv: list[str] | None = None) -> int:
         journeys = collect_journeys(
             args.telemetry_dir, limit=args.limit, source=args.source, max_actions=max_actions
         )
-        llm = OllamaQwenClient(base_url=args.ollama_url, model=args.model)
+        llm = OllamaQwenClient(
+            base_url=args.ollama_url, model=args.model,
+            timeout_seconds=args.llm_timeout, num_predict=args.num_predict,
+        )
         synthesis = SynthesisService(llm, target=target, use_c3=not args.no_c3)
         execution = (
             ExecutionService(target=target) if args.execute else None
@@ -245,6 +248,8 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--runs-dir", required=True)
     parser.add_argument("--model", default="qwen3:8b")
     parser.add_argument("--ollama-url", default="http://127.0.0.1:11434")
+    parser.add_argument("--llm-timeout", type=float, default=120.0, help="Seconds to wait per model request")
+    parser.add_argument("--num-predict", type=int, default=1024, help="Output token limit per model request")
     parser.add_argument("--execute", dest="execute", action="store_true", default=True)
     parser.add_argument("--no-execute", dest="execute", action="store_false")
     parser.add_argument("--no-c3", action="store_true")
