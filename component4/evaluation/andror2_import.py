@@ -42,7 +42,7 @@ def convert_dataset(
     traces: list[dict[str, Any]] = []
     problems: Counter[str] = Counter()
     skipped: dict[str, str] = {}
-    scripts = 0
+    scripts = steps_converted = steps_dropped = 0
     for path in sorted((base / "metadata").glob("*.json"), key=lambda item: _sort_key(item.stem)):
         metadata = _read_metadata(path)
         if metadata is None:
@@ -57,6 +57,9 @@ def convert_dataset(
             continue
         scripts += 1
         trace = convert_script(script.read_text(encoding="utf-8", errors="replace"), metadata)
+        # Coverage counts every script read, including ones filtered out below.
+        steps_converted += trace["conversion"]["steps_converted"]
+        steps_dropped += len(trace["conversion"]["dropped"])
         for item in trace["conversion"]["dropped"]:
             problems[item["reason"]] += 1
         if only_complete and trace["conversion"]["dropped"]:
@@ -70,8 +73,8 @@ def convert_dataset(
         "scripts_read": scripts,
         "traces_written": len(traces),
         "fully_converted": sum(not trace["conversion"]["dropped"] for trace in traces),
-        "steps_converted": sum(trace["conversion"]["steps_converted"] for trace in traces),
-        "steps_dropped": sum(len(trace["conversion"]["dropped"]) for trace in traces),
+        "steps_converted": steps_converted,
+        "steps_dropped": steps_dropped,
         "dropped_reasons": dict(sorted(problems.items(), key=lambda item: -item[1])),
         "skipped": skipped,
         "failure_types": list(failure_types),
@@ -222,6 +225,15 @@ def _unescape(value: str) -> str:
     return value.replace('\\"', '"').replace("\\\\", "\\").replace("\\n", "\n").replace("\\t", "\t")
 
 
+def _char_literal_end(text: str, index: int) -> int:
+    """Index of the closing quote when a Java char literal starts at ``index``, else ``index``."""
+    if text[index + 1:index + 2] == "\\":
+        end = index + (7 if text[index + 2:index + 3] == "u" else 3)
+    else:
+        end = index + 2
+    return end if text[end:end + 1] == "'" else index
+
+
 def _close_paren(text: str, open_index: int) -> int | None:
     depth, index, quote = 0, open_index, False
     while index < len(text):
@@ -233,6 +245,8 @@ def _close_paren(text: str, open_index: int) -> int | None:
                 quote = False
         elif char == '"':
             quote = True
+        elif char == "'":
+            index = _char_literal_end(text, index)
         elif char == "(":
             depth += 1
         elif char == ")":
@@ -260,8 +274,13 @@ def _test_bodies(java: str) -> list[str]:
                     quote = False
             elif char == '"':
                 quote = True
+            elif char == "'":
+                index = _char_literal_end(java, index)
             elif java.startswith("//", index):
                 index = java.find("\n", index) - 1 if java.find("\n", index) != -1 else len(java)
+            elif java.startswith("/*", index):
+                end = java.find("*/", index)
+                index = len(java) if end == -1 else end + 1
             elif char == "{":
                 depth += 1
             elif char == "}":
@@ -290,6 +309,10 @@ def _tokens(body: str) -> list[tuple[str, str]]:
         elif char == '"':
             quote = True
             current.append(char)
+        elif char == "'":
+            end = _char_literal_end(body, index)
+            current.append(body[index:end + 1])
+            index = end
         elif body.startswith("//", index):
             end = body.find("\n", index)
             end = len(body) if end == -1 else end

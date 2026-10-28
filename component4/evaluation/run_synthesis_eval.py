@@ -204,7 +204,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         args = parser.parse_args(argv)
         target = load_target_config(args.config)
-        # Scripted traces are replayed from a fresh launch, so keep their early steps.
+        # Scripted traces are replayed from a fresh launch, so allow longer journeys. A trace
+        # with more actions than the cap still loses its earliest ones (see metadata.truncated).
         max_actions = args.max_actions or (30 if args.source == "trace" else None)
         journeys = collect_journeys(
             args.telemetry_dir, limit=args.limit, source=args.source, max_actions=max_actions
@@ -249,7 +250,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--no-c3", action="store_true")
     parser.add_argument("--repeats", type=int, default=1)
     parser.add_argument("--limit", type=int)
-    parser.add_argument("--max-actions", type=int, help="Actions kept per journey (default 10; 30 for traces)")
+    parser.add_argument("--max-actions", type=int, help="Last N actions kept per journey (default 10; 30 for traces)")
     return parser
 
 

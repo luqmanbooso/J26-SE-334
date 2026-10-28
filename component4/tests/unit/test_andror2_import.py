@@ -167,3 +167,36 @@ def test_command_line_writes_traces_and_report_and_rejects_a_wrong_folder(tmp_pa
 
     assert main(["--dataset", str(tmp_path / "missing"), "--out", str(out)]) == 2
     assert "metadata directory" in capsys.readouterr().err
+
+
+JAVA_LITERALS = '''
+public class Script9 {
+    @Test
+    public void t() throws Exception {
+        /* a block comment with a brace { and a quote " */
+        char quote = '"';
+        char open = '{';
+        char close = '}';
+        char escaped = '\'';
+        mDevice.findObject(new UiSelector().text("First")).click();
+        mDevice.findObject(new UiSelector().text("Second")).click();
+    }
+}
+'''
+
+
+def test_char_literals_and_block_comments_do_not_break_parsing() -> None:
+    trace = convert_script(JAVA_LITERALS, {**METADATA, "id": "9"})
+
+    assert [s["text"] for s in trace["steps"]] == ["First", "Second"]
+    assert trace["conversion"]["dropped"] == []
+
+
+def test_coverage_counts_every_script_read_even_when_filtering_incomplete_ones(tmp_path) -> None:
+    root = _dataset(tmp_path, {"7": (METADATA, JAVA), "9": ({**METADATA, "id": "9"}, JAVA_LITERALS)})
+
+    traces, report = convert_dataset(root, only_complete=True)
+
+    assert [t["trace_id"] for t in traces] == ["andror2-9"]
+    assert report["steps_converted"] == 13 and report["steps_dropped"] == 6
+    assert sum(report["dropped_reasons"].values()) == report["steps_dropped"]
