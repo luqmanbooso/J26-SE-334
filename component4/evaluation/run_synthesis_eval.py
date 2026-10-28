@@ -214,7 +214,9 @@ def main(argv: list[str] | None = None) -> int:
             base_url=args.ollama_url, model=args.model,
             timeout_seconds=args.llm_timeout, num_predict=args.num_predict,
         )
-        synthesis = SynthesisService(llm, target=target, use_c3=not args.no_c3)
+        synthesis = SynthesisService(
+            llm, target=target, use_c3=not args.no_c3, chunk_size=args.chunk_size or None
+        )
         execution = (
             ExecutionService(target=target) if args.execute else None
         )
@@ -250,6 +252,8 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--ollama-url", default="http://127.0.0.1:11434")
     parser.add_argument("--llm-timeout", type=float, default=120.0, help="Seconds to wait per model request")
     parser.add_argument("--num-predict", type=int, default=1024, help="Output token limit per model request")
+    parser.add_argument("--chunk-size", type=int, default=8,
+                        help="Journey events per model request; 0 sends the whole journey in one request")
     parser.add_argument("--execute", dest="execute", action="store_true", default=True)
     parser.add_argument("--no-execute", dest="execute", action="store_false")
     parser.add_argument("--no-c3", action="store_true")

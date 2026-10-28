@@ -59,6 +59,21 @@ flowchart TD
   SEED -. "consumed by C1 and C2" .-> C1C2["C1 / C2"]
 ```
 
+## Synthesis checks
+
+Model output is never accepted as written. Each response must parse into the
+step schema, trace back to the journey (grounding), cover every replayable
+journey event in order, and generate a script that compiles. A response that
+fails is retried with the reason (up to three attempts), and a journey that
+never passes is reported as `failed`, not as a shorter test.
+
+Journeys longer than eight events are generated in ordered parts (`chunk_size`,
+default 8; `--chunk-size 0` in the evaluation sends the whole journey at once).
+Each part is checked and retried on its own, then the steps are merged and
+re-indexed. This keeps each request short on slow hardware and lets journeys
+exceed the 30-step response limit. The attempts in a result carry a `part`
+label such as `part 2 of 3`.
+
 ## Quick start
 
 All commands run from the `component4/` folder.
@@ -280,8 +295,10 @@ failing screen, and C4 uses it in test synthesis and failure diagnosis.
 - `configs/target_app.example.json`: package, activity or APK, device id,
   Appium URL, ADB path, reset behaviour and setup commands. Copy it to
   `target_app.json` and edit it. The local copy is not committed.
-- `configs/prompts/synthesis_v1.txt`: the versioned synthesis prompt. It
-  restricts actions and locator fields and requires JSON output.
+- `configs/prompts/synthesis_v2.txt`: the versioned synthesis prompt. It
+  restricts actions and locator fields, requires JSON output, and asks for one
+  step per journey event in order. `synthesis_v1.txt` is kept for reference; it
+  let the model return a single step for a multi-step journey.
 - CLI flags control the model, C3, healing, capture and output locations.
 
 ## Run-folder layout
