@@ -16,6 +16,7 @@ from c4.execution.models import ExecutionResult, FailureKind
 from c4.execution.service import ExecutionService
 from c4.ingestion.loader import TelemetryIngestionService
 from c4.schemas import EventSource, FailureJourney
+from c4.sessionization.config import SessionizationConfig
 from c4.sessionization.service import SessionizationService
 from c4.synthesis.service import SynthesisResult, SynthesisService
 from c4.synthesis.qwen_client import OllamaQwenClient
@@ -42,10 +43,13 @@ def collect_journeys(
     *,
     limit: int | None = None,
     source: EventSource | str = EventSource.SENTRY,
+    max_actions: int | None = None,
 ) -> list[FailureJourney]:
     """Load and sessionize all JSON telemetry files in deterministic order."""
     ingestion = TelemetryIngestionService()
-    sessionization = SessionizationService()
+    sessionization = SessionizationService(
+        SessionizationConfig(max_actions=max_actions) if max_actions else None
+    )
     journeys: list[FailureJourney] = []
     paths = sorted(
         path
@@ -200,7 +204,11 @@ def main(argv: list[str] | None = None) -> int:
     try:
         args = parser.parse_args(argv)
         target = load_target_config(args.config)
-        journeys = collect_journeys(args.telemetry_dir, limit=args.limit, source=args.source)
+        # Scripted traces are replayed from a fresh launch, so keep their early steps.
+        max_actions = args.max_actions or (30 if args.source == "trace" else None)
+        journeys = collect_journeys(
+            args.telemetry_dir, limit=args.limit, source=args.source, max_actions=max_actions
+        )
         llm = OllamaQwenClient(base_url=args.ollama_url, model=args.model)
         synthesis = SynthesisService(llm, target=target, use_c3=not args.no_c3)
         execution = (
@@ -241,6 +249,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--no-c3", action="store_true")
     parser.add_argument("--repeats", type=int, default=1)
     parser.add_argument("--limit", type=int)
+    parser.add_argument("--max-actions", type=int, help="Actions kept per journey (default 10; 30 for traces)")
     return parser
 
 

@@ -329,6 +329,42 @@ ambiguity margin, and produce a locator that matches exactly one element
 original script, and every accepted repair is stored as a new version. Details:
 [`docs/healing-scope.md`](docs/healing-scope.md).
 
+### Evaluation on AndroR2
+
+[AndroR2](https://github.com/SageSELab/AndroR2) holds manually reproduced bug
+reports. Each has a metadata file and a UiAutomator script. Convert them into
+the neutral trace format and evaluate synthesis on the result:
+
+```powershell
+git clone --depth 1 https://github.com/SageSELab/AndroR2.git evaluation/data/andror2
+python -m evaluation.andror2_import --dataset evaluation/data/andror2 `
+  --out evaluation/data/andror2_traces
+python -m evaluation.run_synthesis_eval --telemetry-dir evaluation/data/andror2_traces `
+  --source trace --config configs/target_app.json --runs-dir evaluation/runs/andror2 --no-execute
+```
+
+The importer reads the Python-style metadata, takes the steps from the script
+bodies, and writes `traces.jsonl` plus `conversion_report.json`. By default only
+`crash` reports are kept (`--failure-types crash output gui` keeps others;
+`--only-complete` keeps only scripts in which every UI action converted).
+
+What converts: taps and text inputs on `UiSelector` targets (text, resource id,
+description, or a `className`/`clickable` plus `instance` form written as an
+XPath), swipes as scrolls, and back presses. What does not: coordinate taps,
+home and recent-apps presses, app relaunches, and selectors that use `index`
+or other filters. These are listed per script in the report and in the trace's
+`conversion.dropped`, so the share of each script that C4 actually sees is
+known. Selectors that also carry an `instance` or `index` are marked
+`approximate_locator`.
+
+The scripts have no timestamps. Steps get ordinal timestamps one second apart
+and are flagged `synthetic_time`. Journeys from traces keep repeated identical
+steps, and the evaluation keeps up to 30 actions per trace (`--max-actions`).
+
+Replaying a converted trace does not prove the original bug was reproduced: the
+failure is taken from the metadata, not observed, and dropped actions can leave
+a script short of its trigger. Report replay success, not reproduction.
+
 ## Limitations
 
 - Execution needs a real emulator or device, Appium with UiAutomator2, ADB and

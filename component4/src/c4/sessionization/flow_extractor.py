@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Any
 
-from c4.schemas import EventKind, FailureJourney, NormalizedEvent, Session
+from c4.schemas import EventKind, EventSource, FailureJourney, NormalizedEvent, Session
 from c4.sessionization.actions import (
     REPRODUCIBLE_ACTIONS,
     canonicalize_action,
@@ -97,6 +97,11 @@ def _collapse_consecutive(events: list[NormalizedEvent]) -> list[NormalizedEvent
     collapsed: list[NormalizedEvent] = []
     previous_key: tuple[Any, ...] | None = None
     for event in events:
+        if event.source is EventSource.TRACE:
+            # Scripted or recorded steps repeat on purpose, unlike duplicate breadcrumbs.
+            collapsed.append(event)
+            previous_key = None
+            continue
         key = (
             canonicalize_action(event.action),
             event.screen,
