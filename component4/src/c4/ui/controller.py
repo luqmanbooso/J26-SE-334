@@ -8,6 +8,7 @@ import re
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
+from collections.abc import Callable
 from typing import Any
 from urllib.request import urlopen
 
@@ -25,6 +26,7 @@ from c4.ingestion import TelemetryIngestionService
 from c4.journeys.export import journey_to_document, load_hint_rules, load_journeys, write_journeys
 from c4.schemas import EventSource, FailureJourney
 from c4.sessionization import SessionizationService
+from c4.sessionization.config import SessionizationConfig
 from c4.synthesis.qwen_client import OllamaQwenClient
 from c4.store.repository import TestRepository
 from c4.synthesis.service import SynthesisResult, SynthesisService
@@ -177,7 +179,9 @@ class C4DemoController:
                 raise ValueError(
                     f"No {source} events could be parsed ({len(report.quarantined)} records quarantined)"
                 )
-            journeys = SessionizationService().process(report.events)
+            # Scripted traces are replayed from a fresh launch, so keep their early steps.
+            config = SessionizationConfig(max_actions=30) if source == "trace" else None
+            journeys = SessionizationService(config).process(report.events)
             if not journeys:
                 raise ValueError("No failure journeys found: the telemetry contains no error events")
             write_journeys(journeys, out_dir, load_hint_rules())
@@ -216,7 +220,7 @@ class C4DemoController:
 
     def generate_test(
         self, journey_id: str, model: str, ollama_url: str, use_c3: bool, config_path: str,
-        c3_verdict_id: str | None = None,
+        c3_verdict_id: str | None = None, progress: Callable[[str], None] | None = None,
     ) -> TestView:
         try:
             journey = self._journey(journey_id)
@@ -225,7 +229,9 @@ class C4DemoController:
             c3_client = None
             if use_c3:
                 c3_client = self.c3_client or InboxC3Client(self.c3_inbox, c3_verdict_id)
-            service = SynthesisService(llm, target=target, use_c3=use_c3, c3_client=c3_client)
+            service = SynthesisService(
+                llm, target=target, use_c3=use_c3, c3_client=c3_client, progress=progress
+            )
             result = service.synthesize(journey)
             self.syntheses[journey_id] = result
             reason = result.reason

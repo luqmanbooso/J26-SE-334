@@ -141,10 +141,10 @@ def build_c4_view(parent, theme: dict, log: Callable[[str], None] = print, root=
     preflight_chips = ctk.CTkLabel(setup, text="", text_color=theme["text_muted"])
     preflight_chips.pack(anchor="w")
 
-    journeys_card = card("B  Journeys", "Turn Sentry or Crashlytics telemetry into reproducible flows")
+    journeys_card = card("B  Journeys", "Turn Sentry, Crashlytics or step-trace files into reproducible flows")
     row(journeys_card, "Telemetry", variables["telemetry"], True)
     ctk.CTkOptionMenu(journeys_card, variable=variables["source"],
-                      values=["sentry", "crashlytics"]).pack(anchor="w", pady=3)
+                      values=["sentry", "crashlytics", "trace"]).pack(anchor="w", pady=3)
     journey_menu = ctk.CTkOptionMenu(journeys_card, variable=variables["journey"], values=["(none)"])
     journey_menu.pack(anchor="w", pady=3)
     journey_list = ctk.CTkTextbox(journeys_card, height=110, state="disabled")
@@ -219,12 +219,16 @@ def build_c4_view(parent, theme: dict, log: Callable[[str], None] = print, root=
     script_box.configure(state="disabled")
     button(test, "Generate test", lambda: run_async(action_buttons,
         lambda: controller.generate_test(variables["journey"].get(), variables["model"].get(),
-            variables["ollama"].get(), c3_var.get(), variables["config"].get(), selected_c3()), _show_test))
-    button(test, "Run on device", lambda: run_async(action_buttons,
-        lambda: controller.run_test(
+            variables["ollama"].get(), c3_var.get(), variables["config"].get(), selected_c3(),
+            progress=lambda message: root.after(0, lambda: variables["status"].set(message))), _show_test))
+    def _run_on_device():
+        variables["status"].set("Running on device, this can take a few minutes...")
+        run_async(action_buttons, lambda: controller.run_test(
             variables["journey"].get(), variables["config"].get(), str(out_root / "runs"),
             model=variables["model"].get(), ollama_url=variables["ollama"].get(),
-            use_c3=c3_var.get(), c3_verdict_id=selected_c3()), _show_run))
+            use_c3=c3_var.get(), c3_verdict_id=selected_c3()), _show_run)
+
+    button(test, "Run on device", _run_on_device)
     ctk.CTkCheckBox(test, text="Run + heal", variable=heal_var).pack(side="left", padx=5)
     status_label(test)
     run_link = ctk.CTkLabel(test, text="", text_color=theme["primary"])

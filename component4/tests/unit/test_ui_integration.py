@@ -198,3 +198,29 @@ def test_heal_respects_threshold_and_refuses_non_locator_failures(tmp_path) -> N
     run.execution_result.failure.kind = FailureKind.INFRASTRUCTURE
     other = controller.heal_last_failure(run, "lexical", 0.1)
     assert other.status == "not_applicable" and "locator" in other.error
+
+
+def test_ui_creates_journeys_from_trace_files_and_keeps_long_ones(tmp_path) -> None:
+    steps = [{"timestamp": f"2026-01-01T00:00:{i:02d}Z", "action": "tap", "text": f"item {i}"} for i in range(15)]
+    path = tmp_path / "traces.jsonl"
+    path.write_text(json.dumps({"trace_id": "t1", "steps": steps, "failure": {"type": "Crash"}}) + "\n",
+                    encoding="utf-8")
+    controller = C4DemoController()
+
+    views = controller.create_journeys(str(path), "trace", str(tmp_path / "journeys"))
+
+    assert views[0].error is None and (views[0].source, views[0].steps) == ("trace", 15)
+    assert [s.name for s in controller.journey_steps(views[0].id)][:2] == ["tap", "tap"]
+
+    sentry_like = controller.create_journeys(str(path), "sentry", str(tmp_path / "other"))
+    assert sentry_like[0].error is not None
+
+
+def test_generate_test_reports_progress_to_the_caller(tmp_path) -> None:
+    messages = []
+    controller = C4DemoController(llm=FakeLLM(None))
+    view = _journey(controller, tmp_path)
+
+    test = controller.generate_test(view.id, "m", "http://x", False, _setup(tmp_path), progress=messages.append)
+
+    assert test.status == "generated" and messages == ["Generating test steps, attempt 1 of 3"]
