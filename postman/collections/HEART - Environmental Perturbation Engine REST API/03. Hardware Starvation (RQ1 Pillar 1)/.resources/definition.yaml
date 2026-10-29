@@ -1,0 +1,3 @@
+$kind: collection
+description: Direct endpoints for CPU governor throttling, RAM pressure, thermal throttling, and battery drain.
+order: 3000

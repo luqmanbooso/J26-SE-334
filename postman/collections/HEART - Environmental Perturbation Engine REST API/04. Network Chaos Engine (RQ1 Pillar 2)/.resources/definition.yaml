@@ -1,0 +1,3 @@
+$kind: collection
+description: Direct endpoints for RTT latency, packet loss, bandwidth throttling, DNS failures, and interface handover.
+order: 4000
