@@ -12,7 +12,7 @@ from c4.schemas import FailureJourney
 class PromptBuilder:
     """Build prompts from compact journey and optional C3 evidence views."""
 
-    prompt_version = "synthesis_v2"
+    prompt_version = "synthesis_v3"
 
     def __init__(
         self,
@@ -20,7 +20,7 @@ class PromptBuilder:
         include_c3: bool = True,
     ) -> None:
         self.template_path = template_path or (
-            Path(__file__).parents[3] / "configs" / "prompts" / "synthesis_v2.txt"
+            Path(__file__).parents[3] / "configs" / "prompts" / "synthesis_v3.txt"
         )
         self.include_c3 = include_c3
 

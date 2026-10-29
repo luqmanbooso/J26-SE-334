@@ -57,6 +57,7 @@ class StepParser:
                 steps.append(
                     SynthStep.model_validate(
                         {
+                            "index": len(steps),
                             **dict(item),
                             "action": action.value,
                             "target": target_dict,
@@ -97,6 +98,9 @@ class StepParser:
     def validate_coverage(self, steps: list[SynthStep], journey: FailureJourney) -> list[SynthStep]:
         """Require the steps to cover every replayable journey event, in order.
 
+        Each matched step is linked to its event through ``source_event_id``, so the
+        link comes from the match and not from what the model wrote.
+
         An event is replayable when it has a supported action and, for tap, input and
         navigate, a locator. The steps may use fewer locator keys than the event has, but
         every value must come from that event.
@@ -113,6 +117,7 @@ class StepParser:
             for index in range(position, len(steps)):
                 step = steps[index]
                 if step.action == action.value and set(step.target.values()) <= values:
+                    step.source_event_id = event_id
                     position = index + 1
                     break
             else:

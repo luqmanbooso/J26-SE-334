@@ -120,9 +120,9 @@ def test_service_reports_failure_when_the_model_never_covers_the_journey() -> No
     assert result.status == "failed" and result.script is None and "omit" in result.reason
 
 
-def test_prompt_version_two_demands_one_step_per_event() -> None:
+def test_prompt_demands_one_step_per_event() -> None:
     builder = PromptBuilder(include_c3=False)
     prompt = builder.build(JOURNEY, None)
 
-    assert builder.prompt_version == "synthesis_v2"
+    assert builder.prompt_version == "synthesis_v3"
     assert "exactly one step for every journey event" in prompt and "repeated identical events" in prompt
