@@ -250,7 +250,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--runs-dir", required=True)
     parser.add_argument("--model", default="qwen3:8b")
     parser.add_argument("--ollama-url", default="http://127.0.0.1:11434")
-    parser.add_argument("--llm-timeout", type=float, default=120.0, help="Seconds to wait per model request")
+    parser.add_argument("--llm-timeout", type=float, default=300.0, help="Seconds to wait per model request")
     parser.add_argument("--num-predict", type=int, default=1024, help="Output token limit per model request")
     parser.add_argument("--chunk-size", type=int, default=8,
                         help="Journey events per model request; 0 sends the whole journey in one request")

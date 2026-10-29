@@ -110,3 +110,26 @@ def test_short_journeys_and_disabled_chunking_use_one_request() -> None:
 def test_chunk_size_must_be_positive() -> None:
     with pytest.raises(ValueError, match="chunk_size"):
         SynthesisService(_LLM(), chunk_size=0)
+
+
+def test_progress_names_each_part_attempt_and_rejection() -> None:
+    messages = []
+    llm = _LLM(bad_part_event="e8", bad_times=1)
+
+    SynthesisService(llm, use_c3=False, chunk_size=8, progress=messages.append).synthesize(_journey(20))
+
+    assert messages[0] == "Generating part 1 of 3, attempt 1 of 3"
+    assert "part 2 of 3: attempt 1 rejected, Steps omit 1 of 8 journey events" in messages[2]
+    assert "Generating part 2 of 3, attempt 2 of 3" in messages
+    assert messages[-1] == "Generating part 3 of 3, attempt 1 of 3"
+
+
+def test_progress_for_a_short_journey_and_a_failing_callback() -> None:
+    messages = []
+    SynthesisService(_LLM(), use_c3=False, progress=messages.append).synthesize(_journey(3))
+    assert messages == ["Generating test steps, attempt 1 of 3"]
+
+    def broken(message):
+        raise RuntimeError("ui closed")
+
+    assert SynthesisService(_LLM(), use_c3=False, progress=broken).synthesize(_journey(3)).status == "generated"

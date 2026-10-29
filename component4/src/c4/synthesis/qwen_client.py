@@ -24,7 +24,7 @@ class OllamaQwenClient:
     temperature: float = 0.0
     think: bool = False
     json_mode: bool = True
-    timeout_seconds: float = 120.0
+    timeout_seconds: float = 300.0
 
     def generate(self, prompt: str) -> str:
         """Generate one non-streaming response from the configured model."""

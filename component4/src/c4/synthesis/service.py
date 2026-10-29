@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -62,6 +63,7 @@ class SynthesisService:
         target: TargetAppConfig | None = None,
         c3_strict: bool = False,
         chunk_size: int | None = 8,
+        progress: Callable[[str], None] | None = None,
     ) -> None:
         if max_attempts < 1:
             raise ValueError("max_attempts must be at least one")
@@ -77,6 +79,7 @@ class SynthesisService:
         self.target = target
         self.c3_strict = c3_strict
         self.chunk_size = chunk_size
+        self.progress = progress
         self.last_c3_verdict: C3Verdict | None = None
         self.last_c3_status = "not_requested"
 
@@ -175,7 +178,9 @@ class SynthesisService:
         base_prompt = self.prompt_builder.build(part, verdict)
         previous_response = ""
         last_error: str | None = None
+        name = label or "test steps"
         for attempt_number in range(1, self.max_attempts + 1):
+            self._report(f"Generating {name}, attempt {attempt_number} of {self.max_attempts}")
             prompt = (
                 base_prompt
                 if attempt_number == 1
@@ -193,6 +198,7 @@ class SynthesisService:
                 self._script(steps)
             except (QwenClientError, StepParsingError, ValueError, SyntaxError) as error:
                 last_error = str(error)
+                self._report(f"{name}: attempt {attempt_number} rejected, {last_error[:90]}")
                 attempts.append(SynthesisAttempt(
                     attempt=attempt_number, error=last_error,
                     response_chars=len(response), part=label,
@@ -203,6 +209,14 @@ class SynthesisService:
             ))
             return steps, None
         return None, last_error
+
+    def _report(self, message: str) -> None:
+        """Tell the caller what is running; a failing callback never affects synthesis."""
+        if self.progress is not None:
+            try:
+                self.progress(message)
+            except Exception:
+                pass
 
     def _script(self, steps: list[SynthStep]) -> str:
         script = self.generator.generate(
