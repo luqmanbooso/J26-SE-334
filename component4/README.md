@@ -295,10 +295,13 @@ failing screen, and C4 uses it in test synthesis and failure diagnosis.
 - `configs/target_app.example.json`: package, activity or APK, device id,
   Appium URL, ADB path, reset behaviour and setup commands. Copy it to
   `target_app.json` and edit it. The local copy is not committed.
-- `configs/prompts/synthesis_v2.txt`: the versioned synthesis prompt. It
-  restricts actions and locator fields, requires JSON output, and asks for one
-  step per journey event in order. `synthesis_v1.txt` is kept for reference; it
-  let the model return a single step for a multi-step journey.
+- `configs/prompts/synthesis_v3.txt`: the versioned synthesis prompt. It
+  restricts actions and locator fields, requires JSON output, asks for one step
+  per journey event in order, and uses compact steps (`action`, `target`, and
+  `value` for inputs) so the model writes fewer tokens. Each step is linked to
+  its event by the coverage check, not by the model. `synthesis_v1.txt` let the
+  model return a single step for a multi-step journey, and `synthesis_v2.txt`
+  asked for full steps; both are kept for reference.
 - CLI flags control the model, C3, healing, capture and output locations.
 
 ## Run-folder layout

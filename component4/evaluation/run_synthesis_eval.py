@@ -283,7 +283,9 @@ def _row(
         "journey_id": journey.journey_id,
         "reproducible_flag": journey.metadata.get("reproducible", True) is not False,
         "synthesis_status": result.status,
-        "attempts": len(result.attempts),
+        # Highest attempt reached in any part: 1 when every part passed first time, even
+        # though a long journey makes one request per part.
+        "attempts": max((attempt.attempt for attempt in result.attempts), default=0),
         "steps_count": len(steps),
         "grounded_steps_ratio": grounded / len(steps) if steps else 0.0,
         "script_compiles": compiles,
