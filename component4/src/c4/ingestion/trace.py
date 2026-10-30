@@ -15,6 +15,11 @@ _STEP_FIELDS = {
 }
 
 
+def _app_fields(payload: Mapping[str, Any]) -> dict[str, Any]:
+    """Optional app identity a trace can carry so a journey can be replayed on its own app."""
+    return {key: str(payload[key]) for key in ("app_package", "app_apk") if payload.get(key)}
+
+
 class TraceAdapter:
     """Parse one ``{trace_id, steps, failure}`` record into normalized events.
 
@@ -50,7 +55,7 @@ class TraceAdapter:
         failure = payload.get("failure")
         if isinstance(failure, Mapping):
             try:
-                events.append(self._failure(failure, trace_id, context, events))
+                events.append(self._failure(failure, trace_id, context, events, _app_fields(payload)))
             except (TypeError, ValueError, OverflowError, OSError) as error:
                 quarantined.append(QuarantinedRecord(record_index=-1, reason=str(error), raw=dict(failure)))
         return make_report(events, quarantined)
@@ -84,6 +89,7 @@ class TraceAdapter:
         trace_id: str,
         context: dict[str, Any],
         events: list[NormalizedEvent],
+        attributes: dict[str, Any],
     ) -> NormalizedEvent:
         name = first_string([failure.get("type"), failure.get("name")])
         if name is None:
@@ -101,6 +107,7 @@ class TraceAdapter:
             timestamp=timestamp,
             name=name,
             error={"type": name, "value": string_value(failure.get("message")) or name},
+            attributes=attributes,
             raw=dict(failure),
             **context,
         )

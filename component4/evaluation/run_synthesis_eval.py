@@ -8,6 +8,7 @@ import json
 import statistics
 import sys
 from collections import Counter, defaultdict
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -73,18 +74,28 @@ def evaluate(
     *,
     runs_dir: str | Path = "runs",
     repeats: int = 1,
+    target_for: Callable[[FailureJourney], TargetAppConfig | None] | None = None,
 ) -> list[dict[str, Any]]:
-    """Evaluate each journey repeatedly and return CSV-shaped rows."""
+    """Evaluate each journey repeatedly and return CSV-shaped rows.
+
+    ``target_for`` picks the app a journey is replayed on. Returning ``None`` still
+    generates the test (with the default target) but skips its execution.
+    """
     if repeats < 1:
         raise ValueError("repeats must be at least one")
     root = Path(runs_dir)
     root.mkdir(parents=True, exist_ok=True)
     rows: list[dict[str, Any]] = []
+    base_target = synthesis.target
     for journey in journeys:
+        target = target_for(journey) if target_for else base_target
+        synthesis.target = target or base_target
+        if execution is not None:
+            execution.target = target or base_target
         for repeat in range(1, repeats + 1):
             result = synthesis.synthesize(journey)
             execution_result = None
-            if execution is not None and result.status == "generated":
+            if execution is not None and target is not None and result.status == "generated":
                 execution_result = execution.execute(
                     result,
                     runs_dir=root,
@@ -92,6 +103,22 @@ def evaluate(
                 )
             rows.append(_row(journey, result, execution_result))
     return rows
+
+
+def apk_target_for(base: TargetAppConfig, apk_root: str | Path) -> Callable[[FailureJourney], TargetAppConfig | None]:
+    """Replay each journey on the APK and package recorded in its trace."""
+
+    def resolve(journey: FailureJourney) -> TargetAppConfig | None:
+        attributes = journey.failure.attributes
+        package, apk = attributes.get("app_package"), attributes.get("app_apk")
+        if not package or not apk:
+            return base
+        path = Path(apk_root) / apk
+        if not path.is_file():
+            return None
+        return base.model_copy(update={"package": package, "apk_path": str(path.resolve()), "activity": None})
+
+    return resolve
 
 
 def build_summary(
@@ -226,6 +253,7 @@ def main(argv: list[str] | None = None) -> int:
             execution,
             runs_dir=args.runs_dir,
             repeats=args.repeats,
+            target_for=apk_target_for(target, args.apk_root) if args.apk_root else None,
         )
         model = getattr(llm, "model", args.model)
         prompt_version = synthesis.prompt_builder.prompt_version
@@ -252,6 +280,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--ollama-url", default="http://127.0.0.1:11434")
     parser.add_argument("--llm-timeout", type=float, default=300.0, help="Seconds to wait per model request")
     parser.add_argument("--num-predict", type=int, default=1024, help="Output token limit per model request")
+    parser.add_argument("--apk-root", help="Dataset folder holding each trace's APK; replays every journey on its own app")
     parser.add_argument("--chunk-size", type=int, default=8,
                         help="Journey events per model request; 0 sends the whole journey in one request")
     parser.add_argument("--execute", dest="execute", action="store_true", default=True)

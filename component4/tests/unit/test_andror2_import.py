@@ -287,3 +287,64 @@ def test_legacy_set_text_selector_swipes_and_conditional_clicks() -> None:
         METADATA,
     )
     assert [(s["action"], s["value"]) for s in typed["steps"]] == [("input", "t")]
+
+
+def _journeys(tmp_path, *ids):
+    traces = []
+    for report_id in ids:
+        trace = convert_script(JAVA, {**METADATA, "id": report_id})
+        traces.append(json.dumps(trace))
+    (tmp_path / "traces.jsonl").write_text("\n".join(traces) + "\n", encoding="utf-8")
+    return {j.session_id: j for j in collect_journeys(tmp_path, source="trace", max_actions=30)}
+
+
+def test_trace_records_its_app_and_the_journey_keeps_it(tmp_path) -> None:
+    trace = convert_script(JAVA, METADATA)
+    assert trace["app_apk"] == "apks/7.apk" and trace["app_package"] == "org.example.notes"
+
+    journey = _journeys(tmp_path, "7")["andror2-7"]
+    assert journey.failure.attributes == {"app_package": "org.example.notes", "app_apk": "apks/7.apk"}
+
+
+def test_each_journey_is_replayed_on_its_own_apk_and_missing_apks_are_skipped(tmp_path) -> None:
+    from c4.config import TargetAppConfig
+    from evaluation.run_synthesis_eval import apk_target_for, evaluate
+
+    journeys = _journeys(tmp_path, "7", "8")
+    (tmp_path / "apks").mkdir()
+    (tmp_path / "apks" / "7.apk").write_bytes(b"apk")
+    base = TargetAppConfig(package="base.app", activity=".Main", udid="emulator-5554")
+
+    resolve = apk_target_for(base, tmp_path)
+    target = resolve(journeys["andror2-7"])
+    assert (target.package, target.activity, target.udid) == ("org.example.notes", None, "emulator-5554")
+    assert target.apk_path.endswith("7.apk") and target.capabilities()["app"] == target.apk_path
+    assert resolve(journeys["andror2-8"]) is None
+
+    class Synthesis:
+        def __init__(self):
+            self.target, self.seen = base, []
+
+        def synthesize(self, journey):
+            from c4.synthesis.service import SynthesisResult
+            self.seen.append((journey.session_id, self.target.package))
+            return SynthesisResult(journey_id=journey.journey_id, status="generated", steps=[], script="x = 1\n",
+                                   attempts=[], c3_used=False, prompt_version="t", model=None, elapsed_seconds=0.0)
+
+    class Execution:
+        def __init__(self):
+            self.target, self.executed = base, []
+
+        def execute(self, synthesis, *, runs_dir, run_id):
+            from datetime import datetime, timezone
+            from c4.execution.models import ExecutionResult, ExecutionStatus
+            self.executed.append((run_id, self.target.package))
+            return ExecutionResult(run_id=run_id, journey_id=synthesis.journey_id, status=ExecutionStatus.PASSED,
+                                   started_at=datetime.now(timezone.utc), elapsed_seconds=0.0)
+
+    synthesis, execution = Synthesis(), Execution()
+    rows = evaluate(list(journeys.values()), synthesis, execution, runs_dir=tmp_path / "runs", target_for=resolve)
+
+    assert sorted(synthesis.seen) == [("andror2-7", "org.example.notes"), ("andror2-8", "base.app")]
+    assert [package for _, package in execution.executed] == ["org.example.notes"]
+    assert {r["journey_id"].split(":")[0]: r["execution_status"] for r in rows} == {"andror2-7": "passed", "andror2-8": ""}

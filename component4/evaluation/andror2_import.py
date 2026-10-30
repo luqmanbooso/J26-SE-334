@@ -154,6 +154,7 @@ def convert_script(java: str, metadata: dict[str, Any]) -> dict[str, Any]:
         "app_version": metadata.get("commit_id"),
         "os_version": metadata.get("android_os"),
         "app_package": package,
+        "app_apk": f"apks/{metadata.get('id')}.apk",
         "dataset": {"name": "andror2", "failure_type": failure_type, "issue": metadata.get("github_issue")},
         "steps": steps,
         "failure": {"type": f"andror2.{failure_type}", "message": f"{failure_type} reported in issue {metadata.get('github_issue')}"},
