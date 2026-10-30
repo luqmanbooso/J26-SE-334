@@ -1,0 +1,3 @@
+$kind: collection
+description: Endpoints for device orientation, Dark/Night theme, accessibility font scaling, and mock GPS.
+order: 6000
