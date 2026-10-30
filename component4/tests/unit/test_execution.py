@@ -106,3 +106,42 @@ def test_default_timeout_outlasts_server_launch_wait() -> None:
     assert ExecutionService(target=target).retry_config.timeout_seconds == 210.0
     assert target.capabilities()["uiautomator2ServerLaunchTimeout"] == 90000
     assert target.capabilities()["forceAppLaunch"] and target.capabilities()["shouldTerminateApp"]
+
+
+def test_shared_adb_is_found_from_the_repository_root_without_pythonpath(tmp_path) -> None:
+    import os
+    import subprocess
+    import sys
+
+    code = (
+        "from c4.config import TargetAppConfig\n"
+        "from c4.execution.shared_adb import SharedAdb\n"
+        "SharedAdb(TargetAppConfig(package='p', activity='.A'))\n"
+        "print('ok')\n"
+    )
+    env = {key: value for key, value in os.environ.items() if key != "PYTHONPATH"}
+    completed = subprocess.run([sys.executable, "-c", code], cwd=tmp_path, env=env,
+                               capture_output=True, text=True, timeout=60)
+
+    assert completed.returncode == 0 and completed.stdout.strip() == "ok", completed.stderr[-400:]
+
+
+def test_shared_adb_still_reports_a_clear_error_when_the_module_is_missing(monkeypatch) -> None:
+    import builtins
+
+    import pytest
+
+    from c4.config import TargetAppConfig
+    from c4.execution.shared_adb import SharedAdb, SharedAdbUnavailable
+
+    real_import = builtins.__import__
+
+    def blocked(name, *args, **kwargs):
+        if name == "common.adb" or name == "common":
+            raise ImportError("blocked for the test")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", blocked)
+
+    with pytest.raises(SharedAdbUnavailable, match="shared ADB module is unavailable"):
+        SharedAdb(TargetAppConfig(package="p", activity=".A"))
