@@ -1,0 +1,3 @@
+$kind: collection
+description: Endpoints to list templates, execute declarative Section 5 YAML scenarios on ADB, and validate AST schemas.
+order: 8000

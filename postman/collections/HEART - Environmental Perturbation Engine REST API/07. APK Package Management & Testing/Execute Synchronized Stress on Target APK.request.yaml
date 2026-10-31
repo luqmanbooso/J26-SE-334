@@ -1,0 +1,43 @@
+$kind: http-request
+description: Launches APK and injects synchronized multi-factor environmental stress.
+url: "{{baseUrl}}/api/apk/stress_test"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "package_name": "{{targetPackage}}",
+      "apk_name": "APhotoManager-0.6.4.apk",
+      "profile": {
+        "name": "Compound Stress Profile",
+        "cpuStress": 85,
+        "ramStress": 80,
+        "latency": 1500,
+        "packetLoss": 5,
+        "thermalState": "Warn",
+        "interruptionType": "Incoming Call"
+      }
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 200 OK", function () {
+          pm.response.to.have.status(200);
+      });
+      pm.test("Response time is acceptable (< 500ms)", function () {
+          pm.expect(pm.response.responseTime).to.be.below(500);
+      });
+      pm.test("Response has valid JSON format", function () {
+          var data = pm.response.json();
+          pm.expect(data).to.be.an("object");
+      });
+
+      pm.test("Stress test is executing", function () {
+          var data = pm.response.json();
+          pm.expect(data.status).to.eql("EXECUTING_STRESS_TEST");
+          pm.expect(data.target_package).to.eql(pm.environment.get("targetPackage"));
+      });
+    language: text/javascript
+order: 3000
