@@ -172,7 +172,13 @@ __PLOTLY_SCRIPT__
   .kpi .v { font-size: 20px; font-weight: 700; color: #0f172a; }
   .kpi .l { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: .04em; }
   .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 8px; }
-  #chart { width: 100%; height: 460px; }
+  #chart, #chart2 { width: 100%; height: 460px; }
+  .chart-toggle { display: flex; margin: 2px 2px 8px; }
+  .chart-toggle .tab { border: 1px solid #e2e8f0; background: #fff; color: #475569;
+      font-size: 12px; font-weight: 600; padding: 5px 12px; cursor: pointer; }
+  .chart-toggle .tab:first-child { border-radius: 8px 0 0 8px; }
+  .chart-toggle .tab:last-child { border-radius: 0 8px 8px 0; border-left: none; }
+  .chart-toggle .tab.active { background: #6366f1; color: #fff; border-color: #6366f1; }
   .hint { font-size: 12px; color: #64748b; margin: 8px 2px; }
   h2 { font-size: 14px; margin: 18px 2px 8px; }
   table { width: 100%; border-collapse: collapse; font-size: 12px; }
@@ -198,7 +204,14 @@ __PLOTLY_SCRIPT__
 <div class="wrap">
   __BANNER__
   <div class="kpis" id="kpis"></div>
-  <div class="card"><div id="chart"></div></div>
+  <div class="card">
+    <div class="chart-toggle">
+      <button id="tab-stress" class="tab active" onclick="showChart('stress')">Stress over taps</button>
+      <button id="tab-spatial" class="tab" onclick="showChart('spatial')">Where taps landed</button>
+    </div>
+    <div id="chart"></div>
+    <div id="chart2" style="display:none"></div>
+  </div>
   <div class="hint">Hover a tap to see what it aimed at and why stress moved.
      Click a <b style="color:#dc2626">red stress band</b> (or any marker) to list the taps that drove that episode.</div>
   <h2 id="tbl-title">Taps driving stress</h2>
@@ -247,13 +260,13 @@ const traceStress = {
 };
 const traceErr = {
   x: idx, y: R.map(r => r.error_px), type: "scatter", mode: "lines", yaxis: "y2",
-  name: "Spatial error (px)", line: { color: "#f59e0b", width: 1, dash: "dot" },
-  hoverinfo: "skip", visible: "legendonly",
+  name: "Spatial error (px)", line: { color: "#f59e0b", width: 1.5, dash: "dot" },
+  hoverinfo: "skip",
 };
 const traceUi = {
-  x: idx, y: R.map(r => r.ui_delay_ms), type: "scatter", mode: "lines", yaxis: "y2",
-  name: "UI delay (ms)", line: { color: "#0ea5e9", width: 1, dash: "dot" },
-  hoverinfo: "skip", visible: "legendonly",
+  x: idx, y: R.map(r => r.ui_delay_ms), type: "scatter", mode: "lines", yaxis: "y3",
+  name: "UI delay (ms)", line: { color: "#0ea5e9", width: 1.5, dash: "dot" },
+  hoverinfo: "skip",
 };
 
 const shapes = SPANS.map(([a, b]) => ({
@@ -264,15 +277,21 @@ shapes.push({ type: "line", xref: "paper", yref: "y", x0: 0, x1: 1, y0: TH, y1: 
   line: { color: "#dc2626", width: 1, dash: "dash" } });
 
 const AXIS = "#334155", GRID = "rgba(148,163,184,0.25)";
+const ERR = "#f59e0b", UI = "#0ea5e9";   // each metric axis is coloured to match its line
 const layout = {
-  margin: { t: 10, r: 54, b: 40, l: 48 }, hovermode: "closest",
+  margin: { t: 10, r: 78, b: 40, l: 48 }, hovermode: "closest",
   paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
   // Pin the chart to the light theme so axes/ticks/legend never render
   // dark-on-dark (the page itself is forced light in CSS).
   font: { color: AXIS },
-  xaxis: { title: "Tap index", color: AXIS, gridcolor: GRID, zerolinecolor: GRID },
+  // Scog on the left; spatial error (px) and UI delay (ms) each get their OWN
+  // right axis — different units, so they must not share one numeric scale.
+  xaxis: { title: "Tap index", domain: [0, 0.86], color: AXIS, gridcolor: GRID, zerolinecolor: GRID },
   yaxis: { title: "Scog", range: [0, 1.02], color: AXIS, gridcolor: GRID, zerolinecolor: GRID },
-  yaxis2: { overlaying: "y", side: "right", showgrid: false, title: "err px / UI ms", color: AXIS },
+  yaxis2: { title: "Spatial error (px)", overlaying: "y", side: "right", anchor: "x",
+            rangemode: "tozero", showgrid: false, color: ERR },
+  yaxis3: { title: "UI delay (ms)", overlaying: "y", side: "right", anchor: "free",
+            position: 1.0, rangemode: "tozero", showgrid: false, color: UI },
   legend: { orientation: "h", y: 1.12, font: { color: AXIS } }, shapes,
 };
 
@@ -331,6 +350,61 @@ function drawChart() {
     gd.on("plotly_click", ev => { showTapsFor(ev.points[0].x); });
   }
 }
+
+// Second view: where each tap landed on the screen, coloured by stress, misses
+// ringed in red (y reversed + equal aspect so it reads like a phone screen).
+let spatialDrawn = false;
+function drawSpatial() {
+  const gd = document.getElementById("chart2");
+  if (typeof Plotly === "undefined") {
+    gd.innerHTML = '<div style="padding:48px 16px;text-align:center;color:#64748b">' +
+      'Interactive chart needs Plotly.js (offline / CDN blocked).</div>';
+    return;
+  }
+  const traceSpatial = {
+    x: R.map(r => r.x), y: R.map(r => r.y), type: "scatter", mode: "markers",
+    marker: {
+      size: 11, color: R.map(r => r.stress_s), colorscale: "Viridis", cmin: 0, cmax: 1,
+      colorbar: { title: "Scog", thickness: 12, len: 0.9 },
+      line: { width: R.map(r => r.hit_flag ? 0.6 : 2.6),
+              color: R.map(r => r.hit_flag ? "#ffffff" : "#dc2626") },
+    },
+    text: R.map((r, i) =>
+      `<b>Tap #${i}</b> — ${(r.target_element_id||"?")}` +
+      `<br>Scog ${fmt(r.stress_s)} · ${r.hit_flag ? "HIT" : "MISS"}` +
+      `<br>error ${fmt(r.error_px,1)} px`),
+    hovertemplate: "%{text}<extra></extra>",
+  };
+  const layoutSpatial = {
+    margin: { t: 10, r: 10, b: 40, l: 54 }, hovermode: "closest",
+    paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)", font: { color: AXIS },
+    xaxis: { title: "screen x (px)", color: AXIS, gridcolor: GRID, zeroline: false },
+    yaxis: { title: "screen y (px)", autorange: "reversed", scaleanchor: "x", scaleratio: 1,
+             color: AXIS, gridcolor: GRID, zeroline: false },
+  };
+  Plotly.newPlot("chart2", [traceSpatial], layoutSpatial, { responsive: true, displaylogo: false });
+  const gg = document.getElementById("chart2");
+  if (gg.on) { gg.on("plotly_click", ev => { showTapsFor(ev.points[0].pointNumber); }); }
+}
+
+// Toggle which chart is shown. Plotly mis-sizes in a hidden div, so draw the
+// spatial chart lazily on first open and resize whichever becomes visible.
+function showChart(which) {
+  const cS = document.getElementById("chart"), cP = document.getElementById("chart2");
+  const spatial = (which === "spatial");
+  cS.style.display = spatial ? "none" : "block";
+  cP.style.display = spatial ? "block" : "none";
+  document.getElementById("tab-stress").classList.toggle("active", !spatial);
+  document.getElementById("tab-spatial").classList.toggle("active", spatial);
+  if (typeof Plotly === "undefined") return;
+  if (spatial) {
+    if (!spatialDrawn) { drawSpatial(); spatialDrawn = true; }
+    else Plotly.Plots.resize(cP);
+  } else {
+    Plotly.Plots.resize(cS);
+  }
+}
+
 if (document.readyState === "complete") drawChart();
 else window.addEventListener("load", drawChart);
 </script>
