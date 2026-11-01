@@ -1,0 +1,27 @@
+$kind: http-request
+description: Returns catalog of 52 empirical Android bugs with trigger conditions and attribution metrics.
+url: "{{baseUrl}}/api/themis/benchmarks"
+method: GET
+headers:
+  Content-Type: application/json
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 200 OK", function () {
+          pm.response.to.have.status(200);
+      });
+      pm.test("Response time is acceptable (< 500ms)", function () {
+          pm.expect(pm.response.responseTime).to.be.below(500);
+      });
+      pm.test("Response has valid JSON format", function () {
+          var data = pm.response.json();
+          pm.expect(data).to.be.an("object");
+      });
+
+      pm.test("Contains benchmarks array", function () {
+          var data = pm.response.json();
+          pm.expect(data.benchmarks).to.be.an("array");
+          pm.expect(data.count).to.be.above(0);
+      });
+    language: text/javascript
+order: 1000

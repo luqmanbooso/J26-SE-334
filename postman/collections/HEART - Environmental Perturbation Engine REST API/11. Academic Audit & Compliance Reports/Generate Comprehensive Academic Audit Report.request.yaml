@@ -1,0 +1,28 @@
+$kind: http-request
+description: Generates complete compliance report verifying injection latency < 100ms and host resource overhead < 15%.
+url: "{{baseUrl}}/api/audit/report"
+method: GET
+headers:
+  Content-Type: application/json
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 200 OK", function () {
+          pm.response.to.have.status(200);
+      });
+      pm.test("Response time is acceptable (< 500ms)", function () {
+          pm.expect(pm.response.responseTime).to.be.below(500);
+      });
+      pm.test("Response has valid JSON format", function () {
+          var data = pm.response.json();
+          pm.expect(data).to.be.an("object");
+      });
+
+      pm.test("Contains project metadata and compliance verdict", function () {
+          var data = pm.response.json();
+          pm.expect(data.project_metadata.project_id).to.eql("J26-SE-334");
+          pm.expect(data.rq1_empirical_compliance.injection_latency.compliance_verdict).to.eql(true);
+          pm.expect(data.rq1_empirical_compliance.host_overhead.compliance_verdict).to.eql(true);
+      });
+    language: text/javascript
+order: 1000

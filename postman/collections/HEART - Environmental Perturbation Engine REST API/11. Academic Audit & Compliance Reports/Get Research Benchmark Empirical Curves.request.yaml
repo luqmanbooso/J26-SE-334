@@ -1,0 +1,27 @@
+$kind: http-request
+description: Returns empirical latency, FPS, and failure rate comparison curves across 5 research treatment groups.
+url: "{{baseUrl}}/api/research/benchmark_data"
+method: GET
+headers:
+  Content-Type: application/json
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 200 OK", function () {
+          pm.response.to.have.status(200);
+      });
+      pm.test("Response time is acceptable (< 500ms)", function () {
+          pm.expect(pm.response.responseTime).to.be.below(500);
+      });
+      pm.test("Response has valid JSON format", function () {
+          var data = pm.response.json();
+          pm.expect(data).to.be.an("object");
+      });
+
+      pm.test("Contains 5 empirical comparison groups", function () {
+          var data = pm.response.json();
+          pm.expect(data).to.have.property("1_baseline_nominal");
+          pm.expect(data).to.have.property("5_compound_multi_factor");
+      });
+    language: text/javascript
+order: 4000

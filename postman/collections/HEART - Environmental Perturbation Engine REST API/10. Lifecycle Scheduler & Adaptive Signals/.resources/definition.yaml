@@ -1,0 +1,3 @@
+$kind: collection
+description: Endpoints to trigger lifecycle perturbation hooks and evaluate adaptive signals for runtime escalation.
+order: 10000

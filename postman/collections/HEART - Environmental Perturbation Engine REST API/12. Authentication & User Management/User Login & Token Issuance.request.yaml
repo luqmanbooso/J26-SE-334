@@ -1,0 +1,35 @@
+$kind: http-request
+description: Authenticates researcher credentials and sets authToken environment variable.
+url: "{{baseUrl}}/api/auth/login"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "email": "admin@heart.io",
+      "password": "password123"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 200 OK", function () {
+          pm.response.to.have.status(200);
+      });
+      pm.test("Response time is acceptable (< 500ms)", function () {
+          pm.expect(pm.response.responseTime).to.be.below(500);
+      });
+      pm.test("Response has valid JSON format", function () {
+          var data = pm.response.json();
+          pm.expect(data).to.be.an("object");
+      });
+
+      pm.test("User authenticated and token saved", function () {
+          var data = pm.response.json();
+          pm.expect(data.status).to.eql("AUTHENTICATED");
+          pm.expect(data).to.have.property("token");
+          pm.environment.set("authToken", data.token);
+      });
+    language: text/javascript
+order: 1000

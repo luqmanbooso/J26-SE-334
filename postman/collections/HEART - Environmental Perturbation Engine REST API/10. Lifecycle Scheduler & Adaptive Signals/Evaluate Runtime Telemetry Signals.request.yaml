@@ -1,0 +1,34 @@
+$kind: http-request
+description: Evaluates frame drops and latency against adaptive escalation thresholds.
+url: "{{baseUrl}}/api/scheduler/evaluate_signals"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "fps": 22.5,
+      "latency_ms": 1850.0,
+      "cpu_pct": 88.0
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 200 OK", function () {
+          pm.response.to.have.status(200);
+      });
+      pm.test("Response time is acceptable (< 500ms)", function () {
+          pm.expect(pm.response.responseTime).to.be.below(500);
+      });
+      pm.test("Response has valid JSON format", function () {
+          var data = pm.response.json();
+          pm.expect(data).to.be.an("object");
+      });
+
+      pm.test("Signals evaluated", function () {
+          var data = pm.response.json();
+          pm.expect(data.status).to.eql("EVALUATED");
+      });
+    language: text/javascript
+order: 2000

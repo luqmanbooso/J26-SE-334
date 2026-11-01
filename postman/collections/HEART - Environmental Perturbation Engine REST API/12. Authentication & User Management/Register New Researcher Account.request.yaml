@@ -1,0 +1,24 @@
+$kind: http-request
+description: Registers a new research evaluator account.
+url: "{{baseUrl}}/api/auth/register"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "name": "Evaluation Examiner",
+      "email": "eval_reviewer@heart.io",
+      "password": "password123",
+      "role": "External Examiner",
+      "student_id": "EXAM-2026"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 200 or 400 (if already registered)", function () {
+          pm.expect(pm.response.code).to.be.oneOf([200, 400]);
+      });
+    language: text/javascript
+order: 2000
