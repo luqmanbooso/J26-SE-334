@@ -1,0 +1,19 @@
+\begin{table*}[t]
+\centering
+\caption{Empirical Resilience Evaluation Across Single vs. Compound Adversarial Scenarios}
+\label{tab:empirical_evaluation}
+\resizebox{0.95\textwidth}{!}{%
+\begin{tabular}{l l r r r r r}
+\hline
+\textbf{Scenario} & \textbf{Perturbation Configuration} & \textbf{Mean Latency (ms)} & \textbf{P95 Latency (ms)} & \textbf{Mean FPS} & \textbf{Jank Drop (\%)} & \textbf{Failure Rate (\%)} \\
+\hline
+Baseline Nominal & No perturbation (Wi-Fi, 100% Bat, 0% Throttle) & 64.27 & 72.81 & 56.65 & 5.59\% & 0.0\% \\
+Network Degradation & 3G emulation (RTT: 1200ms, Loss: 5%, BW: 1.5Mbps) & 1277.13 & 1375.42 & 57.24 & 4.60\% & 0.0\% \\
+Hardware Starvation & CPU throttle 95%, LMK pressure, 45°C thermal alert & 192.72 & 241.34 & 32.69 & 45.52\% & 50.0\% \\
+Interruption Burst & Incoming telephony, SMS, Doze wake transitions & 113.04 & 115.78 & 48.12 & 19.79\% & 0.0\% \\
+\hline
+\textbf{Compound Multi-Factor} & \textbf{Concurrent Network + CPU + Thermal + Telephony} & \textbf{1642.01} & \textbf{2153.84} & \textbf{20.46} & \textbf{65.89\%} & \textbf{50.0\%} \\
+\hline
+\end{tabular}
+}
+\end{table*}
