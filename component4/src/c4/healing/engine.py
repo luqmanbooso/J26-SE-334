@@ -107,7 +107,11 @@ class HealingEngine:
             )
             if policy != "accept":
                 status = HealingStatus(policy)
-                return self._finish(base, status, started, reason=f"Healing refused by {policy.replace('_', ' ')} policy.", rule_counts=rule_counts, r6_applied=r6_applied)
+                reason = f"Healing refused by {policy.replace('_', ' ')} policy."
+                if not descriptor.semantic_text():
+                    reason += (" The original locator has no text, id or description to compare,"
+                               " and no baseline element was found for it.")
+                return self._finish(base, status, started, reason=reason, rule_counts=rule_counts, r6_applied=r6_applied)
             node = next(item for item in candidates if item.index == ranked[0][0])
             locator = build_unique_locator(node, hierarchy)
             if locator is None:

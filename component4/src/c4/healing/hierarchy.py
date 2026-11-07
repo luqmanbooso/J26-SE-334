@@ -58,6 +58,19 @@ class UiHierarchy:
                 text = bytes(match.group(1), "utf-8").decode("unicode_escape")
                 return [node for node in self.nodes if node.text == text]
         if by == "xpath":
+            positional = re.fullmatch(
+                r"\(//([A-Za-z0-9_.*-]+)(?:\[@clickable=(['\"])(true|false)\2\])?\)\[(\d+)\]", value
+            )
+            if positional:
+                name, _, clickable, position = positional.groups()
+                matching = [
+                    node for node in self.nodes
+                    if name == "*" or name in {node.tag, node.class_name}
+                ]
+                if clickable is not None:
+                    matching = [node for node in matching if node.clickable == (clickable == "true")]
+                index = int(position) - 1
+                return [matching[index]] if 0 <= index < len(matching) else []
             match = re.fullmatch(
                 r"//([A-Za-z0-9_.-]+)\[@([A-Za-z0-9_-]+)=(['\"])(.*?)\3\]",
                 value,
