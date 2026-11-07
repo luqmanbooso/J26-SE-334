@@ -125,7 +125,9 @@ pip install -e "component4[semantic]"
 cd component4
 ```
 
-On Linux or macOS use `export PYTHONPATH="$PWD"`. For tests only,
+On Linux or macOS use `export PYTHONPATH="$PWD"`. If `PYTHONPATH` is not set,
+C4 looks for `common/adb.py` at this checkout's repository root, so running from
+`component4` also works. For tests only,
 `pip install -e "component4[dev]"` is enough. The `semantic` extra installs
 Sentence-BERT support.
 
@@ -360,8 +362,16 @@ git clone --depth 1 https://github.com/SageSELab/AndroR2.git evaluation/data/and
 python -m evaluation.andror2_import --dataset evaluation/data/andror2 `
   --out evaluation/data/andror2_traces
 python -m evaluation.run_synthesis_eval --telemetry-dir evaluation/data/andror2_traces `
-  --source trace --config configs/target_app.json --runs-dir evaluation/runs/andror2 --no-execute
+  --source trace --config configs/target_app.json --runs-dir evaluation/runs/andror2 `
+  --no-execute --no-c3 --llm-timeout 300 --num-predict 2048
 ```
+
+To replay each journey on its own app, add `--apk-root evaluation/data/andror2`
+(with the `apks` folder present) and drop `--no-execute`. Each trace records its
+package and APK, so every journey is installed and run on the right app; a
+journey whose APK is missing is generated but not executed. Other options:
+`--chunk-size` (events per model request; 0 sends the whole journey),
+`--llm-timeout` and `--num-predict` (per-request limits), `--max-actions`.
 
 The importer reads the Python-style metadata, takes the steps from the script
 bodies, and writes `traces.jsonl` plus `conversion_report.json`. By default only
@@ -385,6 +395,32 @@ Replaying a converted trace does not prove the original bug was reproduced: the
 failure is taken from the metadata, not observed, and dropped actions can leave
 a script short of its trigger. Report replay success, not reproduction.
 
+The desktop app's Journeys card also accepts the `trace` source, keeps up to 30
+actions per trace journey, and shows which part and attempt is being generated.
+
+To heal across real releases, `python -m evaluation.release_healing survey` installs
+and launches every APK on the emulator to find the ones it can run, and
+`python -m evaluation.release_healing run` generates a test from a journey recorded
+on one release, runs it there to capture a baseline, runs the same script on another
+release of the same app, and heals what breaks against the older screen. The app is
+installed by a setup command, so both releases run the identical script. Steps that
+tap the Android system (permission dialogs) are dropped and counted, and the driver
+sets `debug.wm.disable_deprecated_target_sdk_dialog` so Android 15 does not cover
+older apps with its compatibility dialog. A target config can set `wait_activity`
+(Appium's `appWaitActivity`) for apps whose launch screen redirects.
+
+Measured results, with the commands and environment, are in
+[`docs/experiment-log.md`](docs/experiment-log.md). On the 21 AndroR2 crash
+traces (188 converted steps), generation with prompt v3 and chunking kept all 188
+steps in 21 of 21 journeys, against 43 steps in 8 journeys before the coverage
+check and prompt change. Replay on six apps passed one: one app could not be
+installed on Android 15 (target SDK 23), three reported that their launch activity
+never started (later traced, on another app, to Appium's wait for the launch
+activity, so not proven incompatible and not retested), and one was a missing
+locator behind a system dialog. Healing across two real releases of the same app
+was tried on 11 pairs and found no locator that broke between releases (see the
+experiment log).
+
 ## Limitations
 
 - Execution needs a real emulator or device, Appium with UiAutomator2, ADB and
@@ -397,7 +433,16 @@ a script short of its trigger. Report replay success, not reproduction.
 - Replay success is not proof that the original production crash was
   reproduced; telemetry alone does not contain the application bug.
 - Evaluation telemetry that comes from datasets or hand-written files is
-  synthesized, not genuine production data.
+  synthesized, not genuine production data. AndroR2 gives reproduction scripts,
+  not production telemetry, and has no timestamps, so converted traces use
+  ordinal ones.
+- Some script actions have no C4 action (coordinate taps, drags, home and
+  recent-apps presses, selectors that use `index`). They are reported as
+  dropped, so a converted journey can be shorter than the original script.
+- Generation on CPU-only hardware is slow (about 13 s per step with a local 8B
+  model), and replay of dataset apps needs an emulator at the Android version
+  each report names; only an Android 15 image was available for the results
+  recorded so far.
 - A baseline exists only after a passing run of the same script on the earlier
   release; without one, rule R6 is skipped.
 - There is no shared results store or REST bus in the repository; C4 writes
