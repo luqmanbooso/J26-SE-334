@@ -191,11 +191,16 @@ def move_node(xml_text: str, target_node_index: int, rng: random.Random) -> Muta
     return _mutation(root, target, "move_node", True, "heal")
 
 
+def _has_label(node: ET.Element) -> bool:
+    """True when the node has text or a content description that survives an id change."""
+    return bool(node.attrib.get("text") or node.attrib.get("content-desc"))
+
+
 def remove_id_keep_text(xml_text: str, target_node_index: int, rng: random.Random) -> Mutation | None:
     """Clear only a target resource-id and preserve its visible text."""
     root, nodes = _target(xml_text, target_node_index)
     target = nodes[target_node_index]
-    if not target.attrib.get("resource-id"):
+    if not target.attrib.get("resource-id") or not _has_label(target):
         return None
     target.attrib.pop("resource-id")
     _shift_target_and_siblings(root, target, _offset(rng))
@@ -243,6 +248,8 @@ def ambiguous_lookalike(xml_text: str, target_node_index: int, rng: random.Rando
     """Rename a target id and add a near-identical same-text sibling."""
     root, nodes = _target(xml_text, target_node_index)
     target = nodes[target_node_index]
+    if not _has_label(target):
+        return None  # an unlabeled lookalike is not a locatable candidate, so it cannot be ambiguous
     parents = _parent_map(root)
     parent = parents.get(target)
     if parent is None:
