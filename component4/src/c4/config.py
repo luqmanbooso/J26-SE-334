@@ -24,6 +24,7 @@ class TargetAppConfig(BaseModel):
     new_command_timeout: int = 120
     server_launch_timeout_ms: int = Field(default=60000, ge=1000)
     setup_commands: list[list[str]] = Field(default_factory=list)
+    wait_activity: str | None = None
 
     @field_validator("package")
     @classmethod
@@ -59,6 +60,8 @@ class TargetAppConfig(BaseModel):
             capabilities["app"] = self.apk_path
         if self.udid:
             capabilities["udid"] = self.udid
+        if self.wait_activity:
+            capabilities["appWaitActivity"] = self.wait_activity
         return capabilities
 
 

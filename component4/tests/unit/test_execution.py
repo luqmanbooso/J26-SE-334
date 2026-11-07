@@ -145,3 +145,13 @@ def test_shared_adb_still_reports_a_clear_error_when_the_module_is_missing(monke
 
     with pytest.raises(SharedAdbUnavailable, match="shared ADB module is unavailable"):
         SharedAdb(TargetAppConfig(package="p", activity=".A"))
+
+
+def test_wait_activity_is_sent_only_when_configured() -> None:
+    from c4.config import TargetAppConfig
+
+    plain = TargetAppConfig(package="p", activity=".A").capabilities()
+    waiting = TargetAppConfig(package="p", activity=".A", wait_activity="*").capabilities()
+
+    assert "appWaitActivity" not in plain
+    assert waiting["appWaitActivity"] == "*"
