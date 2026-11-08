@@ -76,7 +76,7 @@ class C3Workspace(ctk.CTkFrame):
         inspect=self.tabs.add('Inspection');integration=self.tabs.add('Delivery')
         inspect.grid_columnconfigure(0,weight=1);inspect.grid_columnconfigure(1,weight=2);inspect.grid_rowconfigure(1,weight=1)
         self.result_title=ctk.CTkLabel(inspect,text='Ready to inspect',font=ctk.CTkFont(size=18,weight='bold'));self.result_title.grid(row=0,column=0,columnspan=2,sticky='w',padx=8,pady=6)
-        self.preview=tk.Label(inspect,text='Screenshot preview',bg='#e2e8f0',fg='#334155',borderwidth=0);self.preview.grid(row=1,column=0,sticky='nsew',padx=4,pady=4)
+        self.preview=tk.Label(inspect,text='Screenshot preview',bg='#0b101d',fg='#94a3b8',borderwidth=0);self.preview.grid(row=1,column=0,sticky='nsew',padx=4,pady=4)
         self.details=ctk.CTkTextbox(inspect,wrap='word',height=230,font=ctk.CTkFont(size=13));self.details.grid(row=1,column=1,sticky='nsew',padx=4,pady=4)
         self.set_text(self.details,'Choose a screenshot, then inspect it. You can also capture a connected phone.')
         self.measurements=ctk.CTkLabel(inspect,text='Coverage — · Analysis time —',wraplength=560);self.measurements.grid(row=2,column=0,columnspan=2,sticky='w',padx=8,pady=4)
