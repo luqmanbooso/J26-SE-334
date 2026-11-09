@@ -40,28 +40,29 @@ class SystemStressor(BaseStressor):
         self.is_active = True
 
         if not self.adb.is_simulated:
-            # On real Android hardware: spawn parallel workers according to core count
             try:
                 core_out = self.adb.run_shell("nproc").strip()
-                cores = int(core_out) if core_out.isdigit() and int(core_out) > 0 else 8
+                cores = int(core_out) if core_out.isdigit() and int(core_out) > 0 else 4
             except Exception:
-                cores = 8
-            num_workers = max(1, min(cores, round(cores * (target_pct / 100.0))))
-            worker_cmd = f"sh -c 'for i in $(seq 1 {num_workers}); do nohup yes >/dev/null 2>&1 & done'"
+                cores = 4
+            # Keep at least 2 cores free for system_server, surfaceflinger & adbd to prevent watchdog freezes
+            num_workers = max(1, min(max(1, cores - 2), max(1, round(cores * (target_pct / 100.0) / 2))))
+            # Run nice 19 with 60s hard TTL so workers can NEVER become runaway zombies
+            worker_cmd = f"sh -c 'for i in $(seq 1 {num_workers}); do nice -n 19 timeout 60 sh -c \"while true; do :; done\" >/dev/null 2>&1 & done'"
             self.adb.run_shell(worker_cmd)
         else:
             self.adb.simulated_state["cpu_stress_active"] = True
 
-        # Host-assisted load emulation thread to ensure host metrics also show stress
+        # Host-assisted load emulation thread (yields GIL cleanly)
         self._stop_cpu_flag.clear()
         def _cpu_burner():
-            active_ratio = target_pct / 100.0
+            active_ratio = min(0.7, target_pct / 100.0)
             cycle = 0.05
             while not self._stop_cpu_flag.is_set():
                 t_end = time.time() + (cycle * active_ratio)
                 while time.time() < t_end:
                     _ = 3.14159 * 2.71828
-                time.sleep(cycle * (1.0 - active_ratio))
+                time.sleep(cycle * (1.0 - active_ratio) + 0.005)
 
         t = threading.Thread(target=_cpu_burner, daemon=True)
         t.start()
@@ -70,17 +71,23 @@ class SystemStressor(BaseStressor):
         self.logger.record("SYSTEM_CPU", "CPU_LOAD_INJECTED", {"target_cpu_pct": target_pct})
 
     def revert_cpu(self) -> None:
-        """Terminates active CPU worker routines."""
+        """Terminates active CPU worker routines safely."""
         self._stop_cpu_flag.set()
         self._cpu_worker_threads.clear()
 
         if self.cpu_stress_pids:
             for pid in self.cpu_stress_pids:
-                self.adb.run_shell(f"kill -9 {pid}")
+                try:
+                    self.adb.run_shell(f"kill -9 {pid}")
+                except Exception:
+                    pass
             self.cpu_stress_pids.clear()
 
         if not self.adb.is_simulated:
-            self.adb.run_shell("killall yes")
+            try:
+                self.adb.run_shell("pkill -9 -f 'while true' 2>/dev/null; pkill -9 yes 2>/dev/null; killall -9 yes 2>/dev/null; true")
+            except Exception:
+                pass
 
         if self.adb.is_simulated:
             self.adb.simulated_state["cpu_stress_active"] = False
@@ -129,15 +136,12 @@ class SystemStressor(BaseStressor):
         self.current_state["battery_unplugged"] = unplugged
 
         if not self.adb.is_simulated:
-            # Physical vs AVD handling: allow full low-battery testing down to 1-3%
             is_emu = bool(self.adb.device_id and str(self.adb.device_id).startswith("emulator-"))
-            safe_level = max(1, level) if is_emu else max(2, level)
+            safe_level = max(3, level) if not is_emu else max(2, level)
             if unplugged:
-                self.adb.run_shell("dumpsys battery unplug")
-                self.adb.run_shell("dumpsys battery set status 3")
+                self.adb.run_shell(f"dumpsys battery unplug; dumpsys battery set status 3; dumpsys battery set level {safe_level}")
             else:
-                self.adb.run_shell("dumpsys battery reset")
-            self.adb.run_shell(f"dumpsys battery set level {safe_level}")
+                self.adb.run_shell(f"dumpsys battery reset; dumpsys battery set level {safe_level}")
         else:
             self.adb.simulated_state["battery_level"] = level
             self.adb.simulated_state["battery_unplugged"] = unplugged
@@ -147,8 +151,8 @@ class SystemStressor(BaseStressor):
     def set_thermal_state(self, state: Any = "Warn") -> None:
         """Triggers thermal throttling profiles: 'Normal' (35°C), 'Warn' (55°C), 'Critical' (80°C)."""
         temp_map = {
-            "Nominal": 32.0,
-            "Normal": 35.0,
+            "Nominal": 30.0,
+            "Normal": 32.0,
             "Fair": 45.0,
             "Moderate": 50.0,
             "Warn": 55.0,
@@ -156,19 +160,30 @@ class SystemStressor(BaseStressor):
             "Severe": 65.0,
             "Critical": 80.0
         }
-        int_to_str = {0: "Normal", 1: "Light", 2: "Moderate", 3: "Severe", 4: "Critical"}
+        thermal_code_map = {
+            "Nominal": 0,
+            "Normal": 0,
+            "Fair": 1,
+            "Moderate": 2,
+            "Warn": 2,
+            "Serious": 3,
+            "Severe": 3,
+            "Critical": 4
+        }
+        int_to_str = {0: "Normal", 1: "Fair", 2: "Moderate", 3: "Serious", 4: "Critical"}
         if isinstance(state, (int, float)):
             state = int_to_str.get(int(state), "Warn")
 
         temp_c = temp_map.get(str(state), 55.0)
         raw_temp = int(temp_c * 10)
+        th_code = thermal_code_map.get(str(state), 2)
 
         self.current_state["thermal_state"] = state
         if not self.adb.is_simulated:
-            is_emu = bool(self.adb.device_id and str(self.adb.device_id).startswith("emulator-"))
-            safe_temp_c = temp_c if is_emu else min(55.0, temp_c)
-            self.adb.run_shell(f"dumpsys battery set temp {int(safe_temp_c * 10)}")
-            self.adb.run_shell("dumpsys battery set status 3")
+            # Keep battery temp <= 55.0C on both hardware and API 36 AVDs to avoid OS thermalshutdown poweroff
+            safe_temp_c = min(55.0, temp_c)
+            extra = "; dumpsys battery set status 3" if str(state) not in ("Nominal", "Normal") else ""
+            self.adb.run_shell(f"dumpsys battery set temp {int(safe_temp_c * 10)}; cmd thermalservice override-status {th_code}{extra}")
         else:
             self.adb.simulated_state["battery_temp"] = raw_temp
 
@@ -179,9 +194,18 @@ class SystemStressor(BaseStressor):
 
     def revert(self) -> bool:
         """Restores device hardware to nominal operating conditions."""
-        self.revert_cpu()
-        self.adb.run_shell(f"rm -f {self.io_stress_file}")
-        self.adb.run_shell("dumpsys battery reset")
+        self.cpu_stress_pids.clear()
+        self._stop_cpu_flag.set()
+        self._cpu_worker_threads.clear()
+        if not self.adb.is_simulated:
+            self.adb.run_shell(
+                f"pkill -9 -f 'while true' 2>/dev/null; pkill -9 yes 2>/dev/null; "
+                f"rm -f {self.io_stress_file}; dumpsys battery reset; cmd thermalservice reset; true"
+            )
+        else:
+            self.adb.simulated_state["cpu_stress_active"] = False
+            self.adb.simulated_state["battery_level"] = 100
+            self.adb.simulated_state["battery_unplugged"] = False
         self.is_active = False
         self.current_state.clear()
         self.logger.record("SYSTEM_HARDWARE", "SYSTEM_RESET_NOMINAL", {})
