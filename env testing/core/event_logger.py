@@ -30,21 +30,32 @@ class EventLogger:
         epoch_ms = int(time.time() * 1000)
         timestamp_iso = datetime.now().isoformat()
 
-        # Measure host system overhead defensively
+        # Measure host injector process overhead defensively (CPU % normalized by logical cores)
         host_cpu = 0.0
         host_mem = 0.0
         if psutil is not None:
             try:
-                fn_cpu = getattr(psutil, "cpu_percent", None)
-                if callable(fn_cpu):
-                    host_cpu = float(fn_cpu(interval=None))
+                proc = getattr(self, "_proc", None)
+                if proc is None and hasattr(psutil, "Process"):
+                    proc = psutil.Process()
+                    self._proc = proc
+                if proc is not None and callable(getattr(proc, "cpu_percent", None)):
+                    raw_cpu = float(proc.cpu_percent(interval=None))
+                    cores = float(psutil.cpu_count() or 1)
+                    host_cpu = round(raw_cpu / max(1.0, cores), 2)
                 fn_mem = getattr(psutil, "virtual_memory", None)
                 if callable(fn_mem):
                     host_mem = float(fn_mem().percent)
             except Exception:
                 pass
 
-        latency = injection_latency_ms if injection_latency_ms is not None else round(time.process_time() * 1000 % 45 + 12, 2)
+        now_perf = time.perf_counter()
+        if injection_latency_ms is not None:
+            latency = round(float(injection_latency_ms), 2)
+        else:
+            prev = getattr(self, "_last_perf_t", None)
+            latency = round(max(0.0, (now_perf - prev) * 1000.0), 2) if prev is not None else 0.0
+        self._last_perf_t = now_perf
 
         entry = {
             "epoch_ms": epoch_ms,
@@ -58,7 +69,7 @@ class EventLogger:
             "host_overhead": {
                 "cpu_percent": host_cpu,
                 "mem_percent": host_mem,
-                "compliant": host_cpu < 15.0 or True  # Monitored against <15% target
+                "compliant": host_cpu < 15.0
             },
             "telemetry": telemetry_snapshot or {}
         }
