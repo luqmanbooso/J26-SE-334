@@ -60,6 +60,9 @@ class EnvironmentAttributionEngine:
             category = e.get("category", "")
             action = e.get("action", "")
             params = e.get("parameters", {})
+            # Never blame cleanup/teardown/meta records for causing a failure
+            if any(skip in action.upper() for skip in ("RESET", "CLEARED")) or category in ("CORPUS_EVAL", "ORCHESTRATOR"):
+                continue
             factors.append(f"{category}:{action}")
 
             # Network causality
@@ -120,6 +123,8 @@ class EnvironmentAttributionEngine:
         for e in reversed(events):
             cat = e.get("category", "").upper()
             act = e.get("action", "").upper()
+            if any(skip in act for skip in ("RESET", "CLEARED")) or cat in ("CORPUS_EVAL", "ORCHESTRATOR"):
+                continue
 
             if any(term in fail_type or term in fail_desc for term in ["TIMEOUT", "SOCKET", "NETWORK", "OFFLINE", "PAYMENT_DROP"]):
                 if "NETWORK" in cat:
@@ -152,3 +157,80 @@ class EnvironmentAttributionEngine:
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(report, f, indent=2)
         print(f"[+] Failure attribution report saved to: {output_path}")
+
+    def export_c4_seed(
+        self,
+        report: Dict[str, Any],
+        package_name: str = "com.android.settings",
+        output_path: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Exports a schema_version='c4.journey/1' seed payload with C1 perturbation_hints for Component 4 healing."""
+        attributions = report.get("attributions", [])
+        top = attributions[0] if attributions else {}
+        exc_type = str(top.get("failure_type") or "EnvironmentalDegradationException")
+        now_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        jid = f"c1-attr-{int(time.time() * 1000)}"
+
+        hints = [
+            {
+                "failure_id": a.get("failure_id"),
+                "failure_type": a.get("failure_type"),
+                "primary_trigger": a.get("primary_trigger"),
+                "confidence": a.get("confidence"),
+                "compound_stress_factors": a.get("compound_stress_factors", []),
+                "recommended_mitigation": a.get("recommended_mitigation"),
+            }
+            for a in attributions
+        ]
+
+        comp = str(top.get("component_impacted") or package_name)
+        seed_doc: Dict[str, Any] = {
+            "schema_version": "c4.journey/1",
+            "journey_id": jid,
+            "session_id": f"c1-session-{int(time.time())}",
+            "source": "c1_attribution",
+            "app_version": "1.0",
+            "failing_screen": comp,
+            "exception_type": exc_type,
+            "reproducible": True,
+            "not_reproducible_reason": None,
+            "truncated": False,
+            "action_count": 1,
+            "steps": [
+                {
+                    "index": 0,
+                    "action": "tap",
+                    "name": "c1.perturbed_step",
+                    "screen": comp,
+                    "locator": {"text": comp},
+                    "value": None,
+                    "event_id": f"{jid}:step:0",
+                    "timestamp": now_iso,
+                }
+            ],
+            "failure": {
+                "name": exc_type,
+                "type": exc_type,
+                "message": top.get("root_cause_explanation", "Environmental perturbation induced failure."),
+                "timestamp": now_iso,
+            },
+            "seed": {
+                "targets": [
+                    {
+                        "index": 0,
+                        "action": "tap",
+                        "label": comp,
+                        "locator": {"text": comp},
+                        "screen": comp,
+                    }
+                ],
+                "failing_step_index": 0,
+                "failing_screen": comp,
+                "exception_type": exc_type,
+                "perturbation_hints": hints,
+            },
+        }
+        if output_path:
+            with open(output_path, "w", encoding="utf-8") as f:
+                json.dump(seed_doc, f, indent=2)
+        return seed_doc
