@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, FileResponse
 from pydantic import BaseModel
 
+import re
 from orchestrator import PerturbationOrchestrator
 
 app = FastAPI(
@@ -15,6 +16,14 @@ app = FastAPI(
     description="REST API for Context-Aware Environmental Perturbation Engine",
     version="1.0.0"
 )
+
+# Normalize double slashes middleware (handles baseUrl with trailing slash e.g. {{baseUrl}}/api/status)
+@app.middleware("http")
+async def normalize_slashes_middleware(request: Request, call_next):
+    raw_path = request.scope.get("path", "")
+    if "//" in raw_path:
+        request.scope["path"] = re.sub(r"/+", "/", raw_path)
+    return await call_next(request)
 
 # Enable CORS for Vite frontend
 app.add_middleware(
@@ -174,6 +183,19 @@ def attribute_failures(payload: FailureReportPayload):
     """Correlates failure list with perturbation log and returns attribution report."""
     report = orchestrator.correlate_failures(payload.failures)
     return report
+
+class C4SeedHandoffPayload(BaseModel):
+    package_name: str = "com.android.settings"
+    failures: Optional[List[Dict[str, Any]]] = None
+
+@app.post("/api/attribution/export_c4_seed")
+def export_c4_handoff_seed(payload: C4SeedHandoffPayload):
+    """Generates a c4.journey/1 seed payload containing C1 perturbation_hints for Component 4."""
+    failures = payload.failures or [{"id": f"FAIL_{int(time.time()*1000)}", "type": "TIMEOUT", "component": payload.package_name, "description": "Timeout during C1 stress."}]
+    report = orchestrator.correlate_failures(failures)
+    os.makedirs(RESULTS_DIR, exist_ok=True)
+    out_seed = os.path.join(RESULTS_DIR, "c1_to_c4_seed.json")
+    return orchestrator.attribution_engine.export_c4_seed(report, package_name=payload.package_name, output_path=out_seed)
 
 class YamlParsePayload(BaseModel):
     yaml_content: str
@@ -912,6 +934,11 @@ def evaluate_runtime_signals(payload: SignalsPayload):
         "escalated": escalated,
         "active_escalations": orchestrator.scheduler.active_escalations
     }
+
+@app.get("/api/telemetry/app")
+def get_app_runtime_telemetry(package: Optional[str] = None):
+    """Samples live Android app responsiveness telemetry (FR-C1-07): gfxinfo FPS, jank, p95 UI delay & logcat errors."""
+    return orchestrator.sample_app_telemetry(package_name=package)
 
 @app.get("/api/research/benchmark_data")
 def get_research_benchmark_data():
