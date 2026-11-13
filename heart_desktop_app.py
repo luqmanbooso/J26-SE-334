@@ -21,6 +21,7 @@ if sys.platform == "win32":
 
     subprocess.run = _silent_run
     subprocess.Popen = _silent_popen
+import socket
 import threading
 import shutil
 import webbrowser
@@ -147,44 +148,45 @@ ADB_BIN = get_adb_binary()
 from orchestrator import PerturbationOrchestrator  # type: ignore
 from attribution_engine import EnvironmentAttributionEngine  # type: ignore
 
-# Modern executive light appearance setup
+# Crisp Executive Daylight Studio appearance setup (100% Light Theme)
 ctk.deactivate_automatic_dpi_awareness()
 ctk.set_appearance_mode("light")
 ctk.set_default_color_theme("blue")
 
 THEME = {
-    "bg_app": "#f8fafc",           # Crisp Slate-50 canvas (Apple/Stripe clean aesthetic)
-    "bg_card": "#ffffff",          # Pure white elevated cards
-    "bg_card_hover": "#f1f5f9",    # Card hover
-    "bg_box": "#f1f5f9",           # Inset section & header strip (Slate-100)
-    "border": "#e2e8f0",           # Crisp slate-200 border
-    "border_focus": "#2563eb",     # Primary royal blue focus
-    "text_heading": "#0f172a",     # High-contrast deep slate navy
-    "text_body": "#334155",        # Sharp readable slate-700
-    "text_muted": "#64748b",       # Slate-500 captions
-    "primary": "#2563eb",          # Royal blue
-    "primary_hover": "#1d4ed8",    # Deep royal blue hover
-    "primary_light": "#eff6ff",    # Soft blue tint
-    "primary_border": "#bfdbfe",   # Soft blue border
-    "secondary": "#4f46e5",        # Indigo
+    "bg_app": "#f1f5f9",           # Crisp Daylight Slate-100 canvas
+    "bg_card": "#ffffff",          # Pure white elevated surface card
+    "bg_card_hover": "#f8fafc",    # Subtle light hover surface
+    "bg_box": "#f8fafc",           # Clean inset Slate-50 pod
+    "border": "#cbd5e1",           # Architectural Slate-300 border
+    "border_subtle": "#e2e8f0",    # Crisp Slate-200 hairline divider
+    "border_focus": "#2563eb",     # Royal Blue focus ring
+    "text_heading": "#0f172a",     # High-contrast deep navy heading
+    "text_body": "#334155",        # Sharp readable Slate-700 body
+    "text_muted": "#64748b",       # Balanced Slate-500 secondary caption
+    "primary": "#2563eb",          # Enterprise Royal Blue
+    "primary_hover": "#1d4ed8",    # Deep Royal Blue hover
+    "primary_light": "#eff6ff",    # Soft Blue surface tint
+    "primary_border": "#bfdbfe",   # Soft Blue border
+    "secondary": "#4f46e5",        # Indigo accent
     "secondary_hover": "#4338ca",
-    "success": "#059669",          # Emerald
-    "success_bg": "#ecfdf5",       # Emerald light tint
-    "danger": "#dc2626",           # Crimson
+    "success": "#059669",          # Emerald 600
+    "success_bg": "#ecfdf5",       # Soft Emerald pill tint
+    "danger": "#dc2626",           # Crimson 600
     "danger_hover": "#b91c1c",
-    "danger_light": "#fef2f2",     # Crimson light tint
-    "warning": "#d97706",          # Warm amber
-    "warning_bg": "#fffbeb",       # Amber light tint
-    "phone_frame": "#0f172a",      # Obsidian slate titanium chassis
-    "phone_screen_bg": "#ffffff"   # Clean phone screen background
+    "danger_light": "#fef2f2",     # Soft Crimson pill tint
+    "warning": "#d97706",          # Amber 600
+    "warning_bg": "#fffbeb",       # Soft Amber pill tint
+    "phone_frame": "#334155",      # Brushed Silver-Slate Titanium bezel
+    "phone_screen_bg": "#000000"   # OLED True Black screen display surface
 }
 
 
 class HeartSimpleApp(ctk.CTk):
     """
-    HEART: Clean, Essential Environmental Mobile Testing Console.
-    Displays live physical phone mirroring, on-device app launching,
-    real device telemetry, and core multi-factor environmental stressors.
+    HEART: Industry-Grade Mobile Robustness & Environmental Perturbation Studio.
+    Displays live physical/AVD phone mirroring, on-device app launching,
+    real-time hardware telemetry diffing, and multi-factor chaos injection.
     """
 
     def __init__(self):
