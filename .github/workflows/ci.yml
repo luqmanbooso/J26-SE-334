@@ -61,15 +61,14 @@ jobs:
 
       - name: Verify Python Syntax Across Core Modules
         run: |
-          if [ -f heart_desktop_app.py ]; then python -m py_compile heart_desktop_app.py; fi
-          if [ -f c1_desktop_app.py ]; then python -m py_compile c1_desktop_app.py; fi
+          python -m py_compile heart_desktop_app.py
           python -m py_compile "env testing/server.py"
           python -m py_compile "env testing/orchestrator.py"
           python -m py_compile "env testing/attribution_engine.py"
 
       - name: Run Static Syntax Lint
         run: |
-          flake8 "env testing" --count --select=E9,F63,F7,F82 --show-source --statistics || true
+          flake8 "env testing" --count --select=E9,F63,F7,F82 --show-source --statistics
 
   # =========================================================================
   # STAGE 2: AUTOMATED TEST SUITE & EMPIRICAL RQ1 VALIDATION
