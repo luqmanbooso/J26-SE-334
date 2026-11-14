@@ -192,15 +192,15 @@ class HeartSimpleApp(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("HEART — Mobile Diagnostics Laboratory")
+        self.title("HEART Studio Pro — Mobile Robustness & Environmental Perturbation Laboratory")
         sw = self.winfo_screenwidth()
         sh = self.winfo_screenheight()
-        win_w = min(1200, sw - 60)
-        win_h = min(740, sh - 80)
+        win_w = min(1380, sw - 40)
+        win_h = min(840, sh - 60)
         pos_x = max(0, (sw - win_w) // 2)
-        pos_y = max(0, (sh - win_h) // 4)
+        pos_y = max(0, (sh - win_h) // 3)
         self.geometry(f"{win_w}x{win_h}+{pos_x}+{pos_y}")
-        self.minsize(980, 600)
+        self.minsize(1100, 680)
         self.configure(fg_color=THEME["bg_app"])
 
         # Window & Taskbar Icon with HEART Logo
@@ -297,7 +297,7 @@ class HeartSimpleApp(ctk.CTk):
                 "file": "thermal_throttling_battery_drain.yaml",
                 "name": "Thermal Overheat & Critical Battery",
                 "badge": "🪫 POWER CRITICAL",
-                "badge_color": "#b91c1c",
+                "badge_color": "#dc2626",
                 "badge_bg": "#fef2f2",
                 "desc": "Forces system thermal state to Critical (55°C) and simulates 3% battery level while unplugged, validating low-power fallback branches.",
                 "target": "Location Poller / Background Sync",
