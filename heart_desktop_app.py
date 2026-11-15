@@ -391,146 +391,170 @@ class HeartSimpleApp(ctk.CTk):
     # 1. TOP HEADER (Real Device Status & Master Actions)
     # =========================================================================
     def _build_header(self):
-        head = ctk.CTkFrame(self, fg_color=THEME["bg_card"], height=58, corner_radius=0, border_width=1, border_color=THEME["border"])
+        # Top 3px Brand Accent Line
+        accent_line = ctk.CTkFrame(self, fg_color=THEME["primary"], height=3, corner_radius=0)
+        accent_line.pack(fill="x", side="top")
+
+        head = ctk.CTkFrame(self, fg_color=THEME["bg_card"], height=64, corner_radius=0, border_width=1, border_color=THEME["border"])
         head.pack(fill="x", side="top")
         head.pack_propagate(False)
 
-        # Left branding with real HEART Logo
+        # Left branding with HEART Logo + Studio Pro Badge
         brand_box = ctk.CTkFrame(head, fg_color="transparent")
-        brand_box.pack(side="left", padx=(18, 12), pady=8)
+        brand_box.pack(side="left", padx=(16, 12), pady=8)
 
         logo_path = os.path.join(ROOT_DIR, "favicon_cropped.png")
         if os.path.exists(logo_path):
             try:
-                logo_pil = Image.open(logo_path).resize((32, 32), Image.Resampling.LANCZOS)
-                self.heart_logo_img = ctk.CTkImage(light_image=logo_pil, dark_image=logo_pil, size=(32, 32))
-                ctk.CTkLabel(brand_box, image=self.heart_logo_img, text="").pack(side="left", padx=(0, 8))
+                logo_pil = Image.open(logo_path).resize((36, 36), Image.Resampling.LANCZOS)
+                self.heart_logo_img = ctk.CTkImage(light_image=logo_pil, dark_image=logo_pil, size=(36, 36))
+                ctk.CTkLabel(brand_box, image=self.heart_logo_img, text="").pack(side="left", padx=(0, 10))
             except Exception:
                 pass
 
+        title_stack = ctk.CTkFrame(brand_box, fg_color="transparent")
+        title_stack.pack(side="left")
+
+        top_title_row = ctk.CTkFrame(title_stack, fg_color="transparent")
+        top_title_row.pack(anchor="w")
+
         ctk.CTkLabel(
-            brand_box,
+            top_title_row,
             text="HEART",
-            font=ctk.CTkFont(family="Segoe UI", size=16, weight="bold"),
+            font=ctk.CTkFont(family="Segoe UI", size=18, weight="bold"),
             text_color=THEME["primary"]
         ).pack(side="left")
 
         ctk.CTkLabel(
-            brand_box,
-            text="Mobile Environmental Testing",
-            font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
-            text_color=THEME["text_muted"]
-        ).pack(side="left", padx=(6, 0))
+            top_title_row,
+            text="STUDIO PRO v3.0",
+            font=ctk.CTkFont(family="Segoe UI", size=8, weight="bold"),
+            fg_color=THEME["primary_light"],
+            text_color=THEME["primary"],
+            corner_radius=4,
+            padx=7,
+            pady=1
+        ).pack(side="left", padx=(8, 0))
 
-        # Real Connected Device Badge & Switcher
-        self.dev_badge = ctk.CTkFrame(head, fg_color=THEME["bg_box"], corner_radius=6, border_width=1, border_color=THEME["border"])
-        self.dev_badge.pack(side="left", padx=10, pady=10)
+        ctk.CTkLabel(
+            title_stack,
+            text="Human-Aware Mobile Perturbation & Robustness Laboratory",
+            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+            text_color=THEME["text_muted"]
+        ).pack(anchor="w")
+
+        # Real Connected Device Capsule & Switcher
+        self.dev_badge = ctk.CTkFrame(head, fg_color=THEME["bg_box"], corner_radius=8, border_width=1, border_color=THEME["border"])
+        self.dev_badge.pack(side="left", padx=10, pady=12)
 
         self.dev_status_icon = ctk.CTkLabel(self.dev_badge, text="●", font=ctk.CTkFont(size=14), text_color=THEME["warning"])
-        self.dev_status_icon.pack(side="left", padx=(8, 4))
+        self.dev_status_icon.pack(side="left", padx=(10, 4))
 
         self.device_selector = ctk.CTkOptionMenu(
             self.dev_badge,
             values=["Scanning devices..."],
-            height=26,
-            width=230,
+            height=28,
+            width=225,
             fg_color="#ffffff",
             button_color=THEME["primary"],
             button_hover_color=THEME["primary_hover"],
             text_color=THEME["text_heading"],
-            # Without explicit dropdown colours the open popup rendered as
-            # near-white text on a pale panel (barely legible). Pin it to the
-            # light theme: white panel, deep-navy text, soft-blue hover.
             dropdown_fg_color="#ffffff",
             dropdown_text_color=THEME["text_heading"],
             dropdown_hover_color=THEME["primary_light"],
             font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
             dropdown_font=ctk.CTkFont(size=10),
+            corner_radius=6,
             command=self._on_device_dropdown_change
         )
-        self.device_selector.pack(side="left", padx=(0, 6), pady=2)
+        self.device_selector.pack(side="left", padx=(0, 8), pady=4)
 
         self.dev_battery_lbl = ctk.CTkLabel(
             self.dev_badge,
             text="",
-            font=ctk.CTkFont(family="Consolas", size=9),
-            text_color=THEME["text_muted"]
+            font=ctk.CTkFont(family="Consolas", size=10, weight="bold"),
+            text_color=THEME["text_body"]
         )
-        self.dev_battery_lbl.pack(side="left", padx=(0, 8))
+        self.dev_battery_lbl.pack(side="left", padx=(0, 12))
 
-        # Right Action Buttons
+        # Right Master Action Toolbar
         actions_box = ctk.CTkFrame(head, fg_color="transparent")
-        actions_box.pack(side="right", padx=18, pady=10)
+        actions_box.pack(side="right", padx=16, pady=12)
 
         ctk.CTkButton(
             actions_box,
-            text="Re-Scan Device",
-            width=110,
-            height=30,
+            text="↻ Re-Scan",
+            width=88,
+            height=32,
             fg_color=THEME["bg_box"],
             hover_color="#e2e8f0",
             text_color=THEME["text_heading"],
+            border_width=1,
+            border_color=THEME["border"],
             font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
-            corner_radius=6,
+            corner_radius=7,
             command=self._scan_device_and_apps
-        ).pack(side="left", padx=4)
+        ).pack(side="left", padx=3)
 
         ctk.CTkButton(
             actions_box,
-            text="Launch AVD",
-            width=100,
-            height=30,
+            text="📱 Launch AVD",
+            width=106,
+            height=32,
             fg_color=THEME["primary_light"],
-            hover_color="#e0e7ff",
+            hover_color="#dbeafe",
             text_color=THEME["primary"],
+            border_width=1,
+            border_color=THEME["primary_border"],
             font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
-            corner_radius=6,
+            corner_radius=7,
             command=self._launch_avd
-        ).pack(side="left", padx=4)
+        ).pack(side="left", padx=3)
 
         self.btn_run_e2e_pipeline = ctk.CTkButton(
             actions_box,
             text="🚀 Run E2E Pipeline",
-            width=145,
-            height=30,
+            width=142,
+            height=32,
             fg_color="#4f46e5",
             hover_color="#4338ca",
             text_color="#ffffff",
             font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
-            corner_radius=6,
+            corner_radius=7,
             command=self._toggle_e2e_pipeline
         )
-        self.btn_run_e2e_pipeline.pack(side="left", padx=4)
+        self.btn_run_e2e_pipeline.pack(side="left", padx=3)
 
         ctk.CTkButton(
             actions_box,
-            text="Export Findings",
-            width=120,
-            height=30,
-            fg_color="#10b981",
-            hover_color="#059669",
+            text="📊 Export Report",
+            width=116,
+            height=32,
+            fg_color="#059669",
+            hover_color="#047857",
             text_color="#ffffff",
             font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
-            corner_radius=6,
+            corner_radius=7,
             command=self._export_findings_report
-        ).pack(side="left", padx=4)
+        ).pack(side="left", padx=3)
 
         ctk.CTkButton(
             actions_box,
-            text="Reset All Stressors",
-            width=130,
-            height=30,
+            text="⟲ Reset All",
+            width=96,
+            height=32,
             fg_color=THEME["danger_light"],
             hover_color="#fee2e2",
             text_color=THEME["danger"],
+            border_width=1,
+            border_color="#fecaca",
             font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
-            corner_radius=6,
+            corner_radius=7,
             command=self._reset_all_stressors
-        ).pack(side="left", padx=4)
+        ).pack(side="left", padx=3)
 
     # =========================================================================
-    # =========================================================================
-    # 2. MAIN WORKSPACE (Interactive Laboratory Tabs + Live Smartphone Chassis)
+    # 2. MAIN WORKSPACE (Live Telemetry Ribbon + Laboratory Tabs + Phone Studio)
     # =========================================================================
     def _build_workspace(self):
         work = ctk.CTkFrame(self, fg_color="transparent")
