@@ -558,47 +558,57 @@ class HeartSimpleApp(ctk.CTk):
     # =========================================================================
     def _build_workspace(self):
         work = ctk.CTkFrame(self, fg_color="transparent")
-        work.pack(fill="both", expand=True, padx=16, pady=10)
+        work.pack(fill="both", expand=True, padx=14, pady=(8, 8))
 
-        work.columnconfigure(0, weight=6, minsize=480)
-        work.columnconfigure(1, weight=4, minsize=350)
+        work.columnconfigure(0, weight=6, minsize=560)
+        work.columnconfigure(1, weight=4, minsize=390)
         work.rowconfigure(0, weight=1)
 
-        # Left Column Container with Top Segmented Navigation Tabs
+        # Left Column Container with Live Telemetry Gauges + Segmented Navigation Tabs
         left_col = ctk.CTkFrame(work, fg_color="transparent")
         left_col.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
-        left_col.rowconfigure(1, weight=1)
+        left_col.rowconfigure(2, weight=1)
         left_col.columnconfigure(0, weight=1)
 
-        # Tab Navigation Strip
-        nav_box = ctk.CTkFrame(left_col, fg_color=THEME["bg_card"], height=42, corner_radius=8, border_width=1, border_color=THEME["border"])
-        nav_box.grid(row=0, column=0, sticky="ew", pady=(0, 8))
+        # Row 0: 4-Gauge Live Hardware & Chaos Telemetry Ribbon
+        self._build_live_telemetry_ribbon(left_col)
+
+        # Row 1: Tab Navigation Strip
+        nav_box = ctk.CTkFrame(left_col, fg_color=THEME["bg_card"], height=44, corner_radius=10, border_width=1, border_color=THEME["border"])
+        nav_box.grid(row=1, column=0, sticky="ew", pady=(0, 8))
         nav_box.pack_propagate(False)
 
         self.nav_tabs = ctk.CTkSegmentedButton(
             nav_box,
-            values=["Environmental Stressors", "User Touch & Biometrics", "👁️ Vision Oracle", "🔧 Self-Healing (C4)", "Empirical Findings & KPI"],
+            values=[
+                "⚡ C1 · Environmental Stressors",
+                "👆 C2 · Touch Biometrics",
+                "👁️ C3 · Vision Oracle",
+                "🔧 C4 · Self-Healing",
+                "📊 Empirical KPI & Findings"
+            ],
             command=self._on_nav_tab_changed,
-            height=30,
+            height=32,
+            corner_radius=7,
             font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
             selected_color=THEME["primary"],
             selected_hover_color=THEME["primary_hover"],
             unselected_color="#f8fafc",
             unselected_hover_color="#e2e8f0",
-            text_color="#0f172a"
+            text_color=THEME["text_heading"]
         )
-        self.nav_tabs.set("Environmental Stressors")
-        self.nav_tabs.pack(fill="both", expand=True, padx=4, pady=4)
-        self._update_tab_button_styles("Environmental Stressors")
+        self.nav_tabs.set("⚡ C1 · Environmental Stressors")
+        self.nav_tabs.pack(fill="both", expand=True, padx=5, pady=5)
+        self._update_tab_button_styles("⚡ C1 · Environmental Stressors")
 
         # View 1: Environmental Stressors
         self.env_scroll = ctk.CTkScrollableFrame(left_col, fg_color="transparent", corner_radius=0)
-        self.env_scroll.grid(row=1, column=0, sticky="nsew")
+        self.env_scroll.grid(row=2, column=0, sticky="nsew")
 
         self._build_card_env_profiles(self.env_scroll)
-        self._build_card_telemetry_diff(self.env_scroll)
         self._build_card_hardware(self.env_scroll)
         self._build_card_network(self.env_scroll)
+        self._build_card_telemetry_diff(self.env_scroll)
         self._build_card_interruption(self.env_scroll)
         self._build_card_context(self.env_scroll)
 
@@ -624,6 +634,81 @@ class HeartSimpleApp(ctk.CTk):
 
         self._build_phone_mirror_pane(right_frame)
 
+    def _build_live_telemetry_ribbon(self, parent):
+        """Builds a 4-card real-time glowing telemetry HUD ribbon above the workspace tabs."""
+        ribbon = ctk.CTkFrame(parent, fg_color="transparent")
+        ribbon.grid(row=0, column=0, sticky="ew", pady=(0, 8))
+        for i in range(4):
+            ribbon.columnconfigure(i, weight=1)
+
+        self.hud_gauges = {}
+        gauge_defs = [
+            ("cpu", "⚙️ CPU LOAD", "0%", "IDLE", "#6366f1", 0.04),
+            ("battery", "🔋 BATTERY", "100%", "CHARGING", "#10b981", 1.0),
+            ("thermal", "🌡️ THERMAL", "30.0°C", "NOMINAL", "#0ea5e9", 0.25),
+            ("network", "🌐 NETWORK RTT", "0 ms", "4G/5G LTE", "#10b981", 0.05),
+        ]
+
+        for idx, (key, title, init_val, init_tag, accent, init_prog) in enumerate(gauge_defs):
+            g_card = ctk.CTkFrame(
+                ribbon,
+                fg_color=THEME["bg_card"],
+                corner_radius=10,
+                border_width=1,
+                border_color=THEME["border"],
+                height=64
+            )
+            g_card.grid(row=0, column=idx, sticky="nsew", padx=(0 if idx == 0 else 4, 0 if idx == 3 else 4))
+            g_card.pack_propagate(False)
+
+            top_r = ctk.CTkFrame(g_card, fg_color="transparent")
+            top_r.pack(fill="x", padx=10, pady=(6, 1))
+
+            ctk.CTkLabel(
+                top_r,
+                text=title,
+                font=ctk.CTkFont(family="Segoe UI", size=8, weight="bold"),
+                text_color=THEME["text_muted"]
+            ).pack(side="left")
+
+            tag_lbl = ctk.CTkLabel(
+                top_r,
+                text=init_tag,
+                font=ctk.CTkFont(family="Segoe UI", size=7, weight="bold"),
+                fg_color=THEME["bg_box"],
+                text_color=accent,
+                corner_radius=4,
+                padx=5,
+                pady=0
+            )
+            tag_lbl.pack(side="right")
+
+            val_lbl = ctk.CTkLabel(
+                g_card,
+                text=init_val,
+                font=ctk.CTkFont(family="Consolas", size=14, weight="bold"),
+                text_color=THEME["text_heading"],
+                anchor="w"
+            )
+            val_lbl.pack(fill="x", padx=10, pady=(0, 2))
+
+            bar = ctk.CTkProgressBar(
+                g_card,
+                height=5,
+                corner_radius=3,
+                fg_color="#e2e8f0",
+                progress_color=accent
+            )
+            bar.set(init_prog)
+            bar.pack(fill="x", padx=10, pady=(0, 6))
+
+            self.hud_gauges[key] = {
+                "val": val_lbl,
+                "tag": tag_lbl,
+                "bar": bar,
+                "card": g_card
+            }
+
     def _update_tab_button_styles(self, active_val):
         """Ensures high-contrast crisp text across segmented navigation tabs."""
         if hasattr(self, "nav_tabs") and hasattr(self.nav_tabs, "_buttons_dict"):
@@ -644,16 +729,16 @@ class HeartSimpleApp(ctk.CTk):
             self.c4_scroll.grid_forget()
 
         if "Environmental" in value:
-            self.env_scroll.grid(row=1, column=0, sticky="nsew")
+            self.env_scroll.grid(row=2, column=0, sticky="nsew")
         elif "Biometric" in value or "Touch" in value:
-            self.bio_scroll.grid(row=1, column=0, sticky="nsew")
+            self.bio_scroll.grid(row=2, column=0, sticky="nsew")
             self._redraw_biometry_canvas()
         elif "Vision" in value or "Oracle" in value:
-            self.vision_scroll.grid(row=1, column=0, sticky="nsew")
+            self.vision_scroll.grid(row=2, column=0, sticky="nsew")
         elif "Self-Healing" in value:
-            self.c4_scroll.grid(row=1, column=0, sticky="nsew")
+            self.c4_scroll.grid(row=2, column=0, sticky="nsew")
         elif "Findings" in value or "KPI" in value:
-            self.kpi_scroll.grid(row=1, column=0, sticky="nsew")
+            self.kpi_scroll.grid(row=2, column=0, sticky="nsew")
             self._refresh_dashboard_view()
 
     # -------------------------------------------------------------------------
