@@ -1149,16 +1149,19 @@ class HeartSimpleApp(ctk.CTk):
         card = ctk.CTkFrame(parent, fg_color=THEME["bg_card"], corner_radius=10, border_width=1, border_color=THEME["border"])
         card.pack(fill="x", pady=(0, 10))
 
-        head = ctk.CTkFrame(card, fg_color=THEME["bg_box"], height=32, corner_radius=8)
-        head.pack(fill="x", padx=6, pady=(6, 8))
+        head = ctk.CTkFrame(card, fg_color=THEME["bg_box"], height=34, corner_radius=8, border_width=1, border_color=THEME["border_subtle"])
+        head.pack(fill="x", padx=8, pady=(8, 8))
         head.pack_propagate(False)
+
+        accent_pill = ctk.CTkFrame(head, fg_color=THEME["primary"], width=4, height=16, corner_radius=2)
+        accent_pill.pack(side="left", padx=(8, 6), pady=8)
 
         ctk.CTkLabel(
             head,
             text="Live Telemetry & Perturbation Diff",
             font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
             text_color=THEME["text_heading"]
-        ).pack(side="left", padx=10)
+        ).pack(side="left", padx=(0, 8))
 
         self.btn_sample_telemetry = ctk.CTkButton(
             head,
@@ -1167,7 +1170,7 @@ class HeartSimpleApp(ctk.CTk):
             height=22,
             font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
             fg_color=THEME["primary_light"],
-            hover_color="#e0e7ff",
+            hover_color="#dbeafe",
             text_color=THEME["primary"],
             corner_radius=6,
             command=self._sample_live_hardware_baseline
@@ -1204,21 +1207,23 @@ class HeartSimpleApp(ctk.CTk):
             ("orientation", "🔄 Orientation", self._baseline_state.get("orientation", "Portrait (0°)"))
         ]
 
-        for key, name, base_val in metrics_def:
-            row = ctk.CTkFrame(diff_box, fg_color="transparent", height=24)
+        for idx, (key, name, base_val) in enumerate(metrics_def):
+            row_bg = "#f8fafc" if idx % 2 == 0 else "#ffffff"
+            row = ctk.CTkFrame(diff_box, fg_color=row_bg, height=28, corner_radius=5, border_width=1, border_color="#e2e8f0")
             row.pack(fill="x", pady=1)
-            ctk.CTkLabel(row, text=name, width=100, anchor="w", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color=THEME["text_body"]).pack(side="left", padx=(8, 0))
+            row.pack_propagate(False)
+            ctk.CTkLabel(row, text=name, width=105, anchor="w", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color=THEME["text_heading"]).pack(side="left", padx=(8, 0))
 
-            lbl_before = ctk.CTkLabel(row, text=base_val, width=130, anchor="w", font=ctk.CTkFont(family="Segoe UI", size=9), text_color=THEME["text_muted"])
+            lbl_before = ctk.CTkLabel(row, text=base_val, width=135, anchor="w", font=ctk.CTkFont(family="Consolas", size=9), text_color=THEME["text_muted"])
             lbl_before.pack(side="left", padx=4)
 
-            ctk.CTkLabel(row, text="➔", width=20, font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color="#94a3b8").pack(side="left")
+            ctk.CTkLabel(row, text="➔", width=20, font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"), text_color=THEME["primary"]).pack(side="left")
 
-            lbl_after = ctk.CTkLabel(row, text=base_val, width=175, anchor="w", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color=THEME["text_heading"])
+            lbl_after = ctk.CTkLabel(row, text=base_val, width=175, anchor="w", font=ctk.CTkFont(family="Consolas", size=9, weight="bold"), text_color=THEME["text_heading"])
             lbl_after.pack(side="left", padx=4)
 
-            badge = ctk.CTkLabel(row, text="NOMINAL", width=125, font=ctk.CTkFont(family="Segoe UI", size=8, weight="bold"), fg_color=THEME["success_bg"], text_color=THEME["success"], corner_radius=4, padx=6, pady=1)
-            badge.pack(side="right", padx=(0, 8))
+            badge = ctk.CTkLabel(row, text="NOMINAL", width=128, font=ctk.CTkFont(family="Segoe UI", size=8, weight="bold"), fg_color=THEME["success_bg"], text_color=THEME["success"], corner_radius=5, padx=6, pady=1)
+            badge.pack(side="right", padx=(0, 6))
 
             self.diff_rows[key] = {
                 "before": lbl_before,
@@ -1307,9 +1312,9 @@ class HeartSimpleApp(ctk.CTk):
                 except Exception:
                     pass
 
-                # 3. Query Orientation from dumpsys window
+                # 3. Query Orientation from dumpsys window displays
                 try:
-                    win_res = subprocess.run([adb_bin, "-s", actual_dev, "shell", "dumpsys", "window"], capture_output=True, text=True, timeout=4)
+                    win_res = subprocess.run([adb_bin, "-s", actual_dev, "shell", "dumpsys", "window", "displays"], capture_output=True, text=True, timeout=3)
                     if win_res.returncode == 0:
                         if "ROTATION_90" in win_res.stdout:
                             orient_val = 1
@@ -1341,29 +1346,30 @@ class HeartSimpleApp(ctk.CTk):
                     pass
 
             def _apply():
-                self._baseline_state = {
-                    "cpu": base_cpu,
-                    "cpu_str": cpu_str,
-                    "battery": base_bat,
-                    "battery_charging": is_charging,
-                    "battery_str": bat_str,
-                    "thermal": thermal_state,
-                    "thermal_temp": f"{base_temp_c:.1f}°C",
-                    "thermal_temp_num": base_temp_c,
-                    "thermal_str": thermal_str,
-                    "bandwidth": net_type,
-                    "latency_ms": net_lat,
-                    "packet_loss": net_loss,
-                    "network_str": net_str,
-                    "orientation": orient_str,
-                    "orientation_val": orient_val
-                }
-                if hasattr(self, "diff_rows"):
-                    self.diff_rows["cpu"]["before"].configure(text=cpu_str)
-                    self.diff_rows["battery"]["before"].configure(text=bat_str)
-                    self.diff_rows["thermal"]["before"].configure(text=thermal_str)
-                    self.diff_rows["network"]["before"].configure(text=net_str)
-                    self.diff_rows["orientation"]["before"].configure(text=orient_str)
+                if not getattr(self, "_stressors_active", False):
+                    self._baseline_state = {
+                        "cpu": base_cpu,
+                        "cpu_str": cpu_str,
+                        "battery": base_bat,
+                        "battery_charging": is_charging,
+                        "battery_str": bat_str,
+                        "thermal": thermal_state,
+                        "thermal_temp": f"{base_temp_c:.1f}°C",
+                        "thermal_temp_num": base_temp_c,
+                        "thermal_str": thermal_str,
+                        "bandwidth": net_type,
+                        "latency_ms": net_lat,
+                        "packet_loss": net_loss,
+                        "network_str": net_str,
+                        "orientation": orient_str,
+                        "orientation_val": orient_val
+                    }
+                    if hasattr(self, "diff_rows"):
+                        self.diff_rows["cpu"]["before"].configure(text=cpu_str)
+                        self.diff_rows["battery"]["before"].configure(text=bat_str)
+                        self.diff_rows["thermal"]["before"].configure(text=thermal_str)
+                        self.diff_rows["network"]["before"].configure(text=net_str)
+                        self.diff_rows["orientation"]["before"].configure(text=orient_str)
 
                 # Sync active state if no stressor is currently injected
                 if not getattr(self, "_stressors_active", False):
@@ -1486,11 +1492,11 @@ class HeartSimpleApp(ctk.CTk):
                 row_th["after"].configure(text=f"Fair ({temp})", text_color=THEME["warning"])
                 row_th["badge"].configure(text=f"WARMING (+{d_c:.1f}°C)", fg_color=THEME["warning_bg"], text_color=THEME["warning"])
             elif th == "Serious":
-                d_c = max(0.0, 50.0 - base_temp_num)
+                d_c = max(0.0, 65.0 - base_temp_num)
                 row_th["after"].configure(text=f"Serious ({temp})", text_color="#ea580c")
                 row_th["badge"].configure(text=f"THROTTLING (+{d_c:.1f}°C)", fg_color="#fff7ed", text_color="#ea580c")
             else:
-                d_c = max(0.0, 55.0 - base_temp_num)
+                d_c = max(0.0, 80.0 - base_temp_num)
                 row_th["after"].configure(text=f"Critical ({temp})", text_color=THEME["danger"])
                 row_th["badge"].configure(text=f"OVERHEAT (+{d_c:.1f}°C)", fg_color=THEME["danger_light"], text_color=THEME["danger"])
 
@@ -1530,6 +1536,54 @@ class HeartSimpleApp(ctk.CTk):
                 rot_lbl = "Landscape (90°)" if str(orient) in ("1", "landscape") else ("Reverse Landscape (270°)" if str(orient) in ("3", "270") else "Landscape (90°)")
                 row_o["after"].configure(text=rot_lbl, text_color=THEME["primary"])
                 row_o["badge"].configure(text="REORIENTED (90°)", fg_color=THEME["primary_light"], text_color=THEME["primary"])
+
+        # 6. Synchronize Top 4-Gauge Live Telemetry Ribbon
+        if hasattr(self, "hud_gauges"):
+            try:
+                # CPU Gauge
+                eff_cpu = cpu if cpu > 0 else base_cpu
+                cpu_c = "#10b981" if eff_cpu < 35 else ("#f59e0b" if eff_cpu < 75 else "#f43f5e")
+                cpu_t = "IDLE" if eff_cpu < 35 else ("THROTTLED" if eff_cpu < 75 else "STARVATION")
+                self.hud_gauges["cpu"]["val"].configure(text=f"{eff_cpu}%")
+                self.hud_gauges["cpu"]["tag"].configure(text=cpu_t, text_color=cpu_c)
+                self.hud_gauges["cpu"]["bar"].set(max(0.04, min(1.0, eff_cpu / 100.0)))
+                self.hud_gauges["cpu"]["bar"].configure(progress_color=cpu_c)
+
+                # Battery Gauge
+                bat_c = "#10b981" if bat > 30 else ("#f59e0b" if bat > 10 else "#f43f5e")
+                bat_t = "CHARGING" if is_charging else ("CRITICAL" if bat <= 10 else "UNPLUGGED")
+                self.hud_gauges["battery"]["val"].configure(text=f"{bat}%")
+                self.hud_gauges["battery"]["tag"].configure(text=bat_t, text_color=bat_c)
+                self.hud_gauges["battery"]["bar"].set(max(0.04, min(1.0, bat / 100.0)))
+                self.hud_gauges["battery"]["bar"].configure(progress_color=bat_c)
+
+                # Thermal Gauge
+                th_map = {"Nominal": (base_temp_num, "OPTIMAL", "#0ea5e9", 0.25),
+                          "Fair": (45.0, "WARM", "#f59e0b", 0.55),
+                          "Serious": (65.0, "SERIOUS", "#f97316", 0.80),
+                          "Critical": (80.0, "CRITICAL", "#f43f5e", 0.98)}
+                t_deg, t_tag, t_col, t_prog = th_map.get(th, (base_temp_num, "OPTIMAL", "#0ea5e9", 0.25))
+                self.hud_gauges["thermal"]["val"].configure(text=f"{t_deg:.1f}°C")
+                self.hud_gauges["thermal"]["tag"].configure(text=t_tag, text_color=t_col)
+                self.hud_gauges["thermal"]["bar"].set(t_prog)
+                self.hud_gauges["thermal"]["bar"].configure(progress_color=t_col)
+
+                # Network Gauge
+                eff_lat = lat if lat > 0 else int(base.get("latency_ms", 0))
+                if net == "offline":
+                    self.hud_gauges["network"]["val"].configure(text="OFFLINE")
+                    self.hud_gauges["network"]["tag"].configure(text="AIRPLANE", text_color="#f43f5e")
+                    self.hud_gauges["network"]["bar"].set(1.0)
+                    self.hud_gauges["network"]["bar"].configure(progress_color="#f43f5e")
+                else:
+                    net_c = "#10b981" if (eff_lat < 150 and loss == 0) else ("#f59e0b" if eff_lat < 1000 else "#f43f5e")
+                    net_tag = f"{str(net).upper()} • {loss}% DROP" if loss > 0 else str(net).upper()
+                    self.hud_gauges["network"]["val"].configure(text=f"{eff_lat} ms")
+                    self.hud_gauges["network"]["tag"].configure(text=net_tag[:14], text_color=net_c)
+                    self.hud_gauges["network"]["bar"].set(max(0.05, min(1.0, eff_lat / 2500.0)))
+                    self.hud_gauges["network"]["bar"].configure(progress_color=net_c)
+            except Exception:
+                pass
 
     # -------------------------------------------------------------------------
     # Card 1: Hardware & Power
