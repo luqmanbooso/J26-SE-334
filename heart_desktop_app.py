@@ -763,14 +763,18 @@ class HeartSimpleApp(ctk.CTk):
             r_top,
             values=profile_names,
             command=self._on_env_profile_selected,
-            width=250,
+            width=255,
             height=28,
             font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
-            fg_color=THEME["bg_box"],
+            fg_color="#ffffff",
             text_color=THEME["text_heading"],
-            button_color=THEME["border"],
-            button_hover_color=THEME["border_focus"],
-            dropdown_font=ctk.CTkFont(family="Segoe UI", size=10)
+            button_color=THEME["primary"],
+            button_hover_color=THEME["primary_hover"],
+            dropdown_fg_color="#ffffff",
+            dropdown_text_color=THEME["text_heading"],
+            dropdown_hover_color=THEME["primary_light"],
+            dropdown_font=ctk.CTkFont(family="Segoe UI", size=10),
+            corner_radius=6
         )
         self.env_profile_selector.set(profile_names[0])
         self.env_profile_selector.pack(side="left", padx=(0, 6))
@@ -828,12 +832,12 @@ class HeartSimpleApp(ctk.CTk):
         ).pack(side="left", padx=(0, 6))
 
         chip_definitions = [
-            ("⚡ Compound", profile_names[0], THEME["danger_light"], THEME["danger"]),
-            ("📶 3G Drop", profile_names[1], THEME["warning_bg"], THEME["warning"]),
+            ("⚡ Compound", profile_names[0], "#fef2f2", "#dc2626"),
+            ("📶 3G Drop", profile_names[1], "#fffbeb", "#d97706"),
             ("🔥 95% CPU", profile_names[2], "#fff7ed", "#ea580c"),
-            ("🪫 3% Bat", profile_names[3], "#fef2f2", "#b91c1c"),
+            ("🪫 3% Bat", profile_names[3], "#fef2f2", "#dc2626"),
             ("📞 Call Storm", profile_names[4], "#f5f3ff", "#7c3aed"),
-            ("🔄 Nominal", profile_names[5], THEME["success_bg"], THEME["success"]),
+            ("🔄 Nominal", profile_names[5], "#ecfdf5", "#059669"),
         ]
 
         for chip_lbl, p_key, bg_c, fg_c in chip_definitions:
@@ -872,7 +876,7 @@ class HeartSimpleApp(ctk.CTk):
             font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
             fg_color="#fef2f2",
             text_color="#dc2626",
-            corner_radius=4,
+            corner_radius=5,
             padx=8,
             pady=2
         )
@@ -883,8 +887,8 @@ class HeartSimpleApp(ctk.CTk):
             text="Target: Payment Checkout",
             font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
             fg_color="#ffffff",
-            text_color=THEME["text_muted"],
-            corner_radius=4,
+            text_color=THEME["text_body"],
+            corner_radius=5,
             padx=8,
             pady=2
         )
@@ -892,24 +896,44 @@ class HeartSimpleApp(ctk.CTk):
 
         self.prof_status_lbl = ctk.CTkLabel(
             p_b_row,
-            text="Ready to inject",
+            text="● Ready to Inject",
             font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
-            text_color=THEME["text_muted"]
+            text_color=THEME["primary"]
         )
         self.prof_status_lbl.pack(side="right")
 
+        # Severity Index Progress Bar
+        sev_bar_row = ctk.CTkFrame(self.profile_preview_box, fg_color="transparent")
+        sev_bar_row.pack(fill="x", padx=10, pady=(2, 4))
+
+        ctk.CTkLabel(
+            sev_bar_row,
+            text="Chaos Severity Index:",
+            font=ctk.CTkFont(family="Segoe UI", size=8, weight="bold"),
+            text_color=THEME["text_muted"]
+        ).pack(side="left", padx=(0, 8))
+
+        self.prof_severity_bar = ctk.CTkProgressBar(
+            sev_bar_row,
+            height=7,
+            corner_radius=4,
+            fg_color="#e2e8f0",
+            progress_color="#dc2626"
+        )
+        self.prof_severity_bar.pack(side="left", fill="x", expand=True, pady=2)
+
         # Row 2: Parameter Summary Pills
-        self.prof_pills_row = ctk.CTkFrame(self.profile_preview_box, fg_color="transparent")
-        self.prof_pills_row.pack(fill="x", padx=10, pady=(2, 4))
+        self.prof_pills_row = ctk.CTkFrame(self.profile_preview_box, fg_color="#ffffff", corner_radius=6, border_width=1, border_color=THEME["border_subtle"])
+        self.prof_pills_row.pack(fill="x", padx=10, pady=(2, 5))
 
         self.prof_pills_lbl = ctk.CTkLabel(
             self.prof_pills_row,
             text="",
-            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+            font=ctk.CTkFont(family="Consolas", size=9, weight="bold"),
             text_color=THEME["text_heading"],
             anchor="w"
         )
-        self.prof_pills_lbl.pack(fill="x")
+        self.prof_pills_lbl.pack(fill="x", padx=8, pady=4)
 
         # Row 3: Full Narrative Description
         self.prof_desc_lbl = ctk.CTkLabel(
@@ -917,7 +941,7 @@ class HeartSimpleApp(ctk.CTk):
             text="",
             font=ctk.CTkFont(family="Segoe UI", size=9),
             text_color=THEME["text_muted"],
-            wraplength=490,
+            wraplength=540,
             justify="left",
             anchor="w"
         )
@@ -933,21 +957,25 @@ class HeartSimpleApp(ctk.CTk):
         p = self.ENV_PROFILES.get(choice)
         if not p:
             return
+        sev = int(p.get("severity", 0))
         self.prof_badge_lbl.configure(
-            text=f"{p['badge']} • Severity {p['severity']}/100",
+            text=f"{p['badge']} • Severity {sev}/100",
             text_color=p["badge_color"],
             fg_color=p["badge_bg"]
         )
+        if hasattr(self, "prof_severity_bar"):
+            self.prof_severity_bar.set(max(0.04, sev / 100.0))
+            self.prof_severity_bar.configure(progress_color=p["badge_color"])
         self.prof_target_lbl.configure(
-            text=f"Target: {p['target']}"
+            text=f"🎯 Target: {p['target']}"
         )
         pills = (
-            f"CPU: {p['cpu']}%   |   "
-            f"RTT: {p['latency']}ms   |   "
-            f"Loss: {p['packet_loss']}%   |   "
-            f"Thermal: {p['thermal']}   |   "
-            f"Net: {p['network'].upper()}   |   "
-            f"Battery: {p['battery']}%"
+            f"⚙️ CPU: {p['cpu']}%   •   "
+            f"🌐 RTT: {p['latency']}ms   •   "
+            f"📉 Loss: {p['packet_loss']}%   •   "
+            f"🌡️ Thermal: {p['thermal']}   •   "
+            f"📶 Link: {p['network'].upper()}   •   "
+            f"🔋 Bat: {p['battery']}%"
         )
         self.prof_pills_lbl.configure(text=pills)
         self.prof_desc_lbl.configure(text=p["desc"])
@@ -988,7 +1016,7 @@ class HeartSimpleApp(ctk.CTk):
 
         dev_id = getattr(self.adb, "device_id", None)
         tag = "AVD" if (dev_id and dev_id.startswith("emulator-")) else "USB"
-        temp_c = {"Nominal": "32.0°C", "Fair": "45.0°C", "Serious": "55.0°C", "Critical": "55.0°C"}.get(p["thermal"], "38.0°C")
+        temp_c = {"Nominal": "30.0°C", "Fair": "45.0°C", "Serious": "65.0°C", "Critical": "80.0°C"}.get(p["thermal"], "38.0°C")
         plug_tag = "Charging" if bat >= 100 else "Unplugged"
         if hasattr(self, "dev_battery_lbl"):
             self.dev_battery_lbl.configure(text=f"🔋 {bat}% ({plug_tag}) • 🌡️ {temp_c} [{p['thermal']}] • {tag}")
@@ -1095,6 +1123,7 @@ class HeartSimpleApp(ctk.CTk):
             except Exception:
                 pass
 
+            self.after(0, lambda: self._update_kpi(38.4))
             self._append_log(f"[PROFILE READY] Scenario '{p['name']}' fully active. Monitored target: {p['target']}")
             self._trigger_settling_refreshes()
 
