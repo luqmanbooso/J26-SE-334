@@ -1634,6 +1634,7 @@ class HeartSimpleApp(ctk.CTk):
         self.bat_slider = ctk.CTkSlider(card, from_=1, to=100, number_of_steps=99, command=self._on_bat_slider, progress_color=THEME["warning"], button_color=THEME["warning"], height=14)
         self.bat_slider.set(100)
         self.bat_slider.pack(fill="x", padx=14, pady=(2, 6))
+        self.bat_slider.bind("<ButtonRelease-1>", lambda e: self._apply_battery_level())
 
         bat_tools = ctk.CTkFrame(card, fg_color="transparent")
         bat_tools.pack(fill="x", padx=14, pady=(0, 10))
@@ -1841,24 +1842,32 @@ class HeartSimpleApp(ctk.CTk):
         card = ctk.CTkFrame(parent, fg_color=THEME["bg_card"], corner_radius=10, border_width=1, border_color=THEME["border"])
         card.pack(fill="x", pady=(0, 10))
 
-        head = ctk.CTkFrame(card, fg_color=THEME["bg_box"], height=32, corner_radius=8)
-        head.pack(fill="x", padx=6, pady=(6, 8))
+        head = ctk.CTkFrame(card, fg_color=THEME["bg_box"], height=34, corner_radius=8, border_width=1, border_color=THEME["border_subtle"])
+        head.pack(fill="x", padx=8, pady=(8, 8))
         head.pack_propagate(False)
+
+        # Left Brand Accent Pill inside Card Header
+        accent_pill = ctk.CTkFrame(head, fg_color=THEME["primary"], width=4, height=16, corner_radius=2)
+        accent_pill.pack(side="left", padx=(8, 6), pady=8)
 
         ctk.CTkLabel(
             head,
             text=title,
             font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
             text_color=THEME["text_heading"]
-        ).pack(side="left", padx=10)
+        ).pack(side="left", padx=(0, 8))
 
         if subtitle:
             ctk.CTkLabel(
                 head,
                 text=subtitle,
-                font=ctk.CTkFont(family="Segoe UI", size=9),
-                text_color=THEME["text_muted"]
-            ).pack(side="right", padx=10)
+                font=ctk.CTkFont(family="Segoe UI", size=8, weight="bold"),
+                fg_color="#ffffff",
+                text_color=THEME["text_muted"],
+                corner_radius=4,
+                padx=8,
+                pady=2
+            ).pack(side="right", padx=8)
 
         return card
 
