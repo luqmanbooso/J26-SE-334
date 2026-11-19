@@ -2143,13 +2143,13 @@ class HeartSimpleApp(ctk.CTk):
         ctk.CTkLabel(tool_disp, text="Rotational Gaussian dispersion (kinematic covariance Σ)",
                      font=ctk.CTkFont(size=9), text_color=THEME["text_muted"]).pack(side="left")
         ctk.CTkButton(tool_disp, text="🎲 Re-Sample", height=22, width=110, fg_color=THEME["bg_box"],
-                      hover_color="#334155", text_color=THEME["text_heading"],
+                      hover_color="#e2e8f0", text_color=THEME["text_heading"],
                       font=ctk.CTkFont(size=9, weight="bold"),
                       command=self._redraw_biometry_canvas).pack(side="right")
-        canv_container = ctk.CTkFrame(card_disp, fg_color="#ffffff", corner_radius=6,
+        canv_container = ctk.CTkFrame(card_disp, fg_color="#f8fafc", corner_radius=8,
                                       border_width=1, border_color=THEME["border"])
         canv_container.pack(fill="x", padx=12, pady=(0, 6))
-        self.bio_canvas = tk.Canvas(canv_container, height=190, bg="#ffffff", highlightthickness=0)
+        self.bio_canvas = tk.Canvas(canv_container, height=190, bg="#f8fafc", highlightthickness=0)
         self.bio_canvas.pack(fill="both", expand=True, padx=4, pady=4)
         m_frame = ctk.CTkFrame(card_disp, fg_color=THEME["bg_box"], corner_radius=8,
                                border_width=1, border_color=THEME["border"])
@@ -2733,11 +2733,11 @@ class HeartSimpleApp(ctk.CTk):
         cx = w / 2.0
         cy = h / 2.0
 
-        # Subtle light coordinate grid
-        for gx in range(0, int(w), 30):
-            canvas.create_line(gx, 0, gx, h, fill="#f1f5f9", width=1)
-        for gy in range(0, int(h), 30):
-            canvas.create_line(0, gy, w, gy, fill="#f1f5f9", width=1)
+        # Clean Daylight Calibration Grid
+        for gx in range(0, int(w), 28):
+            canvas.create_line(gx, 0, gx, h, fill="#e2e8f0", width=1)
+        for gy in range(0, int(h), 28):
+            canvas.create_line(0, gy, w, gy, fill="#e2e8f0", width=1)
 
         # Target button boundary: 120 x 42
         bw, bh = 120.0, 42.0
@@ -2745,11 +2745,11 @@ class HeartSimpleApp(ctk.CTk):
         x2, y2 = cx + bw / 2.0, cy + bh / 2.0
 
         canvas.create_rectangle(x1, y1, x2, y2, outline="#2563eb", fill="#eff6ff", width=2, dash=(4, 2))
-        canvas.create_text(cx, cy, text="TARGET BUTTON (120×42 px)", fill="#475569", font=("Segoe UI", 8, "bold"))
+        canvas.create_text(cx, cy, text="TARGET BUTTON (120×42 px)", fill="#1e293b", font=("Segoe UI", 8, "bold"))
 
         # Target Crosshairs
-        canvas.create_line(cx - 15, cy, cx + 15, cy, fill="#2563eb", width=1)
-        canvas.create_line(cx, cy - 15, cy, cy + 15, fill="#2563eb", width=1)
+        canvas.create_line(cx - 16, cy, cx + 16, cy, fill="#93c5fd", width=1)
+        canvas.create_line(cx, cy - 16, cy, cy + 16, fill="#93c5fd", width=1)
 
         stress = self._bio_stress
         angle_rad = math.radians(self._bio_angle)
