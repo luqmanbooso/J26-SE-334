@@ -2985,7 +2985,7 @@ class HeartSimpleApp(ctk.CTk):
                     err_dist = res["error_distance"]
                     is_hit = res["is_hit"]
                 else:
-                    err_dist = random.uniform(8, 20 + stress * 65)
+                    err_dist = round(10.0 + stress * 45.0, 1)
                     act_x = tgt_x + int(err_dist * math.cos(angle_rad))
                     act_y = tgt_y + int(err_dist * math.sin(angle_rad))
                     is_hit = err_dist < (bw / 2.0)
@@ -3230,6 +3230,7 @@ class HeartSimpleApp(ctk.CTk):
                     target_xy=(tgt_x, tgt_y), touch_type="tap"
                 )
 
+                step_t0 = time.perf_counter()
                 # Send touch input to live Android emulator/phone
                 self._send_adb_input(f"input tap {int(act_x)} {int(act_y)}")
                 self._append_log(
@@ -3257,19 +3258,17 @@ class HeartSimpleApp(ctk.CTk):
                     "#d97706", "#fffbeb"
                 )
 
-                # Sample dumpsys gfxinfo for frame jank under perturbation
-                jank_pct = 0.0
+                # Sample dumpsys gfxinfo for authentic frame jank under perturbation
+                jank_pct = None
                 try:
                     gfx_res = run_adb(["shell", "dumpsys", "gfxinfo", active_pkg])
                     m_jank = re.search(r"Janky frames:\s+\d+\s+\(([\d\.]+)%\)", gfx_res.stdout)
                     if m_jank:
                         jank_pct = float(m_jank.group(1))
-                    else:
-                        jank_pct = round(random.uniform(7.5, 18.2), 1)
                 except Exception:
-                    jank_pct = round(random.uniform(7.5, 18.2), 1)
+                    jank_pct = None
 
-                # Component 3 Real Vision Oracle Defect Detection
+                # Component 3 Real Vision Oracle Defect Detection (no fabricated fallback defects)
                 has_defect = False
                 defect_type = "none"
                 oracle_conf = 1.0
@@ -3307,57 +3306,18 @@ class HeartSimpleApp(ctk.CTk):
                             defect_type = "none"
                             oracle_expl = "Clean UI layout certified within active viewport."
                     except Exception as _oracle_err:
-                        self._append_log(f"[PIPELINE ORACLE NOTE] Real VLM pass fallback ({_oracle_err}).")
-                        if prof_data.get("cpu", 0) >= 90 and not is_hit:
-                            has_defect = True
-                            defect_type = "TEXT_TRUNCATION"
-                            defects_found.append({
-                                "id": f"VIS_DEFECT_{step_idx+1}",
-                                "type": "TEXT_TRUNCATION",
-                                "component": target["name"],
-                                "trigger": prof_data.get("name"),
-                                "explanation": f"UI widget '{target['name']}' text clipping and frame drop ({jank_pct}% jank) under 95% CPU contention.",
-                                "confidence": 0.94
-                            })
-                        elif "3G" in prof_data.get("name", "") and err_dist > 40:
-                            has_defect = True
-                            defect_type = "COMPONENT_OVERLAP"
-                            defects_found.append({
-                                "id": f"VIS_DEFECT_{step_idx+1}",
-                                "type": "COMPONENT_OVERLAP",
-                                "component": target["name"],
-                                "trigger": prof_data.get("name"),
-                                "explanation": f"Layout reflow overlap on '{target['name']}' due to 1850ms asynchronous cellular delay.",
-                                "confidence": 0.89
-                            })
+                        defect_type = "unverified"
+                        oracle_expl = f"Vision Oracle unavailable for step ({_oracle_err}); no synthetic defect recorded."
+                        self._append_log(f"[PIPELINE ORACLE NOTE] {oracle_expl}")
                 else:
-                    if prof_data.get("cpu", 0) >= 90 and not is_hit:
-                        has_defect = True
-                        defect_type = "TEXT_TRUNCATION"
-                        defects_found.append({
-                            "id": f"VIS_DEFECT_{step_idx+1}",
-                            "type": "TEXT_TRUNCATION",
-                            "component": target["name"],
-                            "trigger": prof_data.get("name"),
-                            "explanation": f"UI widget '{target['name']}' text clipping and frame drop ({jank_pct}% jank) under 95% CPU contention.",
-                            "confidence": 0.94
-                        })
-                    elif "3G" in prof_data.get("name", "") and err_dist > 40:
-                        has_defect = True
-                        defect_type = "COMPONENT_OVERLAP"
-                        defects_found.append({
-                            "id": f"VIS_DEFECT_{step_idx+1}",
-                            "type": "COMPONENT_OVERLAP",
-                            "component": target["name"],
-                            "trigger": prof_data.get("name"),
-                            "explanation": f"Layout reflow overlap on '{target['name']}' due to 1850ms asynchronous cellular delay.",
-                            "confidence": 0.89
-                        })
+                    defect_type = "unverified"
+                    oracle_expl = "Vision Oracle module not loaded; visual check skipped."
 
-                oracle_res_str = f"Defect: {defect_type}" if has_defect else "Screen Verified Clean ✅"
-                self._append_log(f"[PIPELINE VERIFICATION #{step_idx+1}] Vision Oracle: {oracle_res_str} | FrameProbe Jank: {jank_pct}%")
+                jank_disp = f"{jank_pct}%" if jank_pct is not None else "unmeasured"
+                oracle_res_str = f"Defect: {defect_type}" if has_defect else ("Unverified" if defect_type == "unverified" else "Screen Verified Clean ✅")
+                self._append_log(f"[PIPELINE VERIFICATION #{step_idx+1}] Vision Oracle: {oracle_res_str} | FrameProbe Jank: {jank_disp}")
 
-                ui_delay_ms = round(20.0 + (stress * 820.0) + (jank_pct * 12.0) + random.uniform(5.0, 30.0), 1)
+                ui_delay_ms = round((time.perf_counter() - step_t0) * 1000.0, 1)
                 pipeline_records.append({
                     "step": step_idx + 1,
                     "profile": prof_data.get("name", chosen_profile_key),
@@ -3435,7 +3395,7 @@ class HeartSimpleApp(ctk.CTk):
             # Automatically switch UI to Tab 3 (Empirical Findings & KPI) and show live pipeline timeline
             def _switch_to_kpi():
                 if hasattr(self, "nav_tabs"):
-                    self.nav_tabs.set("Empirical Findings & KPI")
+                    self.nav_tabs.set("📊 Empirical KPI & Findings")
                     self._on_nav_tab_changed("Empirical Findings & KPI")
                 if hasattr(self, "report_menu"):
                     self.report_menu.set(live_key)
@@ -3559,7 +3519,7 @@ class HeartSimpleApp(ctk.CTk):
 
     def _eval_active_mirror_screen(self):
         # Capture fresh hardware evidence; never submit simulated/stale mirror frames.
-        self.nav_tabs.set("👁️ Vision Oracle")
+        self.nav_tabs.set("👁️ C3 · Vision Oracle")
         self._on_nav_tab_changed("👁️ Vision Oracle")
         self.c3_workspace.run('device')
 
