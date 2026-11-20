@@ -3925,16 +3925,30 @@ class HeartSimpleApp(ctk.CTk):
             except Exception:
                 pass
 
+    def _open_export_folder(self):
+        target_dir = os.path.join(ROOT_DIR, "env testing")
+        if hasattr(os, "startfile") and os.path.exists(target_dir):
+            try:
+                os.startfile(target_dir)
+            except Exception as e:
+                self._append_log(f"[EXPORT] Failed to open folder: {e}")
+
     def _on_log_menu_changed(self, value):
         self._refresh_log_viewer()
 
     def _get_active_log_path(self):
-        choice = self.log_menu.get() if hasattr(self, "log_menu") else "Environmental Perturbation Event Log"
-        if "Perturbation" in choice:
-            p = os.path.join(ROOT_DIR, "results", "exp-02", "mon-joint-session", "perturbation_event_log.json")
-            if not os.path.exists(p):
-                p = os.path.join(ROOT_DIR, "env testing", "perturbation_event_log.json")
-            return p
+        choice = self.log_menu.get() if hasattr(self, "log_menu") else "Exported Findings & Attribution Report (JSON)"
+        if "Exported Findings" in choice or "test_findings_report.json" in choice:
+            return os.path.join(ROOT_DIR, "env testing", "test_findings_report.json")
+        elif "Failure Causality" in choice or "environment_failure_attribution" in choice:
+            return os.path.join(ROOT_DIR, "env testing", "environment_failure_attribution.json")
+        elif "Executive Findings" in choice or "Markdown" in choice:
+            return os.path.join(ROOT_DIR, "env testing", "test_findings_report.md")
+        elif "Perturbation" in choice:
+            p = os.path.join(ROOT_DIR, "env testing", "perturbation_event_log.json")
+            if os.path.exists(p):
+                return p
+            return os.path.join(ROOT_DIR, "results", "exp-02", "mon-joint-session", "perturbation_event_log.json")
         elif "Adaptive" in choice or "Timeline" in choice:
             return os.path.join(ROOT_DIR, "results", "exp-02", "mon-joint-session", "full-adaptive_timeline.json")
         elif "Provenance" in choice or "Manifest" in choice:
@@ -4158,8 +4172,94 @@ class HeartSimpleApp(ctk.CTk):
         if active and not getattr(self, "live_stream_active", False):
             self.after(35, self._render_touch_animation_frame)
 
+    def _draw_status_bar_overlay(self, base_pil, target_w, target_h):
+        """Overlays crisp executive status bar with clock, camera notch, 5G signal, and live dynamic battery bar with percentage."""
+        try:
+            base_rgba = base_pil.convert("RGBA")
+            overlay = Image.new("RGBA", (target_w, target_h), (0, 0, 0, 0))
+            draw = ImageDraw.Draw(overlay)
+
+            # 1. Height & Glass Backdrop
+            # A sleek dark-slate glass scrim across the top ensures high contrast on all wallpapers
+            sb_h = min(24, max(18, int(target_h * 0.052)))
+            draw.rectangle([0, 0, target_w, sb_h], fill=(15, 23, 42, 215))
+
+            # 2. Left: Clock
+            curr_time = time.strftime("%H:%M")
+            draw.text((7, 3), curr_time, fill=(248, 250, 252, 255))
+
+            # 3. Center: Dynamic Island / Camera cutout
+            cw = min(36, max(24, int(target_w * 0.17)))
+            ch = min(11, max(8, int(sb_h * 0.5)))
+            cx = (target_w - cw) // 2
+            cy = (sb_h - ch) // 2
+            draw.rounded_rectangle([cx, cy, cx + cw, cy + ch], radius=ch // 2, fill=(0, 0, 0, 255))
+            draw.ellipse([cx + 4, cy + 2, cx + 8, cy + 6], fill=(51, 65, 85, 255))
+
+            # 4. Right: Network & Signal
+            net_type = "5G"
+            bw = self._active_state.get("bandwidth", "Normal (4G/5G)")
+            if "3G" in str(bw):
+                net_type = "3G"
+            elif "Edge" in str(bw) or "2G" in str(bw):
+                net_type = "E"
+            elif "Offline" in str(bw):
+                net_type = "X"
+
+            # Battery level and charging status
+            bat_level = int(self.__dict__.get("_active_state", {}).get("battery", 100))
+            bat_slider = self.__dict__.get("bat_slider")
+            if bat_slider is not None:
+                try:
+                    bat_level = int(bat_slider.get())
+                except Exception:
+                    pass
+            is_charging = bool(self.__dict__.get("_active_state", {}).get("battery_charging", True))
+
+            # Render right elements from right to left
+            # Battery Capsule:
+            cap_w = 20
+            cap_h = 10
+            cap_x2 = target_w - 7
+            cap_x1 = cap_x2 - cap_w
+            cap_y1 = (sb_h - cap_h) // 2
+            cap_y2 = cap_y1 + cap_h
+
+            # Battery outline & terminal
+            draw.rounded_rectangle([cap_x1, cap_y1, cap_x2, cap_y2], radius=2, outline=(226, 232, 240, 255), width=1)
+            draw.rectangle([cap_x2, cap_y1 + 2, cap_x2 + 2, cap_y2 - 2], fill=(226, 232, 240, 255))
+
+            # Fill bar
+            inner_w = cap_w - 3
+            fill_w = max(1, int(inner_w * (bat_level / 100.0)))
+            if bat_level > 20:
+                bat_color = (34, 197, 94, 255)  # Emerald Green
+            elif bat_level > 10:
+                bat_color = (245, 158, 11, 255) # Amber
+            else:
+                bat_color = (239, 68, 68, 255)  # Red alert
+
+            draw.rectangle([cap_x1 + 1.5, cap_y1 + 1.5, cap_x1 + 1.5 + fill_w, cap_y2 - 1.5], fill=bat_color)
+
+            # Battery % Text
+            pct_str = f"{bat_level}%"
+            text_x = cap_x1 - (len(pct_str) * 6 + 4)
+            draw.text((text_x, 3), pct_str, fill=(248, 250, 252, 255))
+
+            # Signal bars & Network text
+            sig_x = text_x - 16
+            draw.text((sig_x - 16, 3), net_type, fill=(203, 213, 225, 255))
+            for i in range(4):
+                bx = sig_x + i * 3
+                bh = 2 + i * 2
+                draw.rectangle([bx, cap_y2 - bh, bx + 1.5, cap_y2], fill=(203, 213, 225, 255))
+
+            return Image.alpha_composite(base_rgba, overlay).convert("RGB")
+        except Exception:
+            return base_pil
+
     def _apply_touch_overlays(self, base_pil, target_w=None, target_h=None):
-        """Applies dynamic animated touch ripple rings, displacement vectors, and contact dots onto the phone screen."""
+        """Applies dynamic status bar overlay and animated touch ripple rings onto phone screen."""
         if target_w is None or target_h is None:
             target_w, target_h = base_pil.size
 
