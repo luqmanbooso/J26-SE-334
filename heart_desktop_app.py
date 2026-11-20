@@ -4262,6 +4262,11 @@ class HeartSimpleApp(ctk.CTk):
         """Applies dynamic status bar overlay and animated touch ripple rings onto phone screen."""
         if target_w is None or target_h is None:
             target_w, target_h = base_pil.size
+        elif base_pil.size != (target_w, target_h):
+            base_pil = base_pil.resize((target_w, target_h), Image.Resampling.BILINEAR)
+
+        # 1. Overlay crisp executive status bar (Clock, Dynamic Island, 5G, Battery Bar with exact % and color)
+        base_pil = self._draw_status_bar_overlay(base_pil, target_w, target_h)
 
         touches = getattr(self, "_touch_history", [])
         if not touches:
@@ -4368,29 +4373,61 @@ class HeartSimpleApp(ctk.CTk):
                 draw.ellipse([msx1 - 4, msy1 - 4, msx1 + 4, msy1 + 4], fill=(16, 185, 129, s_alpha))
                 draw.ellipse([msx2 - 5, msy2 - 5, msx2 + 5, msy2 + 5], fill=(239, 68, 68, s_alpha))
 
-        return Image.alpha_composite(base_rgba, overlay)
+        try:
+            return Image.alpha_composite(base_rgba, overlay)
+        except Exception:
+            return base_pil
 
     # =========================================================================
     # 3. RIGHT COLUMN: LIVE MOBILE PHONE CHASSIS & SCREEN MIRROR
     # =========================================================================
     def _build_phone_mirror_pane(self, parent):
-        # 1. Top Phone Toolstrip
-        toolstrip = ctk.CTkFrame(parent, fg_color=THEME["bg_box"], height=38, corner_radius=8, border_width=1, border_color=THEME["border"])
-        toolstrip.pack(fill="x", padx=10, pady=(10, 6))
-        toolstrip.pack_propagate(False)
+        # 0. Top Viewport Studio Header Strip (Clean Light Header)
+        vp_head = ctk.CTkFrame(parent, fg_color=THEME["bg_box"], height=32, corner_radius=8, border_width=1, border_color=THEME["border_subtle"])
+        vp_head.pack(fill="x", padx=10, pady=(10, 6))
+        vp_head.pack_propagate(False)
+
+        accent_vp = ctk.CTkFrame(vp_head, fg_color=THEME["primary"], width=4, height=14, corner_radius=2)
+        accent_vp.pack(side="left", padx=(8, 6), pady=8)
 
         ctk.CTkLabel(
-            toolstrip,
-            text="Target App:",
+            vp_head,
+            text="📱 LIVE DEVICE VIEWPORT",
+            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+            text_color=THEME["text_heading"]
+        ).pack(side="left", padx=(0, 8))
+
+        ctk.CTkLabel(
+            vp_head,
+            text="⚡ Direct Socket Mirror",
+            font=ctk.CTkFont(family="Consolas", size=8, weight="bold"),
+            fg_color=THEME["primary_light"],
+            text_color=THEME["primary"],
+            corner_radius=4,
+            padx=6,
+            pady=1
+        ).pack(side="right", padx=8)
+
+        # 1. Studio Control Deck (2 Clean Rows so no button ever clips)
+        deck = ctk.CTkFrame(parent, fg_color=THEME["bg_box"], corner_radius=10, border_width=1, border_color=THEME["border"])
+        deck.pack(fill="x", padx=10, pady=(0, 6))
+
+        # Deck Row 1: Target App Selector + Launch + Install APK
+        row1 = ctk.CTkFrame(deck, fg_color="transparent", height=32)
+        row1.pack(fill="x", padx=8, pady=(6, 3))
+
+        ctk.CTkLabel(
+            row1,
+            text="📦 App:",
             font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
             text_color=THEME["text_heading"]
-        ).pack(side="left", padx=(8, 4))
+        ).pack(side="left", padx=(2, 6))
 
         self.app_selector = ctk.CTkOptionMenu(
-            toolstrip,
+            row1,
             values=["(scanning…)"],
             height=26,
-            width=145,
+            width=185,
             fg_color="#ffffff",
             button_color=THEME["primary"],
             button_hover_color=THEME["primary_hover"],
@@ -4398,17 +4435,18 @@ class HeartSimpleApp(ctk.CTk):
             dropdown_fg_color="#ffffff",
             dropdown_text_color=THEME["text_heading"],
             dropdown_hover_color=THEME["primary_light"],
-            font=ctk.CTkFont(family="Segoe UI", size=9),
+            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
             dropdown_font=ctk.CTkFont(size=9),
+            corner_radius=6,
             command=self._c2_on_right_app_change,
         )
         self.app_selector.set("(scanning…)")
-        self.app_selector.pack(side="left", padx=(0, 4))
+        self.app_selector.pack(side="left", fill="x", expand=True, padx=(0, 6))
 
         ctk.CTkButton(
-            toolstrip,
-            text="Launch",
-            width=58,
+            row1,
+            text="▶ Launch",
+            width=68,
             height=26,
             fg_color=THEME["primary"],
             hover_color=THEME["primary_hover"],
@@ -4418,25 +4456,83 @@ class HeartSimpleApp(ctk.CTk):
         ).pack(side="left", padx=2)
 
         ctk.CTkButton(
-            toolstrip,
-            text="Install APK",
-            width=80,
+            row1,
+            text="📥 Install APK",
+            width=84,
             height=26,
-            fg_color=THEME["primary_light"],
-            hover_color="#dbeafe",
+            fg_color="#ffffff",
+            hover_color=THEME["primary_light"],
             text_color=THEME["primary"],
             border_width=1,
-            border_color="#bfdbfe",
+            border_color=THEME["primary_border"],
             font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
             corner_radius=6,
             command=self._install_apk_dialog
+        ).pack(side="left", padx=(2, 0))
+
+        # Deck Row 2: Live Mirror Controls & Autonomous Agents
+        row2 = ctk.CTkFrame(deck, fg_color="transparent", height=30)
+        row2.pack(fill="x", padx=8, pady=(2, 6))
+
+        self.stream_btn = ctk.CTkButton(
+            row2,
+            text="▶ Stream",
+            width=68,
+            height=25,
+            fg_color=THEME["success"],
+            hover_color="#047857",
+            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+            corner_radius=6,
+            command=self._toggle_stream
+        )
+        self.stream_btn.pack(side="left", padx=(0, 3))
+
+        ctk.CTkButton(
+            row2,
+            text="📸 Snap",
+            width=56,
+            height=25,
+            fg_color="#ffffff",
+            hover_color="#e2e8f0",
+            text_color=THEME["text_heading"],
+            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+            border_width=1,
+            border_color=THEME["border"],
+            corner_radius=6,
+            command=self._refresh_screen_async
+        ).pack(side="left", padx=2)
+
+        ctk.CTkButton(
+            row2,
+            text="👁️ Vision Eval",
+            width=82,
+            height=25,
+            fg_color="#2563eb",
+            hover_color="#1d4ed8",
+            text_color="#ffffff",
+            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+            corner_radius=6,
+            command=self._eval_active_mirror_screen
+        ).pack(side="left", padx=2)
+
+        ctk.CTkButton(
+            row2,
+            text="⛶ Pop-Out",
+            width=72,
+            height=25,
+            fg_color="#6366f1",
+            hover_color="#4f46e5",
+            text_color="#ffffff",
+            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+            corner_radius=6,
+            command=self._open_fullscreen_mirror
         ).pack(side="left", padx=2)
 
         self.phone_e2e_btn = ctk.CTkButton(
-            toolstrip,
-            text="🚀 E2E Pipeline",
-            width=94,
-            height=26,
+            row2,
+            text="🚀 E2E",
+            width=64,
+            height=25,
             fg_color="#4f46e5",
             hover_color="#4338ca",
             text_color="#ffffff",
@@ -4444,61 +4540,20 @@ class HeartSimpleApp(ctk.CTk):
             corner_radius=6,
             command=self._toggle_e2e_pipeline
         )
-        self.phone_e2e_btn.pack(side="right", padx=(2, 4))
+        self.phone_e2e_btn.pack(side="right", padx=(2, 0))
 
         self.phone_auto_pilot_btn = ctk.CTkButton(
-            toolstrip,
+            row2,
             text="⚡ Auto-Pilot",
-            width=76,
-            height=26,
+            width=80,
+            height=25,
             fg_color="#059669",
             hover_color="#047857",
             font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
             corner_radius=6,
             command=self._toggle_auto_pilot
         )
-        self.phone_auto_pilot_btn.pack(side="right", padx=(2, 4))
-
-        self.stream_btn = ctk.CTkButton(
-            toolstrip,
-            text="Stream",
-            width=60,
-            height=26,
-            fg_color=THEME["success"],
-            hover_color="#047857",
-            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
-            corner_radius=6,
-            command=self._toggle_stream
-        )
-        self.stream_btn.pack(side="right", padx=2)
-
-        ctk.CTkButton(
-            toolstrip,
-            text="Snap",
-            width=50,
-            height=26,
-            fg_color=THEME["bg_card"],
-            hover_color="#f1f5f9",
-            text_color=THEME["text_heading"],
-            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
-            border_width=1,
-            border_color=THEME["border"],
-            corner_radius=6,
-            command=self._refresh_screen_async
-        ).pack(side="right", padx=2)
-
-        ctk.CTkButton(
-            toolstrip,
-            text="👁️ Eval Screen",
-            width=80,
-            height=26,
-            fg_color="#2563eb",
-            hover_color="#1d4ed8",
-            text_color="#ffffff",
-            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
-            corner_radius=6,
-            command=self._eval_active_mirror_screen
-        ).pack(side="right", padx=2)
+        self.phone_auto_pilot_btn.pack(side="right", padx=2)
 
         # Real-time E2E Pipeline Status HUD
         self.pipeline_hud = ctk.CTkFrame(
@@ -4507,7 +4562,7 @@ class HeartSimpleApp(ctk.CTk):
             corner_radius=8,
             border_width=1,
             border_color=THEME["border"],
-            height=34
+            height=32
         )
         self.pipeline_hud.pack(fill="x", padx=10, pady=(0, 6))
         self.pipeline_hud.pack_propagate(False)
@@ -4515,7 +4570,7 @@ class HeartSimpleApp(ctk.CTk):
         self.pipe_phase_lbl = ctk.CTkLabel(
             self.pipeline_hud,
             text="PIPELINE READY",
-            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+            font=ctk.CTkFont(family="Segoe UI", size=8, weight="bold"),
             fg_color=THEME["primary_light"],
             text_color=THEME["primary"],
             corner_radius=4,
@@ -4526,7 +4581,7 @@ class HeartSimpleApp(ctk.CTk):
 
         self.pipe_detail_lbl = ctk.CTkLabel(
             self.pipeline_hud,
-            text="Autonomous E2E Pipeline: Click '🚀 Run E2E Pipeline' to test all pages under chaos.",
+            text="Click '🚀 Run E2E Pipeline' to test app resilience under chaos.",
             font=ctk.CTkFont(family="Segoe UI", size=9),
             text_color=THEME["text_body"],
             anchor="w"
@@ -4536,9 +4591,9 @@ class HeartSimpleApp(ctk.CTk):
         self.pipe_kpi_lbl = ctk.CTkLabel(
             self.pipeline_hud,
             text="0/5 Phases",
-            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+            font=ctk.CTkFont(family="Consolas", size=9, weight="bold"),
             fg_color="#ffffff",
-            text_color=THEME["text_muted"],
+            text_color=THEME["primary"],
             corner_radius=4,
             padx=6,
             pady=2
@@ -4547,16 +4602,18 @@ class HeartSimpleApp(ctk.CTk):
 
         # 2. Centered Phone Assembly with Sleek Hardware Side Buttons
         chassis_assembly = ctk.CTkFrame(parent, fg_color="transparent")
-        chassis_assembly.pack(expand=True, pady=(2, 6))
+        chassis_assembly.pack(expand=True, pady=(0, 4))
 
-        # Hardware Side Buttons (clean labeled mini-buttons)
-        hw_strip = ctk.CTkFrame(chassis_assembly, fg_color="transparent")
-        hw_strip.pack(side="left", padx=(0, 8), anchor="center")
+        # Hardware Side Buttons (Clean Light Tactile Studio Dock)
+        hw_strip = ctk.CTkFrame(chassis_assembly, fg_color=THEME["bg_box"], corner_radius=10, border_width=1, border_color=THEME["border"])
+        hw_strip.pack(side="left", padx=(0, 10), ipady=4, ipadx=3, anchor="center")
+
+        ctk.CTkLabel(hw_strip, text="HW", font=ctk.CTkFont(family="Segoe UI", size=7, weight="bold"), text_color=THEME["text_muted"]).pack(pady=(2, 2))
 
         ctk.CTkButton(
             hw_strip,
             text="PWR",
-            width=36,
+            width=38,
             height=26,
             fg_color="#ef4444",
             hover_color="#dc2626",
@@ -4564,68 +4621,88 @@ class HeartSimpleApp(ctk.CTk):
             font=ctk.CTkFont(family="Segoe UI", size=8, weight="bold"),
             corner_radius=6,
             command=lambda: self._send_key(26)
-        ).pack(pady=3)
+        ).pack(pady=3, padx=3)
 
         ctk.CTkButton(
             hw_strip,
             text="VOL+",
-            width=36,
+            width=38,
             height=26,
-            fg_color=THEME["bg_card"],
-            hover_color="#f1f5f9",
+            fg_color="#ffffff",
+            hover_color="#e2e8f0",
             text_color=THEME["text_heading"],
             border_width=1,
             border_color=THEME["border"],
             font=ctk.CTkFont(family="Segoe UI", size=8, weight="bold"),
             corner_radius=6,
             command=lambda: self._send_key(24)
-        ).pack(pady=3)
+        ).pack(pady=3, padx=3)
 
         ctk.CTkButton(
             hw_strip,
             text="VOL-",
-            width=36,
+            width=38,
             height=26,
-            fg_color=THEME["bg_card"],
-            hover_color="#f1f5f9",
+            fg_color="#ffffff",
+            hover_color="#e2e8f0",
             text_color=THEME["text_heading"],
             border_width=1,
             border_color=THEME["border"],
             font=ctk.CTkFont(family="Segoe UI", size=8, weight="bold"),
             corner_radius=6,
             command=lambda: self._send_key(25)
-        ).pack(pady=3)
+        ).pack(pady=3, padx=3)
 
-        # Obsidian Slate Titanium Phone Chassis
-        chassis = ctk.CTkFrame(chassis_assembly, fg_color=THEME["phone_frame"], corner_radius=28, border_width=2, border_color="#334155")
+        ctk.CTkButton(
+            hw_strip,
+            text="⛶",
+            width=38,
+            height=26,
+            fg_color="#6366f1",
+            hover_color="#4f46e5",
+            text_color="#ffffff",
+            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
+            corner_radius=6,
+            command=self._open_fullscreen_mirror
+        ).pack(pady=3, padx=3)
+
+        # Brushed Silver-Slate Titanium Phone Chassis
+        chassis = ctk.CTkFrame(chassis_assembly, fg_color=THEME["phone_frame"], corner_radius=28, border_width=2, border_color="#64748b")
         chassis.pack(side="left")
 
-        # Phone Screen Container (Outer: 204 x 460)
-        screen_frame = ctk.CTkFrame(chassis, fg_color=THEME["phone_screen_bg"], corner_radius=22, width=204, height=460)
-        screen_frame.pack(padx=6, pady=6)
+        # Phone Screen Container (Outer: 202 x 458 with OLED black backing)
+        screen_frame = ctk.CTkFrame(chassis, fg_color="#000000", corner_radius=20, width=202, height=458)
+        screen_frame.pack(padx=5, pady=5)
         screen_frame.pack_propagate(False)
 
-        # Screen Display Canvas Label (filling edge to edge)
+        # Bottom Android Hardware Gesture Bar (Pack bottom first to protect top canvas cavity)
+        nav_bar = ctk.CTkFrame(screen_frame, fg_color="#f8fafc", height=26, corner_radius=0, border_width=1, border_color=THEME["border_subtle"])
+        nav_bar.pack(fill="x", side="bottom")
+        nav_bar.pack_propagate(False)
+
+        ctk.CTkButton(nav_bar, text="◀", width=48, height=20, fg_color="transparent", hover_color="#e2e8f0", text_color="#475569", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), command=lambda: self._send_key(4)).pack(side="left", expand=True)
+        ctk.CTkButton(nav_bar, text="●", width=48, height=20, fg_color="transparent", hover_color="#e2e8f0", text_color=THEME["primary"], font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"), command=lambda: self._send_key(3)).pack(side="left", expand=True)
+        ctk.CTkButton(nav_bar, text="■", width=48, height=20, fg_color="transparent", hover_color="#e2e8f0", text_color="#475569", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), command=lambda: self._send_key(187)).pack(side="left", expand=True)
+
+        # Screen Display Canvas Label (filling edge to edge seamlessly, exactly above nav bar)
         self.screen_mirror_lbl = ctk.CTkLabel(
             screen_frame,
             text="Initializing mobile screen...",
-            font=ctk.CTkFont(family="Segoe UI", size=10),
+            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
+            fg_color="#000000",
             text_color="#94a3b8"
         )
         self.screen_mirror_lbl.pack(fill="both", expand=True)
         self.screen_mirror_lbl.bind("<ButtonPress-1>", self._on_touch_down)
         self.screen_mirror_lbl.bind("<ButtonRelease-1>", self._on_touch_up)
-
-        # Bottom Android Navigation Bar (Clean light theme matching phone display)
-        nav_bar = ctk.CTkFrame(screen_frame, fg_color=THEME["bg_card"], height=24, border_width=1, border_color=THEME["border"])
-        nav_bar.pack(fill="x", side="bottom")
-
-        ctk.CTkButton(nav_bar, text="<", width=44, height=18, fg_color="transparent", hover_color="#f1f5f9", text_color="#64748b", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), command=lambda: self._send_key(4)).pack(side="left", expand=True)
-        ctk.CTkButton(nav_bar, text="O", width=44, height=18, fg_color="transparent", hover_color="#f1f5f9", text_color="#0f172a", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), command=lambda: self._send_key(3)).pack(side="left", expand=True)
-        ctk.CTkButton(nav_bar, text="[]", width=44, height=18, fg_color="transparent", hover_color="#f1f5f9", text_color="#64748b", font=ctk.CTkFont(family="Segoe UI", size=8, weight="bold"), command=lambda: self._send_key(187)).pack(side="left", expand=True)
+        self.screen_mirror_lbl.bind("<MouseWheel>", self._on_mirror_scroll)
+        screen_frame.bind("<MouseWheel>", self._on_mirror_scroll)
+        self._ensure_mirror_bindings()
+        # Immediately render initial screen mockup with status bar & battery bar so screen is never black or stuck
+        self.after(50, lambda: self._update_mirror_widget(None))
 
     # =========================================================================
-    # 4. BOTTOM TELEMETRY & REAL ADB STREAM LOG
+    # 4. BOTTOM TELEMETRY & REAL ADB STREAM LOG (PURE LIGHT CONSOLE)
     # =========================================================================
     def _build_bottom_telemetry(self):
         dock = ctk.CTkFrame(self, fg_color=THEME["bg_card"], height=135, corner_radius=0, border_width=1, border_color=THEME["border"])
