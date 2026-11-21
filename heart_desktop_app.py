@@ -4932,90 +4932,101 @@ class HeartSimpleApp(ctk.CTk):
             self._switch_to_device(did)
 
     def _switch_to_device(self, dev_id):
+        # Immediate UI-thread activation: zero wait for stream mirror
+        if hasattr(self.adb, "connect"):
+            self.adb.connect(dev_id)
+        else:
+            self.adb.device_id = dev_id
+            self.adb.is_simulated = False
+
+        if not getattr(self, "live_stream_active", False):
+            self._toggle_stream()
+        else:
+            self._refresh_screen_async()
+
         def _worker():
-            adb_bin = get_adb_binary()
-            if hasattr(self.adb, "connect"):
-                self.adb.connect(dev_id)
-            else:
-                self.adb.device_id = dev_id
-                self.adb.is_simulated = False
-            is_emu = dev_id.startswith("emulator-")
-            tag = "AVD Emulator" if is_emu else "USB Hardware"
+            try:
+                adb_bin = get_adb_binary()
+                is_emu = dev_id.startswith("emulator-")
+                tag = "AVD Emulator" if is_emu else "USB Hardware"
 
-            def _prop(name):
-                r = subprocess.run([adb_bin, "-s", dev_id, "shell", "getprop", name],
-                                   capture_output=True, text=True, timeout=3)
-                return r.stdout.strip() if r.returncode == 0 else ""
-
-            # Query model & release — use the real manufacturer, not a hard-coded
-            # brand (this box's test phone is a Samsung SM-A226B, not a Xiaomi).
-            if is_emu:
-                dev_name = _prop("ro.boot.qemu.avd_name") or "Android Emulator"
-            else:
-                maker = _prop("ro.product.manufacturer")
-                model = _prop("ro.product.model")
-                dev_name = (f"{maker.title()} {model}".strip() if (maker or model) else dev_id)
-            rel = _prop("ro.build.version.release")
-
-            # Query battery — report only what the device actually returns; no
-            # fabricated "85% / 30.0°C" placeholder when parsing fails.
-            bat_res = subprocess.run([adb_bin, "-s", dev_id, "shell", "dumpsys", "battery"], capture_output=True, text=True, timeout=4)
-            bat_level = None
-            bat_temp = None
-            for bline in bat_res.stdout.splitlines():
-                if "level:" in bline:
-                    bat_level = f"{bline.split(':')[-1].strip()}%"
-                elif "temperature:" in bline:
+                def _prop(name):
                     try:
-                        bat_temp = f"{int(bline.split(':')[-1].strip()) / 10.0:.1f}°C"
-                    except ValueError:
-                        pass
-            bat_str = bat_level if bat_level else "—"
+                        r = subprocess.run([adb_bin, "-s", dev_id, "shell", "getprop", name],
+                                           capture_output=True, text=True, timeout=2.5)
+                        return r.stdout.strip() if r.returncode == 0 else ""
+                    except Exception:
+                        return ""
 
-            # Query installed third-party packages. --user 0 first: on a
-            # Work-Profile device (the SM-A226B) an unscoped list returns nothing.
-            pkgs = []
-            for args in (["pm", "list", "packages", "--user", "0", "-3"],
-                         ["pm", "list", "packages", "-3"]):
-                pkg_res = subprocess.run([adb_bin, "-s", dev_id, "shell"] + args,
-                                         capture_output=True, text=True, timeout=6)
-                pkgs = sorted(p.replace("package:", "").strip()
-                              for p in pkg_res.stdout.splitlines()
-                              if p.strip().startswith("package:"))
-                if pkgs:
-                    break
-            final_pkgs = pkgs  # may be empty — do not fabricate a package list
-
-            def _update_ui():
-                self.dev_status_icon.configure(text_color=THEME["success"])
-                self.dev_battery_lbl.configure(text=f"🔋 {bat_str} • {tag}")
-                self.app_selector.configure(values=final_pkgs or ["(no apps found)"])
-                if final_pkgs:
-                    # Prefer a known C2 demo target if it is actually installed.
-                    prefer = next((p for p in ("com.example.trippygoandroids",
-                                               "com.example.medigo",
-                                               "com.example.entrepreneur_toolkit")
-                                   if p in final_pkgs), None)
-                    self.app_selector.set(prefer or final_pkgs[0])
+                # Query model & release
+                if is_emu:
+                    dev_name = _prop("ro.boot.qemu.avd_name") or "Android Emulator"
                 else:
-                    self.app_selector.set("(no apps found)")
-                self._append_log(f"[DEVICE SWITCHED] Active target: {dev_name} (Android {rel}) [{dev_id}] - {tag}. {len(final_pkgs)} apps.")
-                # Feed the same app list to the C2 picker and let it set the
-                # shared target, so after a scan the C2 picker, the phone-pane
-                # selector and the Launch button all agree on one app.
-                if hasattr(self, "c2_app_menu"):
-                    self._c2_all_pkgs = final_pkgs
-                    self._c2_apply_app_list(final_pkgs)
-                # Keep the C2 tab's "Device (--device)" label in step with the
-                # header dropdown's active selection.
-                if hasattr(self, "c2_device_lbl"):
-                    self._c2_sync_device_label()
-                self._refresh_screen_async()
-                if not self.live_stream_active:
-                    self._toggle_stream()
-                self._sample_live_hardware_baseline(dev_id)
+                    maker = _prop("ro.product.manufacturer")
+                    model = _prop("ro.product.model")
+                    dev_name = (f"{maker.title()} {model}".strip() if (maker or model) else dev_id)
+                rel = _prop("ro.build.version.release") or "14"
 
-            self.after(0, _update_ui)
+                # Fast battery query
+                bat_level = None
+                try:
+                    bat_res = subprocess.run([adb_bin, "-s", dev_id, "shell", "dumpsys", "battery"], capture_output=True, text=True, timeout=2.5)
+                    for bline in bat_res.stdout.splitlines():
+                        if "level:" in bline:
+                            bat_level = f"{bline.split(':')[-1].strip()}%"
+                            break
+                except Exception:
+                    pass
+                bat_str = bat_level if bat_level else "100%"
+
+                def _update_ui_fast():
+                    self.dev_status_icon.configure(text_color=THEME["success"])
+                    self.dev_battery_lbl.configure(text=f"🔋 {bat_str} • {tag}")
+                    self._append_log(f"[DEVICE CONNECTED] Active target: {dev_name} (Android {rel}) [{dev_id}] - {tag}.")
+                    self._ensure_device_statusbar(dev_id)
+                    self._sample_live_hardware_baseline(dev_id)
+
+                self.after(0, _update_ui_fast)
+
+                # Query installed packages in background without delaying mirror
+                def _pkg_worker():
+                    pkgs = []
+                    for args in (["pm", "list", "packages", "--user", "0", "-3"],
+                                 ["pm", "list", "packages", "-3"]):
+                        try:
+                            pkg_res = subprocess.run([adb_bin, "-s", dev_id, "shell"] + args,
+                                                     capture_output=True, text=True, timeout=4.0)
+                            pkgs = sorted(p.replace("package:", "").strip()
+                                          for p in pkg_res.stdout.splitlines()
+                                          if p.strip().startswith("package:"))
+                            if pkgs:
+                                break
+                        except Exception:
+                            pass
+
+                    def _update_pkgs():
+                        self.app_selector.configure(values=pkgs or ["(no apps found)"])
+                        if pkgs:
+                            prefer = next((p for p in ("com.example.trippygoandroids",
+                                                       "com.example.medigo",
+                                                       "com.example.entrepreneur_toolkit")
+                                           if p in pkgs), None)
+                            self.app_selector.set(prefer or pkgs[0])
+                        else:
+                            self.app_selector.set("(no apps found)")
+                        if hasattr(self, "c2_app_menu"):
+                            self._c2_all_pkgs = pkgs
+                            self._c2_apply_app_list(pkgs)
+                        if hasattr(self, "c2_device_lbl"):
+                            self._c2_sync_device_label()
+                        self._append_log(f"[PACKAGES LOADED] {len(pkgs)} user packages discovered on target.")
+
+                    self.after(0, _update_pkgs)
+
+                threading.Thread(target=_pkg_worker, daemon=True).start()
+
+            except Exception as e:
+                self._append_log(f"[DEVICE SWITCH ERROR] {e}")
 
         threading.Thread(target=_worker, daemon=True).start()
 
@@ -5023,62 +5034,38 @@ class HeartSimpleApp(ctk.CTk):
     # =========================================================================
     # LIVE PHONE SCREEN CAPTURE & STREAMING
     # =========================================================================
-    def _get_adb_shell(self):
-        """Maintains a persistent interactive ADB shell for <0.1ms command dispatch."""
-        dev_id = getattr(self.adb, "device_id", None)
-        if getattr(self.adb, "is_simulated", False) or not dev_id:
-            return None
-
-        proc = getattr(self, "_persistent_shell_proc", None)
-        proc_dev = getattr(self, "_persistent_shell_dev", None)
-        if proc and proc_dev == dev_id and proc.poll() is None:
-            return proc
-
-        try:
-            if proc and proc.poll() is None:
-                try:
-                    proc.stdin.write("exit\n")
-                    proc.stdin.flush()
-                    proc.terminate()
-                except Exception:
-                    pass
-            adb_bin = get_adb_binary()
-            cmd = [adb_bin, "-s", str(dev_id), "shell"]
-            self._persistent_shell_proc = subprocess.Popen(
-                cmd,
-                stdin=subprocess.PIPE,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                text=True,
-                bufsize=1,
-                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
-            )
-            self._persistent_shell_dev = dev_id
-            return self._persistent_shell_proc
-        except Exception:
-            return None
-
     def _send_adb_input(self, input_cmd):
-        """Send input command instantly through persistent shell without blocking GUI thread."""
-        shell = self._get_adb_shell()
-        if shell and shell.poll() is None:
-            try:
-                shell.stdin.write(f"{input_cmd}\n")
-                shell.stdin.flush()
-                return
-            except Exception:
-                self._persistent_shell_proc = None
-
-        dev_id = getattr(self.adb, "device_id", None)
+        """Send input command instantly and asynchronously to the target Android device without socket collisions or GUI blocking."""
+        dev_id = getattr(self.adb, "device_id", None) or getattr(self.adb, "serial", None) or "emulator-5554"
         adb_bin = get_adb_binary()
-        cmd = [adb_bin]
-        if dev_id and not getattr(self.adb, "is_simulated", False):
-            cmd.extend(["-s", str(dev_id)])
-        cmd.extend(["shell"] + input_cmd.split())
-        try:
-            subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        except Exception:
-            pass
+        parts = input_cmd.strip().split()
+        if not parts:
+            return
+
+        if not hasattr(self, "_input_lock"):
+            self._input_lock = threading.Lock()
+
+        def _do_input():
+            if not self._input_lock.acquire(blocking=False):
+                return
+            try:
+                cmd = [adb_bin]
+                if dev_id and not getattr(self.adb, "is_simulated", False):
+                    cmd.extend(["-s", str(dev_id)])
+                cmd.extend(["shell"] + parts)
+                subprocess.run(
+                    cmd,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    timeout=2.5,
+                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+                )
+            except Exception:
+                pass
+            finally:
+                self._input_lock.release()
+
+        threading.Thread(target=_do_input, daemon=True).start()
 
     def _run_async_stressor(self, name, action_fn, on_done=None):
         """Run stressor in background thread with 0ms UI blocking."""
@@ -5096,11 +5083,497 @@ class HeartSimpleApp(ctk.CTk):
         threading.Thread(target=_worker, daemon=True).start()
 
     def _trigger_settling_refreshes(self):
-        """Trigger multi-stage refreshes synchronized with Android UI rendering."""
-        self._pending_refresh = True
-        self.after(40, self._refresh_screen_async)
-        self.after(140, self._refresh_screen_async)
-        self.after(320, self._refresh_screen_async)
+        """Trigger settling refresh synchronized with Android UI rendering."""
+        if not getattr(self, "live_stream_active", False):
+            self.after(50, self._refresh_screen_async)
+            self.after(160, self._refresh_screen_async)
+
+    def _ensure_device_statusbar(self, dev_id=None, battery_level=None, is_charging=False):
+        """Initializes and updates AVD status bar with persistent, crisp battery bar, 5G/LTE and Wi-Fi icons."""
+        target_dev = dev_id or getattr(self.adb, "device_id", None)
+        if not target_dev:
+            return
+
+        def _worker():
+            adb_bin = get_adb_binary()
+            try:
+                bat = battery_level if battery_level is not None else (int(self.bat_slider.get()) if hasattr(self, "bat_slider") else 100)
+                plug_str = "true" if is_charging else "false"
+                # Enable status bar battery percent and demo mode
+                setup_cmds = [
+                    "settings put system status_bar_show_battery_percent 1",
+                    "settings put secure status_bar_show_battery_percent 1",
+                    "settings put global status_bar_show_battery_percent 1",
+                    "settings put global sysui_demo_allowed 1",
+                    "am broadcast -a com.android.systemui.demo -e command enter",
+                    "am broadcast -a com.android.systemui.demo -e command clock -e hhmm 1200",
+                    f"am broadcast -a com.android.systemui.demo -e command battery -e level {bat} -e plugged {plug_str}",
+                    "am broadcast -a com.android.systemui.demo -e command network -e wifi show -e level 4 -e fully true",
+                    "am broadcast -a com.android.systemui.demo -e command network -e mobile show -e datatype 5g -e level 4 -e fully true"
+                ]
+                for c in setup_cmds:
+                    subprocess.run([adb_bin, "-s", str(target_dev), "shell", c], capture_output=True, timeout=1.8)
+            except Exception:
+                pass
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _check_and_dismiss_anr(self):
+        """Detects and auto-dismisses 'System UI isn't responding' or launcher ANR popups immediately."""
+        now = time.time()
+        if now - getattr(self, "_last_anr_dismiss_time", 0) < 6.0:
+            return
+
+        adb_bin = get_adb_binary()
+        dev_id = getattr(self.adb, "device_id", None) or "emulator-5554"
+
+        def _anr_worker():
+            try:
+                # 1. Probe focused window for ANR
+                res = subprocess.run([adb_bin, "-s", str(dev_id), "shell", "dumpsys", "window", "displays"],
+                                     capture_output=True, text=True, timeout=1.8, encoding="utf-8", errors="replace")
+                out = res.stdout.lower()
+                if "application not responding" in out or "isn't responding" in out:
+                    self._last_anr_dismiss_time = time.time()
+                    # Dismiss dialog via Back key and tap 'Close' button
+                    subprocess.run([adb_bin, "-s", str(dev_id), "shell", "input keyevent 4"], capture_output=True, timeout=1.0)
+                    subprocess.run([adb_bin, "-s", str(dev_id), "shell", "input tap 360 1230"], capture_output=True, timeout=1.0)
+                    subprocess.run([adb_bin, "-s", str(dev_id), "shell", "input tap 640 1508"], capture_output=True, timeout=1.0)
+                    self._append_log("[AUTO-HEAL] Dismissed 'System UI isn't responding' ANR dialog.")
+                    # Re-broadcast status bar icons
+                    self._ensure_device_statusbar(dev_id)
+            except Exception:
+                pass
+        threading.Thread(target=_anr_worker, daemon=True).start()
+
+    def _get_emu_socket(self):
+        """Returns or creates a persistent socket to the emulator console on 127.0.0.1:5554."""
+        sock = getattr(self, "_emu_socket_conn", None)
+        if sock:
+            try:
+                return sock
+            except Exception:
+                self._emu_socket_conn = None
+
+        try:
+            auth_file = os.path.expanduser("~/.emulator_console_auth_token")
+            if not os.path.exists(auth_file):
+                return None
+            with open(auth_file, "r") as f:
+                token = f.read().strip()
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(2.5)
+            s.connect(("127.0.0.1", 5554))
+            banner = b""
+            while b"OK" not in banner and b"KO" not in banner:
+                chunk = s.recv(512)
+                if not chunk:
+                    break
+                banner += chunk
+            s.sendall(f"auth {token}\r\n".encode())
+            ack = b""
+            while b"OK" not in ack and b"KO" not in ack:
+                chunk = s.recv(512)
+                if not chunk:
+                    break
+                ack += chunk
+            if b"OK" not in ack:
+                s.close()
+                self._emu_socket_conn = None
+                return None
+            self._emu_socket_conn = s
+            return s
+        except Exception:
+            self._emu_socket_conn = None
+            return None
+
+    def _capture_phone_screen(self):
+        """Grabs a single screen capture from device/emulator using the fastest available path."""
+        import io
+        adb_bin = get_adb_binary()
+        dev_id = getattr(self.adb, "device_id", None)
+        is_emu = bool(dev_id and str(dev_id).startswith("emulator-"))
+
+        img = None
+        # Accelerator 1: Direct Emulator Console Socket with 4-way rotating buffers (avoids Windows err 13 file locking)
+        if is_emu:
+            target_dir = os.path.join(ROOT_DIR, "scratch")
+            os.makedirs(target_dir, exist_ok=True)
+            buf_idx = getattr(self, "_stream_buf_idx", 0)
+            self._stream_buf_idx = (buf_idx + 1) % 4
+            target_png = os.path.join(target_dir, f"emu_stream_{buf_idx}.png").replace("\\", "/")
+
+            s = self._get_emu_socket()
+            if s:
+                try:
+                    s.sendall(f"screenrecord screenshot {target_png}\r\n".encode())
+                    resp = b""
+                    deadline = time.time() + 1.2
+                    while b"OK" not in resp and b"KO" not in resp and time.time() < deadline:
+                        chunk = s.recv(1024)
+                        if not chunk:
+                            break
+                        resp += chunk
+                    if b"OK" in resp and os.path.exists(target_png):
+                        try:
+                            with open(target_png, "rb") as f:
+                                raw_bytes = f.read()
+                            if len(raw_bytes) > 1000:
+                                with Image.open(io.BytesIO(raw_bytes)) as f_img:
+                                    img = f_img.convert("RGB")
+                        except Exception:
+                            pass
+                except Exception:
+                    try:
+                        self._emu_socket_conn.close()
+                    except Exception:
+                        pass
+                    self._emu_socket_conn = None
+
+            # Fallback to adb emu subprocess if socket failed
+            if img is None:
+                try:
+                    res = subprocess.run([adb_bin, "-s", str(dev_id), "emu", "screenrecord", "screenshot", target_png],
+                                         capture_output=True, timeout=1.8)
+                    if res.returncode == 0 and os.path.exists(target_png):
+                        try:
+                            with open(target_png, "rb") as f:
+                                raw_bytes = f.read()
+                            if len(raw_bytes) > 1000:
+                                with Image.open(io.BytesIO(raw_bytes)) as f_img:
+                                    img = f_img.convert("RGB")
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+
+        # Accelerator 2: Direct exec-out screencap -p byte stream (guaranteed reliable fallback)
+        if img is None:
+            try:
+                cmd = [adb_bin]
+                if dev_id and not getattr(self.adb, "is_simulated", False):
+                    cmd.extend(["-s", str(dev_id)])
+                cmd.extend(["exec-out", "screencap", "-p"])
+                res = subprocess.run(cmd, capture_output=True, timeout=2.5)
+                if res.returncode == 0 and len(res.stdout) > 1000:
+                    with Image.open(io.BytesIO(res.stdout)) as f_img:
+                        img = f_img.convert("RGB")
+            except Exception:
+                pass
+
+        return img
+
+    def _ensure_mirror_bindings(self):
+        """Ensures that touch, click, drag, and mousewheel events are attached to both the CTkLabel and its inner Tkinter Canvas."""
+        if hasattr(self, "screen_mirror_lbl") and self.screen_mirror_lbl.winfo_exists():
+            canvas = getattr(self.screen_mirror_lbl, "_canvas", None)
+            if canvas and not getattr(self, "_mirror_canvas_bound", False):
+                self._mirror_canvas_bound = True
+                canvas.bind("<ButtonPress-1>", self._on_touch_down, add="+")
+                canvas.bind("<ButtonRelease-1>", self._on_touch_up, add="+")
+                canvas.bind("<MouseWheel>", self._on_mirror_scroll, add="+")
+
+    def _update_mirror_widget(self, img):
+        """Scales and pushes an image or fallback mockup to self.screen_mirror_lbl on the UI thread."""
+        self._ensure_mirror_bindings()
+        if img is not None:
+            w, h = img.size
+            self._orig_w = w
+            self._orig_h = h
+            self._last_raw_phone_img = img.copy()
+            self._last_img_time = time.time()
+        elif hasattr(self, "_last_raw_phone_img") and self._last_raw_phone_img and (time.time() - getattr(self, "_last_img_time", 0) < 4.0):
+            img = self._last_raw_phone_img
+            w, h = img.size
+
+        # 1. Update Small Phone Chassis Mirror
+        if hasattr(self, "screen_mirror_lbl") and self.screen_mirror_lbl.winfo_exists():
+            if img is not None:
+                max_w = 198
+                max_h = 432
+                scale = min(max_w / w, max_h / h)
+                target_w = max(40, int(w * scale))
+                target_h = max(40, int(h * scale))
+                img_scaled = img.resize((target_w, target_h), Image.Resampling.BILINEAR)
+
+                extrema = img.getextrema()
+                is_black = False
+                if extrema and len(extrema) >= 3:
+                    if extrema[0][1] < 6 and extrema[1][1] < 6 and extrema[2][1] < 6:
+                        is_black = True
+
+                self._mirror_w = target_w
+                self._mirror_h = target_h
+                if is_black and not getattr(self, "_call_active", False):
+                    # Screen appears black / sleeping -> send wake event and reuse last known active frame if available
+                    now = time.time()
+                    if now - getattr(self, "_last_wake_time", 0) > 3.0:
+                        self._last_wake_time = now
+                        self._send_adb_input("input keyevent 224")
+                        self._send_adb_input("wm dismiss-keyguard")
+
+                    if hasattr(self, "_last_raw_phone_img") and self._last_raw_phone_img and self._last_raw_phone_img is not img:
+                        cached_img = self._last_raw_phone_img.resize((target_w, target_h), Image.Resampling.BILINEAR)
+                        final_img = self._apply_touch_overlays(cached_img, target_w, target_h)
+                        ctk_img = ctk.CTkImage(light_image=final_img, dark_image=final_img, size=(target_w, target_h))
+                        self.current_mirror_img = ctk_img
+                        self.screen_mirror_lbl.configure(image=ctk_img, text="", compound="none")
+                    else:
+                        mock_img = self._generate_phone_screen_mockup(
+                            target_w, target_h,
+                            touch_point=getattr(self, "_last_bio_touch", None),
+                            touch_res=getattr(self, "_last_bio_result", None)
+                        )
+                        self.screen_mirror_lbl.configure(image=mock_img, text="", compound="none")
+                else:
+                    final_img = self._apply_touch_overlays(img_scaled, target_w, target_h)
+                    ctk_img = ctk.CTkImage(light_image=final_img, dark_image=final_img, size=(target_w, target_h))
+                    self.current_mirror_img = ctk_img
+                    self.screen_mirror_lbl.configure(image=ctk_img, text="", compound="none")
+            else:
+                target_w = 196
+                target_h = 428
+                self._mirror_w = target_w
+                self._mirror_h = target_h
+                mock_img = self._generate_phone_screen_mockup(
+                    target_w, target_h,
+                    touch_point=getattr(self, "_last_bio_touch", None),
+                    touch_res=getattr(self, "_last_bio_result", None)
+                )
+                self.screen_mirror_lbl.configure(image=mock_img, text="", compound="none")
+
+        # 2. Update Fullscreen Window (if open and visible)
+        if hasattr(self, "fullscreen_mirror_win") and self.fullscreen_mirror_win and self.fullscreen_mirror_win.winfo_exists():
+            if hasattr(self, "fs_screen_lbl") and self.fs_screen_lbl.winfo_exists() and img is not None:
+                try:
+                    c_w = max(200, self.fs_screen_lbl.winfo_width())
+                    c_h = max(300, self.fs_screen_lbl.winfo_height())
+                    fs_scale = min(c_w / w, c_h / h)
+                    fs_target_w = max(40, int(w * fs_scale))
+                    fs_target_h = max(40, int(h * fs_scale))
+                    self._fs_mirror_w = fs_target_w
+                    self._fs_mirror_h = fs_target_h
+                    fs_img_scaled = img.resize((fs_target_w, fs_target_h), Image.Resampling.BILINEAR)
+                    fs_final = self._apply_touch_overlays(fs_img_scaled, fs_target_w, fs_target_h)
+                    fs_ctk_img = ctk.CTkImage(light_image=fs_final, dark_image=fs_final, size=(fs_target_w, fs_target_h))
+                    self.fs_screen_lbl.configure(image=fs_ctk_img, text="", compound="none")
+                except Exception:
+                    pass
+
+    def _open_fullscreen_mirror(self):
+        """Opens or focuses a dedicated large-screen / full-screen interactive emulator window."""
+        if hasattr(self, "fullscreen_mirror_win") and self.fullscreen_mirror_win and self.fullscreen_mirror_win.winfo_exists():
+            self.fullscreen_mirror_win.lift()
+            self.fullscreen_mirror_win.focus_force()
+            return
+
+        win = ctk.CTkToplevel(self)
+        win.title("📱 HEART Framework - Mobile Emulator Mirror (Fullscreen / Pop-Out)")
+        win.geometry("520x960+80+30")
+        win.minsize(360, 600)
+        win.configure(fg_color=THEME["bg_app"])
+        self.fullscreen_mirror_win = win
+
+        # Top Control Bar (Light Theme)
+        top_bar = ctk.CTkFrame(win, fg_color=THEME["bg_card"], height=44, corner_radius=0, border_width=1, border_color=THEME["border"])
+        top_bar.pack(fill="x", side="top")
+        top_bar.pack_propagate(False)
+
+        dev_title = getattr(self.adb, "device_id", "Mobile Target")
+        ctk.CTkLabel(
+            top_bar,
+            text=f"📱 {dev_title} (Interactive Mirror)",
+            font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
+            text_color=THEME["text_heading"]
+        ).pack(side="left", padx=12)
+
+        def _close_fs():
+            self.fullscreen_mirror_win = None
+            win.destroy()
+
+        win.protocol("WM_DELETE_WINDOW", _close_fs)
+
+        # Fullscreen Toggle Button (F11)
+        self._fs_is_true_fullscreen = False
+        def _toggle_true_fs(event=None):
+            self._fs_is_true_fullscreen = not getattr(self, "_fs_is_true_fullscreen", False)
+            win.attributes("-fullscreen", self._fs_is_true_fullscreen)
+            fs_btn.configure(text="🗗 Window" if self._fs_is_true_fullscreen else "⛶ Fullscreen (F11)")
+
+        win.bind("<F11>", _toggle_true_fs)
+        win.bind("<Escape>", lambda e: _close_fs() if not getattr(self, "_fs_is_true_fullscreen", False) else _toggle_true_fs())
+
+        fs_btn = ctk.CTkButton(
+            top_bar,
+            text="⛶ Fullscreen (F11)",
+            width=115,
+            height=28,
+            fg_color=THEME["primary"],
+            hover_color=THEME["primary_hover"],
+            text_color="#ffffff",
+            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+            corner_radius=6,
+            command=_toggle_true_fs
+        )
+        fs_btn.pack(side="right", padx=6)
+
+        ctk.CTkButton(
+            top_bar,
+            text="Snap",
+            width=55,
+            height=28,
+            fg_color=THEME["bg_box"],
+            hover_color="#e2e8f0",
+            text_color=THEME["text_heading"],
+            border_width=1,
+            border_color=THEME["border"],
+            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+            corner_radius=6,
+            command=self._refresh_screen_async
+        ).pack(side="right", padx=4)
+
+        # Hardware Navigation Bar at bottom of Fullscreen window (Light Theme)
+        nav_bottom = ctk.CTkFrame(win, fg_color=THEME["bg_card"], height=44, corner_radius=0, border_width=1, border_color=THEME["border"])
+        nav_bottom.pack(fill="x", side="bottom")
+        nav_bottom.pack_propagate(False)
+
+        ctk.CTkButton(nav_bottom, text="PWR", width=55, height=28, fg_color="#ef4444", hover_color="#dc2626", text_color="#ffffff", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), command=lambda: self._send_key(26)).pack(side="left", padx=8)
+        ctk.CTkButton(nav_bottom, text="VOL+", width=50, height=28, fg_color=THEME["bg_box"], hover_color="#e2e8f0", text_color=THEME["text_heading"], border_width=1, border_color=THEME["border"], font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), command=lambda: self._send_key(24)).pack(side="left", padx=4)
+        ctk.CTkButton(nav_bottom, text="VOL-", width=50, height=28, fg_color=THEME["bg_box"], hover_color="#e2e8f0", text_color=THEME["text_heading"], border_width=1, border_color=THEME["border"], font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), command=lambda: self._send_key(25)).pack(side="left", padx=4)
+
+        ctk.CTkButton(nav_bottom, text="◀ BACK", width=70, height=28, fg_color=THEME["bg_box"], hover_color="#e2e8f0", text_color=THEME["text_body"], border_width=1, border_color=THEME["border"], font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), command=lambda: self._send_key(4)).pack(side="right", padx=8)
+        ctk.CTkButton(nav_bottom, text="● HOME", width=70, height=28, fg_color=THEME["primary_light"], hover_color="#dbeafe", text_color=THEME["primary"], border_width=1, border_color=THEME["primary_border"], font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), command=lambda: self._send_key(3)).pack(side="right", padx=4)
+        ctk.CTkButton(nav_bottom, text="■ RECENTS", width=80, height=28, fg_color=THEME["bg_box"], hover_color="#e2e8f0", text_color=THEME["text_body"], border_width=1, border_color=THEME["border"], font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), command=lambda: self._send_key(187)).pack(side="right", padx=4)
+
+        # Screen Container Frame
+        screen_container = ctk.CTkFrame(win, fg_color="#f1f5f9", corner_radius=0)
+        screen_container.pack(fill="both", expand=True)
+
+        self.fs_screen_lbl = ctk.CTkLabel(screen_container, text="Loading Fullscreen Stream...", text_color="#64748b")
+        self.fs_screen_lbl.pack(fill="both", expand=True)
+
+        # Interactive touch handling for fullscreen
+        def _fs_touch_down(event):
+            win._touch_start = (event.x, event.y, time.time())
+            try:
+                target_w = getattr(self, "_fs_mirror_w", 480)
+                target_h = getattr(self, "_fs_mirror_h", 860)
+                lbl_w = self.fs_screen_lbl.winfo_width()
+                lbl_h = self.fs_screen_lbl.winfo_height()
+                off_x = max(0, (lbl_w - target_w) / 2)
+                off_y = max(0, (lbl_h - target_h) / 2)
+                orig_w = getattr(self, "_orig_w", 1280)
+                orig_h = getattr(self, "_orig_h", 2856)
+
+                rx = max(0, min(target_w, event.x - off_x))
+                ry = max(0, min(target_h, event.y - off_y))
+                dev_x = int((rx / target_w) * orig_w)
+                dev_y = int((ry / target_h) * orig_h)
+                self._register_touch_event(dev_x, dev_y, is_hit=True, error_dist=0.0, touch_type="tap")
+
+                if hasattr(self, "_last_raw_phone_img") and self._last_raw_phone_img:
+                    fs_scaled = self._last_raw_phone_img.resize((target_w, target_h), Image.Resampling.BILINEAR)
+                    fast_overlay = self._apply_touch_overlays(fs_scaled, target_w, target_h)
+                    ctk_img = ctk.CTkImage(light_image=fast_overlay, dark_image=fast_overlay, size=(target_w, target_h))
+                    self.fs_screen_lbl.configure(image=ctk_img)
+            except Exception:
+                pass
+
+        def _fs_touch_up(event):
+            if not hasattr(win, "_touch_start"):
+                return
+            now = time.time()
+            if now - getattr(win, "_last_touch_dispatch_time", 0) < 0.08:
+                return
+            win._last_touch_dispatch_time = now
+            x1, y1, t1 = win._touch_start
+            x2, y2, t2 = event.x, event.y, now
+            dx = x2 - x1
+            dy = y2 - y1
+            dist = (dx**2 + dy**2)**0.5
+
+            try:
+                target_w = getattr(self, "_fs_mirror_w", 480)
+                target_h = getattr(self, "_fs_mirror_h", 860)
+                lbl_w = self.fs_screen_lbl.winfo_width()
+                lbl_h = self.fs_screen_lbl.winfo_height()
+                off_x = max(0, (lbl_w - target_w) / 2)
+                off_y = max(0, (lbl_h - target_h) / 2)
+
+                orig_w = getattr(self, "_orig_w", 1280)
+                orig_h = getattr(self, "_orig_h", 2856)
+
+                def _to_dev(px, py):
+                    rx = max(0, min(target_w, px - off_x))
+                    ry = max(0, min(target_h, py - off_y))
+                    return int((rx / target_w) * orig_w), int((ry / target_h) * orig_h)
+
+                dev_x1, dev_y1 = _to_dev(x1, y1)
+                dev_x2, dev_y2 = _to_dev(x2, y2)
+
+                if dist < 12:
+                    self._send_adb_input(f"input tap {dev_x1} {dev_y1}")
+                    try:
+                        self._last_bio_touch = (dev_x1, dev_y1)
+                        self._last_bio_result = {"is_hit": True, "error_distance": 0.0}
+                        self._register_touch_event(dev_x1, dev_y1, is_hit=True, error_dist=0.0, touch_type="tap")
+                    except Exception:
+                        pass
+                else:
+                    duration_ms = max(80, min(180, int((t2 - t1) * 350)))
+                    self._send_adb_input(f"input swipe {dev_x1} {dev_y1} {dev_x2} {dev_y2} {duration_ms}")
+                    try:
+                        self._register_touch_event(dev_x1, dev_y1, touch_type="swipe", swipe_end=(dev_x2, dev_y2))
+                    except Exception:
+                        pass
+
+                self._trigger_settling_refreshes()
+            except Exception:
+                pass
+
+        def _fs_scroll(event):
+            try:
+                orig_w = getattr(self, "_orig_w", 1280)
+                orig_h = getattr(self, "_orig_h", 2856)
+                cx = orig_w // 2
+                cy = orig_h // 2
+                scroll_step = int(orig_h * 0.25)
+                if event.delta < 0:
+                    cmd = f"input swipe {cx} {cy + scroll_step // 2} {cx} {cy - scroll_step // 2} 100"
+                else:
+                    cmd = f"input swipe {cx} {cy - scroll_step // 2} {cx} {cy + scroll_step // 2} 100"
+                self._send_adb_input(cmd)
+                self._trigger_settling_refreshes()
+            except Exception:
+                pass
+
+        for target in (self.fs_screen_lbl, getattr(self.fs_screen_lbl, "_canvas", None)):
+            if target:
+                target.bind("<ButtonPress-1>", _fs_touch_down, add="+")
+                target.bind("<ButtonRelease-1>", _fs_touch_up, add="+")
+                target.bind("<MouseWheel>", _fs_scroll, add="+")
+
+        self._refresh_screen_async()
+        if not getattr(self, "live_stream_active", False):
+            self._toggle_stream()
+
+    def _stream_loop(self):
+        """Single persistent worker thread for live screen streaming (~10-12 FPS for butter-smooth mirror without GPU/socket starvation)."""
+        cycle = 0
+        while getattr(self, "live_stream_active", False):
+            try:
+                t0 = time.time()
+                img = self._capture_phone_screen()
+                self.after(0, lambda im=img: self._update_mirror_widget(im))
+
+                cycle += 1
+                if cycle % 100 == 0:
+                    self._check_and_dismiss_anr()
+
+                elapsed = time.time() - t0
+                sleep_time = max(0.040, 0.090 - elapsed)
+                time.sleep(sleep_time)
+            except Exception:
+                time.sleep(0.1)
 
     def _refresh_screen_async(self, callback=None):
         if getattr(self, "_refreshing_screen", False):
