@@ -4705,39 +4705,80 @@ class HeartSimpleApp(ctk.CTk):
     # 4. BOTTOM TELEMETRY & REAL ADB STREAM LOG (PURE LIGHT CONSOLE)
     # =========================================================================
     def _build_bottom_telemetry(self):
-        dock = ctk.CTkFrame(self, fg_color=THEME["bg_card"], height=135, corner_radius=0, border_width=1, border_color=THEME["border"])
+        dock = ctk.CTkFrame(self, fg_color=THEME["bg_card"], height=138, corner_radius=0, border_width=1, border_color=THEME["border"])
         dock.pack(fill="x", side="bottom")
         dock.pack_propagate(False)
 
-        # Header metrics strip
-        strip = ctk.CTkFrame(dock, fg_color=THEME["bg_box"], height=32, corner_radius=0)
+        # Header metrics strip (Clean Daylight Console Header)
+        strip = ctk.CTkFrame(dock, fg_color=THEME["bg_box"], height=32, corner_radius=0, border_width=1, border_color=THEME["border_subtle"])
         strip.pack(fill="x")
         strip.pack_propagate(False)
 
-        ctk.CTkLabel(strip, text="ACTIVITY LOG", font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"), text_color=THEME["text_heading"]).pack(side="left", padx=12)
-
-        self.kpi_latency = ctk.CTkLabel(strip, text="Latency: not measured", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), text_color=THEME["success"])
-        self.kpi_latency.pack(side="left", padx=12)
-
-        self.kpi_event_count = ctk.CTkLabel(strip, text="Recorded: 0 events", font=ctk.CTkFont(family="Segoe UI", size=9), text_color=THEME["text_muted"])
-        self.kpi_event_count.pack(side="left", padx=12)
-
-        ctk.CTkButton(
+        ctk.CTkLabel(
             strip,
-            text="Clear",
-            width=50,
-            height=22,
-            fg_color="transparent",
-            hover_color=THEME["border"],
+            text="⚡ LIVE TELEMETRY & ADB CONSOLE",
+            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+            text_color=THEME["text_heading"]
+        ).pack(side="left", padx=(14, 10))
+
+        self.kpi_latency = ctk.CTkLabel(
+            strip,
+            text="Latency: not measured",
+            font=ctk.CTkFont(family="Consolas", size=9, weight="bold"),
+            fg_color=THEME["success_bg"],
+            text_color=THEME["success"],
+            corner_radius=4,
+            padx=8,
+            pady=1
+        )
+        self.kpi_latency.pack(side="left", padx=6, pady=5)
+
+        self.kpi_event_count = ctk.CTkLabel(
+            strip,
+            text="Recorded: 0 events",
+            font=ctk.CTkFont(family="Consolas", size=9, weight="bold"),
+            fg_color="#ffffff",
             text_color=THEME["text_muted"],
-            font=ctk.CTkFont(family="Segoe UI", size=9),
-            command=self._clear_log
-        ).pack(side="right", padx=8)
+            corner_radius=4,
+            padx=8,
+            pady=1
+        )
+        self.kpi_event_count.pack(side="left", padx=6, pady=5)
 
         ctk.CTkButton(
             strip,
-            text="Export Findings Report",
-            width=150,
+            text="✕ Clear",
+            width=56,
+            height=22,
+            fg_color="#ffffff",
+            hover_color="#e2e8f0",
+            text_color=THEME["text_body"],
+            border_width=1,
+            border_color=THEME["border"],
+            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+            corner_radius=4,
+            command=self._clear_log
+        ).pack(side="right", padx=(4, 10))
+
+        ctk.CTkButton(
+            strip,
+            text="📁 Open Folder",
+            width=96,
+            height=22,
+            fg_color="#ffffff",
+            hover_color="#e2e8f0",
+            text_color=THEME["text_heading"],
+            border_width=1,
+            border_color=THEME["border"],
+            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+            corner_radius=4,
+            command=self._open_export_folder
+        ).pack(side="right", padx=4)
+
+        ctk.CTkButton(
+            strip,
+            text="📊 Export Findings Report",
+            width=152,
             height=22,
             fg_color="#059669",
             hover_color="#047857",
@@ -4747,18 +4788,29 @@ class HeartSimpleApp(ctk.CTk):
             command=self._export_findings_report
         ).pack(side="right", padx=4)
 
-        # Monospace execution log text
+        # Monospace execution log text with daylight syntax color tags
         self.activity_log_textbox = ctk.CTkTextbox(
             dock,
-            font=ctk.CTkFont(family="Consolas", size=9),
-            fg_color="#090d16",
-            text_color="#38bdf8",
-            corner_radius=0
+            font=ctk.CTkFont(family="Consolas", size=10),
+            fg_color="#f8fafc",
+            text_color="#0f172a",
+            border_width=1,
+            border_color=THEME["border_subtle"],
+            corner_radius=6
         )
-        self.activity_log_textbox.pack(fill="both", expand=True, padx=4, pady=4)
+        self.activity_log_textbox.pack(fill="both", expand=True, padx=8, pady=(4, 6))
+        try:
+            tb = self.activity_log_textbox._textbox
+            tb.tag_config("LOG_SUCCESS", foreground="#059669")
+            tb.tag_config("LOG_WARN", foreground="#d97706")
+            tb.tag_config("LOG_ERROR", foreground="#dc2626")
+            tb.tag_config("LOG_STRESSOR", foreground="#4f46e5")
+            tb.tag_config("LOG_INFO", foreground="#1e293b")
+        except Exception:
+            pass
         self.activity_log_textbox.configure(state="disabled")
         self._activity_events = queue.Queue()
-        self._append_log("[HEART INIT] Interface initialized. Device connection and model readiness are checked separately.")
+        self._append_log("[HEART INIT] Studio Pro initialized. Live ADB & Emulator Socket telemetry ready.")
         self.after(100, self._drain_activity_log)
 
     # =========================================================================
@@ -4789,16 +4841,39 @@ class HeartSimpleApp(ctk.CTk):
                     self.after(0, _update_offline)
                     return
 
+                responsive_devs = []
+                for d in parsed_devs:
+                    try:
+                        chk = subprocess.run([adb_bin, "-s", d, "shell", "echo", "ok"], capture_output=True, text=True, timeout=2.5)
+                        if chk.returncode == 0 and "ok" in chk.stdout:
+                            responsive_devs.append(d)
+                        else:
+                            subprocess.run([adb_bin, "reconnect"], capture_output=True, timeout=2)
+                    except subprocess.TimeoutExpired:
+                        self._append_log(f"[ADB] Device {d} shell hung; reconnecting ADB transport...")
+                        try:
+                            subprocess.run([adb_bin, "reconnect"], capture_output=True, timeout=2)
+                        except Exception:
+                            pass
+                if responsive_devs:
+                    parsed_devs = responsive_devs
+
                 dev_map = {}
                 labels = []
                 for d in parsed_devs:
                     if d.startswith("emulator-"):
-                        avd_res = subprocess.run([adb_bin, "-s", d, "shell", "getprop", "ro.boot.qemu.avd_name"], capture_output=True, text=True, timeout=3)
-                        avd_name = avd_res.stdout.strip() if avd_res.returncode == 0 and avd_res.stdout.strip() else "Pixel AVD"
+                        try:
+                            avd_res = subprocess.run([adb_bin, "-s", d, "shell", "getprop", "ro.boot.qemu.avd_name"], capture_output=True, text=True, timeout=4)
+                            avd_name = avd_res.stdout.strip() if avd_res.returncode == 0 and avd_res.stdout.strip() else "Pixel AVD"
+                        except Exception:
+                            avd_name = "Pixel AVD"
                         lbl = f"🤖 {avd_name} [{d}]"
                     else:
-                        m_res = subprocess.run([adb_bin, "-s", d, "shell", "getprop", "ro.product.model"], capture_output=True, text=True, timeout=3)
-                        model = m_res.stdout.strip() if m_res.returncode == 0 and m_res.stdout.strip() else d
+                        try:
+                            m_res = subprocess.run([adb_bin, "-s", d, "shell", "getprop", "ro.product.model"], capture_output=True, text=True, timeout=4)
+                            model = m_res.stdout.strip() if m_res.returncode == 0 and m_res.stdout.strip() else d
+                        except Exception:
+                            model = d
                         lbl = f"📱 {model} [{d}]"
                     dev_map[lbl] = d
                     labels.append(lbl)
@@ -4833,7 +4908,7 @@ class HeartSimpleApp(ctk.CTk):
         threading.Thread(target=_worker, daemon=True).start()
 
     def _periodic_device_check(self):
-        """Auto-discovers newly connected USB devices or booted AVDs in the background."""
+        """Auto-discovers newly connected USB devices or booted AVDs and recovers frozen system dialogs."""
         def _check():
             try:
                 adb_bin = get_adb_binary()
@@ -4844,6 +4919,8 @@ class HeartSimpleApp(ctk.CTk):
                 known_devs = list(getattr(self, "_devices_map", {}).values())
                 if devs and (is_sim or set(devs) != set(known_devs)):
                     self.after(0, lambda: self._scan_device_and_apps(preferred_id=devs[0]))
+                elif curr_dev and not is_sim:
+                    pass
             except Exception:
                 pass
         threading.Thread(target=_check, daemon=True).start()
