@@ -5576,100 +5576,27 @@ class HeartSimpleApp(ctk.CTk):
                 time.sleep(0.1)
 
     def _refresh_screen_async(self, callback=None):
+        """On-demand single frame refresh."""
+        if getattr(self, "live_stream_active", False):
+            if callback:
+                self.after(0, callback)
+            return
+
         if getattr(self, "_refreshing_screen", False):
             self._pending_refresh = True
             if callback:
                 self.after(25, callback)
             return
+
         self._refreshing_screen = True
         self._pending_refresh = False
 
         def _worker():
             try:
-                import io
-                adb_bin = get_adb_binary()
-                dev_id = getattr(self.adb, "device_id", None)
-                is_emu = bool(dev_id and str(dev_id).startswith("emulator-"))
-
-                img = None
-                # Accelerator 1: Direct target file screencap for emulator (~70ms)
-                if is_emu:
-                    target_dir = os.path.join(ROOT_DIR, "scratch")
-                    os.makedirs(target_dir, exist_ok=True)
-                    target_png = os.path.join(target_dir, "emu_stream.png")
-                    try:
-                        res = subprocess.run([adb_bin, "-s", dev_id, "emu", "screenrecord", "screenshot", target_png], capture_output=True, timeout=2)
-                        if os.path.exists(target_png):
-                            with Image.open(target_png) as f_img:
-                                img = f_img.copy()
-                    except Exception:
-                        pass
-
-                # Accelerator 2: Physical hardware capture via exec-out screencap -p
-                if img is None:
-                    cmd = [adb_bin]
-                    if dev_id and not getattr(self.adb, "is_simulated", False):
-                        cmd.extend(["-s", dev_id])
-                    cmd.extend(["exec-out", "screencap", "-p"])
-                    res = subprocess.run(cmd, capture_output=True, timeout=4)
-                    if res.returncode == 0 and len(res.stdout) > 1000:
-                        img = Image.open(io.BytesIO(res.stdout))
-
-                if img is not None:
-                    w, h = img.size
-                    self._orig_w = w
-                    self._orig_h = h
-                    max_w = 185
-                    max_h = 410
-                    scale = min(max_w / w, max_h / h)
-                    target_w = max(40, int(w * scale))
-                    target_h = max(40, int(h * scale))
-                    img_scaled = img.resize((target_w, target_h), Image.Resampling.BILINEAR)
-                    self._last_raw_phone_img = img_scaled.copy()
-
-                    extrema = img.getextrema()
-                    is_black = False
-                    if extrema and len(extrema) >= 3:
-                        if extrema[0][1] < 6 and extrema[1][1] < 6 and extrema[2][1] < 6:
-                            is_black = True
-
-                    def _render():
-                        if hasattr(self, "screen_mirror_lbl") and self.screen_mirror_lbl.winfo_exists():
-                            self._mirror_w = target_w
-                            self._mirror_h = target_h
-                            if is_black and not getattr(self, "_call_active", False):
-                                mock_img = self._generate_phone_screen_mockup(
-                                    target_w, target_h,
-                                    touch_point=getattr(self, "_last_bio_touch", None),
-                                    touch_res=getattr(self, "_last_bio_result", None)
-                                )
-                                self.screen_mirror_lbl.configure(image=mock_img, text="", compound="none")
-                            else:
-                                final_img = self._apply_touch_overlays(img_scaled.copy(), target_w, target_h)
-                                ctk_img = ctk.CTkImage(light_image=final_img, dark_image=final_img, size=(target_w, target_h))
-                                self.current_mirror_img = ctk_img
-                                self.screen_mirror_lbl.configure(image=ctk_img, text="", compound="none")
-                        if callback:
-                            callback()
-
-                    self.after(0, _render)
-                else:
-                    def _render_offline_mock():
-                        if hasattr(self, "screen_mirror_lbl") and self.screen_mirror_lbl.winfo_exists():
-                            target_w = 196
-                            target_h = 428
-                            self._mirror_w = target_w
-                            self._mirror_h = target_h
-                            mock_img = self._generate_phone_screen_mockup(
-                                target_w, target_h,
-                                touch_point=getattr(self, "_last_bio_touch", None),
-                                touch_res=getattr(self, "_last_bio_result", None)
-                            )
-                            self.screen_mirror_lbl.configure(image=mock_img, text="", compound="none")
-                        if callback:
-                            callback()
-
-                    self.after(0, _render_offline_mock)
+                img = self._capture_phone_screen()
+                self.after(0, lambda im=img: self._update_mirror_widget(im))
+                if callback:
+                    self.after(0, callback)
             except Exception:
                 if callback:
                     self.after(0, callback)
@@ -5677,60 +5604,58 @@ class HeartSimpleApp(ctk.CTk):
                 self._refreshing_screen = False
                 if getattr(self, "_pending_refresh", False):
                     self._pending_refresh = False
-                    self.after(15, self._refresh_screen_async)
+                    self.after(50, self._refresh_screen_async)
 
         threading.Thread(target=_worker, daemon=True).start()
 
     def _toggle_stream(self):
-        self.live_stream_active = not self.live_stream_active
+        self.live_stream_active = not getattr(self, "live_stream_active", False)
         self.stream_btn.configure(
             text="⏹ Stop" if self.live_stream_active else "▶ Stream",
             fg_color=THEME["danger"] if self.live_stream_active else THEME["success"]
         )
         if self.live_stream_active:
-            self._stream_step()
+            t = threading.Thread(target=self._stream_loop, daemon=True)
+            t.start()
 
-    def _stream_step(self):
-        if not self.live_stream_active:
-            return
-        self._refresh_screen_async(callback=self._on_stream_frame_done)
+    def _on_mirror_scroll(self, event):
+        """Maps desktop mouse wheel scrolling to native Android swipe scrolling with rate-limiting."""
+        try:
+            now = time.time()
+            if now - getattr(self, "_last_scroll_time", 0) < 0.14:
+                return  # Throttle rapid wheel notches
+            self._last_scroll_time = now
 
-    def _on_stream_frame_done(self):
-        if self.live_stream_active:
-            self.after(25, self._stream_step)
+            orig_w = getattr(self, "_orig_w", 1080)
+            orig_h = getattr(self, "_orig_h", 2400)
+            cx = orig_w // 2
+            cy = orig_h // 2
+            scroll_step = int(orig_h * 0.28)
+            if event.delta < 0:
+                # Wheel rolled downward -> Scroll down (finger drags upward)
+                cmd = f"input swipe {cx} {cy + scroll_step // 2} {cx} {cy - scroll_step // 2} 140"
+                self._register_touch_event(cx, cy + scroll_step // 2, touch_type="swipe", swipe_end=(cx, cy - scroll_step // 2))
+            else:
+                # Wheel rolled upward -> Scroll up (finger drags downward)
+                cmd = f"input swipe {cx} {cy - scroll_step // 2} {cx} {cy + scroll_step // 2} 140"
+                self._register_touch_event(cx, cy - scroll_step // 2, touch_type="swipe", swipe_end=(cx, cy + scroll_step // 2))
+            self._send_adb_input(cmd)
+            self._trigger_settling_refreshes()
+        except Exception:
+            pass
 
     def _on_touch_down(self, event):
         self._touch_start = (event.x, event.y, time.time())
-        # Instant visual ripple feedback on mouse down (0ms perceptual lag)
-        try:
-            target_h = getattr(self, "_mirror_h", 410)
-            target_w = getattr(self, "_mirror_w", 185)
-            lbl_w = self.screen_mirror_lbl.winfo_width()
-            lbl_h = self.screen_mirror_lbl.winfo_height()
-            off_x = max(0, (lbl_w - target_w) / 2)
-            off_y = max(0, (lbl_h - target_h) / 2)
-            orig_w = getattr(self, "_orig_w", 1280)
-            orig_h = getattr(self, "_orig_h", 2856)
-
-            rx = max(0, min(target_w, event.x - off_x))
-            ry = max(0, min(target_h, event.y - off_y))
-            dev_x = int((rx / target_w) * orig_w)
-            dev_y = int((ry / target_h) * orig_h)
-
-            self._register_touch_event(dev_x, dev_y, is_hit=True, error_dist=0.0, touch_type="tap")
-            if hasattr(self, "_last_raw_phone_img") and self._last_raw_phone_img:
-                fast_overlay = self._apply_touch_overlays(self._last_raw_phone_img.copy(), target_w, target_h)
-                ctk_img = ctk.CTkImage(light_image=fast_overlay, dark_image=fast_overlay, size=(target_w, target_h))
-                self.current_mirror_img = ctk_img
-                self.screen_mirror_lbl.configure(image=ctk_img, text="", compound="none")
-        except Exception:
-            pass
 
     def _on_touch_up(self, event):
         if not hasattr(self, "_touch_start"):
             return
+        now = time.time()
+        if now - getattr(self, "_last_touch_dispatch_time", 0) < 0.08:
+            return  # Debounce duplicate Tkinter parent-child event propagation
+        self._last_touch_dispatch_time = now
         x1, y1, t1 = self._touch_start
-        x2, y2, t2 = event.x, event.y, time.time()
+        x2, y2, t2 = event.x, event.y, now
         dx = x2 - x1
         dy = y2 - y1
         dist = (dx**2 + dy**2)**0.5
@@ -5738,37 +5663,46 @@ class HeartSimpleApp(ctk.CTk):
         try:
             target_h = getattr(self, "_mirror_h", 410)
             target_w = getattr(self, "_mirror_w", 185)
-            lbl_w = self.screen_mirror_lbl.winfo_width()
-            lbl_h = self.screen_mirror_lbl.winfo_height()
-            off_x = max(0, (lbl_w - target_w) / 2)
-            off_y = max(0, (lbl_h - target_h) / 2)
+            lbl = getattr(self, "screen_mirror_lbl", event.widget)
+            lbl_w = max(target_w, lbl.winfo_width())
+            lbl_h = max(target_h, lbl.winfo_height())
+            off_x = max(0, (lbl_w - target_w) / 2.0)
+            off_y = max(0, (lbl_h - target_h) / 2.0)
 
-            orig_w = getattr(self, "_orig_w", 1280)
-            orig_h = getattr(self, "_orig_h", 2856)
+            orig_w = getattr(self, "_orig_w", 1080)
+            orig_h = getattr(self, "_orig_h", 2400)
 
             def _to_dev(px, py):
-                rx = max(0, min(target_w, px - off_x))
-                ry = max(0, min(target_h, py - off_y))
+                rx = max(0.0, min(float(target_w), float(px) - off_x))
+                ry = max(0.0, min(float(target_h), float(py) - off_y))
                 return int((rx / target_w) * orig_w), int((ry / target_h) * orig_h)
 
             dev_x1, dev_y1 = _to_dev(x1, y1)
             dev_x2, dev_y2 = _to_dev(x2, y2)
 
-            if dist < 8:
-                # Instant sub-millisecond tap
-                self._last_bio_touch = (dev_x1, dev_y1)
-                self._last_bio_result = {"is_hit": True, "error_distance": 0.0}
-                self._register_touch_event(dev_x1, dev_y1, is_hit=True, error_dist=0.0, touch_type="tap")
+            if dist < 9:
+                # Instant sub-millisecond tap: send to Android device FIRST
                 self._send_adb_input(f"input tap {dev_x1} {dev_y1}")
+                self._append_log(f"[TOUCH] Tapped screen at ({dev_x1}, {dev_y1})")
+                try:
+                    self._last_bio_touch = (dev_x1, dev_y1)
+                    self._last_bio_result = {"is_hit": True, "error_distance": 0.0}
+                    self._register_touch_event(dev_x1, dev_y1, is_hit=True, error_dist=0.0, touch_type="tap")
+                except Exception:
+                    pass
             else:
-                # Snappy fling swipe (duration 80-180ms ensures Android treats it as navigation fling)
-                duration_ms = max(80, min(180, int((t2 - t1) * 350)))
-                self._register_touch_event(dev_x1, dev_y1, touch_type="swipe", swipe_end=(dev_x2, dev_y2))
+                # Snappy fling swipe: send to Android device FIRST
+                duration_ms = max(90, min(260, int((t2 - t1) * 350)))
                 self._send_adb_input(f"input swipe {dev_x1} {dev_y1} {dev_x2} {dev_y2} {duration_ms}")
+                self._append_log(f"[TOUCH] Swiped ({dev_x1}, {dev_y1}) -> ({dev_x2}, {dev_y2})")
+                try:
+                    self._register_touch_event(dev_x1, dev_y1, touch_type="swipe", swipe_end=(dev_x2, dev_y2))
+                except Exception:
+                    pass
 
             self._trigger_settling_refreshes()
-        except Exception:
-            pass
+        except Exception as e:
+            self._append_log(f"[TOUCH ERROR] {e}")
 
     def _send_key(self, keycode):
         self._append_log(f"[INPUT KEY] keyevent {keycode}")
@@ -5781,36 +5715,54 @@ class HeartSimpleApp(ctk.CTk):
         pkg = self.app_selector.get().strip()
         self._append_log(f"[APP RUNNER] Launching '{pkg}' on device...")
         def _launch():
-            adb_bin = get_adb_binary()
-            cmd_prefix = [adb_bin]
-            if self.adb.device_id and not self.adb.is_simulated:
-                cmd_prefix.extend(["-s", self.adb.device_id])
-            
-            act = getattr(self, "_pkg_activity_map", {}).get(pkg)
-            t0 = time.time()
-            if act:
-                cmd = list(cmd_prefix) + ["shell", "am", "start", "-n", f"{pkg}/{act}"]
-                subprocess.run(cmd, capture_output=True, timeout=8)
-            else:
-                cmd_res = list(cmd_prefix) + ["shell", "cmd", "package", "resolve-activity", "--brief", pkg]
-                r = subprocess.run(cmd_res, capture_output=True, text=True, timeout=5)
-                comp = None
-                for line in r.stdout.splitlines():
-                    if "/" in line and not line.startswith("priority="):
-                        comp = line.strip()
-                        break
-                if comp and "ResolverActivity" not in comp:
-                    cmd = list(cmd_prefix) + ["shell", "am", "start", "-n", comp]
-                    subprocess.run(cmd, capture_output=True, timeout=8)
-                else:
-                    cmd = list(cmd_prefix) + ["shell", "monkey", "-p", pkg, "-c", "android.intent.category.LAUNCHER", "1"]
-                    subprocess.run(cmd, capture_output=True, timeout=8)
+            try:
+                adb_bin = get_adb_binary()
+                cmd_prefix = [adb_bin]
+                if self.adb.device_id and not self.adb.is_simulated:
+                    cmd_prefix.extend(["-s", self.adb.device_id])
+                
+                act = getattr(self, "_pkg_activity_map", {}).get(pkg)
+                t0 = time.time()
+                launched = False
+                if act:
+                    cmd = list(cmd_prefix) + ["shell", "am", "start", "-n", f"{pkg}/{act}"]
+                    try:
+                        subprocess.run(cmd, capture_output=True, timeout=10)
+                        launched = True
+                    except Exception:
+                        pass
+                
+                if not launched:
+                    comp = None
+                    try:
+                        cmd_res = list(cmd_prefix) + ["shell", "cmd", "package", "resolve-activity", "--brief", pkg]
+                        r = subprocess.run(cmd_res, capture_output=True, text=True, timeout=10)
+                        for line in (r.stdout or "").splitlines():
+                            if "/" in line and not line.startswith("priority="):
+                                comp = line.strip()
+                                break
+                    except Exception:
+                        comp = None
 
-            elapsed = round((time.time() - t0) * 1000, 2)
-            self._last_latency_ms = elapsed
-            time.sleep(1.2)
-            self._refresh_screen_async()
-            self._append_log(f"[APP RUNNER] '{pkg}' launched ({elapsed}ms).")
+                    if comp and "ResolverActivity" not in comp:
+                        cmd = list(cmd_prefix) + ["shell", "am", "start", "-n", comp]
+                        try:
+                            subprocess.run(cmd, capture_output=True, timeout=10)
+                            launched = True
+                        except Exception:
+                            pass
+
+                    if not launched:
+                        cmd = list(cmd_prefix) + ["shell", "monkey", "-p", pkg, "-c", "android.intent.category.LAUNCHER", "1"]
+                        subprocess.run(cmd, capture_output=True, timeout=10)
+
+                elapsed = round((time.time() - t0) * 1000, 2)
+                self._last_latency_ms = elapsed
+                time.sleep(1.2)
+                self._refresh_screen_async()
+                self._append_log(f"[APP RUNNER] '{pkg}' launched ({elapsed}ms).")
+            except Exception as e:
+                self._append_log(f"[APP RUNNER ERROR] Failed to launch '{pkg}': {e}")
         threading.Thread(target=_launch, daemon=True).start()
 
     def _install_apk_dialog(self):
@@ -5824,6 +5776,16 @@ class HeartSimpleApp(ctk.CTk):
             filetypes=[("Android Package (*.apk)", "*.apk"), ("All Files", "*.*")]
         )
         if not apk_path:
+            return
+
+        if not os.path.exists(apk_path) or os.path.getsize(apk_path) == 0:
+            self._append_log(f"[APK INSTALL ERROR] Selected APK is empty (0 bytes): {apk_path}")
+            messagebox.showerror(
+                "Invalid APK (0 Bytes)",
+                f"The selected file is empty (0 bytes):\n{apk_path}\n\n"
+                "The browser download appears incomplete or was interrupted.\n"
+                "Please re-download the APK file before installing."
+            )
             return
             
         self._append_log(f"[APK INSTALL] Selected APK: {os.path.basename(apk_path)}")
@@ -5859,15 +5821,38 @@ class HeartSimpleApp(ctk.CTk):
 
             target_desc = dev_id if dev_id else "active device"
             self._append_log(f"[APK INSTALL] Installing '{app_label or os.path.basename(apk_path)}' onto {target_desc}...")
-            
+
+            # Automatically suppress Play Protect / verifier modal stalls
+            if dev_id and not getattr(self.adb, "is_simulated", False):
+                try:
+                    subprocess.run([adb_bin, "-s", dev_id, "shell", "settings", "put", "global", "package_verifier_enable", "0"], capture_output=True, timeout=3)
+                    subprocess.run([adb_bin, "-s", dev_id, "shell", "settings", "put", "global", "verifier_verify_adb_installs", "0"], capture_output=True, timeout=3)
+                except Exception:
+                    pass
+
             cmd = [adb_bin]
             if dev_id and not getattr(self.adb, "is_simulated", False):
                 cmd.extend(["-s", dev_id])
-            cmd.extend(["install", "-r", "-d", "--bypass-low-target-sdk-block", apk_path])
-            
+            cmd.extend(["install", "-r", "-d", "-g", "--bypass-low-target-sdk-block", apk_path])
+
             t0 = time.time()
-            res = subprocess.run(cmd, capture_output=True, text=True, timeout=90)
-            
+            try:
+                res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=45)
+            except subprocess.TimeoutExpired:
+                self._append_log(f"[APK INSTALL WARN] Standard streaming install timed out after 45s. Retrying with --no-streaming...")
+                cmd_fallback = [adb_bin]
+                if dev_id and not getattr(self.adb, "is_simulated", False):
+                    cmd_fallback.extend(["-s", dev_id])
+                cmd_fallback.extend(["install", "--no-streaming", "-r", "-d", "-g", "--bypass-low-target-sdk-block", apk_path])
+                try:
+                    res = subprocess.run(cmd_fallback, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=45)
+                except subprocess.TimeoutExpired:
+                    self._append_log("[APK INSTALL ERROR] Installation timed out. Target system busy or package invalid.")
+                    return
+                except Exception as ex:
+                    self._append_log(f"[APK INSTALL ERROR] {ex}")
+                    return
+
             if "Success" not in res.stdout and res.returncode != 0:
                 err = res.stderr.strip() or res.stdout.strip()
                 if "INSTALL_FAILED_NO_MATCHING_ABIS" in err or "INSTALL_FAILED_CPU_ABI_INCOMPATIBLE" in err:
