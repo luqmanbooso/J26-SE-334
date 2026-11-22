@@ -6092,18 +6092,51 @@ class HeartSimpleApp(ctk.CTk):
                 except Exception as chart_err:
                     self._append_log(f"[FINDINGS CHART WARNING] {chart_err}")
                 
-                self.after(0, self._refresh_dashboard_view)
-                    
                 self._append_log(f"[FINDINGS EXPORT SUCCESS] Reports & Visual Charts generated:")
                 self._append_log(f"  • JSON:  {json_path_attr}")
                 self._append_log(f"  • JSON:  {json_path_report}")
                 self._append_log(f"  • MD:    {md_path_report}")
                 self._append_log(f"  • IMAGE: env testing/results/heart_findings_chart_report.png")
                 
-                img_path = os.path.join(ROOT_DIR, "env testing", "results", "heart_findings_chart_report.png")
-                def _notify():
-                    self._append_log("[FINDINGS EXPORT READY] Report compiled cleanly. Available in Tab 3 dashboard viewer.")
-                self.after(0, _notify)
+                def _on_export_success():
+                    # 1. Automatically switch Segmented Navigation to "Empirical Findings & KPI"
+                    if hasattr(self, "nav_tabs"):
+                        self.nav_tabs.set("📊 Empirical KPI & Findings")
+                        self._on_nav_tab_changed("Empirical Findings & KPI")
+
+                    # 2. Select the exported findings report in the visual report dropdown
+                    findings_key = "Environmental Stressor Chaos & Impact Report"
+                    if hasattr(self, "report_menu") and findings_key in getattr(self, "_reports_catalog", {}):
+                        self.report_menu.set(findings_key)
+                        self._refresh_dashboard_view()
+
+                    # 3. Select the exported findings in the log viewer dropdown
+                    if hasattr(self, "log_menu"):
+                        self.log_menu.set("Exported Findings & Attribution Report (JSON)")
+                        self._refresh_log_viewer()
+
+                    # 4. Notify cleanly in activity log
+                    self._append_log("[FINDINGS EXPORT READY] Report compiled cleanly. Switched to 'Empirical Findings & KPI' dashboard viewer.")
+
+                    # 5. Non-blocking user dialog with option to open directory in Explorer
+                    try:
+                        ans = messagebox.askyesno(
+                            "Findings Exported Successfully",
+                            f"Comprehensive findings and failure attributions have been exported!\n\n"
+                            f"• Findings JSON: env testing\\test_findings_report.json\n"
+                            f"• Attribution JSON: env testing\\environment_failure_attribution.json\n"
+                            f"• Markdown Report: env testing\\test_findings_report.md\n"
+                            f"• Visual Chart: env testing\\results\\heart_findings_chart_report.png\n\n"
+                            f"Switched view to 'Empirical Findings & KPI' tab and loaded active audit logs.\n\n"
+                            f"Would you like to open the export directory in File Explorer?",
+                            parent=self
+                        )
+                        if ans:
+                            self._open_export_folder()
+                    except Exception:
+                        pass
+
+                self.after(0, _on_export_success)
                 
             except Exception as e:
                 self._append_log(f"[FINDINGS EXPORT ERROR] {e}")
@@ -6200,6 +6233,7 @@ class HeartSimpleApp(ctk.CTk):
         dev_id = getattr(self.adb, "device_id", None)
         tag = "AVD" if (dev_id and dev_id.startswith("emulator-")) else "USB"
         self.dev_battery_lbl.configure(text=f"🔋 {level}% (Unplugged) • {tag}")
+        self._ensure_device_statusbar(dev_id, battery_level=level, is_charging=(not unplugged))
         self._run_async_stressor("STRESSOR", lambda: self.orchestrator.system.set_battery(level=level, unplugged=unplugged),
                                  lambda: self._append_log(f"[STRESSOR] Battery set: {level}%, unplugged={unplugged}"))
 
@@ -6219,13 +6253,14 @@ class HeartSimpleApp(ctk.CTk):
         tag = "AVD" if (dev_id and dev_id.startswith("emulator-")) else "USB"
         bat_str = self._baseline_state.get("battery_str", f"{base_bat}%")
         self.dev_battery_lbl.configure(text=f"🔋 {bat_str} • {tag}")
-        self._run_async_stressor("STRESSOR", lambda: self.orchestrator.system.revert(),
+        self._ensure_device_statusbar(dev_id, battery_level=base_bat, is_charging=is_chg)
+        self._run_async_stressor("STRESSOR", lambda: self.orchestrator.system.reset_battery(),
                                  lambda: (self._append_log("[STRESSOR] Battery state reset to nominal baseline"), self.after(400, self._sample_live_hardware_baseline)))
 
     def _set_thermal(self, state):
         self._stressors_active = (state != "Nominal")
         self._active_state["thermal"] = state
-        temp_c = {"Nominal": "32.0°C", "Fair": "45.0°C", "Serious": "55.0°C", "Critical": "55.0°C"}.get(state, "38.0°C")
+        temp_c = {"Nominal": "30.0°C", "Fair": "45.0°C", "Serious": "65.0°C", "Critical": "80.0°C"}.get(state, "38.0°C")
         self._active_state["thermal_temp"] = temp_c
         self._highlight_thermal_button(state)
         self._update_telemetry_diff()
