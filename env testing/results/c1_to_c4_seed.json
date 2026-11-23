@@ -1,0 +1,112 @@
+{
+  "schema_version": "c4.journey/1",
+  "journey_id": "c1-attr-1795528926592",
+  "session_id": "c1-session-1795528926",
+  "source": "c1_attribution",
+  "app_version": "1.0",
+  "failing_screen": "PayBtn",
+  "exception_type": "TIMEOUT",
+  "reproducible": true,
+  "not_reproducible_reason": null,
+  "truncated": false,
+  "action_count": 1,
+  "steps": [
+    {
+      "index": 0,
+      "action": "tap",
+      "name": "c1.perturbed_step",
+      "screen": "PayBtn",
+      "locator": {
+        "text": "PayBtn"
+      },
+      "value": null,
+      "event_id": "c1-attr-1795528926592:step:0",
+      "timestamp": "2026-11-24T14:02:06Z"
+    }
+  ],
+  "failure": {
+    "name": "TIMEOUT",
+    "type": "TIMEOUT",
+    "message": "Network failure directly triggered by PACKET_LOSS_SIMULATED (params: {'loss_pct': 12, 'strategy': 'BURST_DROP'}). App failed to recover gracefully.",
+    "timestamp": "2026-11-24T14:02:06Z"
+  },
+  "seed": {
+    "targets": [
+      {
+        "index": 0,
+        "action": "tap",
+        "label": "PayBtn",
+        "locator": {
+          "text": "PayBtn"
+        },
+        "screen": "PayBtn"
+      }
+    ],
+    "failing_step_index": 0,
+    "failing_screen": "PayBtn",
+    "exception_type": "TIMEOUT",
+    "perturbation_hints": [
+      {
+        "failure_id": "F1",
+        "failure_type": "TIMEOUT",
+        "primary_trigger": "PACKET_LOSS_SIMULATED",
+        "confidence": 0.94,
+        "compound_stress_factors": [
+          "SYSTEM_RAM:LMK_MEMORY_PRESSURE",
+          "SYSTEM_THERMAL:THERMAL_THROTTLE_PROFILE",
+          "NETWORK_LATENCY:LATENCY_INJECTED",
+          "NETWORK_PACKET_LOSS:PACKET_LOSS_SIMULATED",
+          "NETWORK_THROTTLE:BANDWIDTH_PROFILE_SET",
+          "INTERRUPTION_CALL:INCOMING_CALL_RINGING",
+          "SYSTEM_POWER:BATTERY_PRESSURE",
+          "NETWORK:STATE_TRANSITION",
+          "INTERRUPTION_CALL:CALL_TERMINATED",
+          "INTERRUPTION_DOZE:SYSTEM_DOZE_TRANSITION",
+          "SYSTEM_CPU:CPU_LOAD_INJECTED",
+          "SYSTEM_RAM:LMK_MEMORY_PRESSURE",
+          "SYSTEM_THERMAL:THERMAL_THROTTLE_PROFILE",
+          "SYSTEM_POWER:BATTERY_PRESSURE",
+          "NETWORK_LATENCY:LATENCY_INJECTED",
+          "NETWORK_PACKET_LOSS:PACKET_LOSS_SIMULATED",
+          "NETWORK_THROTTLE:BANDWIDTH_PROFILE_SET",
+          "NETWORK_DNS:DNS_RESOLUTION_FAILURE",
+          "NETWORK_HANDOVER:HANDOVER_INITIATED",
+          "NETWORK:STATE_TRANSITION",
+          "NETWORK:STATE_TRANSITION",
+          "NETWORK_HANDOVER:HANDOVER_COMPLETED",
+          "INTERRUPTION_CALL:INCOMING_CALL_RINGING",
+          "INTERRUPTION_CALL:CALL_ACCEPTED",
+          "INTERRUPTION_CALL:CALL_TERMINATED",
+          "INTERRUPTION_SMS:SMS_NOTIFICATION_BANNER",
+          "INTERRUPTION_LIFECYCLE:APP_BACKGROUNDED",
+          "INTERRUPTION_LIFECYCLE:APP_RESUMED",
+          "INTERRUPTION_DOZE:SYSTEM_DOZE_TRANSITION",
+          "CONTEXT_ORIENTATION:ORIENTATION_CHANGED",
+          "CONTEXT_THEME:DARK_MODE_TOGGLED",
+          "CONTEXT_DISPLAY:FONT_SCALE_CHANGED",
+          "CONTEXT_LOCATION:GPS_COORDINATES_SHIFTED",
+          "DEPLOYMENT:APP_LAUNCHED",
+          "SYSTEM_CPU:CPU_LOAD_INJECTED",
+          "SYSTEM_RAM:LMK_MEMORY_PRESSURE",
+          "NETWORK_LATENCY:LATENCY_INJECTED",
+          "NETWORK_PACKET_LOSS:PACKET_LOSS_SIMULATED",
+          "SYSTEM_CPU:CPU_LOAD_INJECTED",
+          "SYSTEM_RAM:LMK_MEMORY_PRESSURE",
+          "NETWORK_LATENCY:LATENCY_INJECTED",
+          "NETWORK_PACKET_LOSS:PACKET_LOSS_SIMULATED",
+          "NETWORK:STATE_TRANSITION",
+          "INTERRUPTION_DOZE:SYSTEM_DOZE_TRANSITION",
+          "SYSTEM_POWER:BATTERY_PRESSURE",
+          "THEMIS_BENCHMARK:BUG_REPRODUCED",
+          "SYSTEM_CPU:CPU_LOAD_INJECTED",
+          "NETWORK_LATENCY:LATENCY_INJECTED",
+          "NETWORK_THROTTLE:BANDWIDTH_PROFILE_SET",
+          "SCHEDULER:STEP_HOOK_FIRED",
+          "SYSTEM_CPU:CPU_LOAD_INJECTED",
+          "NETWORK_PACKET_LOSS:PACKET_LOSS_SIMULATED"
+        ],
+        "recommended_mitigation": "Audit error boundaries and add fallback UI indicators during environmental fluctuations."
+      }
+    ]
+  }
+}
