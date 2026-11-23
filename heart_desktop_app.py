@@ -6387,76 +6387,133 @@ class HeartSimpleApp(ctk.CTk):
         self._run_async_stressor("CONTEXT", lambda: self.orchestrator.context.set_dark_mode(val),
                                  lambda: self._append_log(f"[CONTEXT] Dark Mode set: {val}"))
 
+    def _clean_avd_locks(self, target_avd, purge_snapshot=False):
+        """Cleans stale QEMU lock files (and optionally corrupt snapshots) that trap AVD in offline loops."""
+        for name in [target_avd, target_avd.split("_API_")[0]]:
+            avd_dir = os.path.expanduser(f"~/.android/avd/{name}.avd")
+            if os.path.isdir(avd_dir):
+                for lf in ["hardware-qemu.ini.lock", "multiinstance.lock"]:
+                    p = os.path.join(avd_dir, lf)
+                    try:
+                        if os.path.isdir(p):
+                            shutil.rmtree(p, ignore_errors=True)
+                        elif os.path.isfile(p):
+                            os.remove(p)
+                    except Exception:
+                        pass
+                if purge_snapshot:
+                    snap_boot = os.path.join(avd_dir, "snapshots", "default_boot")
+                    try:
+                        if os.path.isdir(snap_boot):
+                            shutil.rmtree(snap_boot, ignore_errors=True)
+                    except Exception:
+                        pass
+
     def _launch_avd(self):
         adb_bin = get_adb_binary()
         emu_bin = get_emulator_binary()
         self._append_log("[EMULATOR] Checking Android Virtual Device...")
 
-        # Check if an emulator is already running
-        res = subprocess.run([adb_bin, "devices"], capture_output=True, text=True, timeout=4)
-        for line in res.stdout.splitlines():
-            if line.startswith("emulator-"):
-                emu_id = line.split()[0]
-                self._append_log(f"[EMULATOR] AVD is already running ({emu_id}). Switching active display to AVD now...")
-                self._scan_device_and_apps(preferred_id=emu_id)
+        def _launch_worker():
+            try:
+                res = subprocess.run([adb_bin, "devices"], capture_output=True, text=True, timeout=4)
+                for line in res.stdout.splitlines():
+                    parts = line.split()
+                    if len(parts) >= 2 and parts[0].startswith("emulator-"):
+                        emu_id = parts[0]
+                        if parts[1] == "device":
+                            try:
+                                boot_chk = subprocess.run([adb_bin, "-s", emu_id, "shell", "getprop", "sys.boot_completed"],
+                                                          capture_output=True, text=True, timeout=2.5)
+                                if boot_chk.returncode == 0 and boot_chk.stdout.strip() == "1":
+                                    self._append_log(f"[EMULATOR] AVD is already running ({emu_id}). Switching active display to AVD now...")
+                                    self.after(0, lambda eid=emu_id: self._scan_device_and_apps(preferred_id=eid))
+                                    return
+                            except subprocess.TimeoutExpired:
+                                self._append_log(f"[EMULATOR] Hung ADB transport on {emu_id}. Terminating and recovering...")
+                        self._append_log(f"[EMULATOR] Stale/hung AVD detected ({emu_id}). Terminating and recovering...")
+                        try:
+                            subprocess.run(["taskkill", "/F", "/IM", "qemu-system-x86_64.exe"], capture_output=True)
+                            subprocess.run(["taskkill", "/F", "/IM", "emulator.exe"], capture_output=True)
+                            subprocess.run([adb_bin, "kill-server"], capture_output=True)
+                            subprocess.run([adb_bin, "start-server"], capture_output=True)
+                        except Exception:
+                            pass
+                        break
+            except Exception:
+                pass
+
+            if not shutil.which(emu_bin) and not os.path.exists(emu_bin):
+                self._append_log("[EMULATOR] Android Emulator binary not found on PC.")
+                self.after(0, lambda: messagebox.showinfo(
+                    "Android Emulator Not Installed",
+                    "Android Studio / Emulator (AVD) is not installed on this PC.\n\n"
+                    "Click 'Re-Scan Device' if a physical phone is connected."))
                 return
 
-        # Check if emulator binary exists on PC
-        if not shutil.which(emu_bin) and not os.path.exists(emu_bin):
-            self._append_log("[EMULATOR] Android Emulator binary not found on PC.")
-            messagebox.showinfo("Android Emulator Not Installed",
-                                "Android Studio / Emulator (AVD) is not installed on this PC.\n\n"
-                                "Your physical Xiaomi phone is connected!\n"
-                                "Click 'Re-Scan Device' to connect to the physical phone.")
-            return
+            target_avd = "Pixel_9_Pro"
+            try:
+                avd_res = subprocess.run([emu_bin, "-list-avds"], capture_output=True, text=True, timeout=5)
+                avd_list = [l.strip() for l in avd_res.stdout.splitlines() if l.strip()]
+                if avd_list:
+                    if "Pixel_9_Pro" in avd_list:
+                        target_avd = "Pixel_9_Pro"
+                    elif "Medium_Phone_API_36.1" in avd_list:
+                        target_avd = "Medium_Phone_API_36.1"
+                    elif "Medium_Phone" in avd_list:
+                        target_avd = "Medium_Phone"
+                    else:
+                        target_avd = avd_list[0]
+            except Exception:
+                pass
 
-        # Dynamically discover installed AVD
-        target_avd = "Medium_Phone"
-        try:
-            avd_res = subprocess.run([emu_bin, "-list-avds"], capture_output=True, text=True, timeout=5)
-            avd_list = [l.strip() for l in avd_res.stdout.splitlines() if l.strip()]
-            if avd_list:
-                if "Medium_Phone" in avd_list:
-                    target_avd = "Medium_Phone"
-                elif "Pixel_9_Pro" in avd_list:
-                    target_avd = "Pixel_9_Pro"
-                else:
-                    target_avd = avd_list[0]
-        except Exception:
-            pass
+            self._clean_avd_locks(target_avd, purge_snapshot=True)
+            self._append_log(f"[EMULATOR] Launching '{target_avd}' with Host GPU acceleration...")
+            try:
+                cmd = [emu_bin, "-avd", target_avd, "-no-snapshot-load", "-gpu", "host", "-no-boot-anim"]
+                self._emu_proc = _orig_subprocess_popen(
+                    cmd,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    creationflags=getattr(subprocess, "DETACHED_PROCESS", 0x00000008)
+                )
+                self.after(1500, self._poll_for_emulator)
+            except Exception as e:
+                self.after(0, lambda err=e: messagebox.showerror("AVD Error", f"Failed to start emulator:\n{err}"))
 
-        # Not running: launch emulator process
-        self._append_log(f"[EMULATOR] Launching '{target_avd}' in background...")
-        try:
-            subprocess.Popen([emu_bin, "-avd", target_avd], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            messagebox.showinfo("AVD Launching", f"Android Emulator '{target_avd}' starting in background.\n\nPlease allow 20-30 seconds for boot. It will connect automatically.")
-            self._poll_for_emulator()
-        except Exception as e:
-            messagebox.showerror("AVD Error", f"Failed to start emulator:\n{e}")
+        threading.Thread(target=_launch_worker, daemon=True).start()
 
     def _poll_for_emulator(self, attempts=0):
-        if attempts > 30:
-            self._append_log("[EMULATOR] AVD launch wait completed.")
+        if attempts > 75:
+            self._append_log("[EMULATOR] AVD launch wait timed out.")
             return
-        adb_bin = get_adb_binary()
-        try:
-            res = subprocess.run([adb_bin, "devices"], capture_output=True, text=True, timeout=4)
+
+        def _poll_worker():
+            adb_bin = get_adb_binary()
             found_emu = None
-            for line in res.stdout.splitlines():
-                parts = line.split()
-                if len(parts) >= 2 and parts[0].startswith("emulator-") and parts[1] == "device":
-                    # Verify boot is finished
-                    boot_res = subprocess.run([adb_bin, "-s", parts[0], "shell", "getprop", "sys.boot_completed"], capture_output=True, text=True, timeout=3)
-                    if boot_res.stdout.strip() == "1":
-                        found_emu = parts[0]
-                        break
+            try:
+                res = subprocess.run([adb_bin, "devices"], capture_output=True, text=True, timeout=3)
+                for line in res.stdout.splitlines():
+                    parts = line.split()
+                    if len(parts) >= 2 and parts[0].startswith("emulator-"):
+                        if parts[1] == "offline":
+                            subprocess.run([adb_bin, "reconnect", "offline"], capture_output=True, timeout=2)
+                        elif parts[1] == "device":
+                            boot_res = subprocess.run([adb_bin, "-s", parts[0], "shell", "getprop", "sys.boot_completed"],
+                                                      capture_output=True, text=True, timeout=2.5)
+                            if boot_res.stdout.strip() == "1":
+                                found_emu = parts[0]
+                                break
+            except Exception:
+                pass
+
             if found_emu:
                 self._append_log(f"[EMULATOR] AVD online and ready ({found_emu}). Switching active mirror to AVD.")
-                self._scan_device_and_apps(preferred_id=found_emu)
-                return
-        except Exception:
-            pass
-        self.after(2500, lambda: self._poll_for_emulator(attempts + 1))
+                self.after(0, lambda eid=found_emu: self._scan_device_and_apps(preferred_id=eid))
+            else:
+                self.after(2000, lambda: self._poll_for_emulator(attempts + 1))
+
+        threading.Thread(target=_poll_worker, daemon=True).start()
 
     def _reset_all_stressors(self):
         self._stressors_active = False
@@ -6501,8 +6558,9 @@ class HeartSimpleApp(ctk.CTk):
         self._last_latency_ms = latency_ms
         is_pass = latency_ms < 100.0
         txt = f"Latency: {latency_ms}ms ({'RQ1 PASS' if is_pass else 'WARN'})"
-        col = THEME["success"] if is_pass else THEME["danger"]
-        self.kpi_latency.configure(text=txt, text_color=col)
+        fg_c = THEME["success_bg"] if is_pass else THEME["danger_light"]
+        txt_c = THEME["success"] if is_pass else THEME["danger"]
+        self.kpi_latency.configure(text=txt, fg_color=fg_c, text_color=txt_c)
         ev_count = len(self.orchestrator.logger.events)
         self.kpi_event_count.configure(text=f"Recorded: {ev_count} events")
 
@@ -6514,9 +6572,24 @@ class HeartSimpleApp(ctk.CTk):
     def _drain_activity_log(self):
         widget = self.activity_log_textbox
         widget.configure(state="normal")
+        tb = getattr(widget, "_textbox", None)
         try:
             for _ in range(200):
-                widget.insert("end", self._activity_events.get_nowait())
+                line = self._activity_events.get_nowait()
+                tag = "LOG_INFO"
+                u = line.upper()
+                if "ERROR" in u or "FAIL" in u or "CRITICAL" in u:
+                    tag = "LOG_ERROR"
+                elif "READY" in u or "PASS" in u or "ONLINE" in u or "RESET" in u:
+                    tag = "LOG_SUCCESS"
+                elif "WARN" in u or "BLAST" in u or "INTERRUPTION" in u:
+                    tag = "LOG_WARN"
+                elif "[STRESSOR]" in u or "[PROFILE" in u:
+                    tag = "LOG_STRESSOR"
+                if tb is not None:
+                    tb.insert("end", line, tag)
+                else:
+                    widget.insert("end", line)
         except queue.Empty:
             pass
         finally:
