@@ -42,7 +42,14 @@ class ADBClient:
         self._device = None          # shared AdbDevice, created on first real command
         self._shell_proc = None
         self._shell_lock = threading.Lock()
+        self._accumulated_latency_ms: float = 0.0
         self._initialize_connection()
+
+    def consume_latency_ms(self) -> float:
+        """Returns accumulated ADB execution latency since the last check and resets it."""
+        val = round(self._accumulated_latency_ms, 2)
+        self._accumulated_latency_ms = 0.0
+        return val
 
     @staticmethod
     def _resolve_adb_binary() -> str:
@@ -143,28 +150,32 @@ class ADBClient:
 
     def run_cmd(self, cmd: str) -> str:
         """Executes an ADB command either via hardware bridge or virtual simulator."""
+        t0 = time.perf_counter()
         self.command_history.append(f"adb {cmd}")
 
-        if self.is_simulated:
-            return self._handle_simulated_cmd(cmd)
-
         try:
-            self._ensure_device()
-        except NoDeviceError:
-            self.is_simulated = True
-            return self._handle_simulated_cmd(cmd)
+            if self.is_simulated:
+                return self._handle_simulated_cmd(cmd)
 
-        try:
-            res = self._device.run(*shlex.split(cmd), timeout=12)
-            if res.returncode != 0 and "error" in res.stderr.lower():
-                print(f"[ADB Warning] Non-zero code for '{cmd}': {res.stderr.strip()}")
-            return res.stdout.strip()
-        except subprocess.TimeoutExpired:
-            print(f"[ADB Warning] Command timed out after 12s: {cmd}")
-            return ""
-        except Exception as e:
-            print(f"[ADB Warning] Command failed '{cmd}': {e}")
-            return ""
+            try:
+                self._ensure_device()
+            except NoDeviceError:
+                self.is_simulated = True
+                return self._handle_simulated_cmd(cmd)
+
+            try:
+                res = self._device.run(*shlex.split(cmd), timeout=12)
+                if res.returncode != 0 and "error" in res.stderr.lower():
+                    print(f"[ADB Warning] Non-zero code for '{cmd}': {res.stderr.strip()}")
+                return res.stdout.strip()
+            except subprocess.TimeoutExpired:
+                print(f"[ADB Warning] Command timed out after 12s: {cmd}")
+                return ""
+            except Exception as e:
+                print(f"[ADB Warning] Command failed '{cmd}': {e}")
+                return ""
+        finally:
+            self._accumulated_latency_ms += (time.perf_counter() - t0) * 1000.0
 
     def _ensure_persistent_shell(self):
         """Returns an active persistent `adb -s <serial> shell` process for sub-20ms dispatch."""
@@ -188,77 +199,85 @@ class ADBClient:
 
     def run_shell(self, shell_cmd: str) -> str:
         """Executes an 'adb shell' command via fast persistent pipe with AdbDevice fallback."""
+        t0 = time.perf_counter()
         self.command_history.append(f"adb shell {shell_cmd}")
-        if self.is_simulated:
-            return self._handle_simulated_cmd(f"shell {shell_cmd}")
         try:
-            self._ensure_device()
-        except NoDeviceError:
-            self.is_simulated = True
-            return self._handle_simulated_cmd(f"shell {shell_cmd}")
+            if self.is_simulated:
+                return self._handle_simulated_cmd(f"shell {shell_cmd}")
+            try:
+                self._ensure_device()
+            except NoDeviceError:
+                self.is_simulated = True
+                return self._handle_simulated_cmd(f"shell {shell_cmd}")
 
-        # Use persistent shell pipe when safe (non-blocking, sub-20ms latency)
-        if "pytest" not in sys.modules and not os.environ.get("PYTEST_CURRENT_TEST"):
-            marker = f"__HRT_{int(time.perf_counter() * 1e6)}__"
-            with self._shell_lock:
-                try:
-                    proc = self._ensure_persistent_shell()
-                    assert proc.stdin is not None and proc.stdout is not None
-                    proc.stdin.write(f"{shell_cmd}; echo {marker}\n")
-                    proc.stdin.flush()
-                    out_lines: List[str] = []
-                    deadline = time.monotonic() + 8.0
-                    while time.monotonic() < deadline:
-                        ln = proc.stdout.readline()
-                        if not ln:
-                            raise RuntimeError("persistent shell EOF")
-                        if marker in ln:
-                            clean = ln.replace(marker, "").strip()
-                            if clean:
-                                out_lines.append(clean)
-                            return "\n".join(out_lines).strip()
-                        out_lines.append(ln.rstrip("\r\n"))
-                except Exception:
+            # Use persistent shell pipe when safe (non-blocking, sub-20ms latency)
+            if "pytest" not in sys.modules and not os.environ.get("PYTEST_CURRENT_TEST"):
+                marker = f"__HRT_{int(time.perf_counter() * 1e6)}__"
+                with self._shell_lock:
                     try:
-                        if self._shell_proc is not None:
-                            self._shell_proc.kill()
+                        proc = self._ensure_persistent_shell()
+                        assert proc.stdin is not None and proc.stdout is not None
+                        proc.stdin.write(f"{shell_cmd}; echo {marker}\n")
+                        proc.stdin.flush()
+                        out_lines: List[str] = []
+                        deadline = time.monotonic() + 8.0
+                        while time.monotonic() < deadline:
+                            ln = proc.stdout.readline()
+                            if not ln:
+                                raise RuntimeError("persistent shell EOF")
+                            if marker in ln:
+                                clean = ln.replace(marker, "").strip()
+                                if clean:
+                                    out_lines.append(clean)
+                                return "\n".join(out_lines).strip()
+                            out_lines.append(ln.rstrip("\r\n"))
                     except Exception:
-                        pass
-                    self._shell_proc = None
+                        try:
+                            if self._shell_proc is not None:
+                                self._shell_proc.kill()
+                        except Exception:
+                            pass
+                        self._shell_proc = None
 
-        try:
-            res = self._device.run("shell", shell_cmd, timeout=12)
-            if res.returncode != 0 and "error" in res.stderr.lower():
-                print(f"[ADB Warning] Non-zero code for 'shell {shell_cmd}': {res.stderr.strip()}")
-            return res.stdout.strip()
-        except subprocess.TimeoutExpired:
-            print(f"[ADB Warning] Command timed out after 12s: shell {shell_cmd}")
-            return ""
-        except Exception as e:
-            print(f"[ADB Warning] Command failed 'shell {shell_cmd}': {e}")
-            return ""
+            try:
+                res = self._device.run("shell", shell_cmd, timeout=12)
+                if res.returncode != 0 and "error" in res.stderr.lower():
+                    print(f"[ADB Warning] Non-zero code for 'shell {shell_cmd}': {res.stderr.strip()}")
+                return res.stdout.strip()
+            except subprocess.TimeoutExpired:
+                print(f"[ADB Warning] Command timed out after 12s: shell {shell_cmd}")
+                return ""
+            except Exception as e:
+                print(f"[ADB Warning] Command failed 'shell {shell_cmd}': {e}")
+                return ""
+        finally:
+            self._accumulated_latency_ms += (time.perf_counter() - t0) * 1000.0
 
     def run_emulator_cmd(self, emu_cmd: str) -> str:
         """Executes an 'adb emu' console command."""
+        t0 = time.perf_counter()
         self.command_history.append(f"adb emu {emu_cmd}")
-        if self.is_simulated:
-            return self._handle_simulated_cmd(f"emu {emu_cmd}")
         try:
-            self._ensure_device()
-        except NoDeviceError:
-            self.is_simulated = True
-            return self._handle_simulated_cmd(f"emu {emu_cmd}")
-        try:
-            res = self._device.run("emu", *shlex.split(emu_cmd), timeout=12)
-            if res.returncode != 0 and "error" in res.stderr.lower():
-                print(f"[ADB Warning] Non-zero code for 'emu {emu_cmd}': {res.stderr.strip()}")
-            return res.stdout.strip()
-        except subprocess.TimeoutExpired:
-            print(f"[ADB Warning] Command timed out after 12s: emu {emu_cmd}")
-            return ""
-        except Exception as e:
-            print(f"[ADB Warning] Command failed 'emu {emu_cmd}': {e}")
-            return ""
+            if self.is_simulated:
+                return self._handle_simulated_cmd(f"emu {emu_cmd}")
+            try:
+                self._ensure_device()
+            except NoDeviceError:
+                self.is_simulated = True
+                return self._handle_simulated_cmd(f"emu {emu_cmd}")
+            try:
+                res = self._device.run("emu", *shlex.split(emu_cmd), timeout=12)
+                if res.returncode != 0 and "error" in res.stderr.lower():
+                    print(f"[ADB Warning] Non-zero code for 'emu {emu_cmd}': {res.stderr.strip()}")
+                return res.stdout.strip()
+            except subprocess.TimeoutExpired:
+                print(f"[ADB Warning] Command timed out after 12s: emu {emu_cmd}")
+                return ""
+            except Exception as e:
+                print(f"[ADB Warning] Command failed 'emu {emu_cmd}': {e}")
+                return ""
+        finally:
+            self._accumulated_latency_ms += (time.perf_counter() - t0) * 1000.0
 
     def _handle_simulated_cmd(self, cmd: str) -> str:
         """Emulates realistic responses for common Android shell & emulator commands."""

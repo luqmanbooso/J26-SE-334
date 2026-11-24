@@ -101,6 +101,13 @@ def test_event_logger_does_not_count_inter_event_idle_time(tmp_path):
     third = logger.record("SYSTEM", "TIMED_OP", {})
     assert 15.0 <= third["injection_latency_ms"] < 100.0
 
+    # Latency provider supplies real ADB duration when stressor calls record() without explicit args
+    sample_vals = iter([18.4, 22.1])
+    provided_logger = EventLogger(output_path=str(tmp_path / "provided.json"), latency_provider=lambda: next(sample_vals, 0.0))
+    ev_p = provided_logger.record("NETWORK", "STATE_TRANSITION", {"mode": "offline"})
+    assert ev_p["injection_latency_ms"] == 18.4
+    assert ev_p["latency_compliant"] is True
+
     logger.events[0]["host_overhead"]["cpu_percent"] = 25.0
     logger.events[1]["host_overhead"]["cpu_percent"] = 25.0
     logger.events[2]["host_overhead"]["cpu_percent"] = 25.0

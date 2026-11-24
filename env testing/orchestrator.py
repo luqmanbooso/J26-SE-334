@@ -17,7 +17,7 @@ class PerturbationOrchestrator:
 
     def __init__(self, log_path: str = "perturbation_event_log.json", force_simulation: bool = False):
         self.adb = ADBClient(force_simulation=force_simulation)
-        self.logger = EventLogger(log_path)
+        self.logger = EventLogger(log_path, latency_provider=self.adb.consume_latency_ms)
         self.scheduler = PerturbationScheduler(logger=self.logger)
 
         self.system = SystemStressor(self.adb, self.logger)

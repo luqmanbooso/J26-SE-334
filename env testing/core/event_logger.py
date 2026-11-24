@@ -1,7 +1,7 @@
 import json
 import time
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 try:
     import psutil
 except ImportError:
@@ -13,9 +13,14 @@ class EventLogger:
     Tracks injection latency (<100ms) and host system overhead (<15%) per HEART Proposal Section 2.
     """
 
-    def __init__(self, output_path: str = "perturbation_event_log.json"):
+    def __init__(
+        self,
+        output_path: str = "perturbation_event_log.json",
+        latency_provider: Optional[Callable[[], float]] = None,
+    ):
         self.output_path = output_path
         self.events: List[Dict[str, Any]] = []
+        self.latency_provider = latency_provider
 
     def begin_action(self) -> None:
         """Marks the start of an injection operation for accurate execution timing."""
@@ -56,10 +61,13 @@ class EventLogger:
         now_perf = time.perf_counter()
         action_start = getattr(self, "_action_start_t", None)
         self._action_start_t = None
+        provider_val = self.latency_provider() if callable(self.latency_provider) else None
         if injection_latency_ms is not None:
             latency = round(float(injection_latency_ms), 2)
         elif action_start is not None:
             latency = round(max(0.0, (now_perf - action_start) * 1000.0), 2)
+        elif provider_val is not None:
+            latency = round(max(0.0, float(provider_val)), 2)
         else:
             latency = 0.0
 
