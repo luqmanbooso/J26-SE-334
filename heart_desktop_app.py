@@ -14,14 +14,17 @@ if sys.platform == "win32":
             kwargs["creationflags"] = _CREATE_NO_WINDOW
         return _orig_subprocess_run(*args, **kwargs)
 
-    def _silent_popen(*args, **kwargs):
-        if "creationflags" not in kwargs:
-            kwargs["creationflags"] = _CREATE_NO_WINDOW
-        return _orig_subprocess_popen(*args, **kwargs)
+    # A subclass, not a function: asyncio (imported later by torch/uvicorn) subclasses subprocess.Popen, and a plain
+    # function there raised "TypeError: function() argument 'code' must be code, not str", which broke every inspection.
+    class _SilentPopen(_orig_subprocess_popen):
+        def __init__(self, *args, **kwargs):
+            if "creationflags" not in kwargs:
+                kwargs["creationflags"] = _CREATE_NO_WINDOW
+            super().__init__(*args, **kwargs)
 
     subprocess.run = _silent_run
-    subprocess.Popen = _silent_popen
-import socket
+    subprocess.Popen = _SilentPopen
+import asyncio  # noqa: F401  first import on the main thread, before any worker thread starts (see vision_oracle/frontend/workspace.py)
 import threading
 import shutil
 import webbrowser
@@ -180,6 +183,87 @@ THEME = {
     "phone_frame": "#334155",      # Brushed Silver-Slate Titanium bezel
     "phone_screen_bg": "#000000"   # OLED True Black screen display surface
 }
+
+
+class ScrollablePicker(ctk.CTkScrollableFrame):
+    """An app picker whose list actually scrolls.
+
+    ``CTkOptionMenu`` lays every value out as one flat popup; with ~68 installed
+    apps that popup is taller than the screen and will not open, stay, or scroll.
+    This shows the values as a scrollable column of selectable rows — a draggable
+    scrollbar plus the mouse wheel — narrowed live by the Search box above.
+    ``get()`` / ``set()`` / ``configure(values=…)`` / ``cget('values')`` mirror
+    ``CTkOptionMenu`` so existing callers need no change.
+    """
+
+    def __init__(self, master, values=None, command=None, height=150, **kw):
+        super().__init__(master, height=height, fg_color="#ffffff",
+                         border_width=1, border_color=THEME["border"],
+                         corner_radius=6, **kw)
+        self._values = list(values or [])
+        self._command = command
+        self._selected = self._values[0] if self._values else ""
+        self._rows = {}
+        self._render()
+
+    def _render(self):
+        for w in list(self._rows.values()):
+            w.destroy()
+        self._rows = {}
+        for v in self._values:
+            sel = (v == self._selected)
+            b = ctk.CTkButton(
+                self, text=v, anchor="w", height=24, corner_radius=4,
+                fg_color=(THEME["primary_light"] if sel else "transparent"),
+                text_color=(THEME["primary"] if sel else THEME["text_body"]),
+                hover_color=THEME["primary_light"],
+                font=ctk.CTkFont(family="Segoe UI", size=10,
+                                 weight=("bold" if sel else "normal")),
+                command=lambda vv=v: self._pick(vv))
+            b.pack(fill="x", padx=2, pady=1)
+            self._rows[v] = b
+
+    def _pick(self, value):
+        if value == self._selected:
+            return
+        self.set(value)
+        if self._command is not None:
+            try:
+                self._command(value)
+            except TypeError:
+                self._command()
+
+    # --- CTkOptionMenu-compatible surface ---------------------------------
+    def get(self):
+        return self._selected
+
+    def set(self, value):
+        self._selected = value
+        self._render()
+
+    def configure(self, **kwargs):
+        if "values" in kwargs:
+            # Like CTkOptionMenu, changing the values does not change the current
+            # selection — the caller decides whether to re-`set()` it. (If the
+            # selection is no longer in the list no row is highlighted, which is
+            # fine; callers re-set a valid one.)
+            self._values = list(kwargs.pop("values"))
+            self._render()
+        if "command" in kwargs:
+            self._command = kwargs.pop("command")
+        if kwargs:
+            try:
+                super().configure(**kwargs)
+            except Exception:
+                pass
+
+    def cget(self, key):
+        if key == "values":
+            return self._values
+        try:
+            return super().cget(key)
+        except Exception:
+            return None
 
 
 class HeartSimpleApp(ctk.CTk):
@@ -511,20 +595,6 @@ class HeartSimpleApp(ctk.CTk):
             command=self._launch_avd
         ).pack(side="left", padx=3)
 
-        self.btn_run_e2e_pipeline = ctk.CTkButton(
-            actions_box,
-            text="🚀 Run E2E Pipeline",
-            width=142,
-            height=32,
-            fg_color="#4f46e5",
-            hover_color="#4338ca",
-            text_color="#ffffff",
-            font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
-            corner_radius=7,
-            command=self._toggle_e2e_pipeline
-        )
-        self.btn_run_e2e_pipeline.pack(side="left", padx=3)
-
         ctk.CTkButton(
             actions_box,
             text="📊 Export Report",
@@ -634,80 +704,8 @@ class HeartSimpleApp(ctk.CTk):
 
         self._build_phone_mirror_pane(right_frame)
 
-    def _build_live_telemetry_ribbon(self, parent):
-        """Builds a 4-card real-time glowing telemetry HUD ribbon above the workspace tabs."""
-        ribbon = ctk.CTkFrame(parent, fg_color="transparent")
-        ribbon.grid(row=0, column=0, sticky="ew", pady=(0, 8))
-        for i in range(4):
-            ribbon.columnconfigure(i, weight=1)
-
-        self.hud_gauges = {}
-        gauge_defs = [
-            ("cpu", "⚙️ CPU LOAD", "0%", "IDLE", "#6366f1", 0.04),
-            ("battery", "🔋 BATTERY", "100%", "CHARGING", "#10b981", 1.0),
-            ("thermal", "🌡️ THERMAL", "30.0°C", "NOMINAL", "#0ea5e9", 0.25),
-            ("network", "🌐 NETWORK RTT", "0 ms", "4G/5G LTE", "#10b981", 0.05),
-        ]
-
-        for idx, (key, title, init_val, init_tag, accent, init_prog) in enumerate(gauge_defs):
-            g_card = ctk.CTkFrame(
-                ribbon,
-                fg_color=THEME["bg_card"],
-                corner_radius=10,
-                border_width=1,
-                border_color=THEME["border"],
-                height=64
-            )
-            g_card.grid(row=0, column=idx, sticky="nsew", padx=(0 if idx == 0 else 4, 0 if idx == 3 else 4))
-            g_card.pack_propagate(False)
-
-            top_r = ctk.CTkFrame(g_card, fg_color="transparent")
-            top_r.pack(fill="x", padx=10, pady=(6, 1))
-
-            ctk.CTkLabel(
-                top_r,
-                text=title,
-                font=ctk.CTkFont(family="Segoe UI", size=8, weight="bold"),
-                text_color=THEME["text_muted"]
-            ).pack(side="left")
-
-            tag_lbl = ctk.CTkLabel(
-                top_r,
-                text=init_tag,
-                font=ctk.CTkFont(family="Segoe UI", size=7, weight="bold"),
-                fg_color=THEME["bg_box"],
-                text_color=accent,
-                corner_radius=4,
-                padx=5,
-                pady=0
-            )
-            tag_lbl.pack(side="right")
-
-            val_lbl = ctk.CTkLabel(
-                g_card,
-                text=init_val,
-                font=ctk.CTkFont(family="Consolas", size=14, weight="bold"),
-                text_color=THEME["text_heading"],
-                anchor="w"
-            )
-            val_lbl.pack(fill="x", padx=10, pady=(0, 2))
-
-            bar = ctk.CTkProgressBar(
-                g_card,
-                height=5,
-                corner_radius=3,
-                fg_color="#e2e8f0",
-                progress_color=accent
-            )
-            bar.set(init_prog)
-            bar.pack(fill="x", padx=10, pady=(0, 6))
-
-            self.hud_gauges[key] = {
-                "val": val_lbl,
-                "tag": tag_lbl,
-                "bar": bar,
-                "card": g_card
-            }
+        # One app-level wheel handler for every scrollable pane (page + pickers).
+        self._wire_wheel_scroll()
 
     def _update_tab_button_styles(self, active_val):
         """Ensures high-contrast crisp text across segmented navigation tabs."""
@@ -1919,6 +1917,58 @@ class HeartSimpleApp(ctk.CTk):
         e.pack(side="left", padx=3)
         return e
 
+    def _wire_wheel_scroll(self):
+        """Make the mouse wheel scroll whichever scrollable area the pointer is
+        over. customtkinter's own `bind_all` handler decides what to scroll by
+        walking the event widget's master chain, which is unreliable here (nothing
+        wheel-scrolled on this Wayland box). This binds one app-level handler that
+        finds the *nearest* `CTkScrollableFrame` ancestor of the widget under the
+        pointer and scrolls its canvas — so both the page and a nested app picker
+        scroll correctly. The visible scrollbar remains as a guaranteed fallback."""
+        def _nearest_canvas(widget):
+            w = widget
+            while w is not None:
+                if isinstance(w, ctk.CTkScrollableFrame):
+                    return w._parent_canvas
+                w = getattr(w, "master", None)
+            return None
+
+        def _on_wheel(ev):
+            cv = _nearest_canvas(ev.widget)
+            if cv is None:
+                return
+            try:
+                if cv.yview() == (0.0, 1.0):   # nothing to scroll
+                    return
+            except Exception:
+                return
+            num = getattr(ev, "num", None)
+            if num == 4:
+                cv.yview_scroll(-1, "units")
+            elif num == 5:
+                cv.yview_scroll(1, "units")
+            else:
+                cv.yview_scroll(-1 if getattr(ev, "delta", 0) > 0 else 1, "units")
+            return "break"
+
+        for seq in ("<MouseWheel>", "<Button-4>", "<Button-5>"):
+            self.bind_all(seq, _on_wheel, add="+")
+
+    def _c2_menu_values(self, items, empty="(none)", keep=None):
+        """Cap an app list for a CTkOptionMenu. The menu lays every value out as
+        one flat popup; with ~68 installed apps that popup is taller than the
+        screen and will not open/stay. Showing the first N keeps it usable — the
+        Search box above narrows to anything not shown. `keep` forces the current
+        selection into the list so it is never dropped off the end."""
+        items = list(items)
+        if not items:
+            return [empty]
+        cap = 20
+        capped = items[:cap]
+        if keep and keep in items and keep not in capped:
+            capped = [keep] + capped[:cap - 1]
+        return capped
+
     def _build_biometry_view(self, parent):
         small = ctk.CTkFont(family="Segoe UI", size=10)
         smallb = ctk.CTkFont(family="Segoe UI", size=10, weight="bold")
@@ -1928,19 +1978,10 @@ class HeartSimpleApp(ctk.CTk):
                               border_width=1, border_color=THEME["border"])
         banner.pack(fill="x", pady=(0, 10))
         b_head = ctk.CTkFrame(banner, fg_color="transparent")
-        b_head.pack(fill="x", padx=12, pady=(8, 2))
+        b_head.pack(fill="x", padx=12, pady=(10, 10))
         ctk.CTkLabel(b_head, text="C2 · Human Stress-Aware Input Interaction Engine",
                      font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"),
                      text_color=THEME["primary"]).pack(side="left")
-        ctk.CTkLabel(b_head, text="IT23156760", font=ctk.CTkFont(size=9, weight="bold"),
-                     fg_color=THEME["primary_light"], text_color=THEME["primary"],
-                     corner_radius=4, padx=6, pady=2).pack(side="right")
-        ctk.CTkLabel(banner, wraplength=470, justify="left",
-                     text="Configure and run run_live_adaptive.py on the connected device. "
-                          "Cognitive stress (Scog) drives the rotational hand model; every "
-                          "control below maps to one engine flag.",
-                     font=ctk.CTkFont(family="Segoe UI", size=9),
-                     text_color=THEME["text_muted"]).pack(fill="x", padx=12, pady=(0, 8))
 
         # ---- ① Run mode & cognitive stress --------------------------------
         g1 = self._bio_group(parent, "①  Run Mode & Cognitive Stress")
@@ -2043,14 +2084,14 @@ class HeartSimpleApp(ctk.CTk):
         ctk.CTkButton(r_app, text="⟳", width=28, height=24, font=smallb,
                       fg_color=THEME["bg_box"], text_color=THEME["text_heading"],
                       hover_color=THEME["border"], command=self._c2_load_apps).pack(side="right", padx=3)
-        r_app2 = self._cfg_row(g2, "Target app (--package):")
-        self.c2_app_menu = ctk.CTkOptionMenu(r_app2, values=["(loading…)"], width=270, height=26,
-                                             font=small, dynamic_resizing=False,
-                                             dropdown_fg_color="#ffffff",
-                                             dropdown_text_color=THEME["text_heading"],
-                                             dropdown_hover_color=THEME["primary_light"],
-                                             command=self._c2_update_argv)
-        self.c2_app_menu.pack(side="left", padx=3, fill="x", expand=True)
+        ctk.CTkLabel(g2, text="Target app (--package):", font=smallb,
+                     text_color=THEME["text_body"]).pack(anchor="w", padx=12, pady=(2, 0))
+        # A scrollable, searchable list (not a flat CTkOptionMenu popup that was
+        # taller than the screen with 68 apps and would not open/scroll). Narrow
+        # it with the Search box above; scroll by wheel or the draggable bar.
+        self.c2_app_menu = ScrollablePicker(g2, values=["(loading…)"], height=150,
+                                            command=self._c2_update_argv)
+        self.c2_app_menu.pack(fill="x", expand=True, padx=12, pady=(0, 4))
         r_dev = self._cfg_row(g2, "Device (--device):")
         self.c2_device_lbl = ctk.CTkLabel(r_dev, text="scanning…", font=smallb,
                                           text_color=THEME["text_muted"])
@@ -2165,16 +2206,6 @@ class HeartSimpleApp(ctk.CTk):
 
         # ---- Manual dispatch & probes (collapsed, legacy) -----------------
         g6 = self._bio_group(parent, "⑥  Manual Dispatch & FrameProbe", collapsed=True)
-        r_auto = ctk.CTkFrame(g6, fg_color=THEME["primary_light"], corner_radius=8,
-                              border_width=1, border_color=THEME["primary_border"])
-        r_auto.pack(fill="x", padx=10, pady=(4, 6))
-        self.auto_pilot_btn = ctk.CTkButton(r_auto, text="⚡ Auto-Pilot (Zero-Click)", height=28,
-                                            fg_color="#059669", hover_color="#047857",
-                                            font=smallb, corner_radius=6, command=self._toggle_auto_pilot)
-        self.auto_pilot_btn.pack(side="left", padx=8, pady=6)
-        self.auto_pilot_status_lbl = ctk.CTkLabel(r_auto, text="Auto-Pilot ready",
-                                                  font=ctk.CTkFont(size=9, weight="bold"), text_color="#047857")
-        self.auto_pilot_status_lbl.pack(side="left", padx=6, pady=6)
         r_disp = ctk.CTkFrame(g6, fg_color="transparent")
         r_disp.pack(fill="x", padx=10, pady=(2, 4))
         ctk.CTkButton(r_disp, text="🎯 Dispatch Tap", height=26, fg_color=THEME["primary"],
@@ -2245,11 +2276,21 @@ class HeartSimpleApp(ctk.CTk):
                                            fg_color=THEME["secondary"], hover_color=THEME["secondary_hover"],
                                            font=smallb, corner_radius=8, command=self._c2_run_replay)
         self.c2_replay_btn.pack(side="left")
-        # The GUI always replays BLIND (no per-screen screenshot check): taps land
-        # on their targets so the whole app is traversed, and the report is driven
-        # by the ①  Run Mode (Adaptive = dynamic stress). Per-screen verify exists
-        # only on the CLI (`replay_live.py` without --no-verify) for static apps,
-        # because it stops early on a dynamic one (tabs/lists shift the screenshot).
+        # Level A verified replay is the default: before each tap a ~60 ms app-guard
+        # confirms we are still in the app under test, and on arrival at a new screen
+        # (per transition, not per tap) a screenshot fingerprint confirms it is the
+        # right screen — so a tap never lands on the wrong screen or in another app.
+        # Uncheck for blind-fast (the app guard still runs); blind can mis-tap on a
+        # drifted screen, which the reliability banner then flags.
+        # Default ON: Level B verify checks the foreground *activity name* per tap
+        # (robust, pixel-free; needs a plan mapped with per-step activities — a harmless
+        # no-op on an older plan). Uncheck for blind (the app guard still runs). The old
+        # whole-screen fingerprint verify is unreliable on a photo-heavy app and is now
+        # CLI-only (--verify-fingerprint).
+        self.c2_replay_verify = ctk.CTkCheckBox(row2, text="verify screens", font=small,
+                                                checkbox_width=16, checkbox_height=16)
+        self.c2_replay_verify.select()
+        self.c2_replay_verify.pack(side="left", padx=(8, 2))
         ctk.CTkLabel(row2, text="Plan:", font=smallb, text_color=THEME["text_body"]).pack(side="left", padx=(10, 2))
         self.c2_plan_entry = ctk.CTkEntry(row2, height=26, font=small,
                                           placeholder_text="results/<name>_plan.json  (auto from Output name)")
@@ -2326,14 +2367,14 @@ class HeartSimpleApp(ctk.CTk):
     def _c2_apply_app_list(self, pkgs):
         if not hasattr(self, "c2_app_menu"):
             return
+        prefer = next((p for p in ("com.example.trippygoandroids", "com.example.medigo") if p in pkgs), None)
         self.c2_app_menu.configure(values=pkgs or ["(none)"])
         cur = self.c2_app_menu.get()
         if cur not in pkgs:
-            prefer = next((p for p in ("com.example.trippygoandroids", "com.example.medigo") if p in pkgs), None)
             self.c2_app_menu.set(prefer or (pkgs[0] if pkgs else "(none)"))
         self.c2_app_count.configure(text=f"{len(pkgs)} apps")
         try:
-            self.app_selector.configure(values=pkgs)
+            self.app_selector.configure(values=self._c2_menu_values(pkgs, keep=prefer))
         except Exception:
             pass
         self._append_log(f"[C2] loaded {len(pkgs)} installed apps")
@@ -2343,11 +2384,11 @@ class HeartSimpleApp(ctk.CTk):
         q = self.c2_app_search.get().strip().lower()
         allp = getattr(self, "_c2_all_pkgs", [])
         matches = [p for p in allp if q in p.lower()] if q else allp
-        self.c2_app_menu.configure(values=matches or ["(no match)"])
         # Keep the user's current pick; only change it when it is filtered out of
         # view. (Previously this reset to matches[0] on every keystroke, so
         # clearing the search silently re-selected the first app in the list.)
         cur = self.c2_app_menu.get()
+        self.c2_app_menu.configure(values=matches or ["(no match)"])
         if cur not in matches:
             self.c2_app_menu.set(matches[0] if matches else "(no match)")
         self.c2_app_count.configure(text=(f"{len(matches)}/{len(allp)}" if q else f"{len(allp)} apps"))
@@ -2549,9 +2590,15 @@ class HeartSimpleApp(ctk.CTk):
         a += ["--settle", settle]
         if hasattr(self, "c2_reset") and self.c2_reset.get():
             a += ["--reset"]
-        a += ["--no-verify"]        # GUI replay is always blind → full traversal
-        replay_out = base + "_replay"
-        a += ["--out", replay_out]
+        # Level B verify (default, via the checkbox): activity-name screen check.
+        # Unchecked -> --no-verify (blind both checks; the app guard still runs).
+        if not (hasattr(self, "c2_replay_verify") and self.c2_replay_verify.get()):
+            a += ["--no-verify"]
+        # Each replay gets a timestamped name in the SAME results/ folder, so a
+        # report is never overwritten (no new subfolders). The GUI owns the path
+        # (--no-stamp) so it can open the right report afterwards.
+        replay_out = base + "_replay_" + time.strftime("%Y%m%d-%H%M%S")
+        a += ["--out", replay_out, "--no-stamp"]
         return a, replay_out, plan
 
     def _c2_run_replay(self):
@@ -3178,6 +3225,7 @@ class HeartSimpleApp(ctk.CTk):
             total_actions = min(12, max(6, len(clickable_elements)))
             defects_found = []
             pipeline_records = []
+            e2e_session_id = f"heart_e2e_{time.strftime('%Y%m%d_%H%M%S')}"  # groups this run's C3 verdicts
 
             for step_idx in range(total_actions):
                 if not getattr(self, "_e2e_pipeline_active", False):
@@ -3271,9 +3319,10 @@ class HeartSimpleApp(ctk.CTk):
                 # Component 3 Real Vision Oracle Defect Detection (no fabricated fallback defects)
                 has_defect = False
                 defect_type = "none"
-                oracle_conf = 1.0
+                oracle_conf = None
                 oracle_bbox = None
-                oracle_expl = "Screen Verified Clean ✅"
+                oracle_status = "unavailable"
+                oracle_expl = "C3 vision oracle not run."
 
                 if VISION_ORACLE_AVAILABLE:
                     try:
@@ -3281,15 +3330,20 @@ class HeartSimpleApp(ctk.CTk):
                         v_res = oracle_service.evaluate_device(
                             serial=dev_id,
                             action_context=f"e2e_step_{step_idx+1}_{target['name']}",
-                            enable_sahi=True
+                            # Link the verdict to the C2 tap that produced the screen (C3 requires the act_ prefix)
+                            action_id=f"act_{e2e_session_id}_step{step_idx+1}",
+                            session_id=e2e_session_id,
+                            enable_sahi=False  # tile views are not validated with the current adapter
                         )
                         v2 = v_res.get("verdict_v2", {})
-                        decision = v2.get("decision", "no_defect_detected")
+                        decision = v2.get("decision", "inconclusive")
+                        oracle_status = decision
+                        p_defect = (v2.get("metadata") or {}).get("defect_probability")
                         if decision == "defect_detected":
                             has_defect = True
                             primary = v2.get("primary_finding") or (v2.get("findings", [{}])[0] if v2.get("findings") else {})
-                            defect_type = str(primary.get("type", "COMPONENT_OVERLAP")).upper().replace("-", "_")
-                            oracle_conf = float(primary.get("confidence", 0.92))
+                            defect_type = str(primary.get("type", "other_defect")).upper().replace("-", "_")
+                            oracle_conf = primary.get("confidence", p_defect)
                             oracle_bbox = primary.get("bbox_xyxy")
                             oracle_expl = primary.get("explanation", f"Visual defect detected on widget '{target['name']}'.")
                             defects_found.append({
@@ -3299,23 +3353,26 @@ class HeartSimpleApp(ctk.CTk):
                                 "trigger": prof_data.get("name"),
                                 "explanation": oracle_expl,
                                 "confidence": oracle_conf,
-                                "bbox": oracle_bbox
+                                "bbox": oracle_bbox,
+                                "source": "c3_vision_oracle",
                             })
+                        elif decision == "no_defect_detected":
+                            oracle_expl = "No defect found by C3 in the inspected view (not a certification)."
                         else:
-                            has_defect = False
-                            defect_type = "none"
-                            oracle_expl = "Clean UI layout certified within active viewport."
+                            oracle_expl = "C3 result inconclusive."
                     except Exception as _oracle_err:
-                        defect_type = "unverified"
-                        oracle_expl = f"Vision Oracle unavailable for step ({_oracle_err}); no synthetic defect recorded."
-                        self._append_log(f"[PIPELINE ORACLE NOTE] {oracle_expl}")
-                else:
-                    defect_type = "unverified"
-                    oracle_expl = "Vision Oracle module not loaded; visual check skipped."
+                        # Never substitute a simulated defect for a failed model run.
+                        oracle_status = "error"
+                        oracle_expl = f"C3 vision oracle failed: {_oracle_err}"
+                        self._append_log(f"[PIPELINE ORACLE NOTE] C3 inference failed; step recorded as inconclusive ({_oracle_err}).")
 
-                jank_disp = f"{jank_pct}%" if jank_pct is not None else "unmeasured"
-                oracle_res_str = f"Defect: {defect_type}" if has_defect else ("Unverified" if defect_type == "unverified" else "Screen Verified Clean ✅")
-                self._append_log(f"[PIPELINE VERIFICATION #{step_idx+1}] Vision Oracle: {oracle_res_str} | FrameProbe Jank: {jank_disp}")
+                if has_defect:
+                    oracle_res_str = f"Defect: {defect_type}" + (f" (P={oracle_conf:.2f})" if isinstance(oracle_conf, (int, float)) else "")
+                elif oracle_status == "no_defect_detected":
+                    oracle_res_str = "No defect found (not a certification)"
+                else:
+                    oracle_res_str = f"Inconclusive ({oracle_status})"
+                self._append_log(f"[PIPELINE VERIFICATION #{step_idx+1}] Vision Oracle: {oracle_res_str} | FrameProbe Jank: {jank_pct}%")
 
                 ui_delay_ms = round((time.perf_counter() - step_t0) * 1000.0, 1)
                 pipeline_records.append({
@@ -3508,8 +3565,16 @@ class HeartSimpleApp(ctk.CTk):
     # =========================================================================
     def _build_vision_view(self, parent):
         from vision_oracle.frontend.workspace import C3Workspace
-        self.c3_workspace = C3Workspace(parent, handover_callback=self._receive_inspection)
+        self.c3_workspace = C3Workspace(parent, handover_callback=self._receive_inspection,
+                                        receiver_url_callback=self._offer_c3_url_to_c2)
         self.c3_workspace.pack(fill="both", expand=True)
+
+    def _offer_c3_url_to_c2(self, url):
+        """When C3's in-app receiver starts, fill C2's 'C3 Oracle URL' field if it is still empty."""
+        entry = getattr(self, "c2_oracle_entry", None)
+        if entry is not None and not entry.get().strip():
+            entry.insert(0, url)
+            self._append_log(f"[C3] Receiver listening at {url}; C2 will send each completed action there.")
 
     def _receive_inspection(self, payload):
         receiver = getattr(self, 'c4_receive_inspection', None)
@@ -4468,11 +4533,7 @@ class HeartSimpleApp(ctk.CTk):
             font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
             corner_radius=6,
             command=self._install_apk_dialog
-        ).pack(side="left", padx=(2, 0))
-
-        # Deck Row 2: Live Mirror Controls & Autonomous Agents
-        row2 = ctk.CTkFrame(deck, fg_color="transparent", height=30)
-        row2.pack(fill="x", padx=8, pady=(2, 6))
+        ).pack(side="left", padx=2)
 
         self.stream_btn = ctk.CTkButton(
             row2,
@@ -4554,51 +4615,6 @@ class HeartSimpleApp(ctk.CTk):
             command=self._toggle_auto_pilot
         )
         self.phone_auto_pilot_btn.pack(side="right", padx=2)
-
-        # Real-time E2E Pipeline Status HUD
-        self.pipeline_hud = ctk.CTkFrame(
-            parent,
-            fg_color=THEME["bg_box"],
-            corner_radius=8,
-            border_width=1,
-            border_color=THEME["border"],
-            height=32
-        )
-        self.pipeline_hud.pack(fill="x", padx=10, pady=(0, 6))
-        self.pipeline_hud.pack_propagate(False)
-
-        self.pipe_phase_lbl = ctk.CTkLabel(
-            self.pipeline_hud,
-            text="PIPELINE READY",
-            font=ctk.CTkFont(family="Segoe UI", size=8, weight="bold"),
-            fg_color=THEME["primary_light"],
-            text_color=THEME["primary"],
-            corner_radius=4,
-            padx=6,
-            pady=2
-        )
-        self.pipe_phase_lbl.pack(side="left", padx=(8, 6), pady=4)
-
-        self.pipe_detail_lbl = ctk.CTkLabel(
-            self.pipeline_hud,
-            text="Click '🚀 Run E2E Pipeline' to test app resilience under chaos.",
-            font=ctk.CTkFont(family="Segoe UI", size=9),
-            text_color=THEME["text_body"],
-            anchor="w"
-        )
-        self.pipe_detail_lbl.pack(side="left", fill="x", expand=True, padx=(0, 6), pady=4)
-
-        self.pipe_kpi_lbl = ctk.CTkLabel(
-            self.pipeline_hud,
-            text="0/5 Phases",
-            font=ctk.CTkFont(family="Consolas", size=9, weight="bold"),
-            fg_color="#ffffff",
-            text_color=THEME["primary"],
-            corner_radius=4,
-            padx=6,
-            pady=2
-        )
-        self.pipe_kpi_lbl.pack(side="right", padx=(0, 8), pady=4)
 
         # 2. Centered Phone Assembly with Sleek Hardware Side Buttons
         chassis_assembly = ctk.CTkFrame(parent, fg_color="transparent")

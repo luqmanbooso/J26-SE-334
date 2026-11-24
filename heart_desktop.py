@@ -1,7 +1,7 @@
 """
 HEART Desktop Studio - Main Application Launcher
 Enables running via: python heart_desktop.py
-Seamlessly forwards execution to heart_desktop_app.py.
+Forwards execution to heart_desktop_app.py, the one desktop application.
 """
 
 import sys

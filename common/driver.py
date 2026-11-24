@@ -175,7 +175,8 @@ class CommonTestDriver:
                 raw_hierarchy=raw_xml,
                 screen_id=step_id,
                 action_context=action_desc,
-                enable_sahi=True,
+                action_id=step_id,  # lets C3 hand a finding to C4 as reproducible
+                enable_sahi=False,  # tiles flagged 29/29 clean validation screens (C3 audit 2026-10-21)
                 session_id=session_id,
             )
 

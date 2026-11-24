@@ -1,0 +1,64 @@
+[
+ {
+  "image": "10017_v3_overlap.jpg",
+  "layout": "10017_v3_overlap_layout.json",
+  "expected": "component_overlap",
+  "gold_box": [
+   779,
+   39,
+   923,
+   1000
+  ],
+  "note": "synthetic defect; layout is the original screen's"
+ },
+ {
+  "image": "10029_v3_truncation.jpg",
+  "layout": "10029_v3_truncation_layout.json",
+  "expected": "text_truncation",
+  "gold_box": [
+   462,
+   196,
+   530,
+   804
+  ],
+  "note": "synthetic defect; layout is the original screen's"
+ },
+ {
+  "image": "10422_v3_missing.jpg",
+  "layout": "10422_v3_missing_layout.json",
+  "expected": "missing_component",
+  "gold_box": [
+   561,
+   59,
+   617,
+   941
+  ],
+  "note": "synthetic defect; layout is the original screen's"
+ },
+ {
+  "image": "10167_v3_null.jpg",
+  "layout": "10167_v3_null_layout.json",
+  "expected": "data_binding_null",
+  "gold_box": [
+   33,
+   130,
+   104,
+   744
+  ],
+  "note": "synthetic defect; layout is the original screen's"
+ },
+ {
+  "image": "10036.jpg",
+  "layout": "10036_layout.json",
+  "expected": "none",
+  "gold_box": null,
+  "note": "clean screen"
+ },
+ {
+  "image": "10182.jpg",
+  "layout": "10182_layout.json",
+  "expected": "none",
+  "gold_box": null,
+  "note": "clean screen"
+ }
+]

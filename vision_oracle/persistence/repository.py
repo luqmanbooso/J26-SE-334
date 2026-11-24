@@ -136,7 +136,7 @@ class OracleRepository:
         """Retrieves all captures belonging to a session in chronological order."""
         conn = self.db.get_connection()
         cur = conn.execute(
-            "SELECT * FROM captures WHERE session_id = ? ORDER BY created_at ASC;",
+            "SELECT * FROM captures WHERE session_id = ? ORDER BY created_at ASC, rowid ASC;",
             (session_id,),
         )
         rows = cur.fetchall()
@@ -147,12 +147,12 @@ class OracleRepository:
         conn = self.db.get_connection()
         if session_id:
             cur = conn.execute(
-                "SELECT * FROM captures WHERE action_id = ? AND session_id = ? ORDER BY created_at DESC LIMIT 1;",
+                "SELECT * FROM captures WHERE action_id = ? AND session_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1;",
                 (action_id, session_id),
             )
         else:
             cur = conn.execute(
-                "SELECT * FROM captures WHERE action_id = ? ORDER BY created_at DESC LIMIT 1;",
+                "SELECT * FROM captures WHERE action_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1;",
                 (action_id,),
             )
         row = cur.fetchone()
@@ -256,7 +256,7 @@ class OracleRepository:
     def get_job_by_capture(self, capture_id: str) -> Optional[Dict[str, Any]]:
         """Retrieves most recent job associated with a capture ID."""
         conn = self.db.get_connection()
-        cur = conn.execute("SELECT * FROM jobs WHERE capture_id = ? ORDER BY created_at DESC LIMIT 1;", (capture_id,))
+        cur = conn.execute("SELECT * FROM jobs WHERE capture_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1;", (capture_id,))
         row = cur.fetchone()
         if not row:
             return None
@@ -265,14 +265,14 @@ class OracleRepository:
     def list_capture_jobs(self, capture_id: str) -> List[Dict[str, Any]]:
         """Retrieves all jobs associated with a capture ID."""
         conn = self.db.get_connection()
-        cur = conn.execute("SELECT * FROM jobs WHERE capture_id = ? ORDER BY created_at ASC;", (capture_id,))
+        cur = conn.execute("SELECT * FROM jobs WHERE capture_id = ? ORDER BY created_at ASC, rowid ASC;", (capture_id,))
         rows = cur.fetchall()
         return [dict(r) for r in rows]
 
     def list_recent_jobs(self, limit: int = 10) -> List[Dict[str, Any]]:
         """Retrieves most recent jobs ordered by creation timestamp."""
         conn = self.db.get_connection()
-        cur = conn.execute("SELECT * FROM jobs ORDER BY created_at DESC LIMIT ?;", (limit,))
+        cur = conn.execute("SELECT * FROM jobs ORDER BY created_at DESC, rowid DESC LIMIT ?;", (limit,))
         return [dict(r) for r in cur.fetchall()]
 
 
@@ -452,7 +452,7 @@ class OracleRepository:
         """Retrieves all verdicts belonging to a testing session in reverse chronological order."""
         conn = self.db.get_connection()
         cur = conn.execute(
-            "SELECT verdict_id FROM verdicts WHERE session_id = ? ORDER BY created_at DESC;",
+            "SELECT verdict_id FROM verdicts WHERE session_id = ? ORDER BY created_at DESC, rowid DESC;",
             (session_id,),
         )
         rows = cur.fetchall()
@@ -466,7 +466,7 @@ class OracleRepository:
     def list_recent_verdicts(self, limit: int = 50) -> List[VerdictEnvelopeV2]:
         """Retrieves most recent verdicts across all sessions."""
         conn = self.db.get_connection()
-        cur = conn.execute("SELECT verdict_id FROM verdicts ORDER BY created_at DESC LIMIT ?;", (limit,))
+        cur = conn.execute("SELECT verdict_id FROM verdicts ORDER BY created_at DESC, rowid DESC LIMIT ?;", (limit,))
         rows = cur.fetchall()
         results: List[VerdictEnvelopeV2] = []
         for r in rows:

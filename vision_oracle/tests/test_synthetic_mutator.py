@@ -104,6 +104,11 @@ def test_mutate_component_overlap(mock_screen_image: Path, mock_rico_hierarchy: 
 
 
 def test_mutate_text_truncation(mock_screen_image: Path, mock_rico_hierarchy: Path):
+    # Truncation cuts rendered text, so the screen needs a text line inside the description element.
+    from PIL import ImageDraw
+    img = Image.open(mock_screen_image).convert("RGB")
+    ImageDraw.Draw(img).rectangle([120, 500, 700, 540], fill=(30, 30, 30))
+    img.save(mock_screen_image)
     mutator = SyntheticMutator(seed=42)
     res = mutator.mutate(mock_screen_image, mock_rico_hierarchy, mutation_type="truncation")
     assert res is not None
@@ -142,3 +147,23 @@ def test_compiled_sample_to_sharegpt():
     assert ans["has_defect"] is True
     assert ans["bounding_box"] == [100, 100, 500, 500]
     assert sg["images"] == ["dataset/clean/test_001.jpg"]
+
+
+def test_truncation_cuts_inside_rendered_text_and_boxes_the_text_line():
+    """The element box is much wider than its text; the cut must land inside the text, not in empty space."""
+    from PIL import ImageDraw
+    img = Image.new("RGB", (540, 960), (250, 250, 250))
+    ImageDraw.Draw(img).rectangle([20, 300, 300, 322], fill=(20, 20, 20))  # stands in for a text line
+    node = UINode(class_name="TextView", resource_id="t", bounds=(0, 290, 540, 335), text="A long article title", clickable=False)
+    res = SyntheticMutator(seed=1).mutate_text_truncation(img, [node], "s", {})
+    assert res is not None
+    ymin, xmin, ymax, xmax = res.bounding_box
+    assert 20 / 540 * 1000 - 5 <= xmin and xmax <= 300 / 540 * 1000 + 15  # box hugs the text, not the 540 px element
+    before = list(img.convert("L").getdata()); after = list(res.image.convert("L").getdata())
+    assert sum(a != b for a, b in zip(before, after)) > 200  # a visible part of the text was removed
+
+
+def test_truncation_skips_elements_without_plain_text():
+    img = Image.new("RGB", (540, 960), (250, 250, 250))  # nothing rendered inside the element
+    node = UINode(class_name="TextView", resource_id="t", bounds=(0, 290, 540, 335), text="A long article title", clickable=False)
+    assert SyntheticMutator(seed=1).mutate_text_truncation(img, [node], "s", {}) is None

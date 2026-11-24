@@ -6,7 +6,11 @@ Grounded in Proposal FR3, FR4, FR7 and CLAIM-01, CLAIM-02.
 """
 
 import time
+import json
+import re
+import math
 import hashlib
+import logging
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from pathlib import Path
@@ -23,6 +27,8 @@ from local_vision_oracle.pruner import HierarchyPruner, PrunedNode
 from local_vision_oracle.preprocessor import ImagePreprocessor, PreprocessedImage
 from local_vision_oracle.prompt import PromptBuilder, VerdictParser, ORACLE_SYSTEM_PROMPT
 from local_vision_oracle.freeze_detector import TemporalFreezeDetector
+
+logger = logging.getLogger(__name__)
 
 
 class InferenceBackend(ABC):
@@ -86,6 +92,79 @@ class MockInferenceBackend(InferenceBackend):
         return self.default_response
 
 
+INFERENCE_CONTRACT_FILE = "inference_contract.json"
+VERDICT_PREFIX = '{"has_defect":'
+BOX_FIELD = re.compile(r'"bounding_box":\s*(\[[^\]]*\]|null)')
+
+
+def load_inference_contract(adapter_dir: Optional[str]) -> Optional[Dict[str, Any]]:
+    """Read the prompt/resolution contract an adapter was trained with.
+
+    A LoRA adapter only behaves as trained when it receives the same prompt
+    text and image resolution it saw during fine-tuning. Each adapter folder
+    therefore ships ``inference_contract.json``:
+
+        {"user_prompt": str, "system_prompt": str | null, "image_max_pixels": int}
+
+    ``system_prompt: null`` means the Qwen2-VL default system message, which is
+    what LLaMA-Factory's ``qwen2_vl`` template applies during training.
+    """
+    if not adapter_dir:
+        return None
+    path = Path(adapter_dir) / INFERENCE_CONTRACT_FILE
+    if not path.exists():
+        return None
+    contract = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(contract.get("user_prompt"), str) or not contract["user_prompt"].strip():
+        raise ValueError(f"{path} must define a non-empty 'user_prompt'")
+    pixels = contract.get("image_max_pixels")
+    if not isinstance(pixels, int) or pixels <= 0:
+        raise ValueError(f"{path} must define a positive integer 'image_max_pixels'")
+    hierarchy_prompt = contract.get("hierarchy_prompt")
+    if hierarchy_prompt is not None and (not isinstance(hierarchy_prompt, str) or "{hierarchy}" not in hierarchy_prompt):
+        raise ValueError(f"{path} 'hierarchy_prompt' must contain the literal placeholder {{hierarchy}}")
+    return contract
+
+
+def contract_uses_hierarchy(contract: Optional[Dict[str, Any]]) -> bool:
+    """True when the adapter was trained with hierarchy text in its prompt."""
+    return bool(contract and contract.get("hierarchy_prompt"))
+
+
+def contract_prompt_text(contract: Dict[str, Any], hierarchy_text: Optional[str] = None) -> str:
+    """The exact user text the adapter was trained on.
+
+    A fusion adapter has two trained prompts: ``hierarchy_prompt`` (contains the
+    literal ``{hierarchy}`` placeholder) for screens with a layout file, and
+    ``user_prompt`` for screens without one. ``str.replace`` is used because the
+    prompts contain JSON braces.
+    """
+    if hierarchy_text and contract_uses_hierarchy(contract):
+        return contract["hierarchy_prompt"].replace("{hierarchy}", hierarchy_text)
+    return contract["user_prompt"]
+
+
+def contract_messages(contract: Dict[str, Any], hierarchy_text: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Chat messages that reproduce the adapter's training prompt exactly."""
+    messages: List[Dict[str, Any]] = []
+    if contract.get("system_prompt"):
+        messages.append({"role": "system", "content": contract["system_prompt"]})
+    messages.append({"role": "user", "content": [
+        {"type": "image"},
+        {"type": "text", "text": contract_prompt_text(contract, hierarchy_text)},
+    ]})
+    return messages
+
+
+def resize_to_max_pixels(image: Image.Image, max_pixels: int) -> Image.Image:
+    """LLaMA-Factory's image_max_pixels rule: scale area down, keep aspect ratio."""
+    w, h = image.size
+    if w * h <= max_pixels:
+        return image.copy()
+    factor = math.sqrt(max_pixels / (w * h))
+    return image.resize((int(w * factor), int(h * factor)))
+
+
 class TransformersInferenceBackend(InferenceBackend):
     """
     Local edge inference using HuggingFace Transformers / AutoModelForVision2Seq.
@@ -108,6 +187,9 @@ class TransformersInferenceBackend(InferenceBackend):
         self.torch_dtype = torch_dtype
         self.model = None
         self.processor = None
+        self.inference_contract = load_inference_contract(adapter_dir)
+        # Facts about the most recent generate() call, read by the pipeline for reporting.
+        self.last_call: Dict[str, Any] = {}
 
         if not lazy_load:
             self._load_model()
@@ -132,13 +214,16 @@ class TransformersInferenceBackend(InferenceBackend):
                 load_in_4bit=True,
                 bnb_4bit_quant_type="nf4",
                 bnb_4bit_compute_dtype=torch.float16,
-                llm_int8_enable_fp32_cpu_offload=True,
             )
+            # The 4-bit 2B model needs ~1.7 GB; pin it fully to the GPU. The old
+            # device_map="auto" + fp32 CPU offload silently moved layers to the
+            # CPU and made a single screen take minutes.
             self.model = Qwen2VLForConditionalGeneration.from_pretrained(
                 self.model_name_or_path,
                 local_files_only=True,
                 quantization_config=bnb_config,
-                device_map="auto",
+                device_map={"": 0},
+                torch_dtype=torch.float16,
             )
         else:
             self.model = Qwen2VLForConditionalGeneration.from_pretrained(
@@ -153,57 +238,153 @@ class TransformersInferenceBackend(InferenceBackend):
         if self.adapter_dir:
             from peft import PeftModel
             self.model = PeftModel.from_pretrained(self.model, self.adapter_dir, local_files_only=True)
-            self.model.eval()
+        self.model.eval()
+
+    def unload(self) -> None:
+        """Drop the model and processor and give the GPU memory back (used when another adapter is chosen)."""
+        self.model = None
+        self.processor = None
+        _release_cuda_cache()
 
     def generate(
         self,
         messages: List[Dict[str, Any]],
         image: Image.Image,
-        max_new_tokens: int = 96,
-        temperature: float = 0.01,
+        max_new_tokens: int = 256,
+        temperature: float = 0.0,
+        hierarchy_text: Optional[str] = None,
         **kwargs: Any,
     ) -> str:
         self._load_model()
-        import torch
 
-        # Ensure image is constrained to prevent VRAM thrashing
-        img_eval = image.copy()
-        img_eval.thumbnail((720, 1280), Image.Resampling.LANCZOS)
-
-        if self.adapter_dir:
-            clean_prompt = (
-                "<|im_start|>user\n"
-                "<|vision_start|><|image_pad|><|vision_end|>"
-                "Analyze this mobile screen for non-crash visual and semantic defects.\n\n"
-                "Return the verdict in the specified JSON format.<|im_end|>\n"
-                "<|im_start|>assistant\n"
-            )
-            inputs = self.processor(
-                text=[clean_prompt],
-                images=[img_eval],
-                return_tensors="pt",
-            )
+        contract = self.inference_contract
+        used_hierarchy = False
+        if contract:
+            # Trained adapter: the prompt and resolution are part of the model.
+            # Any other prompt is out of distribution and degrades it towards the
+            # base model, so the caller's messages are replaced by the contract.
+            img_eval = resize_to_max_pixels(image, contract["image_max_pixels"])
+            used_hierarchy = bool(hierarchy_text) and contract_uses_hierarchy(contract)
+            messages = contract_messages(contract, hierarchy_text)
         else:
-            text_prompt = self.processor.apply_chat_template(
-                messages, tokenize=False, add_generation_prompt=True
-            )
-            inputs = self.processor(
-                text=[text_prompt],
-                images=[img_eval],
-                padding=True,
-                return_tensors="pt",
-            )
+            # Base model / adapter without a contract: keep caller messages and
+            # constrain resolution to prevent VRAM thrashing.
+            img_eval = image.copy()
+            img_eval.thumbnail((720, 1280), Image.Resampling.LANCZOS)
 
+        self.last_call = {
+            "model_input": "screenshot+hierarchy" if used_hierarchy else "screenshot",
+            "defect_probability": None,
+            "decision_threshold": (contract or {}).get("decision_threshold"),
+            "verdict_ms": None,
+            "localization_ms": None,
+        }
+        text_prompt = self.processor.apply_chat_template(
+            messages, tokenize=False, add_generation_prompt=True
+        )
+
+        threshold = (contract or {}).get("decision_threshold")
+        if threshold is None:
+            tick = time.perf_counter()
+            out = self._decode(text_prompt, img_eval, max_new_tokens, temperature)
+            self.last_call["verdict_ms"] = round((time.perf_counter() - tick) * 1000, 1)
+            return out
+
+        # Thresholded decision: the verdict is the single token after '{"has_defect":'.
+        # Its probability is a real (uncalibrated) confidence, and the threshold was
+        # chosen on the validation split, never on test data.
+        tick = time.perf_counter()
+        p_defect = self._defect_probability_from_prompt(text_prompt, img_eval)
+        self.last_call["verdict_ms"] = round((time.perf_counter() - tick) * 1000, 1)
+        self.last_call["defect_probability"] = round(p_defect, 4)
+        if p_defect < float(threshold):
+            return json.dumps({"has_defect": False, "defect_type": "none", "bounding_box": None,
+                               "defect_probability": round(p_defect, 4)})
+        prefix = VERDICT_PREFIX + " true,"
+        stop = bool((contract or {}).get("stop_after_bounding_box", True))
+        tick = time.perf_counter()
+        tail = self._decode(text_prompt + prefix, img_eval, max_new_tokens, temperature, stop_after_box=stop)
+        self.last_call["localization_ms"] = round((time.perf_counter() - tick) * 1000, 1)
+        raw = prefix + tail
+        if stop:
+            # Fields after the box (element id, free-text explanation) are not used by the
+            # verdict and dominate decoding time; greedy decoding leaves earlier fields unchanged.
+            match = BOX_FIELD.search(raw)
+            if match:
+                raw = raw[: match.end()] + "}"
+        try:
+            obj = json.loads(raw[: raw.rindex("}") + 1])
+            obj["confidence"] = round(p_defect, 4)
+            obj["defect_probability"] = round(p_defect, 4)
+            return json.dumps(obj)
+        except (ValueError, json.JSONDecodeError):
+            return raw
+
+    def defect_probability(self, image: Image.Image, messages: Optional[List[Dict[str, Any]]] = None,
+                           hierarchy_text: Optional[str] = None) -> float:
+        """P(has_defect = true) from one forward pass, using the adapter's contract prompt."""
+        self._load_model()
+        contract = self.inference_contract
+        if contract:
+            img_eval = resize_to_max_pixels(image, contract["image_max_pixels"])
+            messages = contract_messages(contract, hierarchy_text)
+        else:
+            if messages is None:
+                raise ValueError("messages are required when the backend has no inference contract")
+            img_eval = image.copy()
+            img_eval.thumbnail((720, 1280), Image.Resampling.LANCZOS)
+        text_prompt = self.processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        return self._defect_probability_from_prompt(text_prompt, img_eval)
+
+    def _inputs(self, text_prompt: str, img_eval: Image.Image):
+        inputs = self.processor(text=[text_prompt], images=[img_eval], padding=True, return_tensors="pt")
         if hasattr(self.model, "device"):
             inputs = inputs.to(self.model.device)
+        return inputs
 
+    def _defect_probability_from_prompt(self, text_prompt: str, img_eval: Image.Image) -> float:
+        import torch
+
+        tokenizer = self.processor.tokenizer
+        true_id = tokenizer(" true", add_special_tokens=False).input_ids
+        false_id = tokenizer(" false", add_special_tokens=False).input_ids
+        if len(true_id) != 1 or len(false_id) != 1:
+            raise RuntimeError("Tokenizer does not encode ' true'/' false' as single tokens")
+        inputs = self._inputs(text_prompt + VERDICT_PREFIX, img_eval)
+        with torch.no_grad():
+            logits = self.model(**inputs).logits[0, -1]
+        pair = torch.stack([logits[true_id[0]], logits[false_id[0]]]).float()
+        return float(torch.softmax(pair, dim=0)[0])
+
+    def _decode(self, text_prompt: str, img_eval: Image.Image, max_new_tokens: int, temperature: float,
+                stop_after_box: bool = False) -> str:
+        import torch
+
+        inputs = self._inputs(text_prompt, img_eval)
+        generation_options = {
+            "max_new_tokens": max_new_tokens,
+            "do_sample": temperature > 0.0,
+        }
+        if stop_after_box:
+            from transformers import StoppingCriteria, StoppingCriteriaList
+
+            tokenizer = self.processor.tokenizer
+            start = inputs.input_ids.shape[1]
+
+            class _BoxComplete(StoppingCriteria):
+                def __call__(self, input_ids, scores, **kwargs):
+                    text = tokenizer.decode(input_ids[0, start:], skip_special_tokens=True)
+                    done = BOX_FIELD.search('"' + text) is not None
+                    return torch.full((input_ids.shape[0],), done, dtype=torch.bool, device=input_ids.device)
+
+            generation_options["stopping_criteria"] = StoppingCriteriaList([_BoxComplete()])
+        if temperature > 0.0:
+            generation_options["temperature"] = temperature
 
         with torch.no_grad():
             generated_ids = self.model.generate(
                 **inputs,
-                max_new_tokens=max_new_tokens,
-                do_sample=(temperature > 0.0),
-                temperature=temperature if temperature > 0.0 else None,
+                **generation_options,
             )
 
         trimmed_ids = [
@@ -214,6 +395,22 @@ class TransformersInferenceBackend(InferenceBackend):
             trimmed_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False
         )[0]
         return response_text
+
+
+
+def _is_cuda_oom(err: Exception) -> bool:
+    return err.__class__.__name__ == "OutOfMemoryError" or "out of memory" in str(err).lower()
+
+
+def _release_cuda_cache() -> None:
+    import gc
+    gc.collect()
+    try:
+        import torch
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+    except Exception:
+        pass
 
 
 class OracleEngine:
@@ -229,8 +426,13 @@ class OracleEngine:
         preprocessor: Optional[ImagePreprocessor] = None,
         prompt_builder: Optional[PromptBuilder] = None,
         freeze_detector: Optional[TemporalFreezeDetector] = None,
-        engine_descriptor: str = "qwen2-vl-awq-4bit",
+        engine_descriptor: str = "qwen2-vl-2b-nf4-lora",
+        ast_triage_verdict: bool = False,
     ):
+        # ast_triage_verdict: if True, a layout-bounds collision is returned as a defect without
+        # running the model. Off by default: measured on 400 clean Rico screens (2026-10-21) the
+        # rule fires on 17% (designed overlays, drawers), so it is recorded as evidence only.
+        self.ast_triage_verdict = ast_triage_verdict
         self.backend = backend or MockInferenceBackend()
         self.pruner = pruner or HierarchyPruner()
         self.preprocessor = preprocessor or ImagePreprocessor()
@@ -342,8 +544,10 @@ class OracleEngine:
         t_prune_end = time.perf_counter()
         prune_ms = round((t_prune_end - t_prune_start) * 1000.0, 2)
 
-        # If deterministic collision found in DOM, emit immediate verdict (<15ms)
         if collisions:
+            run_metadata["layout_collisions"] = collisions[:5]
+        # Optional (off by default): deterministic collision short-circuits the model.
+        if collisions and self.ast_triage_verdict:
             top_col = collisions[0]
             verdict = Verdict(
                 has_defect=True,
@@ -386,10 +590,16 @@ class OracleEngine:
 
         # Stage 4: Global Inference Execution
         t_inf_start = time.perf_counter()
-        raw_output = self.backend.generate(
-            messages=messages,
-            image=preprocessed.image,
-        )
+        try:
+            raw_output = self.backend.generate(
+                messages=messages,
+                image=preprocessed.image,
+            )
+        except Exception as inf_err:
+            if _is_cuda_oom(inf_err):
+                logger.error("CUDA OutOfMemoryError during global inference pass: %s", inf_err)
+                _release_cuda_cache()
+            raise
         t_inf_end = time.perf_counter()
         inference_ms = round((t_inf_end - t_inf_start) * 1000.0, 2)
 
@@ -402,20 +612,36 @@ class OracleEngine:
             if len(slices) > 1:
                 detected_slice_verdicts = []
                 for current_slice in slices:
-                    slice_prep = self.preprocessor.preprocess(current_slice.image)
-                    slice_msgs = self.prompt_builder.build_qwen_chat_input(
-                        image_content=slice_prep.image,
-                        pruned_nodes=None,
-                        metadata={"viewport_slice_index": current_slice.slice_index},
-                    )
-                    t_slice_start = time.perf_counter()
-                    slice_raw = self.backend.generate(messages=slice_msgs, image=slice_prep.image)
-                    t_slice_end = time.perf_counter()
-                    inference_ms += round((t_slice_end - t_slice_start) * 1000.0, 2)
-                    sv = VerdictParser.parse(slice_raw)
-                    if sv.has_defect:
-                        global_bbox = current_slice.map_bbox_to_global(sv.bounding_box)
-                        detected_slice_verdicts.append((current_slice, sv, global_bbox))
+                    try:
+                        slice_prep = self.preprocessor.preprocess(current_slice.image)
+                        slice_msgs = self.prompt_builder.build_qwen_chat_input(
+                            image_content=slice_prep.image,
+                            pruned_nodes=None,
+                            metadata={"viewport_slice_index": current_slice.slice_index},
+                        )
+                        t_slice_start = time.perf_counter()
+                        slice_raw = self.backend.generate(messages=slice_msgs, image=slice_prep.image)
+                        t_slice_end = time.perf_counter()
+                        inference_ms += round((t_slice_end - t_slice_start) * 1000.0, 2)
+                        sv = VerdictParser.parse(slice_raw)
+                        if sv.has_defect:
+                            global_bbox = current_slice.map_bbox_to_global(sv.bounding_box)
+                            detected_slice_verdicts.append((current_slice, sv, global_bbox))
+                    except Exception as slice_err:
+                        if not _is_cuda_oom(slice_err):
+                            raise
+                        # Keep the global verdict and any tile findings already collected.
+                        logger.warning(
+                            "CUDA OutOfMemoryError during SAHI slice %d. Reclaiming VRAM and "
+                            "stopping tile passes (falling back to the global verdict).",
+                            current_slice.slice_index,
+                        )
+                        run_metadata["sahi_oom_recovered"] = True
+                        _release_cuda_cache()
+                        break
+                    finally:
+                        slice_prep = slice_msgs = slice_raw = None
+                        _release_cuda_cache()
 
                 if detected_slice_verdicts:
                     primary_slice, primary_sv, primary_bbox = detected_slice_verdicts[0]

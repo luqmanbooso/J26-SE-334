@@ -157,7 +157,7 @@ class AppExplorer:
                  min_side=20.0, max_frac=0.95, ready_tries=12, ready_interval=1.0,
                  stable_tries=3, stable_interval=0.4, dump_retries=3,
                  type_text=None, fill_forms=False,
-                 confirm_stay=False, stay_grace_s=None, fingerprint=None):
+                 confirm_stay=False, stay_grace_s=None, fingerprint=None, activity=None):
         # max_actions / max_depth default to None = unlimited: the walk runs
         # until the reachable app is exhausted. Termination holds on a finite
         # app regardless — each (screen, target) is tapped once and exhausted
@@ -219,6 +219,11 @@ class AppExplorer:
         # once per screen so replay can verify it is on the right screen without
         # a full dump. `_plan` is the ordered device-action stream.
         self.fingerprint = fingerprint
+        # `activity()` returns the current 'pkg/Activity' (see bridge.device
+        # .foreground_activity). Recorded per tap so replay can verify the screen by
+        # activity name — robust and pixel-free, unlike the screenshot fingerprint,
+        # which is unreliable on photo-heavy screens (and a stuck shade corrupts).
+        self.activity = activity
         self._plan = []               # ordered actions: tap / back / relaunch / settext
         self._fingerprints = {}       # frame -> fingerprint string
 
@@ -234,6 +239,15 @@ class AppExplorer:
             return None
         try:
             return self.fingerprint() or None
+        except Exception:
+            return None
+
+    def _activity_now(self):
+        """Current 'pkg/Activity' for per-step replay verification (None if n/a)."""
+        if self.activity is None:
+            return None
+        try:
+            return self.activity() or None
         except Exception:
             return None
 
@@ -520,7 +534,8 @@ class AppExplorer:
                 # verify tab/chip-swap states that share a structural signature.
                 self._record("tap", screen_sig=frame,
                              label=(nxt.element_id or nxt.resource_id or "?")[:60],
-                             target=nxt.as_target(), fp=self._fp_now())
+                             target=nxt.as_target(), fp=self._fp_now(),
+                             activity=self._activity_now())
                 record = self.controller.act(nxt.as_target())
                 self.actions_used += 1
                 index = self.actions_used - 1
@@ -627,7 +642,8 @@ class AppExplorer:
             if element is None:
                 return None
             self._record("tap", label=(element.element_id or "?")[:60],
-                         target=element.as_target(), fp=self._fp_now())
+                         target=element.as_target(), fp=self._fp_now(),
+                         activity=self._activity_now())
             self.controller.act(element.as_target())
             self.actions_used += 1
             self.sleep(self.settle_s)
