@@ -282,7 +282,7 @@ The C1 microservice exposes clean REST endpoints for remote test automation, CI/
 
 ### 4. Causal Failure Attribution
 - **Method**: `POST`
-- **Endpoint**: `/api/attribution/analyze`
+- **Endpoint**: `/api/perturbation/attribution` (and `/api/attribution/export_c4_seed` for C4 handover seeds)
 - **Request Body**:
 ```json
 {
@@ -298,7 +298,7 @@ The C1 microservice exposes clean REST endpoints for remote test automation, CI/
 
 The project enforces quality and test validation through GitHub Actions:
 - **Linting & Syntax**: `flake8` audit and `py_compile` across all Python entry points.
-- **Unit & Integration Tests**: 57 automated tests covering network chaos injection, stressor resets, and failure attribution algorithms.
+- **Unit & Integration Tests**: 64 automated C1 tests (`env testing/`) covering network chaos injection, stressor resets, and failure attribution algorithms, plus 18 shared ADB unit tests (`tests/test_common_adb.py`).
 - **RQ1 Empirical Verification**: Validates statistical significance of non-crash defect discovery under compound environmental chaos.
 
 Run tests locally:
@@ -311,13 +311,13 @@ pytest tests/ -v
 
 ## 📦 Postman Collections
 
-Pre-configured Postman collections are included in `postman/`:
-1. Import `postman/HEART_C1_Perturbation_Engine.postman_collection.json`.
-2. Set `baseUrl` variable to `http://127.0.0.1:8001`.
+Pre-configured Postman collections are included in `postman/` and `env testing/`:
+1. Import `postman/collections/HEART - Environmental Perturbation Engine REST API/` (or `env testing/HEART_API_Collection.postman_collection.json`).
+2. Set `baseUrl` variable to `http://127.0.0.1:8001` (or `http://127.0.0.1:8000` when running `verify_api_live.py`).
 3. Execute the collection:
    - `GET /api/status`
    - `POST /api/perturbation/apply`
-   - `POST /api/attribution/analyze`
+   - `POST /api/perturbation/attribution`
    - `POST /api/perturbation/reset`
 
 ---

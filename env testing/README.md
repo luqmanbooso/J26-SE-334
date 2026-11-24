@@ -100,7 +100,13 @@ Full empirical metrics saved in `results/experiment_results.json`.
 ```bash
 cd "env testing"
 pytest tests/ -v
-# Output: 7 passed in 0.13s (100% pass)
+# Output: 64 passed (100% pass)
+```
+
+### 2. Run Multi-App Empirical Corpus Benchmark (Live AVD)
+```bash
+python run_corpus_benchmark.py
+# Exports results/corpus_benchmark_results.json, test_findings_report.json, and test_findings_report.md
 ```
 
 ### 2. Generate Publication Figures for Research Paper

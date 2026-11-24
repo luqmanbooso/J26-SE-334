@@ -74,7 +74,7 @@ jobs:
   # STAGE 2: AUTOMATED TEST SUITE & EMPIRICAL RQ1 VALIDATION
   # =========================================================================
   automated-tests:
-    name: 🧪 Automated Test Suite (57 Tests & RQ1 Verification)
+    name: 🧪 Automated Test Suite (64+ Tests & RQ1 Verification)
     runs-on: ubuntu-latest
     needs: quality-check
     steps:
