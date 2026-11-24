@@ -219,8 +219,86 @@ def run_corpus_evaluation(trials_per_regime: int = 5, max_apps: int = 10) -> Dic
     with open(os.path.join(base_dir, "test_findings_report.json"), "w", encoding="utf-8") as f:
         json.dump(findings_doc, f, indent=2)
 
+    write_findings_markdown(
+        findings_doc=findings_doc,
+        corpus_out=corpus_out,
+        md_path=os.path.join(base_dir, "test_findings_report.md"),
+    )
+
     print(f"[+] Corpus evaluation saved to {corpus_path}")
     return corpus_out
+
+
+def write_findings_markdown(
+    findings_doc: Dict[str, Any],
+    corpus_out: Optional[Dict[str, Any]],
+    md_path: str,
+) -> None:
+    """Exports a Markdown report kept strictly synchronized with test_findings_report.json."""
+    meta = findings_doc.get("project_metadata", {})
+    dev = meta.get("target_device", {})
+    kpi = findings_doc.get("kpi_benchmarks", {})
+    attr = findings_doc.get("attribution_summary", {})
+    attributions = attr.get("attributions", [])
+
+    lines = [
+        "# HEART Environmental Mobile Testing — Findings & Root-Cause Attribution Report",
+        "",
+        f"**Generated:** {meta.get('export_timestamp', '')}  ",
+        f"**Target Package:** `{dev.get('active_package', 'unknown')}`  ",
+        f"**Target Device:** {dev.get('model', 'Simulated')} (`{dev.get('device_id', 'simulated')}`) — {dev.get('type', 'Simulated')}",
+        "",
+        "## 1. Executive Summary & Pipeline Latency Benchmarks",
+        "",
+        f"- **Total Perturbation Events Injected:** {kpi.get('total_perturbations_recorded', 0)}",
+        f"- **Mean Recorded Cycle Latency:** {kpi.get('last_measured_latency_ms', 0)} ms",
+        f"- **Pipeline Latency Compliance (<100ms):** {'PASS' if kpi.get('rq1_compliant') else 'WARN (compound ADB sweep > 100ms budget)'}",
+        f"- **Total Failures Analyzed:** {attr.get('total_failures_analyzed', 0)}",
+        f"- **High-Confidence Attributions:** {attr.get('attributed_failures_count', 0)}",
+        "",
+        "## Visual Findings Dashboard & Empirical Charts",
+        "",
+        "![HEART Empirical Findings Dashboard](results/heart_findings_chart_report.png)",
+    ]
+
+    regimes = (corpus_out or {}).get("regimes", {})
+    if regimes:
+        lines.extend([
+            "",
+            "## 2. Live Corpus Evaluation Summary",
+            "",
+            f"Evaluated **{len((corpus_out or {}).get('packages', []))}** packages (`{(corpus_out or {}).get('mode', 'LIVE_DEVICE')}`).",
+            "",
+            "| Regime | Mean Latency (ms) | Mean FPS | Jank Drop (%) | Failure Rate (%) | Mann-Whitney p |",
+            "|---|---:|---:|---:|---:|---:|",
+        ])
+        for r_name, stats in regimes.items():
+            lines.append(
+                f"| `{r_name}` | {stats.get('mean_latency_ms', 0.0)} | {stats.get('mean_fps', 0.0)} | "
+                f"{stats.get('jank_frame_drop_pct', 0.0)}% | {stats.get('failure_rate_pct', 0.0)}% | "
+                f"{stats.get('p_value_mann_whitney', 1.0)} |"
+            )
+
+    lines.extend([
+        "",
+        "## 3. Root-Cause Failure Attribution Matrix",
+        "",
+    ])
+    if attributions:
+        lines.extend([
+            "| Failure ID | Type | Primary Environmental Trigger | Confidence |",
+            "|---|---|---|---:|",
+        ])
+        for a in attributions:
+            lines.append(
+                f"| `{a.get('failure_id')}` | `{a.get('failure_type')}` | `{a.get('primary_trigger')}` | "
+                f"{round(float(a.get('confidence', 0.0)) * 100)}% |"
+            )
+    else:
+        lines.append("No runtime crashes or ANRs were observed during this sweep.")
+
+    with open(md_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines) + "\n")
 
 
 if __name__ == "__main__":

@@ -1,45 +1,33 @@
 # HEART Environmental Mobile Testing — Findings & Root-Cause Attribution Report
 
-**Generated:** 2026-11-01T10:41:05Z  
+**Generated:** 2026-11-24T13:59:40Z  
 **Target Package:** `codes.swistak.batterymonitor`  
 **Target Device:** Pixel_9_Pro (`emulator-5554`) — Virtual AVD
 
 ## 1. Executive Summary & Pipeline Latency Benchmarks
 
-- **Total Perturbation Events Injected:** 17
-- **Last Action Latency:** 827.89 ms
-- **Pipeline Latency Compliance (<100ms):** ⚠️ WARN
-- **Total Failures Analyzed:** 1
-- **High-Confidence Attributions:** 1
+- **Total Perturbation Events Injected:** 558
+- **Mean Recorded Cycle Latency:** 485.22 ms
+- **Pipeline Latency Compliance (<100ms):** WARN (compound ADB sweep > 100ms budget)
+- **Total Failures Analyzed:** 0
+- **High-Confidence Attributions:** 0
 
 ## Visual Findings Dashboard & Empirical Charts
 
 ![HEART Empirical Findings Dashboard](results/heart_findings_chart_report.png)
 
-## 2. Root-Cause Failure Attribution Matrix
+## 2. Live Corpus Evaluation Summary
 
-| Failure ID | Type | Primary Environmental Trigger | Confidence | Impacted Module / Package |
-|---|---|---|---|---|
-| `EVAL_1793529665511` | `TIMEOUT` | `PACKET_LOSS_SIMULATED` | 94% | `codes.swistak.batterymonitor` |
+Evaluated **9** packages (`LIVE_DEVICE`).
 
+| Regime | Mean Latency (ms) | Mean FPS | Jank Drop (%) | Failure Rate (%) | Mann-Whitney p |
+|---|---:|---:|---:|---:|---:|
+| `1_BASELINE_NOMINAL` | 1242.23 | 43.34 | 27.96% | 0.0% | 1.0 |
+| `2_NETWORK_DEGRADATION` | 2226.81 | 48.8 | 20.52% | 0.0% | 0.422 |
+| `3_HARDWARE_STARVATION` | 1681.88 | 46.02 | 27.0% | 0.0% | 0.7328 |
+| `4_INTERRUPTION_BURST` | 1378.81 | 28.78 | 54.19% | 0.0% | 0.02986 |
+| `5_COMPOUND_MULTI_FACTOR` | 815.61 | 27.2 | 59.21% | 0.0% | 0.09359 |
 
-## 3. Detailed Root-Cause Analysis & Actionable Mitigations
+## 3. Root-Cause Failure Attribution Matrix
 
-### 1. Failure `EVAL_1793529665511` (TIMEOUT)
-- **Primary Stressor:** `PACKET_LOSS_SIMULATED` (Confidence: 94%)
-- **Compound Stress Factors:** SYSTEM_POWER:BATTERY_PRESSURE, SYSTEM_CPU:CPU_LOAD_INJECTED, SYSTEM_CPU:CPU_LOAD_INJECTED, NETWORK_THROTTLE:BANDWIDTH_PROFILE_SET, NETWORK_THROTTLE:BANDWIDTH_PROFILE_SET, NETWORK:STATE_TRANSITION, NETWORK:NETWORK_RESET_NOMINAL, NETWORK_LATENCY:LATENCY_INJECTED, NETWORK_LATENCY:LATENCY_INJECTED, NETWORK_PACKET_LOSS:PACKET_LOSS_SIMULATED, INTERRUPTION_CALL:INCOMING_CALL_RINGING, INTERRUPTION_SMS:SMS_NOTIFICATION_BANNER
-- **Root Cause Explanation:** Network failure directly triggered by PACKET_LOSS_SIMULATED (params: {'loss_pct': 40, 'strategy': 'BURST_DROP'}). App failed to recover gracefully.
-- **Recommended Developer Mitigation:** Audit error boundaries and add fallback UI indicators during environmental fluctuations.
-
-## 4. Downstream Subsystem Handover Payload
-
-```json
-{
-  "status": "READY_FOR_PIPELINE",
-  "detected_failures": 1,
-  "attributed_causes": 1,
-  "recommended_mitigations": [
-    "Audit error boundaries and add fallback UI indicators during environmental fluctuations."
-  ]
-}
-```
+No runtime crashes or ANRs were observed during this sweep.

@@ -20,6 +20,8 @@ Thumbs.db
 *.log
 /perturbation_event_log.json
 /environment_failure_attribution.json
+/emu_*.png
+/test.png
 /results/*
 !/results/*.py
 !/results/exp-02/

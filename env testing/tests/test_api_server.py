@@ -535,7 +535,9 @@ def test_mann_whitney_u_separates_distributions():
     assert p_val < 0.01
 
 
-def test_c4_seed_handoff_endpoint_and_schema():
+def test_c4_seed_handoff_endpoint_and_schema(tmp_path, monkeypatch):
+    import server
+    monkeypatch.setattr(server, "RESULTS_DIR", str(tmp_path))
     resp = client.post("/api/attribution/export_c4_seed", json={
         "package_name": "com.example.checkout",
         "failures": [{"id": "F1", "type": "TIMEOUT", "component": "PayBtn", "description": "SocketTimeoutException under 3G"}]
@@ -546,6 +548,7 @@ def test_c4_seed_handoff_endpoint_and_schema():
     assert seed_doc["source"] == "c1_attribution"
     assert len(seed_doc["seed"]["perturbation_hints"]) >= 1
     assert seed_doc["seed"]["targets"][0]["locator"]["text"] == "PayBtn"
+    assert (tmp_path / "c1_to_c4_seed.json").exists()
 
 
 def test_wilcoxon_signed_rank_separates_pairs():

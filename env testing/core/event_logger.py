@@ -17,6 +17,10 @@ class EventLogger:
         self.output_path = output_path
         self.events: List[Dict[str, Any]] = []
 
+    def begin_action(self) -> None:
+        """Marks the start of an injection operation for accurate execution timing."""
+        self._action_start_t = time.perf_counter()
+
     def record(
         self,
         category: str,
@@ -50,12 +54,14 @@ class EventLogger:
                 pass
 
         now_perf = time.perf_counter()
+        action_start = getattr(self, "_action_start_t", None)
+        self._action_start_t = None
         if injection_latency_ms is not None:
             latency = round(float(injection_latency_ms), 2)
+        elif action_start is not None:
+            latency = round(max(0.0, (now_perf - action_start) * 1000.0), 2)
         else:
-            prev = getattr(self, "_last_perf_t", None)
-            latency = round(max(0.0, (now_perf - prev) * 1000.0), 2) if prev is not None else 0.0
-        self._last_perf_t = now_perf
+            latency = 0.0
 
         entry = {
             "epoch_ms": epoch_ms,
@@ -114,7 +120,7 @@ class EventLogger:
             "latency_compliance_rate": compliance_pct,
             "avg_host_cpu_overhead": avg_cpu,
             "overhead_target_pct": 15.0,
-            "overhead_compliant": avg_cpu < 15.0 or True
+            "overhead_compliant": avg_cpu < 15.0
         }
 
     def clear(self) -> None:
