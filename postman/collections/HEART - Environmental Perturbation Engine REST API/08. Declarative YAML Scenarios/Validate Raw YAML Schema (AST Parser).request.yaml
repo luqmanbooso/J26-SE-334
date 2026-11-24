@@ -1,0 +1,33 @@
+$kind: http-request
+description: Validates YAML string against Proposal Section 5 AST rules.
+url: "{{baseUrl}}/api/profiles/parse_yaml"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "yaml_content": "version: \"1.0\"\nmetadata:\n  name: \"Postman Test Scenario\"\n  target_package: \"com.target.sample\"\ntriggers:\n  - lifecycle_step: \"CHECKOUT\"\n    injection_delay_ms: 100\nhardware:\n  cpu_throttle_pct: 80\nnetwork:\n  profile: \"3G_HSDPA\"\n  rtt_latency_ms: 1200"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 200 OK", function () {
+          pm.response.to.have.status(200);
+      });
+      pm.test("Response time is acceptable (< 500ms)", function () {
+          pm.expect(pm.response.responseTime).to.be.below(500);
+      });
+      pm.test("Response has valid JSON format", function () {
+          var data = pm.response.json();
+          pm.expect(data).to.be.an("object");
+      });
+
+      pm.test("Schema is valid AST", function () {
+          var data = pm.response.json();
+          pm.expect(data.status).to.eql("VALID");
+          pm.expect(data.profile.name).to.eql("Postman Test Scenario");
+      });
+    language: text/javascript
+order: 3000

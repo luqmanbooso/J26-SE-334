@@ -1,0 +1,44 @@
+$kind: http-request
+description: Applies synchronized multi-factor environmental stressors and returns updated chaos score and telemetry snapshot.
+url: "{{baseUrl}}/api/perturbation/apply"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "name": "Interactive Stress Profile",
+      "targetModule": "Checkout Service",
+      "cpuStress": 75,
+      "ramStress": 65,
+      "diskIo": 450,
+      "latency": 950,
+      "packetLoss": 4,
+      "dnsFailure": false,
+      "thermalState": "Moderate",
+      "networkProfile": "3G HSDPA",
+      "interruptionType": "Incoming Call",
+      "interruptionFreq": 2
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 200 OK", function () {
+          pm.response.to.have.status(200);
+      });
+      pm.test("Response time is acceptable (< 500ms)", function () {
+          pm.expect(pm.response.responseTime).to.be.below(500);
+      });
+      pm.test("Response has valid JSON format", function () {
+          var data = pm.response.json();
+          pm.expect(data).to.be.an("object");
+      });
+
+      pm.test("Perturbations applied with valid Chaos Score", function () {
+          var data = pm.response.json();
+          pm.expect(data.status).to.eql("APPLIED");
+          pm.expect(data.chaos_score).to.be.above(0);
+      });
+    language: text/javascript
+order: 1000

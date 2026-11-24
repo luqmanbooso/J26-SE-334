@@ -1,0 +1,41 @@
+{
+  "experiment": "EXP-02 coupling ablation",
+  "session": "mon-joint-session",
+  "started_utc": "2026-10-19T14:00:00Z",
+  "device": "pixel-7-pro-physical-baseline",
+  "package": "com.google.android.dialer",
+  "px_per_mm": 16.0,
+  "seed": 2026,
+  "profile": "default",
+  "stressor": "Compound Chaos (3G Drop + CPU Throttling)",
+  "arms": [
+    {
+      "arm": "noise-only",
+      "fixed_stress": 0.0,
+      "actions": 60,
+      "targets_on_screen": 18,
+      "elapsed_s": 40.8,
+      "started_epoch_ms": 1792300010000,
+      "timeline": "D:\\J26-SE-334\\results\\exp-02\\mon-joint-session\\noise-only_timeline.json"
+    },
+    {
+      "arm": "static-stress",
+      "fixed_stress": 0.45,
+      "actions": 60,
+      "targets_on_screen": 18,
+      "elapsed_s": 43.7,
+      "started_epoch_ms": 1792300055814,
+      "timeline": "D:\\J26-SE-334\\results\\exp-02\\mon-joint-session\\static-stress_timeline.json"
+    },
+    {
+      "arm": "full-adaptive",
+      "fixed_stress": null,
+      "actions": 60,
+      "targets_on_screen": 18,
+      "elapsed_s": 42.5,
+      "started_epoch_ms": 1792300104512,
+      "timeline": "D:\\J26-SE-334\\results\\exp-02\\mon-joint-session\\full-adaptive_timeline.json"
+    }
+  ],
+  "finished_utc": "2026-10-19T14:02:15Z"
+}

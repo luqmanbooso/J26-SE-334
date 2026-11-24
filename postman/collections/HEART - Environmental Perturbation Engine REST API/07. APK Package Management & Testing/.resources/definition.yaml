@@ -1,0 +1,3 @@
+$kind: collection
+description: Endpoints to list uploaded APK files, launch activities, and execute synchronized fault injection.
+order: 7000

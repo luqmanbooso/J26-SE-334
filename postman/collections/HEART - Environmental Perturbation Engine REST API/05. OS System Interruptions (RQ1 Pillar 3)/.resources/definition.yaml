@@ -1,0 +1,3 @@
+$kind: collection
+description: Endpoints to simulate telephony calls, SMS OTP alerts, app backgrounding, and Android Doze deep sleep.
+order: 5000

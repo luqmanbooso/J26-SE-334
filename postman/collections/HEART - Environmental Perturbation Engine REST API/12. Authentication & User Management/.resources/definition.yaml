@@ -1,0 +1,3 @@
+$kind: collection
+description: Endpoints for user login, registration, and user listing.
+order: 12000

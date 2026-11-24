@@ -1,0 +1,46 @@
+$kind: http-request
+description: Correlates crash logs with active perturbation parameters to compute fault attribution confidence.
+url: "{{baseUrl}}/api/perturbation/attribution"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "failures": [
+        {
+          "timestamp": "2026-10-10 22:30:15",
+          "component": "com.target.checkout.PaymentGateway",
+          "error": "SocketTimeoutException: Connection timed out after 1850ms",
+          "type": "TIMEOUT"
+        },
+        {
+          "timestamp": "2026-10-10 22:30:18",
+          "component": "com.target.checkout.LocalDatabase",
+          "error": "SQLiteDatabaseLockedException: database is locked (code 5)",
+          "type": "CRASH"
+        }
+      ]
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 200 OK", function () {
+          pm.response.to.have.status(200);
+      });
+      pm.test("Response time is acceptable (< 500ms)", function () {
+          pm.expect(pm.response.responseTime).to.be.below(500);
+      });
+      pm.test("Response has valid JSON format", function () {
+          var data = pm.response.json();
+          pm.expect(data).to.be.an("object");
+      });
+
+      pm.test("Generates correlation attribution report", function () {
+          var data = pm.response.json();
+          pm.expect(data).to.have.property("correlated_failures");
+          pm.expect(data).to.have.property("primary_attribution");
+      });
+    language: text/javascript
+order: 4000

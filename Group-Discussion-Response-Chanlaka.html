@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Formal Response to Group Discussion Brief - Chanlaka G. L. S.</title>
+<style>
+  @page {
+    size: A4;
+    margin: 20mm 20mm 20mm 20mm;
+  }
+  body {
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+    color: #334155;
+    line-height: 1.45;
+    font-size: 10pt;
+    margin: 0;
+    padding: 0;
+  }
+  h1 {
+    font-size: 18pt;
+    color: #1e3a8a;
+    margin: 0 0 4px 0;
+    font-weight: 700;
+  }
+  .subtitle {
+    font-size: 10pt;
+    color: #64748b;
+    margin-bottom: 6px;
+  }
+  .metadata {
+    font-size: 9.5pt;
+    color: #475569;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 12px;
+    margin-bottom: 16px;
+  }
+  .section-title {
+    font-size: 12pt;
+    font-weight: 700;
+    color: #1e3a8a;
+    border-bottom: 1px solid #cbd5e1;
+    padding-bottom: 3px;
+    margin-top: 14px;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .item-title {
+    font-size: 10.5pt;
+    font-weight: 700;
+    color: #0e7490;
+    margin-top: 10px;
+    margin-bottom: 2px;
+  }
+  .decision {
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 2px;
+  }
+  p {
+    margin: 0 0 6px 0;
+  }
+  .box {
+    background-color: #f8fafc;
+    border-left: 3.5px solid #0284c7;
+    padding: 6px 12px;
+    margin: 6px 0 10px 0;
+    font-size: 9.5pt;
+  }
+  ul {
+    margin: 4px 0 8px 18px;
+    padding: 0;
+  }
+  li {
+    margin-bottom: 2px;
+  }
+</style>
+</head>
+<body>
+
+<h1>Formal Response to Group Discussion Brief</h1>
+<div class="subtitle">J26-SE-334 (HEART) · Decisions & Formal Agreement for PP1 · 17 October 2026</div>
+<div class="metadata">
+  <strong>Respondent:</strong> Chanlaka G. L. S. (C1 Lead · Environmental Perturbation Engine & Native Desktop Studio)<br>
+  <strong>Addressed to:</strong> Lahiru Jayawardhana (IT23156760, C2) & J26-SE-334 Project Group
+</div>
+
+<div class="section-title">1. Executive Evaluation: Correct & Agreeable</div>
+<p>
+  The Discussion Brief prepared by Lahiru Jayawardhana is <strong>technically sound, academically rigorous, and fully agreeable</strong>. 
+  It identifies real runtime bottlenecks—specifically uncoordinated ADB connections causing collision during UI hierarchy dumps, 
+  unverified/simulated metrics on presentation slides that violate SLIIT marking rubrics, and the lack of a producer for C1 application-responsiveness 
+  signals. The proposals establish clean separation of concerns and protect group marks for the upcoming <strong>Project Presentation 1 (PP1 on Thursday, 22 October 2026)</strong>.
+</p>
+
+<div class="section-title">2. Item-by-Item Decisions and Formal Answers</div>
+
+<div class="item-title">Item 1 · EXP-02 Needs C1 Stressors (Core Group Claim: CLAIM-01)</div>
+<div class="box">
+  <div class="decision">Decision: Formal Agreement to Joint Testing Session</div>
+  <p>I agree to the 1–2 hour physical session with the test device. <strong>Proposed schedule: Monday, 19 October (afternoon) or Tuesday, 20 October</strong>. C1 has verified perturbation profiles ready for automated injection: CPU saturation profiles, memory pressure triggers, 3G network latency/drop schedules (<code>3g_network_drop.yaml</code>), and telephony events. During the session, C1 will inject these stressors on the agreed application while C2 executes its adaptive and static models on matching seeds to empirically prove CLAIM-01.</p>
+</div>
+
+<div class="item-title">Item 2 · C1 → C2 Interface Renegotiation (RDR-0008)</div>
+<div class="box">
+  <div class="decision">Decision: Formal Agreement in Writing</div>
+  <p>I agree in writing to demote <code>IF-C1-to-C2</code> to an optional secondary feed and endorse C2 using FrameProbe (<code>dumpsys gfxinfo</code>) for primary UI responsiveness measurement. C1 is an environmental perturbation injection engine whose core responsibility is controlling and logging what system disruptions are introduced. Having C2 measure frame drops directly from the Android OS creates proper decoupling without redundant producers. Correlating C1 perturbation audit logs with C2 stress timelines fulfills our failure-attribution narrative for PP1.</p>
+</div>
+
+<div class="item-title">Item 3 · Single Shared ADB Connection (common/adb.py)</div>
+<div class="box">
+  <div class="decision">Decision: Formal Acceptance & Verification Confirmed</div>
+  <p>The transition to <code>common/adb.py</code> is accepted. Consolidating the three disparate ADB wrappers into an exclusive per-device locked interface with cached UI hierarchy dumps eliminates race conditions. I confirm acceptance of the removal of silent fallbacks; missing physical devices now raise explicit warnings. I will complete the 10-minute smoke test with C1 against the physical phone to verify smooth operation.</p>
+</div>
+
+<div class="item-title">Item 4 · Desktop Studio C2 Engine Model Integration</div>
+<div class="box">
+  <div class="decision">Decision: Selection of Option A (Import BiometricSimulator into Desktop Studio)</div>
+  <p>We select <strong>Option A</strong>. To ensure that PP1 demonstrations driven from the Central Studio reflect genuine research code, we will import <code>BiometricSimulator</code> from the biometry module directly and retire the inline touch dispersion formula. The external launcher button in <code>c1_desktop_app.py</code> has already been updated to point to <code>biometry/demo_live_calculator.py</code>. This ensures one unified model across the entire repository.</p>
+</div>
+
+<div class="item-title">Item 5 · Hardcoded / Simulated Figures Removed from UI and CI</div>
+<div class="box">
+  <div class="decision">Decision: Full Agreement with Academic Rigor Policy</div>
+  <p>I have reviewed the changes in commits <code>cced32a</code> and <code>bd72cdf</code>. Removing static "all passed" claims in CI and replacing invented desktop metrics with verified measured data (or explicit <code>[SIMULATED]</code> / <code>pending</code> tags) is essential. SLIIT examiners heavily penalize hardcoded claims. All C1 numbers presented at PP1 will represent verified empirical measurements.</p>
+</div>
+
+<div class="item-title">Item 6 · Flaky API Tests Under Device Contention</div>
+<div class="box">
+  <div class="decision">Decision: Mark Contention-Prone Probes with pytest.mark.skipif</div>
+  <p>For the 3–4 nondeterministic tests in <code>env testing/tests/test_api_server.py</code> that experience contention when physical hardware is attached: We will tag them with <code>@pytest.mark.skipif</code> when an attached physical device lock is active, or isolate their test port. This preserves 100% green passing runs in headless CI (57/57 tests passed) while avoiding false red noise during local device testing.</p>
+</div>
+
+<div class="item-title">Item 7 · ACM Literature Retrieval</div>
+<div class="box">
+  <div class="decision">Decision: Chanlaka to Retrieve the 3 Missing ACM Papers</div>
+  <p>I will access the ACM Digital Library via my active SLIIT institutional library portal credentials to pull the 3 paywalled PDFs. Please provide the DOIs or titles, and I will place the verified PDFs in the repository references folder.</p>
+</div>
+
+<div class="section-title">3. Logistics & PP1 Readiness Summary</div>
+<ul>
+  <li><strong>PP1 Presentation Date:</strong> Thursday, 22 October 2026.</li>
+  <li><strong>C1 Working Functions for PP1:</strong> (1) Live APK Package Ingestion & Real-Time Perturbation Emulation on Interactive Device Canvas; (2) Dynamic Perturbation Stressor Execution (CPU/Memory/Network Drop) & REST API Telemetry Stream.</li>
+  <li><strong>MS Planner:</strong> C1 individual tasks will be current on MS Planner by Tuesday evening.</li>
+  <li><strong>RP Diary & AI Log:</strong> Weekly Research Project Diary and Lecture 7 AI-use log will be finalized before Thursday.</li>
+</ul>
+
+</body>
+</html>

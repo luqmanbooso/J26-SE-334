@@ -1,42 +1,62 @@
 {
   "1_BASELINE_NOMINAL": {
-    "mean_latency_ms": 66.32,
-    "p95_latency_ms": 91.28,
-    "mean_fps": 58.51,
-    "jank_frame_drop_pct": 2.48,
+    "evaluation_mode": "SIMULATED_MODEL",
+    "mean_latency_ms": 65.5,
+    "p95_latency_ms": 81.69,
+    "mean_fps": 58.31,
+    "jank_frame_drop_pct": 2.81,
     "failure_rate_pct": 0.0,
-    "total_failures": 0
+    "total_failures": 0,
+    "mann_whitney_u": 0.0,
+    "p_value": 1.0,
+    "statistically_significant_p05": null
   },
   "2_NETWORK_DEGRADATION": {
-    "mean_latency_ms": 1334.38,
-    "p95_latency_ms": 1715.78,
-    "mean_fps": 53.37,
-    "jank_frame_drop_pct": 11.05,
-    "failure_rate_pct": 13.33,
-    "total_failures": 4
+    "evaluation_mode": "SIMULATED_MODEL",
+    "mean_latency_ms": 1366.39,
+    "p95_latency_ms": 1774.21,
+    "mean_fps": 53.77,
+    "jank_frame_drop_pct": 10.38,
+    "failure_rate_pct": 10.0,
+    "total_failures": 3,
+    "mann_whitney_u": 0.0,
+    "p_value": 3.02e-11,
+    "statistically_significant_p05": true
   },
   "3_HARDWARE_STARVATION": {
-    "mean_latency_ms": 178.72,
-    "p95_latency_ms": 225.31,
-    "mean_fps": 31.66,
-    "jank_frame_drop_pct": 47.23,
-    "failure_rate_pct": 16.67,
-    "total_failures": 5
+    "evaluation_mode": "SIMULATED_MODEL",
+    "mean_latency_ms": 183.13,
+    "p95_latency_ms": 236.35,
+    "mean_fps": 32.86,
+    "jank_frame_drop_pct": 45.24,
+    "failure_rate_pct": 23.33,
+    "total_failures": 7,
+    "mann_whitney_u": 0.0,
+    "p_value": 3.02e-11,
+    "statistically_significant_p05": true
   },
   "4_INTERRUPTION_BURST": {
-    "mean_latency_ms": 112.79,
-    "p95_latency_ms": 144.75,
-    "mean_fps": 46.06,
-    "jank_frame_drop_pct": 23.23,
-    "failure_rate_pct": 20.0,
-    "total_failures": 6
+    "evaluation_mode": "SIMULATED_MODEL",
+    "mean_latency_ms": 117.46,
+    "p95_latency_ms": 144.03,
+    "mean_fps": 47.58,
+    "jank_frame_drop_pct": 20.7,
+    "failure_rate_pct": 23.33,
+    "total_failures": 7,
+    "mann_whitney_u": 16.0,
+    "p_value": 1.464e-10,
+    "statistically_significant_p05": true
   },
   "5_COMPOUND_MULTI_FACTOR": {
-    "mean_latency_ms": 1816.84,
-    "p95_latency_ms": 2399.98,
-    "mean_fps": 23.0,
-    "jank_frame_drop_pct": 61.67,
-    "failure_rate_pct": 53.33,
-    "total_failures": 16
+    "evaluation_mode": "SIMULATED_MODEL",
+    "mean_latency_ms": 1749.8,
+    "p95_latency_ms": 2295.19,
+    "mean_fps": 22.41,
+    "jank_frame_drop_pct": 62.65,
+    "failure_rate_pct": 46.67,
+    "total_failures": 14,
+    "mann_whitney_u": 0.0,
+    "p_value": 3.02e-11,
+    "statistically_significant_p05": true
   }
 }

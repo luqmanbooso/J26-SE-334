@@ -36,21 +36,13 @@ class NetworkStressor(BaseStressor):
         self.is_active = (mode != "normal")
 
         if mode == "offline":
-            self.adb.run_shell("cmd connectivity airplane-mode enable")
-            self.adb.run_shell("svc wifi disable")
-            self.adb.run_shell("svc data disable")
+            self.adb.run_shell("cmd connectivity airplane-mode enable; svc wifi disable; svc data disable")
         elif mode == "wifi_only":
-            self.adb.run_shell("cmd connectivity airplane-mode disable")
-            self.adb.run_shell("svc wifi enable")
-            self.adb.run_shell("svc data disable")
+            self.adb.run_shell("cmd connectivity airplane-mode disable; svc wifi enable; svc data disable")
         elif mode == "data_only":
-            self.adb.run_shell("cmd connectivity airplane-mode disable")
-            self.adb.run_shell("svc wifi disable")
-            self.adb.run_shell("svc data enable")
+            self.adb.run_shell("cmd connectivity airplane-mode disable; svc wifi disable; svc data enable")
         elif mode == "normal":
-            self.adb.run_shell("cmd connectivity airplane-mode disable")
-            self.adb.run_shell("svc wifi enable")
-            self.adb.run_shell("svc data enable")
+            self.adb.run_shell("cmd connectivity airplane-mode disable; svc wifi enable; svc data enable")
         else:
             raise ValueError(f"Unknown network mode: {mode}")
 
@@ -70,11 +62,24 @@ class NetworkStressor(BaseStressor):
             clean_profile = "edge"
 
         self.current_state["speed_profile"] = clean_profile
-        if self.current_state.get("mode") == "offline":
-            self.set_mode("normal")
+        is_emu = not self.adb.is_simulated and (not self.adb.device_id or str(self.adb.device_id).startswith("emulator-"))
 
-        if not self.adb.is_simulated and (not self.adb.device_id or self.adb.device_id.startswith("emulator-")):
-            self.adb.run_emulator_cmd(f"network speed {clean_profile}")
+        if clean_profile in ("hsdpa", "edge", "gprs", "gsm", "umts"):
+            # On Android emulator, QEMU network speed throttles the virtual cellular modem.
+            # Wi-Fi bypasses modem throttling; disable Wi-Fi and enable mobile data to force traffic shaping.
+            self.adb.run_shell("cmd connectivity airplane-mode disable")
+            self.adb.run_shell("svc wifi disable")
+            self.adb.run_shell("svc data enable")
+            if is_emu:
+                self.adb.run_emulator_cmd(f"network speed {clean_profile}")
+        else:
+            self.adb.run_shell("cmd connectivity airplane-mode disable")
+            self.adb.run_shell("svc wifi enable")
+            self.adb.run_shell("svc data enable")
+            if is_emu:
+                self.adb.run_emulator_cmd("network speed full")
+                self.adb.run_emulator_cmd("network delay none")
+
         self.logger.record("NETWORK_THROTTLE", "BANDWIDTH_PROFILE_SET", {"profile": clean_profile})
 
     def inject_latency(self, latency_ms: int = 1200) -> None:
@@ -93,8 +98,16 @@ class NetworkStressor(BaseStressor):
         else:
             delay_mode = "none"
 
-        if not self.adb.is_simulated and (not self.adb.device_id or self.adb.device_id.startswith("emulator-")):
-            self.adb.run_emulator_cmd(f"network delay {delay_mode}")
+        is_emu = not self.adb.is_simulated and (not self.adb.device_id or str(self.adb.device_id).startswith("emulator-"))
+        if is_emu:
+            if latency_ms > 0:
+                self.adb.run_shell("svc wifi disable")
+                self.adb.run_shell("svc data enable")
+                self.adb.run_emulator_cmd(f"network delay {int(latency_ms)}")
+            else:
+                self.adb.run_shell("svc wifi enable")
+                self.adb.run_emulator_cmd("network delay none")
+
         self.logger.record("NETWORK_LATENCY", "LATENCY_INJECTED", {
             "latency_ms": latency_ms,
             "delay_profile": delay_mode

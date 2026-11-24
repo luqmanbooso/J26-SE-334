@@ -1,0 +1,3 @@
+$kind: collection
+description: Endpoints to apply synchronized compound stress profiles, execute presets, reset to nominal baseline, and correlate failures.
+order: 2000

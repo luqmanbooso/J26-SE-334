@@ -1,0 +1,40 @@
+$kind: http-request
+description: Scales CPU governor throttle to 75% load.
+url: "{{baseUrl}}/api/stressor/hardware/cpu"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "cpu_pct": 75
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 200 OK", function () {
+          pm.response.to.have.status(200);
+      });
+      pm.test("Response time is acceptable (< 500ms)", function () {
+          pm.expect(pm.response.responseTime).to.be.below(500);
+      });
+      pm.test("Response has valid JSON format", function () {
+          var data = pm.response.json();
+          pm.expect(data).to.be.an("object");
+      });
+
+      pm.test("RQ1 Compliance: Injection latency satisfies <100ms SLA", function () {
+          var data = pm.response.json();
+          if (data.latency_ms !== undefined) {
+              pm.expect(data.latency_ms).to.be.below(100.0);
+          }
+          if (data.injection_latency_ms !== undefined) {
+              pm.expect(data.injection_latency_ms).to.be.below(100.0);
+          }
+          if (data.rq1_pass !== undefined) {
+              pm.expect(data.rq1_pass).to.eql(true);
+          }
+      });
+    language: text/javascript
+order: 1000

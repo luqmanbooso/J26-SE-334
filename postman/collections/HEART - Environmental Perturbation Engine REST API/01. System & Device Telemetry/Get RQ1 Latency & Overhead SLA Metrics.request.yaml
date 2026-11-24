@@ -1,0 +1,28 @@
+$kind: http-request
+description: "Verifies empirical compliance with RQ1 requirements: injection latency < 100ms and host resource overhead < 15%."
+url: "{{baseUrl}}/api/performance_metrics"
+method: GET
+headers:
+  Content-Type: application/json
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 200 OK", function () {
+          pm.response.to.have.status(200);
+      });
+      pm.test("Response time is acceptable (< 500ms)", function () {
+          pm.expect(pm.response.responseTime).to.be.below(500);
+      });
+      pm.test("Response has valid JSON format", function () {
+          var data = pm.response.json();
+          pm.expect(data).to.be.an("object");
+      });
+
+      pm.test("RQ1 latency and overhead constraints PASS", function () {
+          var data = pm.response.json();
+          pm.expect(data.latency_pass).to.eql(true);
+          pm.expect(data.overhead_pass).to.eql(true);
+          pm.expect(data.latency_stats.mean_ms).to.be.below(100.0);
+      });
+    language: text/javascript
+order: 4000

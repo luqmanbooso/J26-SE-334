@@ -83,3 +83,57 @@ def test_context_stressor_rotation_and_theme(mock_context):
     stressor.revert()
     assert stressor.is_active is False
     assert stressor.current_state == {}
+
+
+def test_event_logger_does_not_count_inter_event_idle_time(tmp_path):
+    import time
+    from core.event_logger import EventLogger
+
+    logger = EventLogger(output_path=str(tmp_path / "events.json"))
+    logger.record("SYSTEM", "FIRST_OP", {})
+    time.sleep(0.12)
+    second = logger.record("SYSTEM", "SECOND_OP", {})
+    assert second["injection_latency_ms"] == 0.0
+    assert second["latency_compliant"] is True
+
+    logger.begin_action()
+    time.sleep(0.02)
+    third = logger.record("SYSTEM", "TIMED_OP", {})
+    assert 15.0 <= third["injection_latency_ms"] < 100.0
+
+    # Latency provider supplies real ADB duration when stressor calls record() without explicit args
+    sample_vals = iter([18.4, 22.1])
+    provided_logger = EventLogger(output_path=str(tmp_path / "provided.json"), latency_provider=lambda: next(sample_vals, 0.0))
+    ev_p = provided_logger.record("NETWORK", "STATE_TRANSITION", {"mode": "offline"})
+    assert ev_p["injection_latency_ms"] == 18.4
+    assert ev_p["latency_compliant"] is True
+
+    logger.events[0]["host_overhead"]["cpu_percent"] = 25.0
+    logger.events[1]["host_overhead"]["cpu_percent"] = 25.0
+    logger.events[2]["host_overhead"]["cpu_percent"] = 25.0
+    summary = logger.get_performance_summary()
+    assert summary["overhead_compliant"] is False
+
+
+def test_corpus_findings_markdown_stays_synced(tmp_path):
+    from run_corpus_benchmark import write_findings_markdown
+
+    findings_doc = {
+        "project_metadata": {
+            "export_timestamp": "2026-11-24T13:59:40Z",
+            "target_device": {"active_package": "org.fdroid.fdroid", "model": "Pixel_9_Pro", "device_id": "emulator-5554", "type": "Virtual AVD"},
+        },
+        "kpi_benchmarks": {"last_measured_latency_ms": 24.5, "rq1_compliant": True, "total_perturbations_recorded": 12},
+        "attribution_summary": {"total_failures_analyzed": 0, "attributed_failures_count": 0, "attributions": []},
+    }
+    corpus_out = {
+        "mode": "LIVE_DEVICE",
+        "packages": ["org.fdroid.fdroid"],
+        "regimes": {"1_BASELINE_NOMINAL": {"mean_latency_ms": 40.0, "mean_fps": 58.0, "jank_frame_drop_pct": 2.1, "failure_rate_pct": 0.0, "p_value_mann_whitney": 1.0}},
+    }
+    out_md = tmp_path / "findings.md"
+    write_findings_markdown(findings_doc, corpus_out, str(out_md))
+    text = out_md.read_text(encoding="utf-8")
+    assert "2026-11-24T13:59:40Z" in text
+    assert "org.fdroid.fdroid" in text
+    assert "1_BASELINE_NOMINAL" in text

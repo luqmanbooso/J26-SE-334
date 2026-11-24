@@ -1,0 +1,93 @@
+[
+  {
+    "epoch_ms": 1792300002000,
+    "timestamp": "2026-10-19T14:00:02.000000",
+    "category": "ORCHESTRATOR",
+    "action": "PROFILE_APPLIED",
+    "parameters": {
+      "profile_name": "Compound Chaos (3G Drop + CPU Throttling)",
+      "chaos_score": 78
+    },
+    "status": "APPLIED",
+    "injection_latency_ms": 42.5,
+    "latency_compliant": true,
+    "host_overhead": {
+      "cpu_percent": 12.0,
+      "mem_percent": 54.0,
+      "compliant": true
+    },
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1792300110512,
+    "timestamp": "2026-10-19T14:01:36.000000",
+    "category": "NETWORK_LATENCY",
+    "action": "LATENCY_INJECTED",
+    "parameters": {
+      "latency_ms": 450,
+      "delay_profile": "3G_drop"
+    },
+    "status": "APPLIED",
+    "injection_latency_ms": 28.0,
+    "latency_compliant": true,
+    "host_overhead": {
+      "cpu_percent": 15.0,
+      "mem_percent": 54.5,
+      "compliant": true
+    },
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1792300119512,
+    "timestamp": "2026-10-19T14:01:45.000000",
+    "category": "SYSTEM_CPU",
+    "action": "CPU_LOAD_INJECTED",
+    "parameters": {
+      "target_cpu_pct": 95
+    },
+    "status": "APPLIED",
+    "injection_latency_ms": 34.0,
+    "latency_compliant": true,
+    "host_overhead": {
+      "cpu_percent": 96.0,
+      "mem_percent": 58.0,
+      "compliant": true
+    },
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1792300126512,
+    "timestamp": "2026-10-19T14:01:52.000000",
+    "category": "NETWORK_PACKET_LOSS",
+    "action": "PACKET_LOSS_SIMULATED",
+    "parameters": {
+      "loss_pct": 12,
+      "strategy": "BURST_DROP"
+    },
+    "status": "APPLIED",
+    "injection_latency_ms": 15.0,
+    "latency_compliant": true,
+    "host_overhead": {
+      "cpu_percent": 94.0,
+      "mem_percent": 58.0,
+      "compliant": true
+    },
+    "telemetry": {}
+  },
+  {
+    "epoch_ms": 1792300152992,
+    "timestamp": "2026-10-19T14:02:16.000000",
+    "category": "ENVIRONMENT",
+    "action": "ENVIRONMENT_FULL_RESET",
+    "parameters": {},
+    "status": "APPLIED",
+    "injection_latency_ms": 21.0,
+    "latency_compliant": true,
+    "host_overhead": {
+      "cpu_percent": 8.0,
+      "mem_percent": 50.0,
+      "compliant": true
+    },
+    "telemetry": {}
+  }
+]

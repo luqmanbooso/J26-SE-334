@@ -484,3 +484,75 @@ def test_auth_get_users():
     data = response.json()
     assert "users" in data
     assert len(data["users"]) > 0
+
+
+# =============================================================================
+# 13. RUNTIME APP TELEMETRY (FR-C1-07) & STATISTICAL BENCHMARK TESTS
+# =============================================================================
+
+def test_app_runtime_telemetry_endpoint():
+    response = client.get("/api/telemetry/app?package=com.android.settings")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["package_name"] == "com.android.settings"
+    assert "anr_flag" in data
+    assert "error_count" in data
+    assert "mode" in data
+
+
+def test_orchestrator_live_gfxinfo_parsing(monkeypatch):
+    from orchestrator import PerturbationOrchestrator
+    orch = PerturbationOrchestrator(force_simulation=True)
+    orch.adb.is_simulated = False
+
+    def fake_shell(cmd, *args, **kwargs):
+        if "gfxinfo" in cmd:
+            return (
+                "Total frames rendered: 120\n"
+                "Janky frames: 24 (20.00%)\n"
+                "95th percentile: 42ms\n"
+            )
+        if "logcat" in cmd:
+            return "E AndroidRuntime: FATAL EXCEPTION: main\n"
+        return ""
+
+    monkeypatch.setattr(orch.adb, "run_shell", fake_shell)
+    telem = orch.sample_app_telemetry("com.example.app")
+    assert telem["available"] is True
+    assert telem["jank_pct"] == 20.0
+    assert telem["frame_drops"] == 24
+    assert telem["ui_delay_ms"] == 42.0
+    assert telem["fps"] == 48.0
+    assert telem["error_count"] >= 1
+
+
+def test_mann_whitney_u_separates_distributions():
+    from experiment_perturbation_impact import mann_whitney_u
+    nominal = [60.0, 62.0, 64.0, 65.0, 66.0, 68.0, 70.0, 72.0]
+    chaos = [1500.0, 1620.0, 1740.0, 1810.0, 1920.0, 2050.0, 2100.0, 2240.0]
+    u_stat, p_val = mann_whitney_u(nominal, chaos)
+    assert u_stat == 0.0
+    assert p_val < 0.01
+
+
+def test_c4_seed_handoff_endpoint_and_schema(tmp_path, monkeypatch):
+    import server
+    monkeypatch.setattr(server, "RESULTS_DIR", str(tmp_path))
+    resp = client.post("/api/attribution/export_c4_seed", json={
+        "package_name": "com.example.checkout",
+        "failures": [{"id": "F1", "type": "TIMEOUT", "component": "PayBtn", "description": "SocketTimeoutException under 3G"}]
+    })
+    assert resp.status_code == 200
+    seed_doc = resp.json()
+    assert seed_doc["schema_version"] == "c4.journey/1"
+    assert seed_doc["source"] == "c1_attribution"
+    assert len(seed_doc["seed"]["perturbation_hints"]) >= 1
+    assert seed_doc["seed"]["targets"][0]["locator"]["text"] == "PayBtn"
+    assert (tmp_path / "c1_to_c4_seed.json").exists()
+
+
+def test_wilcoxon_signed_rank_separates_pairs():
+    from run_corpus_benchmark import wilcoxon_signed_rank
+    before = [60.0, 62.0, 65.0, 61.0, 64.0, 63.0, 66.0, 60.0]
+    after = [150.0, 165.0, 180.0, 170.0, 190.0, 175.0, 185.0, 195.0]
+    assert wilcoxon_signed_rank(before, after) < 0.02

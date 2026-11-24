@@ -1,4 +1,5 @@
 import os
+import re
 import time
 from typing import Optional, Dict, Any, List
 from core.adb_client import ADBClient
@@ -16,7 +17,7 @@ class PerturbationOrchestrator:
 
     def __init__(self, log_path: str = "perturbation_event_log.json", force_simulation: bool = False):
         self.adb = ADBClient(force_simulation=force_simulation)
-        self.logger = EventLogger(log_path)
+        self.logger = EventLogger(log_path, latency_provider=self.adb.consume_latency_ms)
         self.scheduler = PerturbationScheduler(logger=self.logger)
 
         self.system = SystemStressor(self.adb, self.logger)
@@ -106,8 +107,16 @@ class PerturbationOrchestrator:
         lat = min(profile.get("latency", 0), 2000)
         return int((cpu * 0.4) + (ram * 0.3) + (lat / 2000 * 30))
 
-    def evaluate_signals(self, signals: Dict[str, float]) -> bool:
+    def evaluate_signals(self, signals: Optional[Dict[str, float]] = None, package_name: Optional[str] = None) -> bool:
         """Adapts perturbation intensity according to runtime telemetry (FPS, Latency)."""
+        if signals is None:
+            sampled = self.sample_app_telemetry(package_name=package_name)
+            signals = {
+                "fps": sampled.get("fps") if sampled.get("fps") is not None else 60.0,
+                "latency_ms": sampled.get("ui_delay_ms") if sampled.get("ui_delay_ms") is not None else 0.0,
+                "cpu_pct": float(self.system.current_state.get("cpu_pct", 0.0)),
+            }
+
         def _handle_escalation(escalation_type: str):
             if escalation_type == "HARDWARE_ESCALATION":
                 self.system.set_cpu_load(95)
@@ -115,6 +124,70 @@ class PerturbationOrchestrator:
                 self.network.inject_packet_loss(12)
 
         return self.scheduler.evaluate_performance_signals(signals, on_escalate=_handle_escalation)
+
+    def sample_app_telemetry(self, package_name: Optional[str] = None) -> Dict[str, Any]:
+        """Samples live Android app responsiveness telemetry (FR-C1-07): UI frame jank, p95 delay, ANR & logcat errors."""
+        now_ms = int(time.time() * 1000)
+        if self.adb.is_simulated:
+            return {
+                "timestamp": now_ms,
+                "available": False,
+                "mode": "simulated",
+                "package_name": package_name,
+                "fps": None,
+                "jank_pct": None,
+                "ui_delay_ms": None,
+                "latency_ms": None,
+                "frame_drops": 0,
+                "anr_flag": False,
+                "error_count": 0,
+            }
+
+        pkg = (package_name or "").strip()
+        jank_pct: Optional[float] = None
+        frame_drops = 0
+        fps: Optional[float] = None
+        ui_delay_ms: Optional[float] = None
+
+        t0 = time.perf_counter()
+        if pkg:
+            gfx_out = self.adb.run_shell(f"dumpsys gfxinfo {pkg}")
+            m_total = re.search(r"Total frames rendered:\s+(\d+)", gfx_out)
+            m_jank = re.search(r"Janky frames:\s+(\d+)\s+\(([\d\.]+)%\)", gfx_out)
+            m_p95 = re.search(r"95th percentile:\s+(\d+)ms", gfx_out)
+            if m_jank:
+                frame_drops = int(m_jank.group(1))
+                jank_pct = float(m_jank.group(2))
+                total_frames = int(m_total.group(1)) if m_total else max(1, frame_drops)
+                if total_frames > 0:
+                    fps = round(max(10.0, 60.0 * (1.0 - (jank_pct / 100.0))), 2)
+            if m_p95:
+                ui_delay_ms = float(m_p95.group(1))
+
+        if ui_delay_ms is None:
+            ui_delay_ms = round((time.perf_counter() - t0) * 1000.0, 2)
+
+        log_out = self.adb.run_shell("logcat -d -t 50 *:E")
+        relevant_lines = [
+            ln for ln in log_out.splitlines()
+            if ("FATAL EXCEPTION" in ln or "ANR in" in ln or "AndroidRuntime" in ln or (pkg and pkg in ln))
+        ]
+        anr_flag = any(("ANR in" in ln or "isn't responding" in ln) for ln in relevant_lines)
+        error_count = sum(1 for ln in relevant_lines if "FATAL EXCEPTION" in ln or "AndroidRuntime" in ln or "ANR in" in ln)
+
+        return {
+            "timestamp": now_ms,
+            "available": True,
+            "mode": "live_device",
+            "package_name": pkg or None,
+            "fps": fps,
+            "jank_pct": jank_pct,
+            "ui_delay_ms": ui_delay_ms,
+            "latency_ms": ui_delay_ms,
+            "frame_drops": frame_drops,
+            "anr_flag": anr_flag,
+            "error_count": error_count,
+        }
 
     def get_telemetry_snapshot(self) -> Dict[str, Any]:
         """Gathers real-time performance and environmental telemetry."""

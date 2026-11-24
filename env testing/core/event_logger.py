@@ -1,7 +1,7 @@
 import json
 import time
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 try:
     import psutil
 except ImportError:
@@ -13,9 +13,18 @@ class EventLogger:
     Tracks injection latency (<100ms) and host system overhead (<15%) per HEART Proposal Section 2.
     """
 
-    def __init__(self, output_path: str = "perturbation_event_log.json"):
+    def __init__(
+        self,
+        output_path: str = "perturbation_event_log.json",
+        latency_provider: Optional[Callable[[], float]] = None,
+    ):
         self.output_path = output_path
         self.events: List[Dict[str, Any]] = []
+        self.latency_provider = latency_provider
+
+    def begin_action(self) -> None:
+        """Marks the start of an injection operation for accurate execution timing."""
+        self._action_start_t = time.perf_counter()
 
     def record(
         self,
@@ -30,21 +39,37 @@ class EventLogger:
         epoch_ms = int(time.time() * 1000)
         timestamp_iso = datetime.now().isoformat()
 
-        # Measure host system overhead defensively
+        # Measure host injector process overhead defensively (CPU % normalized by logical cores)
         host_cpu = 0.0
         host_mem = 0.0
         if psutil is not None:
             try:
-                fn_cpu = getattr(psutil, "cpu_percent", None)
-                if callable(fn_cpu):
-                    host_cpu = float(fn_cpu(interval=None))
+                proc = getattr(self, "_proc", None)
+                if proc is None and hasattr(psutil, "Process"):
+                    proc = psutil.Process()
+                    self._proc = proc
+                if proc is not None and callable(getattr(proc, "cpu_percent", None)):
+                    raw_cpu = float(proc.cpu_percent(interval=None))
+                    cores = float(psutil.cpu_count() or 1)
+                    host_cpu = round(raw_cpu / max(1.0, cores), 2)
                 fn_mem = getattr(psutil, "virtual_memory", None)
                 if callable(fn_mem):
                     host_mem = float(fn_mem().percent)
             except Exception:
                 pass
 
-        latency = injection_latency_ms if injection_latency_ms is not None else round(time.process_time() * 1000 % 45 + 12, 2)
+        now_perf = time.perf_counter()
+        action_start = getattr(self, "_action_start_t", None)
+        self._action_start_t = None
+        provider_val = self.latency_provider() if callable(self.latency_provider) else None
+        if injection_latency_ms is not None:
+            latency = round(float(injection_latency_ms), 2)
+        elif action_start is not None:
+            latency = round(max(0.0, (now_perf - action_start) * 1000.0), 2)
+        elif provider_val is not None:
+            latency = round(max(0.0, float(provider_val)), 2)
+        else:
+            latency = 0.0
 
         entry = {
             "epoch_ms": epoch_ms,
@@ -58,7 +83,7 @@ class EventLogger:
             "host_overhead": {
                 "cpu_percent": host_cpu,
                 "mem_percent": host_mem,
-                "compliant": host_cpu < 15.0 or True  # Monitored against <15% target
+                "compliant": host_cpu < 15.0
             },
             "telemetry": telemetry_snapshot or {}
         }
@@ -103,7 +128,7 @@ class EventLogger:
             "latency_compliance_rate": compliance_pct,
             "avg_host_cpu_overhead": avg_cpu,
             "overhead_target_pct": 15.0,
-            "overhead_compliant": avg_cpu < 15.0 or True
+            "overhead_compliant": avg_cpu < 15.0
         }
 
     def clear(self) -> None:
