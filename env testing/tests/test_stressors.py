@@ -26,10 +26,12 @@ def test_system_stressor_cpu_and_thermal(mock_context):
     stressor.set_ram_pressure(pressure_pct=90)
     assert stressor.current_state.get("ram_pct") == 90
 
-    # Revert back to nominal
+    # Revert back to nominal and ensure CPU worker threads terminate cleanly
+    workers = list(stressor._cpu_worker_threads)
     stressor.revert()
     assert stressor.is_active is False
     assert "cpu_pct" not in stressor.current_state
+    assert all(not w.is_alive() for w in workers)
 
 def test_network_stressor_modes_and_latency(mock_context):
     adb, logger = mock_context

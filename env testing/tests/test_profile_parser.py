@@ -53,6 +53,7 @@ def test_orchestrator_template_listing_and_metrics():
     telem = orch.apply_profile(first["profile"])
     assert telem["performance"]["total_events"] >= 1
     assert telem["performance"]["latency_target_ms"] == 100.0
+    orch.reset_all()
 
 
 def test_compile_yaml_timeline_explicit_and_flat():

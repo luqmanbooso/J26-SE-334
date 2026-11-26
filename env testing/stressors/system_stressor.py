@@ -53,16 +53,19 @@ class SystemStressor(BaseStressor):
         else:
             self.adb.simulated_state["cpu_stress_active"] = True
 
-        # Host-assisted load emulation thread (yields GIL cleanly)
+        # Host-assisted load emulation thread (yields GIL cleanly; wait() wakes immediately on stop)
         self._stop_cpu_flag.clear()
+        stop_ev = self._stop_cpu_flag
         def _cpu_burner():
             active_ratio = min(0.7, target_pct / 100.0)
             cycle = 0.05
-            while not self._stop_cpu_flag.is_set():
+            sleep_sec = cycle * (1.0 - active_ratio) + 0.005
+            while not stop_ev.is_set():
                 t_end = time.time() + (cycle * active_ratio)
-                while time.time() < t_end:
+                while time.time() < t_end and not stop_ev.is_set():
                     _ = 3.14159 * 2.71828
-                time.sleep(cycle * (1.0 - active_ratio) + 0.005)
+                if stop_ev.wait(timeout=sleep_sec):
+                    break
 
         t = threading.Thread(target=_cpu_burner, daemon=True)
         t.start()
@@ -73,6 +76,9 @@ class SystemStressor(BaseStressor):
     def revert_cpu(self) -> None:
         """Terminates active CPU worker routines safely."""
         self._stop_cpu_flag.set()
+        for t in self._cpu_worker_threads:
+            if t.is_alive():
+                t.join(timeout=0.5)
         self._cpu_worker_threads.clear()
 
         if self.cpu_stress_pids:

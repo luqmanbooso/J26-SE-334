@@ -14,6 +14,13 @@ from server import app
 client = TestClient(app)
 
 
+@pytest.fixture(scope="module", autouse=True)
+def _cleanup_orchestrator_threads():
+    yield
+    import server
+    server.orchestrator.reset_all()
+
+
 def _physical_device_attached():
     """True when adb reports a connected device.
 
