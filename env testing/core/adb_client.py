@@ -151,7 +151,7 @@ class ADBClient:
             self.device_id = found[0]
         self._device = AdbDevice(serial=self.device_id, adb=adb_bin, verify=False)
 
-    def run_cmd(self, cmd: str) -> str:
+    def run_cmd(self, cmd: str, timeout: int = 12) -> str:
         """Executes an ADB command either via hardware bridge or virtual simulator."""
         t0 = time.perf_counter()
         self.command_history.append(f"adb {cmd}")
@@ -167,12 +167,12 @@ class ADBClient:
                 return self._handle_simulated_cmd(cmd)
 
             try:
-                res = self._device.run(*shlex.split(cmd), timeout=12)
+                res = self._device.run(*shlex.split(cmd), timeout=timeout)
                 if res.returncode != 0 and "error" in res.stderr.lower():
                     print(f"[ADB Warning] Non-zero code for '{cmd}': {res.stderr.strip()}")
                 return res.stdout.strip()
             except subprocess.TimeoutExpired:
-                print(f"[ADB Warning] Command timed out after 12s: {cmd}")
+                print(f"[ADB Warning] Command timed out after {timeout}s: {cmd}")
                 return ""
             except Exception as e:
                 print(f"[ADB Warning] Command failed '{cmd}': {e}")
@@ -431,7 +431,7 @@ class ADBClient:
             }
 
         try:
-            res = self.run_cmd(f'install -r "{apk_path}"')
+            res = self.run_cmd(f'install -r "{apk_path}"', timeout=45)
             is_success = "success" in res.lower()
             return {
                 "success": is_success,

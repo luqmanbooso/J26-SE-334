@@ -97,7 +97,7 @@ def run_monkey_baseline(orchestrator: PerturbationOrchestrator, package_name: st
     return {"package": package_name, "mode": "LIVE_DEVICE", "events": events, "crashes": crashes}
 
 
-def run_corpus_evaluation(trials_per_regime: int = 5, max_apps: int = 10) -> Dict[str, Any]:
+def run_corpus_evaluation(trials_per_regime: int = 3, max_apps: int = 20, include_monkey_baseline: bool = True) -> Dict[str, Any]:
     """Executes real live-device perturbation corpus sweep across discovered APKs and exports findings."""
     base_dir = os.path.dirname(os.path.abspath(__file__))
     results_dir = os.path.join(base_dir, "results")
@@ -107,6 +107,11 @@ def run_corpus_evaluation(trials_per_regime: int = 5, max_apps: int = 10) -> Dic
     packages = discover_corpus_packages(orch, max_apps=max_apps)
     is_live = not orch.adb.is_simulated
     print(f"[*] Corpus Runner Mode: {'LIVE_DEVICE' if is_live else 'SIMULATED'} | Apps ({len(packages)}): {packages}")
+
+    monkey_baseline = []
+    if include_monkey_baseline:
+        for pkg in packages:
+            monkey_baseline.append(run_monkey_baseline(orch, pkg, events=25))
 
     regimes = [
         ("1_BASELINE_NOMINAL", lambda o, p: o.reset_all()),
@@ -204,6 +209,8 @@ def run_corpus_evaluation(trials_per_regime: int = 5, max_apps: int = 10) -> Dic
         "device_id": orch.adb.device_id or "simulated",
         "mode": "LIVE_DEVICE" if is_live else "SIMULATED",
         "emulator_uptime_pct": uptime_pct,
+        "monkey_baseline_crashes": sum(m.get("crashes", 0) for m in monkey_baseline),
+        "monkey_baseline_runs": len(monkey_baseline),
         "packages": packages,
         "regimes": summary,
     }
@@ -321,4 +328,4 @@ def write_findings_markdown(
 
 
 if __name__ == "__main__":
-    run_corpus_evaluation(trials_per_regime=3, max_apps=10)
+    run_corpus_evaluation(trials_per_regime=3, max_apps=20, include_monkey_baseline=True)
