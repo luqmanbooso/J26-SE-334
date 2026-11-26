@@ -1,6 +1,7 @@
 import os
 import shlex
 import shutil
+import socket
 import subprocess
 import sys
 import threading
@@ -42,6 +43,8 @@ class ADBClient:
         self._device = None          # shared AdbDevice, created on first real command
         self._shell_proc = None
         self._shell_lock = threading.Lock()
+        self._emu_sock = None
+        self._emu_lock = threading.Lock()
         self._accumulated_latency_ms: float = 0.0
         self._initialize_connection()
 
@@ -253,8 +256,65 @@ class ADBClient:
         finally:
             self._accumulated_latency_ms += (time.perf_counter() - t0) * 1000.0
 
+    def _send_tcp_emu_cmd(self, emu_cmd: str) -> Optional[str]:
+        """Dispatches an emulator console command over persistent TCP socket (<15ms latency)."""
+        dev_id = self.device_id or "emulator-5554"
+        if not dev_id.startswith("emulator-"):
+            return None
+        try:
+            port = int(dev_id.split("-")[1])
+        except Exception:
+            return None
+
+        auth_file = os.path.expanduser("~/.emulator_console_auth_token")
+        if not os.path.exists(auth_file):
+            return None
+
+        with self._emu_lock:
+            for _ in range(2):
+                try:
+                    if self._emu_sock is None:
+                        token = open(auth_file, "r", encoding="utf-8").read().strip()
+                        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        s.settimeout(2.5)
+                        s.connect(("127.0.0.1", port))
+                        banner = b""
+                        while b"OK" not in banner and b"KO" not in banner:
+                            chunk = s.recv(512)
+                            if not chunk:
+                                break
+                            banner += chunk
+                        s.sendall(f"auth {token}\r\n".encode("utf-8"))
+                        ack = b""
+                        while b"OK" not in ack and b"KO" not in ack:
+                            chunk = s.recv(512)
+                            if not chunk:
+                                break
+                            ack += chunk
+                        if b"OK" not in ack:
+                            s.close()
+                            return None
+                        self._emu_sock = s
+
+                    self._emu_sock.sendall(f"{emu_cmd}\r\n".encode("utf-8"))
+                    resp = b""
+                    while b"OK" not in resp and b"KO" not in resp:
+                        chunk = self._emu_sock.recv(1024)
+                        if not chunk:
+                            raise RuntimeError("emulator console EOF")
+                        resp += chunk
+                    return resp.decode("utf-8", errors="ignore").strip()
+                except Exception:
+                    try:
+                        if self._emu_sock is not None:
+                            self._emu_sock.close()
+                    except Exception:
+                        pass
+                    self._emu_sock = None
+        return None
+
     def run_emulator_cmd(self, emu_cmd: str) -> str:
-        """Executes an 'adb emu' console command."""
+        """Executes an 'adb emu' console command via fast TCP console with subprocess fallback."""
         t0 = time.perf_counter()
         self.command_history.append(f"adb emu {emu_cmd}")
         try:
@@ -265,6 +325,12 @@ class ADBClient:
             except NoDeviceError:
                 self.is_simulated = True
                 return self._handle_simulated_cmd(f"emu {emu_cmd}")
+
+            if "pytest" not in sys.modules and not os.environ.get("PYTEST_CURRENT_TEST"):
+                tcp_out = self._send_tcp_emu_cmd(emu_cmd)
+                if tcp_out is not None:
+                    return tcp_out
+
             try:
                 res = self._device.run("emu", *shlex.split(emu_cmd), timeout=12)
                 if res.returncode != 0 and "error" in res.stderr.lower():

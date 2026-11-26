@@ -53,3 +53,26 @@ def test_orchestrator_template_listing_and_metrics():
     telem = orch.apply_profile(first["profile"])
     assert telem["performance"]["total_events"] >= 1
     assert telem["performance"]["latency_target_ms"] == 100.0
+
+
+def test_compile_yaml_timeline_explicit_and_flat():
+    explicit_yaml = """
+name: "Timed Chaos"
+timeline:
+  - offset_ms: 40
+    step: MID_TRANSACTION
+    action: latency
+    params: { latency_ms: 900 }
+  - offset_ms: 0
+    step: PRE_INPUT
+    action: cpu
+    params: { target_pct: 80 }
+"""
+    tl = ProfileParser.compile_timeline(ProfileParser.parse_yaml_string(explicit_yaml))
+    assert len(tl) == 2
+    assert tl[0]["offset_ms"] == 0 and tl[0]["action"] == "cpu"
+    assert tl[1]["offset_ms"] == 40 and tl[1]["action"] == "latency"
+
+    flat_tl = ProfileParser.compile_timeline({"cpuStress": 75, "latency": 1200, "dnsFailure": True})
+    actions = {item["action"] for item in flat_tl}
+    assert {"cpu", "latency", "dns_fail"}.issubset(actions)

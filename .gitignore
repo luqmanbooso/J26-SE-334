@@ -22,6 +22,7 @@ Thumbs.db
 /environment_failure_attribution.json
 /emu_*.png
 /test.png
+env testing/results/*.db*
 /results/*
 !/results/*.py
 !/results/exp-02/

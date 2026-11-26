@@ -96,7 +96,68 @@ class ProfileParser:
                 f"thermalState '{profile['thermalState']}' invalid. Allowed: {cls.ALLOWED_THERMAL_STATES}"
             )
 
+        raw_timeline = raw.get("timeline")
+        if raw_timeline is not None:
+            if not isinstance(raw_timeline, list):
+                raise ProfileValidationError("'timeline' must be a list of scheduled event objects.")
+            normalized_timeline = []
+            for idx, item in enumerate(raw_timeline):
+                if not isinstance(item, dict) or not item.get("action"):
+                    raise ProfileValidationError(f"Timeline entry #{idx} must be a dict with 'action'.")
+                offset_ms = item.get("offset_ms")
+                if offset_ms is None:
+                    offset_ms = int(float(item.get("offset_sec", 0.0)) * 1000)
+                offset_ms = int(offset_ms)
+                if offset_ms < 0:
+                    raise ProfileValidationError(f"Timeline entry #{idx} offset_ms cannot be negative.")
+                normalized_timeline.append({
+                    "offset_ms": offset_ms,
+                    "step": str(item.get("step", "IMMEDIATE")).upper(),
+                    "action": str(item["action"]),
+                    "params": dict(item.get("params") or {}),
+                })
+            normalized_timeline.sort(key=lambda e: e["offset_ms"])
+            profile["timeline"] = normalized_timeline
+
         return profile
+
+    @classmethod
+    def compile_timeline(cls, raw: Dict[str, Any]) -> list:
+        """Compiles a YAML/JSON stress profile into an ordered executable event timeline."""
+        validated = cls.validate_schema(raw)
+        if validated.get("timeline"):
+            return list(validated["timeline"])
+
+        timeline = []
+        if validated["cpuStress"] > 0:
+            timeline.append({"offset_ms": 0, "step": "PRE_INPUT", "action": "cpu", "params": {"target_pct": validated["cpuStress"]}})
+        if validated["ramStress"] > 0:
+            timeline.append({"offset_ms": 0, "step": "PRE_INPUT", "action": "ram", "params": {"pressure_pct": validated["ramStress"]}})
+        if validated["diskIo"] > 0:
+            timeline.append({"offset_ms": 0, "step": "PRE_INPUT", "action": "disk_io", "params": {"duration_mb": max(10, validated["diskIo"] // 2)}})
+        if validated["thermalState"] != "None":
+            timeline.append({"offset_ms": 50, "step": "PRE_INPUT", "action": "thermal", "params": {"state": validated["thermalState"]}})
+        if validated["latency"] > 0:
+            timeline.append({"offset_ms": 100, "step": "MID_TRANSACTION", "action": "latency", "params": {"latency_ms": validated["latency"]}})
+        if validated["packetLoss"] > 0:
+            timeline.append({"offset_ms": 100, "step": "MID_TRANSACTION", "action": "packet_loss", "params": {"loss_pct": validated["packetLoss"]}})
+        if validated["dnsFailure"]:
+            timeline.append({"offset_ms": 150, "step": "MID_TRANSACTION", "action": "dns_fail", "params": {"enabled": True}})
+        net_prof = validated["networkProfile"].lower()
+        if "edge" in net_prof or "2g" in net_prof:
+            timeline.append({"offset_ms": 100, "step": "MID_TRANSACTION", "action": "bandwidth", "params": {"profile": "edge"}})
+        elif "cellular dead zone" in net_prof or "offline" in net_prof:
+            timeline.append({"offset_ms": 100, "step": "MID_TRANSACTION", "action": "network_mode", "params": {"mode": "offline"}})
+        elif "4g" in net_prof:
+            timeline.append({"offset_ms": 100, "step": "MID_TRANSACTION", "action": "bandwidth", "params": {"profile": "lte"}})
+        itype = validated["interruptionType"]
+        if "Call" in itype:
+            timeline.append({"offset_ms": 200, "step": "ASYNC_WAIT", "action": "call", "params": {"phone_number": "15555215554"}})
+        if "Low Battery" in itype:
+            timeline.append({"offset_ms": 200, "step": "PRE_INPUT", "action": "battery", "params": {"level": 3, "unplugged": True}})
+        if "LMK" in itype:
+            timeline.append({"offset_ms": 250, "step": "ASYNC_WAIT", "action": "ram", "params": {"pressure_pct": 95}})
+        return timeline
 
     @classmethod
     def to_yaml_string(cls, profile: Dict[str, Any]) -> str:

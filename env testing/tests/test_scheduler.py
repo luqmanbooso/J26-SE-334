@@ -42,3 +42,28 @@ def test_performance_signal_adaptive_escalation():
     res3 = scheduler.evaluate_performance_signals({"fps": 55.0, "latency_ms": 1450.0}, on_escalate=on_escalate_callback)
     assert res3 is True
     assert "NETWORK_ESCALATION" in escalated_signals
+
+
+def test_asyncio_timeline_and_async_step_dispatch():
+    import asyncio
+    scheduler = PerturbationScheduler()
+    fired = []
+
+    def rec(tag):
+        fired.append(tag)
+
+    scheduler.register_step_hook("MID_TRANSACTION", rec, {"tag": "hook_a"})
+    scheduler.register_step_hook("MID_TRANSACTION", rec, {"tag": "hook_b"})
+    res = asyncio.run(scheduler.trigger_step_async("MID_TRANSACTION"))
+    assert len(res) == 2
+    assert set(fired) == {"hook_a", "hook_b"}
+
+    timeline_events = []
+    registry = {"cpu": lambda target_pct: timeline_events.append(("cpu", target_pct))}
+    dispatched = scheduler.run_timeline(
+        [{"offset_ms": 5, "step": "PRE_INPUT", "action": "cpu", "params": {"target_pct": 85}}],
+        action_registry=registry,
+    )
+    assert len(dispatched) == 1
+    assert dispatched[0]["status"] == "APPLIED"
+    assert ("cpu", 85) in timeline_events

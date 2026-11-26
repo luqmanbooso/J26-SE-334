@@ -17,6 +17,8 @@ class ContextStressor(BaseStressor):
             self.set_dark_mode(kwargs["dark_mode"])
         if "font_scale" in kwargs:
             self.set_font_scale(kwargs["font_scale"])
+        if "brightness" in kwargs:
+            self.set_brightness(int(kwargs["brightness"]))
         if "gps" in kwargs:
             lat, lon = kwargs["gps"]
             self.set_gps_location(lat, lon)
@@ -53,6 +55,15 @@ class ContextStressor(BaseStressor):
         self.adb.run_shell(f"settings put system font_scale {scale}")
         self.logger.record("CONTEXT_DISPLAY", "FONT_SCALE_CHANGED", {"font_scale": scale})
 
+    def set_brightness(self, level: int = 20) -> None:
+        """Sets display brightness (0-255) via ADB settings."""
+        clamped = max(0, min(255, int(level)))
+        self.current_state["brightness"] = clamped
+        self.adb.run_shell("appops set com.android.shell WRITE_SETTINGS allow")
+        self.adb.run_shell("settings put system screen_brightness_mode 0")
+        self.adb.run_shell(f"settings put system screen_brightness {clamped}")
+        self.logger.record("CONTEXT_DISPLAY", "BRIGHTNESS_CHANGED", {"brightness": clamped})
+
     def set_gps_location(self, latitude: float, longitude: float) -> None:
         """Sets mock GPS coordinates on emulator via geo fix."""
         self.current_state["gps"] = {"lat": latitude, "lon": longitude}
@@ -66,6 +77,8 @@ class ContextStressor(BaseStressor):
         self.adb.run_shell("settings put system accelerometer_rotation 1")
         self.adb.run_shell("cmd uimode night no")
         self.adb.run_shell("settings put system font_scale 1.0")
+        self.adb.run_shell("settings put system screen_brightness_mode 1")
+        self.adb.run_shell("settings put system screen_brightness 128")
         self.is_active = False
         self.current_state.clear()
         self.logger.record("CONTEXT", "CONTEXT_RESET_DEFAULTS", {})
