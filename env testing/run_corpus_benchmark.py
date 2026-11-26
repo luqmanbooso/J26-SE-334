@@ -8,6 +8,7 @@ import subprocess
 import time
 from typing import Any, Dict, List, Optional
 
+from core.benchmark_catalog import FDROID_CORPUS_25, paired_t_test
 from experiment_perturbation_impact import mann_whitney_u
 from orchestrator import PerturbationOrchestrator
 
@@ -42,10 +43,10 @@ def wilcoxon_signed_rank(before: List[float], after: List[float]) -> float:
     return float(f"{max(0.0, min(1.0, math.erfc(max(0.0, z) / math.sqrt(2.0)))):.3e}")
 
 
-def discover_corpus_packages(orchestrator: PerturbationOrchestrator, max_apps: int = 10) -> List[str]:
-    """Discovers third-party + core system packages on the target device, installing uploaded APKs if needed."""
+def discover_corpus_packages(orchestrator: PerturbationOrchestrator, max_apps: int = 25) -> List[str]:
+    """Discovers F-Droid catalog + third-party + core system packages on target device."""
     if orchestrator.adb.is_simulated:
-        return ["com.android.settings", "de.k3b.android.androFotoFinder", "org.fdroid.fdroid"]
+        return [entry["package"] for entry in FDROID_CORPUS_25[:max_apps]]
 
     uploads_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")
     if os.path.exists(uploads_dir):
@@ -78,12 +79,22 @@ def discover_corpus_packages(orchestrator: PerturbationOrchestrator, max_apps: i
     ]
     if len(pkgs) < max_apps:
         sys_all = set(line.replace("package:", "").strip() for line in orchestrator.adb.run_shell("pm list packages").splitlines())
-        for cand in core_ui_candidates:
+        for cand in [e["package"] for e in FDROID_CORPUS_25] + core_ui_candidates:
             if cand in sys_all and cand not in pkgs:
                 pkgs.append(cand)
             if len(pkgs) >= max_apps:
                 break
     return pkgs[:max_apps] or ["com.android.settings"]
+
+
+def run_monkey_baseline(orchestrator: PerturbationOrchestrator, package_name: str, events: int = 40) -> Dict[str, Any]:
+    """Executes an unperturbed Android Monkey exploration baseline run for control comparison."""
+    orchestrator.reset_all()
+    if orchestrator.adb.is_simulated:
+        return {"package": package_name, "mode": "SIMULATED", "events": events, "crashes": 0}
+    out = orchestrator.adb.run_shell(f"monkey -p {package_name} --throttle 50 -v {events}")
+    crashes = sum(1 for ln in out.splitlines() if "CRASH" in ln or "ANR" in ln)
+    return {"package": package_name, "mode": "LIVE_DEVICE", "events": events, "crashes": crashes}
 
 
 def run_corpus_evaluation(trials_per_regime: int = 5, max_apps: int = 10) -> Dict[str, Any]:
@@ -119,26 +130,29 @@ def run_corpus_evaluation(trials_per_regime: int = 5, max_apps: int = 10) -> Dic
     regime_failures: Dict[str, int] = {r[0]: 0 for r in regimes}
     detected_failures: List[Dict[str, Any]] = []
 
+    uptime_checks = 0
+    uptime_ok = 0
+
     for pkg in packages:
         if is_live:
             orch.adb.launch_app(pkg)
             time.sleep(0.6)
+            uptime_checks += 1
+            if "device" in orch.adb.run_cmd("get-state"):
+                uptime_ok += 1
         for r_name, apply_fn in regimes:
             if r_name != "1_BASELINE_NOMINAL":
                 orch.reset_all()
             if is_live:
                 orch.adb.run_shell(f"logcat -c; dumpsys gfxinfo {pkg} reset")
-            t_inj0 = time.perf_counter()
             apply_fn(orch, pkg)
-            inj_ms = round((time.perf_counter() - t_inj0) * 1000.0, 2)
-            orch.logger.record("CORPUS_EVAL", f"REGIME_{r_name}", {"package": pkg}, injection_latency_ms=inj_ms)
 
             for _ in range(trials_per_regime):
                 if is_live:
                     orch.adb.run_shell("input swipe 540 1600 540 700 180")
                     time.sleep(0.25)
                 telem = orch.sample_app_telemetry(package_name=pkg)
-                lat = float(telem.get("ui_delay_ms") if telem.get("ui_delay_ms") is not None else inj_ms)
+                lat = float(telem.get("ui_delay_ms") if telem.get("ui_delay_ms") is not None else 0.0)
                 fps = float(telem.get("fps") if telem.get("fps") is not None else 60.0)
                 jk = float(telem.get("jank_pct") if telem.get("jank_pct") is not None else 0.0)
                 regime_latencies[r_name].append(lat)
@@ -165,6 +179,7 @@ def run_corpus_evaluation(trials_per_regime: int = 5, max_apps: int = 10) -> Dic
         fails = regime_failures[r_name]
         u_stat, p_mw = (0.0, 1.0) if r_name == "1_BASELINE_NOMINAL" else mann_whitney_u(base_lats, lats)
         p_wx = 1.0 if r_name == "1_BASELINE_NOMINAL" else wilcoxon_signed_rank(base_lats, lats)
+        t_stat, p_t = (0.0, 1.0) if r_name == "1_BASELINE_NOMINAL" else paired_t_test(base_lats, lats)
         summary[r_name] = {
             "evaluation_mode": "LIVE_DEVICE" if is_live else "SIMULATED",
             "apps_evaluated": len(packages),
@@ -178,13 +193,17 @@ def run_corpus_evaluation(trials_per_regime: int = 5, max_apps: int = 10) -> Dic
             "mann_whitney_u": u_stat,
             "p_value_mann_whitney": p_mw,
             "p_value_wilcoxon": p_wx,
+            "paired_t_stat": t_stat,
+            "p_value_paired_t": p_t,
             "statistically_significant_p05": bool(p_mw < 0.05) if r_name != "1_BASELINE_NOMINAL" else None,
         }
 
+    uptime_pct = round((uptime_ok / uptime_checks) * 100.0, 2) if uptime_checks else 100.0
     corpus_out = {
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "device_id": orch.adb.device_id or "simulated",
         "mode": "LIVE_DEVICE" if is_live else "SIMULATED",
+        "emulator_uptime_pct": uptime_pct,
         "packages": packages,
         "regimes": summary,
     }

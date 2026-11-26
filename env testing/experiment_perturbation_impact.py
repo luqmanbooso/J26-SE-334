@@ -4,6 +4,7 @@ import math
 import time
 import random
 from typing import Dict, List, Any, Optional, Tuple
+from core.benchmark_catalog import paired_t_test
 from orchestrator import PerturbationOrchestrator
 
 
@@ -140,9 +141,10 @@ def run_evaluation_experiment(
         avg_fps = sum(fps_samples) / len(fps_samples)
         fail_rate = (failures / trials_per_condition) * 100.0
 
-        u_stat, p_val = (0.0, 1.0)
+        t_stat, p_t = (0.0, 1.0)
         if cond != "1_BASELINE_NOMINAL":
             u_stat, p_val = mann_whitney_u(latency_samples_by_cond["1_BASELINE_NOMINAL"], latencies)
+            t_stat, p_t = paired_t_test(latency_samples_by_cond["1_BASELINE_NOMINAL"], latencies)
 
         results[cond] = {
             "evaluation_mode": eval_mode,
@@ -154,6 +156,8 @@ def run_evaluation_experiment(
             "total_failures": failures,
             "mann_whitney_u": u_stat,
             "p_value": p_val,
+            "paired_t_stat": t_stat,
+            "p_value_paired_t": p_t,
             "statistically_significant_p05": bool(p_val < 0.05) if cond != "1_BASELINE_NOMINAL" else None
         }
 

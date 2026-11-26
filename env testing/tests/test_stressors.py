@@ -80,9 +80,37 @@ def test_context_stressor_rotation_and_theme(mock_context):
     stressor.set_font_scale(1.35)
     assert stressor.current_state.get("font_scale") == 1.35
 
+    stressor.set_brightness(15)
+    assert stressor.current_state.get("brightness") == 15
+
     stressor.revert()
     assert stressor.is_active is False
     assert stressor.current_state == {}
+
+
+def test_relational_telemetry_store_roundtrip(tmp_path):
+    from core.event_logger import EventLogger
+    from core.telemetry_store import TelemetryStore
+
+    db_path = str(tmp_path / "telemetry.db")
+    store = TelemetryStore(sqlite_path=db_path)
+    assert store.backend == "sqlite"
+    logger = EventLogger(output_path=str(tmp_path / "log.json"), store=store)
+    logger.record("NETWORK_LATENCY", "LATENCY_INJECTED", {"latency_ms": 1200}, injection_latency_ms=12.5)
+    rows = store.query_events(limit=10)
+    assert len(rows) == 1
+    assert rows[0]["action"] == "LATENCY_INJECTED"
+    assert rows[0]["injection_latency_ms"] == 12.5
+
+    store.insert_attribution_report({
+        "analysis_timestamp": "2026-11-26T16:00:00Z",
+        "attributions": [{
+            "failure_id": "F-100",
+            "failure_type": "TIMEOUT",
+            "primary_trigger": "LATENCY_INJECTED",
+            "confidence": 0.91,
+        }],
+    })
 
 
 def test_event_logger_does_not_count_inter_event_idle_time(tmp_path):

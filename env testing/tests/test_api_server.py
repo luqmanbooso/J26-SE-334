@@ -556,3 +556,27 @@ def test_wilcoxon_signed_rank_separates_pairs():
     before = [60.0, 62.0, 65.0, 61.0, 64.0, 63.0, 66.0, 60.0]
     after = [150.0, 165.0, 180.0, 170.0, 190.0, 175.0, 185.0, 195.0]
     assert wilcoxon_signed_rank(before, after) < 0.02
+
+
+def test_brightness_timeline_and_full_themis_endpoints():
+    b_resp = client.post("/api/stressor/context/brightness", json={"level": 18})
+    assert b_resp.status_code == 200
+    assert b_resp.json()["brightness"] == 18
+
+    tl_resp = client.post("/api/scheduler/run_timeline", json={
+        "profile": {"name": "Async Timeline", "cpuStress": 65, "latency": 800, "packetLoss": 4}
+    })
+    assert tl_resp.status_code == 200
+    assert tl_resp.json()["status"] == "TIMELINE_COMPLETED"
+    assert tl_resp.json()["steps_executed"] >= 3
+
+    thm_resp = client.get("/api/themis/benchmarks?full=true")
+    assert thm_resp.status_code == 200
+    thm_data = thm_resp.json()
+    assert thm_data["count"] == 52
+    assert thm_data["fdroid_corpus_count"] == 25
+
+    from core.benchmark_catalog import paired_t_test
+    t_stat, p_val = paired_t_test([60.0, 62.0, 64.0, 63.0], [180.0, 195.0, 210.0, 200.0])
+    assert t_stat > 10.0
+    assert p_val < 0.001

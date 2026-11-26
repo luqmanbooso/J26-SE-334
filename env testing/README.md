@@ -100,7 +100,7 @@ Full empirical metrics saved in `results/experiment_results.json`.
 ```bash
 cd "env testing"
 pytest tests/ -v
-# Output: 64 passed (100% pass)
+# Output: 68 passed (100% pass)
 ```
 
 ### 2. Run Multi-App Empirical Corpus Benchmark (Live AVD)

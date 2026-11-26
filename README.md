@@ -298,7 +298,7 @@ The C1 microservice exposes clean REST endpoints for remote test automation, CI/
 
 The project enforces quality and test validation through GitHub Actions:
 - **Linting & Syntax**: `flake8` audit and `py_compile` across all Python entry points.
-- **Unit & Integration Tests**: 64 automated C1 tests (`env testing/`) covering network chaos injection, stressor resets, and failure attribution algorithms, plus 18 shared ADB unit tests (`tests/test_common_adb.py`).
+- **Unit & Integration Tests**: 68 automated C1 tests (`env testing/`) covering network chaos injection, asyncio timeline scheduling, brightness/context stressors, relational telemetry persistence, and failure attribution algorithms, plus 18 shared ADB unit tests (`tests/test_common_adb.py`).
 - **RQ1 Empirical Verification**: Validates statistical significance of non-crash defect discovery under compound environmental chaos.
 
 Run tests locally:

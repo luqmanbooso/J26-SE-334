@@ -10,6 +10,8 @@ from pydantic import BaseModel
 
 import re
 from orchestrator import PerturbationOrchestrator
+from core.profile_parser import ProfileParser, ProfileValidationError
+from core.benchmark_catalog import THEMIS_FULL_CATALOG_52, FDROID_CORPUS_25
 
 app = FastAPI(
     title="HEART - Environmental Perturbation Engine API",
@@ -78,6 +80,7 @@ def get_status():
         "device": dev_info,
         "is_simulated": dev_info["is_simulated"],
         "target_model": dev_info["target_model"],
+        "storage_backend": orchestrator.store.backend,
         "active_events_count": len(orchestrator.logger.events)
     }
 
@@ -227,7 +230,6 @@ def apply_profile_template(template_name: str):
 @app.post("/api/profiles/parse_yaml")
 def parse_yaml_profile(payload: YamlParsePayload):
     """Parses and validates a raw YAML stress profile configuration string."""
-    from core.profile_parser import ProfileParser, ProfileValidationError
     try:
         profile = ProfileParser.parse_yaml_string(payload.yaml_content)
         return {
@@ -577,12 +579,15 @@ THEMIS_BUGS = [
 ]
 
 @app.get("/api/themis/benchmarks")
-def get_themis_benchmarks():
+def get_themis_benchmarks(full: bool = False):
     """Lists ground-truth Themis benchmark bug reproduction suite (Section 4)."""
+    items = THEMIS_FULL_CATALOG_52 if full else THEMIS_BUGS
     return {
         "benchmark_source": "Themis Benchmark Suite (ACM/IEEE FSE Ground Truth)",
-        "count": len(THEMIS_BUGS),
-        "benchmarks": THEMIS_BUGS
+        "count": len(items),
+        "catalog_52_count": len(THEMIS_FULL_CATALOG_52),
+        "fdroid_corpus_count": len(FDROID_CORPUS_25),
+        "benchmarks": items
     }
 
 @app.post("/api/themis/reproduce/{bug_id}")
@@ -749,9 +754,15 @@ class DarkModePayload(BaseModel):
 class FontScalePayload(BaseModel):
     scale: float = 1.3
 
+class BrightnessPayload(BaseModel):
+    level: int = 20
+
 class GpsPayload(BaseModel):
     lat: float = 6.9271
     lon: float = 79.8612
+
+class TimelinePayload(BaseModel):
+    profile: Dict[str, Any]
 
 class StepPayload(BaseModel):
     step: str = "MID_TRANSACTION"
@@ -894,12 +905,36 @@ def set_context_font_scale(payload: FontScalePayload):
     elapsed = round((time.time() - t0) * 1000, 2)
     return {"status": "APPLIED", "font_scale": payload.scale, "latency_ms": elapsed, "rq1_pass": elapsed < 100.0}
 
+@app.post("/api/stressor/context/brightness")
+def set_context_brightness(payload: BrightnessPayload):
+    t0 = time.time()
+    orchestrator.context.set_brightness(payload.level)
+    elapsed = round((time.time() - t0) * 1000, 2)
+    return {"status": "APPLIED", "brightness": max(0, min(255, int(payload.level))), "latency_ms": elapsed, "rq1_pass": elapsed < 100.0}
+
 @app.post("/api/stressor/context/gps")
 def set_context_gps(payload: GpsPayload):
     t0 = time.time()
     orchestrator.context.set_gps_location(payload.lat, payload.lon)
     elapsed = round((time.time() - t0) * 1000, 2)
     return {"status": "APPLIED", "latitude": payload.lat, "longitude": payload.lon, "latency_ms": elapsed, "rq1_pass": elapsed < 100.0}
+
+@app.post("/api/scheduler/run_timeline")
+async def run_scheduler_timeline(payload: TimelinePayload):
+    """Compiles a YAML/JSON stress profile into an executable asyncio timeline and dispatches it."""
+    try:
+        timeline = ProfileParser.compile_timeline(payload.profile)
+    except ProfileValidationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    dispatched = await orchestrator.scheduler.schedule_timeline(
+        timeline,
+        action_registry=orchestrator.get_action_registry(),
+    )
+    return {
+        "status": "TIMELINE_COMPLETED",
+        "steps_executed": len(dispatched),
+        "dispatched": dispatched,
+    }
 
 @app.post("/api/scheduler/trigger_step")
 def trigger_scheduler_step(payload: StepPayload):

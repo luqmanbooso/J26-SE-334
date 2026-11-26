@@ -6,6 +6,7 @@ from core.adb_client import ADBClient
 from core.event_logger import EventLogger
 from core.scheduler import PerturbationScheduler
 from core.profile_parser import ProfileParser
+from core.telemetry_store import TelemetryStore
 from stressors.system_stressor import SystemStressor
 from stressors.network_stressor import NetworkStressor
 from stressors.interruption_stressor import InterruptionStressor
@@ -17,7 +18,13 @@ class PerturbationOrchestrator:
 
     def __init__(self, log_path: str = "perturbation_event_log.json", force_simulation: bool = False):
         self.adb = ADBClient(force_simulation=force_simulation)
-        self.logger = EventLogger(log_path, latency_provider=self.adb.consume_latency_ms)
+        use_mem_db = force_simulation or ("pytest" in os.sys.modules) or bool(os.environ.get("PYTEST_CURRENT_TEST"))
+        self.store = TelemetryStore(sqlite_path=":memory:") if use_mem_db else TelemetryStore()
+        self.logger = EventLogger(
+            log_path,
+            latency_provider=self.adb.consume_latency_ms,
+            store=self.store,
+        )
         self.scheduler = PerturbationScheduler(logger=self.logger)
 
         self.system = SystemStressor(self.adb, self.logger)
@@ -203,10 +210,45 @@ class PerturbationOrchestrator:
             "performance": self.logger.get_performance_summary()
         }
 
+    def get_action_registry(self) -> Dict[str, Any]:
+        """Maps timeline action keys to bound stressor callables."""
+        return {
+            "cpu": self.system.set_cpu_load,
+            "ram": self.system.set_ram_pressure,
+            "disk_io": self.system.inject_disk_io_bottleneck,
+            "battery": self.system.set_battery,
+            "thermal": self.system.set_thermal_state,
+            "latency": self.network.inject_latency,
+            "packet_loss": self.network.inject_packet_loss,
+            "dns_fail": self.network.simulate_dns_failure,
+            "bandwidth": self.network.set_bandwidth_profile,
+            "network_mode": self.network.set_mode,
+            "call": self.interruption.trigger_incoming_call,
+            "sms": self.interruption.send_sms_banner,
+            "orientation": self.context.set_orientation,
+            "dark_mode": self.context.set_dark_mode,
+            "font_scale": self.context.set_font_scale,
+            "brightness": self.context.set_brightness,
+        }
+
+    def run_profile_timeline(self, profile: Dict[str, Any]) -> Dict[str, Any]:
+        """Compiles a YAML/JSON stress profile into an asyncio timeline and dispatches it."""
+        timeline = ProfileParser.compile_timeline(profile)
+        dispatch_log = self.scheduler.run_timeline(timeline, action_registry=self.get_action_registry())
+        return {
+            "timeline_steps": len(timeline),
+            "dispatched": dispatch_log,
+            "telemetry": self.get_telemetry_snapshot(),
+        }
+
     def correlate_failures(self, failures: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Generates failure attribution report from recorded perturbation event stream."""
         report = self.attribution_engine.correlate(failures, self.logger.events)
         self.attribution_engine.export_report(report)
+        try:
+            self.store.insert_attribution_report(report)
+        except Exception:
+            pass
         return report
 
     def reset_all(self) -> None:

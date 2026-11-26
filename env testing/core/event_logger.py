@@ -17,10 +17,12 @@ class EventLogger:
         self,
         output_path: str = "perturbation_event_log.json",
         latency_provider: Optional[Callable[[], float]] = None,
+        store: Optional[Any] = None,
     ):
         self.output_path = output_path
         self.events: List[Dict[str, Any]] = []
         self.latency_provider = latency_provider
+        self.store = store
 
     def begin_action(self) -> None:
         """Marks the start of an injection operation for accurate execution timing."""
@@ -39,8 +41,9 @@ class EventLogger:
         epoch_ms = int(time.time() * 1000)
         timestamp_iso = datetime.now().isoformat()
 
-        # Measure host injector process overhead defensively (CPU % normalized by logical cores)
+        # Measure host injector process overhead defensively (CPU % + process memory % < 15% per Table 3-1)
         host_cpu = 0.0
+        proc_mem = 0.0
         host_mem = 0.0
         if psutil is not None:
             try:
@@ -52,6 +55,8 @@ class EventLogger:
                     raw_cpu = float(proc.cpu_percent(interval=None))
                     cores = float(psutil.cpu_count() or 1)
                     host_cpu = round(raw_cpu / max(1.0, cores), 2)
+                if proc is not None and callable(getattr(proc, "memory_percent", None)):
+                    proc_mem = round(float(proc.memory_percent()), 2)
                 fn_mem = getattr(psutil, "virtual_memory", None)
                 if callable(fn_mem):
                     host_mem = float(fn_mem().percent)
@@ -82,12 +87,18 @@ class EventLogger:
             "latency_compliant": latency < 100.0,
             "host_overhead": {
                 "cpu_percent": host_cpu,
+                "process_mem_percent": proc_mem,
                 "mem_percent": host_mem,
-                "compliant": host_cpu < 15.0
+                "compliant": (host_cpu < 15.0) and (proc_mem < 15.0)
             },
             "telemetry": telemetry_snapshot or {}
         }
         self.events.append(entry)
+        if self.store is not None:
+            try:
+                self.store.insert_event(entry)
+            except Exception:
+                pass
         param_summary = ", ".join(f"{k}={v}" for k, v in parameters.items())
         print(f"[{timestamp_iso}] [{category}] {action} ({status}, {latency}ms) -> {param_summary}")
         return entry
@@ -115,11 +126,13 @@ class EventLogger:
 
         latencies = [e.get("injection_latency_ms", 0.0) for e in self.events]
         cpus = [e.get("host_overhead", {}).get("cpu_percent", 0.0) for e in self.events]
+        mems = [e.get("host_overhead", {}).get("process_mem_percent", 0.0) for e in self.events]
 
         avg_lat = round(sum(latencies) / len(latencies), 2)
         compliant_count = sum(1 for l in latencies if l < 100.0)
         compliance_pct = round((compliant_count / len(latencies)) * 100, 1)
         avg_cpu = round(sum(cpus) / len(cpus), 2)
+        avg_mem = round(sum(mems) / len(mems), 2)
 
         return {
             "total_events": len(self.events),
@@ -127,8 +140,9 @@ class EventLogger:
             "latency_target_ms": 100.0,
             "latency_compliance_rate": compliance_pct,
             "avg_host_cpu_overhead": avg_cpu,
+            "avg_host_mem_overhead": avg_mem,
             "overhead_target_pct": 15.0,
-            "overhead_compliant": avg_cpu < 15.0
+            "overhead_compliant": (avg_cpu < 15.0) and (avg_mem < 15.0)
         }
 
     def clear(self) -> None:
