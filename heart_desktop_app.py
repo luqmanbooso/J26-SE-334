@@ -559,7 +559,20 @@ class HeartSimpleApp(ctk.CTk):
             font=ctk.CTkFont(family="Consolas", size=10, weight="bold"),
             text_color=THEME["text_body"]
         )
-        self.dev_battery_lbl.pack(side="left", padx=(0, 12))
+        self.dev_battery_lbl.pack(side="left", padx=(0, 8))
+
+        store_backend = str(getattr(getattr(self.orchestrator, "store", None), "backend", "sqlite")).upper()
+        self.db_backend_badge = ctk.CTkLabel(
+            self.dev_badge,
+            text=f"DB: {store_backend}",
+            font=ctk.CTkFont(family="Consolas", size=9, weight="bold"),
+            text_color="#059669" if store_backend == "POSTGRESQL" else "#2563eb",
+            fg_color=THEME["bg_card"],
+            corner_radius=5,
+            padx=7,
+            pady=2
+        )
+        self.db_backend_badge.pack(side="left", padx=(0, 10))
 
         # Right Master Action Toolbar
         actions_box = ctk.CTkFrame(head, fg_color="transparent")
@@ -842,6 +855,19 @@ class HeartSimpleApp(ctk.CTk):
             command=self._apply_selected_env_profile
         )
         self.btn_apply_profile.pack(side="left", padx=2)
+
+        ctk.CTkButton(
+            r_top,
+            text="⏱ Async Timeline",
+            width=112,
+            height=28,
+            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+            corner_radius=6,
+            fg_color="#0ea5e9",
+            hover_color="#0284c7",
+            text_color="#ffffff",
+            command=self._run_async_timeline_profile
+        ).pack(side="left", padx=2)
 
         ctk.CTkButton(
             r_top,
@@ -1861,10 +1887,10 @@ class HeartSimpleApp(ctk.CTk):
     # Card 4: Device Display & Context
     # -------------------------------------------------------------------------
     def _build_card_context(self, parent):
-        card = self._create_card(parent, "Display & Device Context", subtitle="Orientation & Theme")
+        card = self._create_card(parent, "Display & Device Context", subtitle="Orientation, Theme, Brightness, Scale & GPS")
 
         r = ctk.CTkFrame(card, fg_color="transparent")
-        r.pack(fill="x", padx=14, pady=(6, 10))
+        r.pack(fill="x", padx=14, pady=(6, 6))
 
         ctk.CTkLabel(r, text="Orientation:", font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"), text_color=THEME["text_body"]).pack(side="left", padx=(0, 6))
         for rot_val, rot_lbl in [(0, "Portrait (0°)"), (1, "Landscape (90°)")]:
@@ -1888,6 +1914,87 @@ class HeartSimpleApp(ctk.CTk):
 
         self.dark_mode_switch = ctk.CTkSwitch(r, text="Dark Mode", font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"), progress_color=THEME["primary"], command=self._on_dark_mode_switch)
         self.dark_mode_switch.pack(side="right", padx=6)
+
+        r_bri = ctk.CTkFrame(card, fg_color="transparent")
+        r_bri.pack(fill="x", padx=14, pady=(2, 6))
+
+        ctk.CTkLabel(r_bri, text="Brightness:", font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"), text_color=THEME["text_body"]).pack(side="left", padx=(0, 6))
+        self.brightness_val_lbl = ctk.CTkLabel(r_bri, text="128", width=34, font=ctk.CTkFont(family="Consolas", size=10, weight="bold"), text_color=THEME["primary"])
+        self.brightness_val_lbl.pack(side="left", padx=(0, 6))
+
+        self.brightness_slider = ctk.CTkSlider(
+            r_bri, from_=0, to=255, number_of_steps=51, height=14,
+            progress_color="#f59e0b", button_color="#d97706",
+            command=self._on_brightness_slider
+        )
+        self.brightness_slider.set(128)
+        self.brightness_slider.pack(side="left", fill="x", expand=True, padx=(0, 8))
+
+        for b_val, b_lbl in [(20, "Dim"), (128, "50%"), (255, "Max")]:
+            ctk.CTkButton(
+                r_bri,
+                text=b_lbl,
+                width=42,
+                height=22,
+                font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+                corner_radius=5,
+                fg_color=THEME["bg_box"],
+                text_color=THEME["text_body"],
+                border_width=1,
+                border_color=THEME["border"],
+                hover_color=THEME["primary_light"],
+                command=lambda v=b_val: self._set_brightness(v)
+            ).pack(side="left", padx=2)
+
+        ctk.CTkButton(
+            r_bri,
+            text="Set",
+            width=40,
+            height=22,
+            font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+            corner_radius=5,
+            fg_color=THEME["primary"],
+            hover_color=THEME["primary_hover"],
+            text_color="#ffffff",
+            command=self._apply_brightness_slider
+        ).pack(side="left", padx=(4, 0))
+
+        r_env = ctk.CTkFrame(card, fg_color="transparent")
+        r_env.pack(fill="x", padx=14, pady=(2, 10))
+
+        ctk.CTkLabel(r_env, text="Font Scale:", font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"), text_color=THEME["text_body"]).pack(side="left", padx=(0, 6))
+        for fs_val, fs_lbl in [(1.0, "1.0x"), (1.3, "1.3x")]:
+            ctk.CTkButton(
+                r_env,
+                text=fs_lbl,
+                width=46,
+                height=22,
+                font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+                corner_radius=5,
+                fg_color=THEME["bg_box"],
+                text_color=THEME["text_body"],
+                border_width=1,
+                border_color=THEME["border"],
+                hover_color=THEME["primary_light"],
+                command=lambda s=fs_val: self._set_font_scale(s)
+            ).pack(side="left", padx=2)
+
+        ctk.CTkLabel(r_env, text="GPS Shift:", font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"), text_color=THEME["text_body"]).pack(side="left", padx=(14, 6))
+        for loc_lbl, lat, lon in [("Colombo", 6.9271, 79.8612), ("London", 51.5074, -0.1278)]:
+            ctk.CTkButton(
+                r_env,
+                text=loc_lbl,
+                width=68,
+                height=22,
+                font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+                corner_radius=5,
+                fg_color=THEME["bg_box"],
+                text_color=THEME["text_body"],
+                border_width=1,
+                border_color=THEME["border"],
+                hover_color=THEME["primary_light"],
+                command=lambda la=lat, lo=lon, name=loc_lbl: self._set_gps_preset(la, lo, name)
+            ).pack(side="left", padx=2)
 
     def _create_card(self, parent, title, subtitle=None):
         card = ctk.CTkFrame(parent, fg_color=THEME["bg_card"], corner_radius=10, border_width=1, border_color=THEME["border"])
@@ -6460,6 +6567,65 @@ class HeartSimpleApp(ctk.CTk):
         self._run_async_stressor("CONTEXT", lambda: self.orchestrator.context.set_dark_mode(val),
                                  lambda: self._append_log(f"[CONTEXT] Dark Mode set: {val}"))
 
+    def _on_brightness_slider(self, val):
+        if hasattr(self, "brightness_val_lbl"):
+            self.brightness_val_lbl.configure(text=f"{int(round(val))}")
+
+    def _apply_brightness_slider(self):
+        level = int(round(self.brightness_slider.get())) if hasattr(self, "brightness_slider") else 128
+        self._set_brightness(level)
+
+    def _set_brightness(self, level):
+        lvl = max(0, min(255, int(level)))
+        self._stressors_active = True
+        if hasattr(self, "brightness_slider"):
+            self.brightness_slider.set(lvl)
+        if hasattr(self, "brightness_val_lbl"):
+            self.brightness_val_lbl.configure(text=f"{lvl}")
+        self._run_async_stressor("CONTEXT", lambda: self.orchestrator.context.set_brightness(lvl),
+                                 lambda: self._append_log(f"[CONTEXT] Screen brightness set: {lvl}/255"))
+
+    def _set_font_scale(self, scale):
+        sc = float(scale)
+        self._stressors_active = True
+        self._run_async_stressor("CONTEXT", lambda: self.orchestrator.context.set_font_scale(sc),
+                                 lambda: self._append_log(f"[CONTEXT] Font scale set: {sc:.1f}x"))
+
+    def _set_gps_preset(self, lat, lon, label="Preset"):
+        self._stressors_active = True
+        self._run_async_stressor("CONTEXT", lambda: self.orchestrator.context.set_gps_location(lat, lon),
+                                 lambda: self._append_log(f"[CONTEXT] GPS shifted to {label} ({lat:.4f}, {lon:.4f})"))
+
+    def _run_async_timeline_profile(self):
+        choice = self.env_profile_selector.get() if hasattr(self, "env_profile_selector") else ""
+        p = self.ENV_PROFILES.get(choice)
+        if not p:
+            return
+        self._apply_env_profile(choice)
+        payload = {
+            "cpuStress": p.get("cpu", 0),
+            "ramStress": p.get("ram", 0),
+            "diskIo": p.get("disk_io", 0),
+            "thermalState": p.get("thermal", "None"),
+            "latency": p.get("latency", 0),
+            "packetLoss": p.get("packet_loss", 0),
+            "dnsFailure": p.get("dns_failure", False),
+            "networkProfile": p.get("network", "wifi"),
+            "interruptionType": "Low Battery" if p.get("battery", 100) <= 10 else "None",
+        }
+        result_holder = {}
+
+        def _exec():
+            result_holder["res"] = self.orchestrator.run_profile_timeline(payload)
+
+        def _done():
+            res = result_holder.get("res", {})
+            steps = res.get("timeline_steps", 0)
+            dispatched = len(res.get("dispatched", []))
+            self._append_log(f"[SCHEDULER] Asyncio timeline '{choice}' completed ({dispatched}/{steps} steps dispatched)")
+
+        self._run_async_stressor("SCHEDULER", _exec, _done)
+
     def _clean_avd_locks(self, target_avd, purge_snapshot=False):
         """Cleans stale QEMU lock files (and optionally corrupt snapshots) that trap AVD in offline loops."""
         for name in [target_avd, target_avd.split("_API_")[0]]:
@@ -6600,6 +6766,9 @@ class HeartSimpleApp(ctk.CTk):
         self.lat_val_lbl.configure(text="0 ms")
         self.loss_slider.set(0)
         self.loss_val_lbl.configure(text="0%")
+        if hasattr(self, "brightness_slider"):
+            self.brightness_slider.set(128)
+            self.brightness_val_lbl.configure(text="128")
         self._active_state = dict(self._baseline_state)
         self._highlight_cpu_button(0)
         self._highlight_thermal_button("Nominal")
