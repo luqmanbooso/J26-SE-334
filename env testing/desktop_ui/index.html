@@ -1,1128 +1,631 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HEART Desktop Studio - Component 1: Context-Aware Environmental Perturbation Engine</title>
+  <title>HEART Studio Pro · Component 1 Environmental Perturbation Laboratory</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-dark: #070b14;
-      --bg-surface: #0e1726;
-      --bg-card: #131f37;
-      --bg-card-hover: #182846;
-      --border-subtle: rgba(255, 255, 255, 0.08);
-      --border-glow: rgba(251, 146, 60, 0.35);
-      --accent-orange: #f97316;
-      --accent-orange-bright: #fb923c;
-      --accent-green: #10b981;
-      --accent-cyan: #38bdf8;
-      --accent-rose: #f43f5e;
-      --accent-purple: #a855f7;
-      --text-main: #f8fafc;
-      --text-muted: #94a3b8;
-      --text-dim: #64748b;
-      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif;
+      --bg-canvas: #090b10;
+      --bg-sidebar: #0d1017;
+      --bg-surface: #121620;
+      --bg-elevated: #171c29;
+      --bg-input: #0b0e14;
+      --border-hairline: rgba(255, 255, 255, 0.08);
+      --border-strong: rgba(255, 255, 255, 0.14);
+      --border-accent: rgba(99, 102, 241, 0.45);
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --brand: #6366f1;
+      --brand-bright: #818cf8;
+      --brand-glow: rgba(99, 102, 241, 0.25);
+      --cyan: #06b6d4;
+      --emerald: #10b981;
+      --emerald-bg: rgba(16, 185, 129, 0.14);
+      --amber: #f59e0b;
+      --amber-bg: rgba(245, 158, 11, 0.14);
+      --rose: #f43f5e;
+      --rose-bg: rgba(244, 63, 94, 0.14);
+      --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.28);
+      --radius-lg: 14px;
+      --radius-md: 10px;
+      --radius-sm: 7px;
+      --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --mono: "JetBrains Mono", Consolas, monospace;
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: var(--font-family);
+    html[data-theme="light"] {
+      --bg-canvas: #f3f6fb;
+      --bg-sidebar: #ffffff;
+      --bg-surface: #ffffff;
+      --bg-elevated: #f8fafc;
+      --bg-input: #f1f5f9;
+      --border-hairline: #e2e8f0;
+      --border-strong: #cbd5e1;
+      --border-accent: rgba(79, 70, 229, 0.4);
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #64748b;
+      --brand: #4f46e5;
+      --brand-bright: #4338ca;
+      --brand-glow: rgba(79, 70, 229, 0.14);
+      --shadow-card: 0 2px 12px rgba(15, 23, 42, 0.06);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--sans);
+      background: var(--bg-canvas);
+      color: var(--text-primary);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      font-size: 13px;
+      line-height: 1.45;
       -webkit-font-smoothing: antialiased;
     }
 
-    body {
-      background: var(--bg-dark);
-      color: var(--text-main);
-      overflow: hidden;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 99px; }
 
-    /* Ambient background glow */
-    .ambient-glow {
-      position: fixed;
-      top: -120px;
-      right: -100px;
-      width: 500px;
-      height: 500px;
-      background: radial-gradient(circle, rgba(251, 146, 60, 0.08) 0%, transparent 70%);
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    /* Top Application Bar */
-    header.app-header {
-      height: 64px;
-      background: rgba(14, 23, 38, 0.95);
-      backdrop-filter: blur(16px);
-      border-bottom: 1px solid var(--border-subtle);
+    /* Top Command Bar */
+    header.topbar {
+      height: 60px;
+      background: var(--bg-sidebar);
+      border-bottom: 1px solid var(--border-hairline);
       display: flex;
       align-items: center;
       justify-content: space-between;
       padding: 0 20px;
-      z-index: 50;
       flex-shrink: 0;
+      z-index: 40;
     }
 
-    .brand-section {
-      display: flex;
-      align-items: center;
-      gap: 12px;
+    .brand-lockup { display: flex; align-items: center; gap: 12px; }
+    .brand-mark {
+      width: 34px; height: 34px; border-radius: 9px;
+      background: linear-gradient(135deg, var(--brand), #8b5cf6);
+      display: grid; place-items: center; color: #fff;
+      box-shadow: 0 4px 14px var(--brand-glow);
     }
-
-    .brand-badge {
-      width: 38px;
-      height: 38px;
-      border-radius: 10px;
-      background: linear-gradient(135deg, #f97316, #ea580c);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 0 16px rgba(249, 115, 22, 0.45);
-      font-weight: 900;
-      font-size: 18px;
-      color: #fff;
+    .brand-name { font-weight: 800; font-size: 14px; letter-spacing: -0.02em; display: flex; align-items: center; gap: 8px; }
+    .pill-tag {
+      font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 99px;
+      background: var(--brand-glow); color: var(--brand-bright); border: 1px solid var(--border-accent);
+      letter-spacing: 0.03em; text-transform: uppercase;
     }
+    .brand-sub { font-size: 11px; color: var(--text-muted); font-weight: 500; }
 
-    .brand-titles {
-      display: flex;
-      flex-direction: column;
-      line-height: 1.2;
+    .topbar-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .metric-chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--bg-elevated); border: 1px solid var(--border-hairline);
+      border-radius: 99px; padding: 5px 12px; font-size: 11px; font-weight: 600;
+      font-variant-numeric: tabular-nums;
     }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--emerald); box-shadow: 0 0 8px var(--emerald); }
+    .dot.warn { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+    .metric-chip.ok { border-color: rgba(16, 185, 129, 0.3); color: var(--emerald); background: var(--emerald-bg); }
+    .metric-chip.warn { border-color: rgba(245, 158, 11, 0.35); color: var(--amber); background: var(--amber-bg); }
 
-    .brand-main {
-      font-size: 14px;
-      font-weight: 800;
-      letter-spacing: -0.2px;
-      color: #fff;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .brand-tag {
-      font-size: 9.5px;
-      font-weight: 700;
-      color: var(--accent-orange-bright);
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-    }
-
-    .brand-sub {
-      font-size: 11px;
-      color: var(--text-muted);
-      font-weight: 500;
-    }
-
-    .header-status-group {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .status-pill {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid var(--border-subtle);
-      border-radius: 20px;
-      padding: 6px 14px;
-      font-size: 11.5px;
-      font-weight: 600;
-      color: var(--text-main);
-    }
-
-    .pulse-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--accent-green);
-      box-shadow: 0 0 8px var(--accent-green);
-      animation: pulse 2s infinite;
-    }
-
-    @keyframes pulse {
-      0% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.4; transform: scale(0.85); }
-      100% { opacity: 1; transform: scale(1); }
-    }
-
-    .sla-badge {
-      font-size: 10px;
-      font-weight: 800;
-      padding: 2px 8px;
-      border-radius: 12px;
-      background: rgba(16, 185, 129, 0.15);
-      color: #34d399;
-      border: 1px solid rgba(16, 185, 129, 0.3);
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .btn-header {
-      padding: 7px 14px;
-      border-radius: 8px;
-      font-size: 12px;
-      font-weight: 700;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      transition: all 0.2s ease;
-      border: none;
-    }
-
-    .btn-reset {
-      background: rgba(244, 63, 94, 0.15);
-      color: #fb7185;
-      border: 1px solid rgba(244, 63, 94, 0.35);
-    }
-
-    .btn-reset:hover {
-      background: rgba(244, 63, 94, 0.25);
-      transform: translateY(-1px);
-    }
-
-    .btn-live-suite {
-      background: linear-gradient(135deg, #f97316, #ea580c);
-      color: #fff;
-      box-shadow: 0 0 14px rgba(249, 115, 22, 0.4);
-    }
-
-    .btn-live-suite:hover {
-      filter: brightness(1.1);
-      transform: translateY(-1px);
-    }
-
-    /* Main Workspace Layout */
-    .app-body {
-      display: flex;
-      flex: 1;
-      overflow: hidden;
-      position: relative;
-      z-index: 10;
-    }
-
-    /* Navigation Sidebar */
-    aside.nav-sidebar {
-      width: 260px;
-      background: var(--bg-surface);
-      border-right: 1px solid var(--border-subtle);
-      display: flex;
-      flex-direction: column;
-      flex-shrink: 0;
-      user-select: none;
-    }
-
-    .sidebar-section-title {
-      font-size: 10px;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: var(--text-dim);
-      padding: 16px 18px 8px 18px;
-    }
-
-    .nav-list {
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-      padding: 0 10px;
-    }
-
-    .nav-item {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 10px 14px;
-      border-radius: 8px;
-      font-size: 12.5px;
-      font-weight: 600;
-      color: var(--text-muted);
-      cursor: pointer;
-      border: 1px solid transparent;
-      transition: all 0.15s ease;
-      text-align: left;
-      background: transparent;
-      width: 100%;
-    }
-
-    .nav-item:hover {
-      background: rgba(255, 255, 255, 0.04);
-      color: var(--text-main);
-    }
-
-    .nav-item.active {
-      background: rgba(251, 146, 60, 0.12);
-      color: #fff;
-      border-color: rgba(251, 146, 60, 0.35);
-      font-weight: 700;
-    }
-
-    .nav-icon {
-      font-size: 16px;
-      width: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .nav-badge {
-      margin-left: auto;
-      font-size: 9px;
-      font-weight: 800;
-      padding: 2px 6px;
-      border-radius: 6px;
-      background: rgba(255, 255, 255, 0.08);
-      color: var(--text-muted);
-    }
-
-    .nav-item.active .nav-badge {
-      background: rgba(251, 146, 60, 0.25);
-      color: var(--accent-orange-bright);
-    }
-
-    .sidebar-footer {
-      margin-top: auto;
-      padding: 14px 16px;
-      border-top: 1px solid var(--border-subtle);
-      background: rgba(7, 11, 20, 0.4);
-    }
-
-    .researcher-card {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .researcher-avatar {
-      width: 34px;
-      height: 34px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #fb923c, #f97316);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 900;
-      font-size: 12px;
-      color: #000;
-    }
-
-    .researcher-details {
-      line-height: 1.25;
-    }
-
-    .researcher-name {
-      font-size: 12px;
-      font-weight: 800;
-      color: #fff;
-    }
-
-    .researcher-role {
-      font-size: 10px;
-      color: var(--accent-orange-bright);
-      font-weight: 600;
-    }
-
-    /* Main Content Container */
-    main.content-area {
-      flex: 1;
-      overflow-y: auto;
-      padding: 24px;
-      background: radial-gradient(circle at 80% 10%, rgba(26, 38, 66, 0.25) 0%, transparent 60%);
-    }
-
-    .tab-pane {
-      display: none;
-      animation: fadeIn 0.25s ease-out;
-    }
-
-    .tab-pane.active {
-      display: block;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(6px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    /* Common Card Styles */
-    .card {
-      background: var(--bg-card);
-      border: 1px solid var(--border-subtle);
-      border-radius: 14px;
-      padding: 20px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
-      margin-bottom: 20px;
-    }
-
-    .card-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 16px;
-      border-bottom: 1px solid var(--border-subtle);
-      padding-bottom: 12px;
-    }
-
-    .card-title {
-      font-size: 14px;
-      font-weight: 800;
-      color: #fff;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .card-subtitle {
-      font-size: 11px;
-      color: var(--text-muted);
-      margin-top: 2px;
-    }
-
-    /* Grid Layouts */
-    .grid-2 {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 20px;
-    }
-
-    .grid-3 {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 16px;
-    }
-
-    .grid-4 {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 16px;
-    }
-
-    /* Controls: Sliders, Buttons, Inputs */
-    .control-row {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      margin-bottom: 16px;
-    }
-
-    .control-label {
-      display: flex;
-      justify-content: space-between;
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--text-muted);
-    }
-
-    .control-val {
-      color: var(--accent-orange-bright);
-      font-family: monospace;
-      font-weight: 800;
-    }
-
-    input[type="range"] {
-      -webkit-appearance: none;
-      width: 100%;
-      height: 6px;
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 3px;
-      outline: none;
-    }
-
-    input[type="range"]::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
-      background: var(--accent-orange);
-      cursor: pointer;
-      box-shadow: 0 0 8px var(--accent-orange);
-      transition: transform 0.1s;
-    }
-
-    input[type="range"]::-webkit-slider-thumb:hover {
-      transform: scale(1.2);
-    }
-
-    .btn-group {
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
-    }
-
-    .btn-toggle {
-      flex: 1;
-      padding: 8px 10px;
-      border-radius: 8px;
-      font-size: 11px;
-      font-weight: 700;
-      background: rgba(255, 255, 255, 0.04);
-      color: var(--text-muted);
-      border: 1px solid var(--border-subtle);
-      cursor: pointer;
-      transition: all 0.15s;
-      text-align: center;
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      border-radius: var(--radius-sm); padding: 7px 13px; font-size: 12px; font-weight: 600;
+      cursor: pointer; border: 1px solid var(--border-strong); background: var(--bg-elevated);
+      color: var(--text-primary); transition: all 0.15s ease; font-family: var(--sans);
       white-space: nowrap;
     }
+    .btn:hover { border-color: var(--brand-bright); transform: translateY(-1px); }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--brand), #4f46e5);
+      border-color: transparent; color: #fff; box-shadow: 0 4px 12px var(--brand-glow);
+    }
+    .btn-primary:hover { filter: brightness(1.08); }
+    .btn-danger { background: var(--rose-bg); color: var(--rose); border-color: rgba(244, 63, 94, 0.35); }
+    .btn-danger:hover { background: rgba(244, 63, 94, 0.24); }
+    .btn-sm { padding: 5px 10px; font-size: 11px; }
+    .btn-icon { width: 32px; height: 32px; padding: 0; }
 
-    .btn-toggle:hover {
-      background: rgba(255, 255, 255, 0.08);
-      color: #fff;
+    /* Shell Body */
+    .workspace-shell { display: flex; flex: 1; overflow: hidden; }
+    aside.rail {
+      width: 244px; background: var(--bg-sidebar); border-right: 1px solid var(--border-hairline);
+      display: flex; flex-direction: column; padding: 14px 10px; flex-shrink: 0;
+    }
+    .rail-group {
+      font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--text-muted); padding: 10px 10px 6px;
+    }
+    .nav-btn {
+      display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 11px;
+      border-radius: var(--radius-sm); background: transparent; border: 1px solid transparent;
+      color: var(--text-secondary); font-size: 12.5px; font-weight: 600; cursor: pointer;
+      transition: all 0.14s ease; text-align: left; font-family: var(--sans);
+    }
+    .nav-btn svg { width: 16px; height: 16px; flex-shrink: 0; opacity: 0.78; }
+    .nav-btn:hover { background: var(--bg-elevated); color: var(--text-primary); }
+    .nav-btn.active {
+      background: var(--brand-glow); color: var(--brand-bright); border-color: var(--border-accent);
+    }
+    .nav-btn.active svg { opacity: 1; }
+    .nav-pill {
+      margin-left: auto; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 6px;
+      background: var(--bg-surface); border: 1px solid var(--border-hairline); color: var(--text-muted);
+      font-family: var(--mono);
+    }
+    .rail-footer {
+      margin-top: auto; padding: 12px; border-radius: var(--radius-md);
+      background: var(--bg-elevated); border: 1px solid var(--border-hairline);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .avatar-ring {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--brand), var(--cyan));
+      display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 11px;
     }
 
-    .btn-toggle.active {
-      background: rgba(251, 146, 60, 0.2);
-      border-color: var(--accent-orange);
-      color: #fff;
-      box-shadow: 0 0 10px rgba(251, 146, 60, 0.25);
+    /* Main Content Stage */
+    main.stage {
+      flex: 1; overflow-y: auto; padding: 22px 26px;
+      background: radial-gradient(900px 420px at 85% -5%, var(--brand-glow), transparent 65%);
+    }
+    .tab-view { display: none; animation: slideFade 0.18s ease-out; }
+    .tab-view.active { display: block; }
+    @keyframes slideFade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+    .page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; flex-wrap: wrap; }
+    .page-title { font-size: 19px; font-weight: 800; letter-spacing: -0.02em; }
+    .page-sub { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+
+    /* Bento Grids & Cards */
+    .bento-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-bottom: 16px; }
+    .bento-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-bottom: 16px; }
+    .bento-4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 16px; }
+    @media (max-width: 1120px) { .bento-2, .bento-3, .bento-4 { grid-template-columns: 1fr; } }
+
+    .card {
+      background: var(--bg-surface); border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-lg); padding: 18px; box-shadow: var(--shadow-card);
+      transition: border-color 0.16s ease;
+    }
+    .card:hover { border-color: var(--border-strong); }
+    .card-head {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding-bottom: 12px; margin-bottom: 14px; border-bottom: 1px solid var(--border-hairline);
+    }
+    .card-title { font-size: 13.5px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .card-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+    .kpi-card {
+      background: var(--bg-surface); border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-md); padding: 14px 16px; position: relative; overflow: hidden;
+    }
+    .kpi-card::before {
+      content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, var(--brand), var(--cyan));
+    }
+    .kpi-lbl { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); font-weight: 700; }
+    .kpi-val { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; margin-top: 4px; letter-spacing: -0.02em; }
+    .kpi-foot { font-size: 11px; color: var(--emerald); margin-top: 2px; font-weight: 600; }
+
+    /* Form & Slider Controls */
+    .ctrl-block { margin-bottom: 14px; }
+    .ctrl-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+    .mono-val {
+      font-family: var(--mono); font-size: 11.5px; font-weight: 700; color: var(--brand-bright);
+      background: var(--brand-glow); padding: 2px 8px; border-radius: 6px;
+    }
+    input[type="range"] {
+      -webkit-appearance: none; width: 100%; height: 6px; border-radius: 99px;
+      background: var(--bg-input); border: 1px solid var(--border-hairline); outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 15px; height: 15px; border-radius: 50%;
+      background: var(--brand-bright); cursor: pointer; border: 2px solid #fff;
+      box-shadow: 0 0 10px var(--brand-glow); transition: transform 0.1s;
+    }
+    input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.18); }
+
+    .seg-group { display: flex; gap: 6px; flex-wrap: wrap; }
+    .seg-btn {
+      flex: 1; padding: 7px 10px; border-radius: var(--radius-sm); font-size: 11px; font-weight: 600;
+      background: var(--bg-elevated); border: 1px solid var(--border-hairline);
+      color: var(--text-secondary); cursor: pointer; transition: all 0.14s; text-align: center;
+      font-family: var(--sans);
+    }
+    .seg-btn:hover { color: var(--text-primary); border-color: var(--border-strong); }
+    .seg-btn.active {
+      background: var(--brand-glow); border-color: var(--border-accent); color: var(--brand-bright); font-weight: 700;
     }
 
-    .btn-action {
-      width: 100%;
-      padding: 9px 14px;
-      border-radius: 8px;
-      font-size: 12px;
-      font-weight: 700;
-      background: rgba(255, 255, 255, 0.07);
-      color: #fff;
-      border: 1px solid var(--border-subtle);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      transition: all 0.2s;
+    .input-field {
+      width: 100%; background: var(--bg-input); border: 1px solid var(--border-strong);
+      border-radius: var(--radius-sm); padding: 8px 11px; color: var(--text-primary);
+      font-family: var(--sans); font-size: 12px; outline: none; transition: border-color 0.15s;
     }
+    .input-field:focus { border-color: var(--brand-bright); }
 
-    .btn-action:hover {
-      background: rgba(251, 146, 60, 0.18);
-      border-color: var(--accent-orange);
-      transform: translateY(-1px);
+    /* Terminal & Code */
+    .terminal {
+      background: #06080d; color: #cbd5e1; border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-md); padding: 12px 14px; font-family: var(--mono);
+      font-size: 11.5px; line-height: 1.55; max-height: 190px; overflow-y: auto;
     }
+    .t-line { margin-bottom: 4px; word-break: break-word; }
+    .t-ts { color: #64748b; }
+    .t-tag { color: #818cf8; font-weight: 700; margin: 0 6px; }
+    .t-ok { color: #34d399; }
+    .t-warn { color: #fbbf24; }
 
-    .btn-action.primary {
-      background: linear-gradient(135deg, #f97316, #ea580c);
-      border: none;
-      box-shadow: 0 0 12px rgba(249, 115, 22, 0.35);
-    }
-
-    .btn-action.primary:hover {
-      filter: brightness(1.1);
-    }
-
-    .input-text {
-      width: 100%;
-      padding: 8px 12px;
-      border-radius: 8px;
-      background: rgba(0, 0, 0, 0.25);
-      border: 1px solid var(--border-subtle);
-      color: #fff;
-      font-size: 12px;
-      outline: none;
-    }
-
-    .input-text:focus {
-      border-color: var(--accent-orange);
-    }
-
-    /* Terminal Console */
-    .terminal-box {
-      background: #050811;
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 10px;
-      padding: 12px;
-      font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
-      font-size: 11px;
-      color: #38bdf8;
-      height: 140px;
-      overflow-y: auto;
-      line-height: 1.5;
-    }
-
-    .terminal-line {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 2px;
-    }
-
-    .terminal-time {
-      color: var(--text-dim);
-      flex-shrink: 0;
-    }
-
-    .terminal-tag {
-      color: var(--accent-orange-bright);
-      font-weight: 700;
-    }
-
-    .terminal-msg {
-      color: #e2e8f0;
-      word-break: break-all;
-    }
-
-    /* Themis Benchmark Bug Cards */
-    .themis-card {
-      background: rgba(19, 31, 55, 0.85);
-      border: 1px solid var(--border-subtle);
-      border-radius: 12px;
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      transition: all 0.2s;
-    }
-
-    .themis-card:hover {
-      border-color: var(--accent-orange);
-      transform: translateY(-2px);
-      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
-    }
-
-    .themis-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-    }
-
-    .themis-app-title {
-      font-size: 13px;
-      font-weight: 800;
-      color: #fff;
-    }
-
-    .themis-package {
-      font-size: 10px;
-      font-family: monospace;
-      color: var(--text-dim);
-    }
-
-    .themis-badge {
-      font-size: 9px;
-      font-weight: 800;
-      padding: 2px 7px;
-      border-radius: 6px;
-      background: rgba(244, 63, 94, 0.18);
-      color: #fb7185;
-      border: 1px solid rgba(244, 63, 94, 0.3);
-    }
-
-    .themis-code-snippet {
-      background: #060913;
-      padding: 8px 10px;
-      border-radius: 6px;
-      font-family: monospace;
-      font-size: 10px;
-      color: #fca5a5;
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      white-space: pre-wrap;
-      max-height: 60px;
-      overflow-y: auto;
-    }
-
-    /* Table styles */
-    table.data-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 11.5px;
-      text-align: left;
-    }
-
+    /* Data Table */
+    .table-wrap { overflow-x: auto; border: 1px solid var(--border-hairline); border-radius: var(--radius-md); }
+    table.data-table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; }
     table.data-table th {
-      padding: 10px 12px;
-      background: rgba(255, 255, 255, 0.03);
-      color: var(--text-muted);
-      font-weight: 700;
-      border-bottom: 1px solid var(--border-subtle);
+      background: var(--bg-elevated); padding: 10px 12px; font-size: 11px; text-transform: uppercase;
+      letter-spacing: 0.04em; color: var(--text-muted); border-bottom: 1px solid var(--border-hairline);
     }
-
     table.data-table td {
-      padding: 10px 12px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-      color: var(--text-main);
+      padding: 10px 12px; border-bottom: 1px solid var(--border-hairline); font-variant-numeric: tabular-nums;
+    }
+    table.data-table tr:last-child td { border-bottom: none; }
+    table.data-table tr:hover td { background: var(--bg-elevated); }
+
+    /* Semantic Step Flow */
+    .flow-strip { display: grid; grid-template-columns: repeat(6, minmax(120px, 1fr)); gap: 8px; overflow-x: auto; }
+    .flow-node {
+      padding: 11px 12px; border-radius: var(--radius-md); background: var(--bg-elevated);
+      border: 1px solid var(--border-hairline); cursor: pointer; transition: all 0.15s; text-align: left;
+    }
+    .flow-node:hover, .flow-node.active { border-color: var(--brand-bright); background: var(--brand-glow); transform: translateY(-2px); }
+    .flow-node strong { display: block; font-size: 11px; font-family: var(--mono); }
+    .flow-node span { display: block; font-size: 10.5px; color: var(--text-secondary); margin-top: 3px; }
+
+    /* Themis Cards */
+    .bug-card {
+      background: var(--bg-elevated); border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-md); padding: 14px; display: flex; flex-direction: column; gap: 10px;
+    }
+    .bug-code {
+      background: #06080d; color: #fda4af; border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-sm); padding: 8px; font-family: var(--mono); font-size: 10.5px;
+      max-height: 58px; overflow-y: auto;
     }
 
-    table.data-table tr:hover td {
-      background: rgba(255, 255, 255, 0.02);
-    }
-
-    /* Modal */
+    /* Modals & Toasts */
     .modal-backdrop {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.75);
-      backdrop-filter: blur(8px);
-      z-index: 100;
-      display: none;
-      align-items: center;
-      justify-content: center;
+      position: fixed; inset: 0; background: rgba(0, 0, 0, 0.72); backdrop-filter: blur(8px);
+      display: none; align-items: center; justify-content: center; z-index: 100;
     }
-
-    .modal-backdrop.show {
-      display: flex;
+    .modal-backdrop.show { display: flex; }
+    .modal-panel {
+      background: var(--bg-surface); border: 1px solid var(--border-strong); border-radius: var(--radius-lg);
+      width: 680px; max-width: 92vw; max-height: 86vh; display: flex; flex-direction: column; overflow: hidden;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
     }
+    .modal-head, .modal-foot { padding: 14px 20px; border-bottom: 1px solid var(--border-hairline); display: flex; align-items: center; justify-content: space-between; }
+    .modal-foot { border-bottom: none; border-top: 1px solid var(--border-hairline); justify-content: flex-end; gap: 8px; background: var(--bg-elevated); }
+    .modal-body { padding: 18px 20px; overflow-y: auto; }
 
-    .modal-window {
-      background: var(--bg-card);
-      border: 1px solid var(--border-glow);
-      border-radius: 16px;
-      width: 720px;
-      max-width: 90vw;
-      box-shadow: 0 24px 50px rgba(0, 0, 0, 0.8);
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      animation: modalPop 0.2s ease-out;
-    }
-
-    @keyframes modalPop {
-      from { opacity: 0; transform: scale(0.95); }
-      to { opacity: 1; transform: scale(1); }
-    }
-
-    .modal-header {
-      padding: 18px 22px;
-      border-bottom: 1px solid var(--border-subtle);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .modal-body {
-      padding: 22px;
-      max-height: 75vh;
-      overflow-y: auto;
-    }
-
-    .modal-footer {
-      padding: 14px 22px;
-      border-top: 1px solid var(--border-subtle);
-      display: flex;
-      justify-content: flex-end;
-      gap: 10px;
-      background: rgba(7, 11, 20, 0.5);
-    }
-
-    /* Step flow visualizer */
-    .step-flow {
-      display: flex;
-      gap: 8px;
-      overflow-x: auto;
-      padding-bottom: 10px;
-      margin-bottom: 16px;
-    }
-
-    .step-node {
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid var(--border-subtle);
-      border-radius: 10px;
-      padding: 10px 14px;
-      min-width: 140px;
-      text-align: center;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .step-node:hover, .step-node.active {
-      border-color: var(--accent-orange);
-      background: rgba(251, 146, 60, 0.12);
-      transform: translateY(-2px);
-    }
-
-    .step-node-title {
-      font-size: 11px;
-      font-weight: 800;
-      color: #fff;
-    }
-
-    .step-node-sub {
-      font-size: 9.5px;
-      color: var(--accent-orange-bright);
-      margin-top: 4px;
+    .toast-rack { position: fixed; bottom: 18px; right: 18px; display: flex; flex-direction: column; gap: 8px; z-index: 150; }
+    .toast {
+      background: var(--bg-elevated); border: 1px solid var(--border-accent); color: var(--text-primary);
+      padding: 10px 14px; border-radius: var(--radius-md); font-size: 12px; font-weight: 600;
+      box-shadow: var(--shadow-card); animation: slideFade 0.18s ease-out;
     }
   </style>
 </head>
 <body>
-  <div class="ambient-glow"></div>
-
-  <!-- Top Application Bar -->
-  <header class="app-header">
-    <div class="brand-section">
-      <div class="brand-badge">⚡</div>
-      <div class="brand-titles">
-        <div class="brand-main">
-          HEART Desktop Studio
-          <span class="brand-tag">Component 1</span>
+  <header class="topbar">
+    <div class="brand-lockup">
+      <div class="brand-mark">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      </div>
+      <div>
+        <div class="brand-name">
+          HEART Studio Pro <span class="pill-tag">C1 Chaos Engine</span>
         </div>
-        <div class="brand-sub">
-          Context-Aware Environmental Perturbation Engine &bull; J26-SE-334
-        </div>
+        <div class="brand-sub">Context-Aware Environmental Perturbation Laboratory · J26-SE-334</div>
       </div>
     </div>
 
-    <div class="header-status-group">
-      <!-- Target ADB device pill -->
-      <div class="status-pill" title="ADB Hardware Bridge / Local Emulator">
-        <div class="pulse-dot"></div>
-        <span id="targetModelLabel">Pixel 7 Pro (API 34) &bull; Port 5554</span>
+    <div class="topbar-right">
+      <div class="metric-chip" title="Target Android Bridge">
+        <span class="dot" id="deviceDot"></span>
+        <span id="targetModelLabel">Detecting target...</span>
       </div>
-
-      <!-- RQ1 Compliance Badges -->
-      <div class="sla-badge" title="Injection Latency Target < 100ms">
-        <span>⏱️ Latency:</span>
-        <strong id="meanLatencyBadge">24.6 ms</strong>
-        <span>(&lt;100ms PASS)</span>
-      </div>
-
-      <div class="sla-badge" title="Host System Overhead Target < 15%">
-        <span>💻 Overhead:</span>
-        <strong id="hostOverheadBadge">4.8%</strong>
-        <span>(&lt;15% PASS)</span>
-      </div>
-
-      <!-- Quick Action Buttons -->
-      <button class="btn-header btn-reset" onclick="triggerNominalReset()" title="Reset all hardware, network, and interruptions back to nominal baseline">
-        ↺ Revert Nominal
+      <div class="metric-chip" id="storageBadge" title="Relational Telemetry Store">DB: SQLITE</div>
+      <div class="metric-chip ok" id="latencySlaChip">Latency: <strong id="meanLatencyBadge">-- ms</strong></div>
+      <div class="metric-chip ok" id="overheadSlaChip">Overhead: <strong id="hostOverheadBadge">--%</strong></div>
+      <button class="btn btn-icon" onclick="toggleTheme()" title="Toggle Daylight / Obsidian Theme">
+        <span id="themeIcon">☀️</span>
       </button>
-
-      <button class="btn-header btn-live-suite" onclick="openLiveSuiteModal()" title="Run full 7-stage live demonstration suite for PP1 presentation">
-        ▶️ Run 7-Stage Live Suite
-      </button>
+      <button class="btn btn-danger" onclick="triggerNominalReset()">Reset Baseline</button>
+      <button class="btn btn-primary" onclick="openLiveSuiteModal()">Run Live Suite</button>
     </div>
   </header>
 
-  <!-- Main Body Layout -->
-  <div class="app-body">
-    <!-- Left Navigation Rail -->
-    <aside class="nav-sidebar">
-      <div class="sidebar-section-title">Individual Component Modules</div>
-      <div class="nav-list">
-        <button class="nav-item active" onclick="switchTab('tab-console', this)">
-          <span class="nav-icon">🎮</span>
-          <span>Live Stress Console</span>
-          <span class="nav-badge">Interactive</span>
-        </button>
+  <div class="workspace-shell">
+    <aside class="rail">
+      <div class="rail-group">Orchestration</div>
+      <button class="nav-btn active" onclick="switchTab('tab-console', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+        <span>Stress Console</span>
+        <span class="nav-pill">Live</span>
+      </button>
+      <button class="nav-btn" onclick="switchTab('tab-yaml', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>
+        <span>YAML &amp; Timeline</span>
+        <span class="nav-pill">Async</span>
+      </button>
+      <button class="nav-btn" onclick="switchTab('tab-scheduler', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span>Step Scheduler</span>
+        <span class="nav-pill">Hooks</span>
+      </button>
+      <button class="nav-btn" onclick="switchTab('tab-themis', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+        <span>Themis Suite</span>
+        <span class="nav-pill" id="themisCountPill">52</span>
+      </button>
+      <button class="nav-btn" onclick="switchTab('tab-apk', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+        <span>Target APKs</span>
+        <span class="nav-pill">ADB</span>
+      </button>
 
-        <button class="nav-item" onclick="switchTab('tab-yaml', this)">
-          <span class="nav-icon">📜</span>
-          <span>YAML Scenarios</span>
-          <span class="nav-badge">Sec 5</span>
-        </button>
+      <div class="rail-group">Observability &amp; Research</div>
+      <button class="nav-btn" onclick="switchTab('tab-telemetry', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        <span>Telemetry Stream</span>
+        <span class="nav-pill">DB</span>
+      </button>
+      <button class="nav-btn" onclick="switchTab('tab-attribution', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <span>Attribution &amp; C4</span>
+        <span class="nav-pill">Seed</span>
+      </button>
+      <button class="nav-btn" onclick="switchTab('tab-research', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg>
+        <span>20-App Corpus</span>
+        <span class="nav-pill">p&lt;.05</span>
+      </button>
 
-        <button class="nav-item" onclick="switchTab('tab-scheduler', this)">
-          <span class="nav-icon">⏱️</span>
-          <span>Semantic Scheduler</span>
-          <span class="nav-badge">Closed-Loop</span>
-        </button>
-
-        <button class="nav-item" onclick="switchTab('tab-themis', this)">
-          <span class="nav-icon">🎯</span>
-          <span>Themis Benchmarks</span>
-          <span class="nav-badge">5 Bugs</span>
-        </button>
-
-        <button class="nav-item" onclick="switchTab('tab-apk', this)">
-          <span class="nav-icon">📱</span>
-          <span>Target APK Runner</span>
-          <span class="nav-badge">Deploy</span>
-        </button>
-      </div>
-
-      <div class="sidebar-section-title">Telemetry, Audit & PP1 Defense</div>
-      <div class="nav-list">
-        <button class="nav-item" onclick="switchTab('tab-telemetry', this)">
-          <span class="nav-icon">📊</span>
-          <span>Telemetry & Audit Stream</span>
-          <span class="nav-badge">&lt;100ms</span>
-        </button>
-
-        <button class="nav-item" onclick="switchTab('tab-attribution', this)">
-          <span class="nav-icon">🔍</span>
-          <span>Failure Attribution</span>
-          <span class="nav-badge">Causal</span>
-        </button>
-
-        <button class="nav-item" onclick="switchTab('tab-research', this)">
-          <span class="nav-icon">📈</span>
-          <span>Research Charts</span>
-          <span class="nav-badge">&gt;30% Gain</span>
-        </button>
-
-        <button class="nav-item" onclick="switchTab('tab-defense', this)">
-          <span class="nav-icon">🎓</span>
-          <span>PP1 Academic Defense</span>
-          <span class="nav-badge">Examiner</span>
-        </button>
-      </div>
-
-      <!-- Bottom Pinned Card -->
-      <div class="sidebar-footer">
-        <div class="researcher-card">
-          <div class="researcher-avatar">HR</div>
-          <div class="researcher-details">
-            <div class="researcher-name">HEART Studio</div>
-            <div class="researcher-role">Environmental Perturbation Engine</div>
-          </div>
+      <div class="rail-footer">
+        <div class="avatar-ring">C1</div>
+        <div>
+          <div style="font-size: 12px; font-weight: 700;">G. L. S. Chanlaka</div>
+          <div style="font-size: 10.5px; color: var(--text-muted);">IT23151260 · SLIIT SE</div>
         </div>
       </div>
     </aside>
 
-    <!-- Main Dynamic Content Area -->
-    <main class="content-area">
-
-      <!-- ===================================================================
-           TAB 1: LIVE STRESS CONSOLE
-      =================================================================== -->
-      <section id="tab-console" class="tab-pane active">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
+    <main class="stage">
+      <!-- TAB 1: CONSOLE -->
+      <section id="tab-console" class="tab-view active">
+        <div class="page-head">
           <div>
-            <h1 style="font-size: 20px; font-weight: 800; color: #fff;">Interactive Environmental Perturbation Console</h1>
-            <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
-              Direct Android Debug Bridge (ADB) physical/virtual stress injectors with verified sub-100ms latency.
-            </p>
+            <h1 class="page-title">Environmental Perturbation Console</h1>
+            <p class="page-sub">Direct ADB shell &amp; persistent TCP console fault injectors with millisecond relational logging.</p>
           </div>
-          <div style="display: flex; gap: 8px;">
-            <button class="btn-header" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3);" onclick="applyPreset('mid_transaction')">
-              ⚡ Mid-Transaction Preset
-            </button>
-            <button class="btn-header" style="background: rgba(244, 63, 94, 0.15); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.3);" onclick="applyPreset('extreme_starvation')">
-              🔥 Extreme Starvation
-            </button>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button class="btn" onclick="applyPreset('mid_transaction')">Mid-Transaction Chaos</button>
+            <button class="btn btn-danger" onclick="applyPreset('extreme_starvation')">Extreme Starvation</button>
           </div>
         </div>
 
-        <div class="grid-2">
-          <!-- CARD A: HARDWARE RESOURCE STARVATION -->
+        <div class="bento-4">
+          <div class="kpi-card">
+            <div class="kpi-lbl">Mean Injection Latency</div>
+            <div class="kpi-val" id="kpiLatencyVal">-- ms</div>
+            <div class="kpi-foot" id="kpiLatencySub">Target &lt; 100 ms</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-lbl">Recorded Events</div>
+            <div class="kpi-val" id="kpiEventTotal">0</div>
+            <div class="kpi-foot" id="kpiDbFoot">Persisted in Relational Store</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-lbl">Host Process Overhead</div>
+            <div class="kpi-val" id="kpiOverheadVal">0.0%</div>
+            <div class="kpi-foot">CPU &amp; Memory &lt; 15% SLA</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-lbl">Corpus Readiness</div>
+            <div class="kpi-val" id="kpiCorpusVal">25 / 52</div>
+            <div class="kpi-foot">F-Droid Apps / Themis Bugs</div>
+          </div>
+        </div>
+
+        <div class="bento-2">
+          <!-- Hardware & Power -->
           <div class="card">
-            <div class="card-header">
+            <div class="card-head">
               <div>
-                <div class="card-title">🖥️ Hardware Resource Starvation</div>
-                <div class="card-subtitle">CPU load loops, LMK memory trims, battery drain, thermal clamping</div>
+                <div class="card-title">Hardware &amp; Power Starvation</div>
+                <div class="card-sub">CPU starvation workers, LMK trim memory, battery level, thermal clamping</div>
               </div>
             </div>
-
-            <!-- CPU Slider -->
-            <div class="control-row">
-              <div class="control-label">
-                <span>CPU Throttling Load</span>
-                <span class="control-val" id="cpuVal">75%</span>
-              </div>
+            <div class="ctrl-block">
+              <div class="ctrl-row"><span>CPU Throttling Load</span><span class="mono-val" id="cpuVal">75%</span></div>
               <input type="range" id="cpuSlider" min="10" max="98" value="75" oninput="updateVal('cpuVal', this.value + '%')">
-              <button class="btn-action" onclick="injectCpu()">⚡ Induce CPU Load Spike</button>
+              <button class="btn" style="width:100%; margin-top:8px;" onclick="injectCpu()">Apply CPU Starvation</button>
             </div>
-
-            <!-- RAM / LMK Pressure -->
-            <div class="control-row">
-              <div class="control-label">
-                <span>Low Memory Killer (LMK) Memory Pressure</span>
+            <div class="ctrl-block">
+              <div class="ctrl-row"><span>LMK Memory Pressure</span></div>
+              <div class="seg-group">
+                <button class="seg-btn" onclick="setTrimMemory('RUNNING_MODERATE', this)">Moderate (50%)</button>
+                <button class="seg-btn active" onclick="setTrimMemory('RUNNING_LOW', this)">Low (75%)</button>
+                <button class="seg-btn" onclick="setTrimMemory('RUNNING_CRITICAL', this)">Critical (95%)</button>
               </div>
-              <div class="btn-group">
-                <button class="btn-toggle" onclick="setTrimMemory('RUNNING_MODERATE', this)">Moderate (50%)</button>
-                <button class="btn-toggle active" onclick="setTrimMemory('RUNNING_LOW', this)">Low (75%)</button>
-                <button class="btn-toggle" onclick="setTrimMemory('RUNNING_CRITICAL', this)">Critical (95%)</button>
-              </div>
-              <button class="btn-action" onclick="injectRam()">🧠 Broadcast LMK Trim Memory</button>
+              <button class="btn" style="width:100%; margin-top:8px;" onclick="injectRam()">Dispatch LMK Memory Trim</button>
             </div>
-
-            <!-- Battery Level & Thermal -->
-            <div class="grid-2" style="margin-top: 10px;">
+            <div class="bento-2" style="margin-bottom:0;">
               <div>
-                <div class="control-label"><span>Battery Level</span><span class="control-val" id="batVal">4%</span></div>
+                <div class="ctrl-row"><span>Battery Drop</span><span class="mono-val" id="batVal">4%</span></div>
                 <input type="range" id="batSlider" min="1" max="100" value="4" oninput="updateVal('batVal', this.value + '%')">
-                <button class="btn-action" style="margin-top: 8px;" onclick="injectBattery()">🔋 Drop Battery (Unplug)</button>
+                <button class="btn" style="width:100%; margin-top:8px;" onclick="injectBattery()">Set Unplugged Battery</button>
               </div>
-
               <div>
-                <div class="control-label"><span>Thermal Throttling</span></div>
-                <div class="btn-group" style="margin-top: 4px;">
-                  <button class="btn-toggle" onclick="setThermal('Normal', this)">35°C</button>
-                  <button class="btn-toggle active" onclick="setThermal('Warn', this)">55°C</button>
-                  <button class="btn-toggle" onclick="setThermal('Critical', this)">80°C</button>
+                <div class="ctrl-row"><span>Thermal Profile</span></div>
+                <div class="seg-group">
+                  <button class="seg-btn" onclick="setThermal('Normal', this)">Normal</button>
+                  <button class="seg-btn active" onclick="setThermal('Warn', this)">Warn</button>
+                  <button class="seg-btn" onclick="setThermal('Critical', this)">Critical</button>
                 </div>
-                <button class="btn-action" style="margin-top: 8px;" onclick="injectThermal()">🌡️ Set Thermal State</button>
+                <button class="btn" style="width:100%; margin-top:8px;" onclick="injectThermal()">Apply Thermal State</button>
               </div>
             </div>
           </div>
 
-          <!-- CARD B: NETWORK CHAOS INJECTION -->
+          <!-- Network Chaos -->
           <div class="card">
-            <div class="card-header">
+            <div class="card-head">
               <div>
-                <div class="card-title">🌐 Advanced Network Chaos</div>
-                <div class="card-subtitle">Bandwidth throttling, Netem latency, packet loss, DNS fault, handovers</div>
+                <div class="card-title">Network Chaos Engine</div>
+                <div class="card-sub">TCP emulator console shaping: bandwidth profile, RTT delay, loss, DNS, handoff</div>
               </div>
             </div>
-
-            <!-- Bandwidth Profile -->
-            <div class="control-row">
-              <div class="control-label"><span>Bandwidth Profile</span></div>
-              <div class="btn-group">
-                <button class="btn-toggle" onclick="setBandwidth('lte', this)">4G LTE</button>
-                <button class="btn-toggle" onclick="setBandwidth('umts', this)">3G HSPA</button>
-                <button class="btn-toggle active" onclick="setBandwidth('edge', this)">2G EDGE (236k)</button>
-                <button class="btn-toggle" onclick="setBandwidth('offline', this)">Dead Zone (Offline)</button>
+            <div class="ctrl-block">
+              <div class="ctrl-row"><span>Radio Access / Bandwidth Profile</span></div>
+              <div class="seg-group">
+                <button class="seg-btn" onclick="setBandwidth('lte', this)">4G LTE</button>
+                <button class="seg-btn" onclick="setBandwidth('umts', this)">3G HSPA</button>
+                <button class="seg-btn active" onclick="setBandwidth('edge', this)">2G EDGE</button>
+                <button class="seg-btn" onclick="setBandwidth('offline', this)">Offline</button>
               </div>
             </div>
-
-            <!-- Latency Slider -->
-            <div class="control-row">
-              <div class="control-label">
-                <span>RTT Network Latency Injection</span>
-                <span class="control-val" id="latVal">1450 ms</span>
-              </div>
+            <div class="ctrl-block">
+              <div class="ctrl-row"><span>RTT Latency Injection</span><span class="mono-val" id="latVal">1450 ms</span></div>
               <input type="range" id="latSlider" min="0" max="5000" step="50" value="1450" oninput="updateVal('latVal', this.value + ' ms')">
-              <button class="btn-action" onclick="injectLatency()">⏱️ Inject RTT Delay</button>
+              <button class="btn" style="width:100%; margin-top:8px;" onclick="injectLatency()">Inject Latency Delay</button>
             </div>
-
-            <!-- Packet Loss Slider -->
-            <div class="control-row">
-              <div class="control-label">
-                <span>Stochastic Packet Loss</span>
-                <span class="control-val" id="lossVal">8%</span>
-              </div>
-              <input type="range" id="lossSlider" min="0" max="25" value="8" oninput="updateVal('lossVal', this.value + '%')">
-              <button class="btn-action" onclick="injectPacketLoss()">📉 Emulate Packet Loss</button>
+            <div class="ctrl-block">
+              <div class="ctrl-row"><span>Stochastic Packet Loss</span><span class="mono-val" id="lossVal">8%</span></div>
+              <input type="range" id="lossSlider" min="0" max="50" value="8" oninput="updateVal('lossVal', this.value + '%')">
+              <button class="btn" style="width:100%; margin-top:8px;" onclick="injectPacketLoss()">Inject Packet Loss</button>
             </div>
-
-            <!-- Handover & DNS -->
-            <div class="grid-2" style="margin-top: 8px;">
-              <button class="btn-action" onclick="triggerHandover('wifi_to_cellular')">🔄 WiFi ➔ Data Handover</button>
-              <button class="btn-action" onclick="toggleDnsFail()">🚫 Toggle DNS Failure</button>
+            <div class="bento-2" style="margin-bottom:0;">
+              <button class="btn" onclick="triggerHandover('wifi_to_cellular')">WiFi ➔ Cellular Handover</button>
+              <button class="btn" id="btnDnsToggle" onclick="toggleDnsFail()">Toggle DNS Failure</button>
             </div>
           </div>
 
-          <!-- CARD C: OS SYSTEM INTERRUPTIONS -->
+          <!-- Interruptions -->
           <div class="card">
-            <div class="card-header">
+            <div class="card-head">
               <div>
-                <div class="card-title">📞 OS System Interruptions</div>
-                <div class="card-subtitle">GSM telephony calls, SMS OTP heads-up banners, Doze mode, lifecycle</div>
+                <div class="card-title">OS Interruptions &amp; Lifecycle</div>
+                <div class="card-sub">GSM modem calls, SMS OTP notifications, Doze idle, background switching</div>
               </div>
             </div>
-
-            <!-- Call Simulator -->
-            <div class="control-row">
-              <div class="control-label"><span>GSM Telephony Simulator</span></div>
-              <div style="display: flex; gap: 8px;">
-                <input type="text" id="callNumber" class="input-text" value="15550192831" placeholder="Phone Number">
-                <button class="btn-action primary" style="width: auto; padding: 0 16px;" onclick="triggerCall()">📞 Ring</button>
+            <div class="ctrl-block">
+              <div class="ctrl-row"><span>Incoming Telephony Call</span></div>
+              <div style="display:flex; gap:8px;">
+                <input type="text" id="callNumber" class="input-field" value="15550192831" placeholder="Phone Number">
+                <button class="btn btn-primary" onclick="triggerCall()">Ring</button>
               </div>
-              <div class="grid-2" style="margin-top: 4px;">
-                <button class="btn-action" style="color: #34d399;" onclick="acceptCall()">✅ Answer (Key 5)</button>
-                <button class="btn-action" style="color: #fb7185;" onclick="dismissCall()">❌ Terminate (Key 6)</button>
+              <div class="bento-2" style="margin-top:8px; margin-bottom:0;">
+                <button class="btn" onclick="acceptCall()">Answer (KEY 5)</button>
+                <button class="btn btn-danger" onclick="dismissCall()">Terminate (KEY 6)</button>
               </div>
             </div>
-
-            <!-- SMS Simulator -->
-            <div class="control-row">
-              <div class="control-label"><span>SMS Heads-Up Notification Banner</span></div>
-              <input type="text" id="smsText" class="input-text" value="Your OTP verification code is 492019." placeholder="SMS Notification Body">
-              <button class="btn-action" style="margin-top: 4px;" onclick="sendSms()">💬 Dispatch SMS Toast</button>
+            <div class="ctrl-block">
+              <div class="ctrl-row"><span>Heads-Up SMS Notification</span></div>
+              <div style="display:flex; gap:8px;">
+                <input type="text" id="smsText" class="input-field" value="Your verification code is 492019." placeholder="SMS Body">
+                <button class="btn" onclick="sendSms()">Send SMS</button>
+              </div>
             </div>
-
-            <!-- App Lifecycle & Doze -->
-            <div class="grid-2" style="margin-top: 10px;">
-              <div>
-                <div class="control-label"><span>App Lifecycle</span></div>
-                <button class="btn-action" onclick="backgroundApp(3.0)">⏸️ Background App (3s)</button>
-              </div>
-              <div>
-                <div class="control-label"><span>Deep Doze Mode</span></div>
-                <button class="btn-action" onclick="toggleDoze()">💤 Force Doze Idle</button>
-              </div>
+            <div class="bento-2" style="margin-bottom:0;">
+              <button class="btn" onclick="backgroundApp(3.0)">Background App (3s)</button>
+              <button class="btn" id="btnDozeToggle" onclick="toggleDoze()">Toggle Doze Idle</button>
             </div>
           </div>
 
-          <!-- CARD D: CONTEXT FUZZING & ACCESSIBILITY -->
+          <!-- Context & Display -->
           <div class="card">
-            <div class="card-header">
+            <div class="card-head">
               <div>
-                <div class="card-title">📐 Context Fuzzing & Accessibility Stress</div>
-                <div class="card-subtitle">Display rotation, night mode theme, font scaling, mock GPS coordinates</div>
+                <div class="card-title">Display, Sensor &amp; Context Fuzzing</div>
+                <div class="card-sub">Orientation, night theme, display brightness, font accessibility scaling, GPS</div>
               </div>
             </div>
-
-            <!-- Screen Rotation -->
-            <div class="control-row">
-              <div class="control-label"><span>Display Orientation</span></div>
-              <div class="btn-group">
-                <button class="btn-toggle active" onclick="setOrientation('portrait', this)">Portrait (0°)</button>
-                <button class="btn-toggle" onclick="setOrientation('landscape', this)">Landscape (90°)</button>
-                <button class="btn-toggle" onclick="setOrientation('reverse_landscape', this)">Reverse (270°)</button>
+            <div class="ctrl-block">
+              <div class="ctrl-row"><span>Display Orientation</span></div>
+              <div class="seg-group">
+                <button class="seg-btn active" onclick="setOrientation('portrait', this)">Portrait 0°</button>
+                <button class="seg-btn" onclick="setOrientation('landscape', this)">Landscape 90°</button>
+                <button class="seg-btn" onclick="setOrientation('reverse_landscape', this)">Reverse 270°</button>
               </div>
             </div>
-
-            <!-- Dark Mode & Font Scale -->
-            <div class="grid-2">
+            <div class="bento-2" style="margin-bottom:10px;">
               <div>
-                <div class="control-label"><span>UI Theme</span></div>
-                <div class="btn-group">
-                  <button class="btn-toggle" onclick="setDarkMode(false, this)">☀️ Light</button>
-                  <button class="btn-toggle active" onclick="setDarkMode(true, this)">🌙 Dark</button>
+                <div class="ctrl-row"><span>Device Brightness (0–255)</span><span class="mono-val" id="brightVal">40</span></div>
+                <input type="range" id="brightSlider" min="0" max="255" value="40" oninput="updateVal('brightVal', this.value)">
+                <button class="btn" style="width:100%; margin-top:8px;" onclick="applyBrightness()">Apply Brightness</button>
+              </div>
+              <div>
+                <div class="ctrl-row"><span>Font Accessibility Scale</span><span class="mono-val" id="fontVal">1.3x</span></div>
+                <input type="range" id="fontSlider" min="0.85" max="1.5" step="0.05" value="1.3" oninput="updateVal('fontVal', this.value + 'x')">
+                <button class="btn" style="width:100%; margin-top:8px;" onclick="applyFontScale()">Apply Font Scale</button>
+              </div>
+            </div>
+            <div class="bento-2" style="margin-bottom:0; align-items:end;">
+              <div>
+                <div class="ctrl-row"><span>Device Theme</span></div>
+                <div class="seg-group">
+                  <button class="seg-btn" onclick="setDarkMode(false, this)">Light</button>
+                  <button class="seg-btn active" onclick="setDarkMode(true, this)">Dark</button>
                 </div>
               </div>
-
               <div>
-                <div class="control-label"><span>Font Scale (Truncation)</span><span class="control-val" id="fontVal">1.3x</span></div>
-                <input type="range" id="fontSlider" min="1.0" max="1.4" step="0.05" value="1.3" oninput="updateVal('fontVal', this.value + 'x')">
-                <button class="btn-action" style="margin-top: 4px;" onclick="applyFontScale()">🔤 Apply Font Scale</button>
-              </div>
-            </div>
-
-            <!-- Mock GPS -->
-            <div class="control-row" style="margin-top: 12px;">
-              <div class="control-label"><span>Mock GPS Coordinate Shift</span></div>
-              <div style="display: flex; gap: 8px;">
-                <input type="text" id="gpsLat" class="input-text" value="6.9271" placeholder="Latitude">
-                <input type="text" id="gpsLon" class="input-text" value="79.8612" placeholder="Longitude">
-                <button class="btn-action" style="width: auto; padding: 0 16px;" onclick="applyGps()">📍 Fix GPS</button>
+                <div class="ctrl-row"><span>Mock GPS (Lat / Lon)</span></div>
+                <div style="display:flex; gap:6px;">
+                  <input type="text" id="gpsLat" class="input-field" value="6.9271">
+                  <input type="text" id="gpsLon" class="input-field" value="79.8612">
+                  <button class="btn" onclick="applyGps()">Fix</button>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Real-Time Dispatched Commands Output Stream -->
-        <div class="card" style="margin-top: 4px;">
-          <div class="card-header" style="margin-bottom: 8px; padding-bottom: 8px;">
-            <div class="card-title" style="font-size: 12.5px;">💻 Live Dispatched ADB Stress Stream & Telemetry Output</div>
-            <button class="btn-toggle" style="padding: 3px 8px; font-size: 10px;" onclick="clearTerminal()">Clear Console</button>
+        <div class="card">
+          <div class="card-head" style="padding-bottom:10px; margin-bottom:10px;">
+            <div class="card-title">Live Command &amp; Telemetry Stream</div>
+            <button class="btn btn-sm" onclick="clearTerminal()">Clear</button>
           </div>
-          <div id="liveTerminal" class="terminal-box">
-            <div class="terminal-line"><span class="terminal-time">[SYS]</span> <span class="terminal-tag">ORCHESTRATOR</span> <span class="terminal-msg">Component 1 Environmental Perturbation Engine online. ADB connection established to 127.0.0.1:5554.</span></div>
+          <div id="liveTerminal" class="terminal">
+            <div class="t-line"><span class="t-ts">[BOOT]</span><span class="t-tag">HEART</span><span class="t-ok">Studio ready. Polling live engine status...</span></div>
           </div>
         </div>
       </section>
 
-      <!-- ===================================================================
-           TAB 2: DECLARATIVE YAML SCENARIOS (PROPOSAL SECTION 5)
-      =================================================================== -->
-      <section id="tab-yaml" class="tab-pane">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
+      <!-- TAB 2: YAML & ASYNCIO TIMELINE -->
+      <section id="tab-yaml" class="tab-view">
+        <div class="page-head">
           <div>
-            <h1 style="font-size: 20px; font-weight: 800; color: #fff;">Proposal Section 5 Declarative YAML Scenario Manager</h1>
-            <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
-              Formulates structured YAML/JSON configurations into executable event timelines within &lt;100ms latency.
-            </p>
+            <h1 class="page-title">Declarative YAML Profiles &amp; Asyncio Timeline Compiler</h1>
+            <p class="page-sub">Validates Section 5 schemas, compiles event timelines, and dispatches concurrent asyncio stressors.</p>
           </div>
-          <button class="btn-action primary" style="width: auto; padding: 8px 18px;" onclick="executeCurrentYaml()">
-            ▶️ Execute Scenario on Target Device
-          </button>
+          <div style="display:flex; gap:8px;">
+            <button class="btn" onclick="executeCurrentYaml()">Apply Flat Profile</button>
+            <button class="btn btn-primary" onclick="runAsyncTimeline()">Dispatch Asyncio Timeline</button>
+          </div>
         </div>
 
-        <div class="grid-2">
-          <!-- YAML Editor & Templates -->
+        <div class="bento-2">
           <div class="card">
-            <div class="card-header">
-              <div class="card-title">📄 Scenario Template Selector & Editor</div>
-              <select id="templateSelector" class="input-text" style="width: 260px;" onchange="loadSelectedTemplate()">
+            <div class="card-head">
+              <div class="card-title">YAML Scenario Editor</div>
+              <select id="templateSelector" class="input-field" style="width: 240px;" onchange="loadSelectedTemplate()">
                 <option value="compound_multi_factor_chaos">compound_multi_factor_chaos.yaml</option>
                 <option value="3g_network_drop">3g_network_drop.yaml</option>
                 <option value="high_cpu_stress">high_cpu_stress.yaml</option>
@@ -1130,1699 +633,730 @@
                 <option value="aggressive_multitasking_backgrounding">aggressive_multitasking_backgrounding.yaml</option>
               </select>
             </div>
-
-            <textarea id="yamlEditor" class="terminal-box" style="height: 380px; width: 100%; resize: vertical; color: #fed7aa;" spellcheck="false"></textarea>
-
-            <div style="display: flex; gap: 10px; margin-top: 12px;">
-              <button class="btn-action" style="flex: 1;" onclick="validateYaml()">✓ Validate Schema per Proposal Sec 5</button>
-              <button class="btn-action" style="flex: 1;" onclick="resetYamlToDefault()">↺ Reset to Template</button>
+            <textarea id="yamlEditor" class="terminal" style="width:100%; height:340px; max-height:none; resize:vertical;" spellcheck="false"></textarea>
+            <div style="display:flex; gap:8px; margin-top:12px;">
+              <button class="btn btn-primary" style="flex:1;" onclick="validateYaml()">Validate YAML Schema</button>
+              <button class="btn" style="flex:1;" onclick="loadSelectedTemplate()">Reset Template</button>
             </div>
           </div>
 
-          <!-- Schema Compliance & Timeline Visualization -->
           <div>
-            <div class="card">
-              <div class="card-header">
-                <div class="card-title">🔍 Proposal Schema Compliance Checker</div>
-                <span id="schemaStatusBadge" class="sla-badge">VALID SCHEMA</span>
+            <div class="card" style="margin-bottom:16px;">
+              <div class="card-head">
+                <div class="card-title">Schema Compliance</div>
+                <span class="metric-chip ok" id="schemaStatusBadge">VALID</span>
               </div>
-
-              <div style="display: flex; flex-direction: column; gap: 10px; font-size: 12px;">
-                <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: rgba(255,255,255,0.03); border-radius: 8px;">
-                  <span style="color: var(--text-muted);">Specification Version:</span>
-                  <strong style="color: #fff;" id="schemaVersion">1.0 (Compliant)</strong>
-                </div>
-                <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: rgba(255,255,255,0.03); border-radius: 8px;">
-                  <span style="color: var(--text-muted);">Calculated Chaos Severity Index:</span>
-                  <strong style="color: var(--accent-orange-bright);" id="schemaChaosIndex">88% (Severe Chaos)</strong>
-                </div>
-                <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: rgba(255,255,255,0.03); border-radius: 8px;">
-                  <span style="color: var(--text-muted);">Target Execution State:</span>
-                  <strong style="color: var(--accent-cyan);" id="schemaHook">MID_TRANSACTION</strong>
-                </div>
-                <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: rgba(255,255,255,0.03); border-radius: 8px;">
-                  <span style="color: var(--text-muted);">Air-Gapped Local Execution:</span>
-                  <strong style="color: #34d399;">100% Local (Zero Cloud Egress)</strong>
-                </div>
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <div class="ctrl-row" style="margin:0;"><span>Chaos Severity Index</span><strong id="schemaChaosIndex" class="mono-val">--%</strong></div>
+                <div class="ctrl-row" style="margin:0;"><span>Scheduler Runtime</span><strong class="mono-val">Python asyncio.gather</strong></div>
+                <div class="ctrl-row" style="margin:0;"><span>Execution Boundary</span><strong class="mono-val">Air-Gapped Local</strong></div>
               </div>
             </div>
 
-            <!-- Execution Timeline Preview -->
             <div class="card">
-              <div class="card-header">
-                <div class="card-title">⏱️ Executable Event Timeline Mapping</div>
-              </div>
-              <div id="timelineVisualizer" style="display: flex; flex-direction: column; gap: 8px; font-size: 11.5px;">
-                <div style="padding: 8px 12px; border-left: 3px solid var(--accent-orange); background: rgba(251,146,60,0.08); border-radius: 0 6px 6px 0;">
-                  <strong style="color: #fff;">T+0.0s [HARDWARE]</strong>: Spawn background CPU burner threads targeting 92% starvation.
-                </div>
-                <div style="padding: 8px 12px; border-left: 3px solid var(--accent-cyan); background: rgba(56,189,248,0.08); border-radius: 0 6px 6px 0;">
-                  <strong style="color: #fff;">T+0.2s [NETWORK]</strong>: Clamp emulator bandwidth to 2G/EDGE (236k) and inject 1450ms RTT delay.
-                </div>
-                <div style="padding: 8px 12px; border-left: 3px solid var(--accent-rose); background: rgba(244,63,94,0.08); border-radius: 0 6px 6px 0;">
-                  <strong style="color: #fff;">T+0.8s [INTERRUPTION]</strong>: Trigger incoming GSM call from 1-555-019-2831 mid-checkout.
-                </div>
+              <div class="card-head"><div class="card-title">Compiled Asyncio Dispatch Trace</div></div>
+              <div id="timelineVisualizer" class="terminal" style="max-height:250px;">
+                <div class="t-line"><span class="t-ts">[READY]</span><span class="t-tag">TIMELINE</span>Click "Dispatch Asyncio Timeline" to run timed stressor offsets.</div>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      <!-- ===================================================================
-           TAB 3: SEMANTIC SCHEDULER & CLOSED-LOOP ESCALATION
-      =================================================================== -->
-      <section id="tab-scheduler" class="tab-pane">
-        <div style="margin-bottom: 20px;">
-          <h1 style="font-size: 20px; font-weight: 800; color: #fff;">Semantic Test-Step Synchronization & Adaptive Feedback Loop</h1>
-          <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
-            Synchronizes environmental stress with critical application execution states and escalates intensity upon performance degradation.
-          </p>
-        </div>
-
-        <!-- Step Flowchart -->
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title">🔄 Semantic UI Execution Steps (Click to Fire Perturbation Hook)</div>
+      <!-- TAB 3: SCHEDULER -->
+      <section id="tab-scheduler" class="tab-view">
+        <div class="page-head">
+          <div>
+            <h1 class="page-title">Semantic Step Hooks &amp; Adaptive Feedback Loop</h1>
+            <p class="page-sub">Bind hardware and network stressors directly to critical semantic workflow checkpoints.</p>
           </div>
-          <div class="step-flow">
-            <div class="step-node" onclick="triggerSemanticStep('APP_STARTUP')">
-              <div class="step-node-title">1. APP_STARTUP</div>
-              <div class="step-node-sub">Cold Boot Latency</div>
-            </div>
-            <div class="step-node" onclick="triggerSemanticStep('AUTH_LOGIN')">
-              <div class="step-node-title">2. AUTH_LOGIN</div>
-              <div class="step-node-sub">DNS &amp; Packet Loss</div>
-            </div>
-            <div class="step-node" onclick="triggerSemanticStep('CATALOG_BROWSE')">
-              <div class="step-node-title">3. CATALOG_BROWSE</div>
-              <div class="step-node-sub">Image Cache Trim</div>
-            </div>
-            <div class="step-node active" onclick="triggerSemanticStep('MID_TRANSACTION')">
-              <div class="step-node-title">4. MID_TRANSACTION</div>
-              <div class="step-node-sub">WiFi ➔ Data Handover</div>
-            </div>
-            <div class="step-node" onclick="triggerSemanticStep('ASYNC_WAIT')">
-              <div class="step-node-title">5. ASYNC_WAIT</div>
-              <div class="step-node-sub">Incoming Call Burst</div>
-            </div>
-            <div class="step-node" onclick="triggerSemanticStep('CHECKOUT_PAYMENT')">
-              <div class="step-node-title">6. CHECKOUT_PAYMENT</div>
-              <div class="step-node-sub">Battery Critical Drop</div>
-            </div>
+        </div>
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-head"><div class="card-title">Semantic Execution Checkpoints (Click to Trigger)</div></div>
+          <div class="flow-strip">
+            <button class="flow-node" onclick="triggerSemanticStep('APP_STARTUP')"><strong>1. APP_STARTUP</strong><span>Cold Boot Latency</span></button>
+            <button class="flow-node" onclick="triggerSemanticStep('AUTH_LOGIN')"><strong>2. AUTH_LOGIN</strong><span>2200ms RTT + 10% Loss</span></button>
+            <button class="flow-node" onclick="triggerSemanticStep('CATALOG_BROWSE')"><strong>3. CATALOG_BROWSE</strong><span>80% LMK Trim</span></button>
+            <button class="flow-node active" onclick="triggerSemanticStep('MID_TRANSACTION')"><strong>4. MID_TRANSACTION</strong><span>CPU 85% + EDGE + 1.25s</span></button>
+            <button class="flow-node" onclick="triggerSemanticStep('ASYNC_WAIT')"><strong>5. ASYNC_WAIT</strong><span>Incoming Call Ring</span></button>
+            <button class="flow-node" onclick="triggerSemanticStep('CHECKOUT_PAYMENT')"><strong>6. CHECKOUT_PAYMENT</strong><span>3% Unplugged Battery</span></button>
           </div>
         </div>
 
-        <!-- Adaptive Signal Escalation Simulator -->
-        <div class="grid-2">
+        <div class="bento-2">
           <div class="card">
-            <div class="card-header">
-              <div>
-                <div class="card-title">📈 Adaptive Performance Feedback Loop (RQ2 Novelty)</div>
-                <div class="card-subtitle">Monitors runtime FPS and network RTT to dynamically adapt stress</div>
-              </div>
+            <div class="card-head"><div class="card-title">Closed-Loop Performance Signal Evaluator</div></div>
+            <div class="ctrl-block">
+              <div class="ctrl-row"><span>Observed UI Framerate</span><span class="mono-val" id="signalFpsVal">24 FPS</span></div>
+              <input type="range" id="signalFpsSlider" min="10" max="60" value="24" oninput="updateVal('signalFpsVal', this.value + ' FPS')">
             </div>
-
-            <!-- Signal Sliders -->
-            <div class="control-row">
-              <div class="control-label">
-                <span>Observed UI Framerate (FPS)</span>
-                <span class="control-val" id="signalFpsVal">24.0 FPS (Lag Detected!)</span>
-              </div>
-              <input type="range" id="signalFpsSlider" min="10" max="60" value="24" oninput="updateVal('signalFpsVal', this.value + ' FPS' + (this.value < 35 ? ' (Lag Detected!)' : ''))">
-            </div>
-
-            <div class="control-row">
-              <div class="control-label">
-                <span>Observed RTT Latency Spike</span>
-                <span class="control-val" id="signalLatVal">1850 ms</span>
-              </div>
+            <div class="ctrl-block">
+              <div class="ctrl-row"><span>Observed Network RTT</span><span class="mono-val" id="signalLatVal">1850 ms</span></div>
               <input type="range" id="signalLatSlider" min="100" max="3000" step="50" value="1850" oninput="updateVal('signalLatVal', this.value + ' ms')">
             </div>
-
-            <button class="btn-action primary" onclick="evaluateAdaptiveSignals()">
-              ⚡ Dispatch Signals &amp; Evaluate Escalation Threshold
-            </button>
+            <button class="btn btn-primary" style="width:100%;" onclick="evaluateAdaptiveSignals()">Evaluate Adaptive Escalation</button>
           </div>
 
-          <!-- Escalation Log & Status -->
           <div class="card">
-            <div class="card-header">
-              <div class="card-title">⚠️ Active Adaptive Escalations</div>
-              <span id="escalationStatusBadge" class="sla-badge" style="background: rgba(244,63,94,0.15); color: #fb7185; border-color: rgba(244,63,94,0.3);">
-                ESCALATION ACTIVE
-              </span>
+            <div class="card-head">
+              <div class="card-title">Active Escalations</div>
+              <span class="metric-chip ok" id="escalationStatusBadge">MONITORING</span>
             </div>
-
-            <div id="escalationLogBox" style="font-size: 12px; display: flex; flex-direction: column; gap: 8px;">
-              <div style="padding: 10px 12px; background: rgba(244,63,94,0.1); border-radius: 8px; border: 1px solid rgba(244,63,94,0.3); color: #fca5a5;">
-                <strong>FRAME_LAG_DETECTED:</strong> UI framerate dropped to 24.0 FPS (&lt; 35.0 threshold) &rarr; Dynamically escalated CPU starvation to 95%.
-              </div>
-              <div style="padding: 10px 12px; background: rgba(251,146,60,0.1); border-radius: 8px; border: 1px solid rgba(251,146,60,0.3); color: #fed7aa;">
-                <strong>HIGH_LATENCY_DETECTED:</strong> Network RTT surged to 1850ms (&gt; 1200ms threshold) &rarr; Scaled packet loss throttle to 12%.
-              </div>
+            <div id="escalationLogBox" class="terminal" style="max-height:190px;">
+              <div class="t-line"><span class="t-ts">[IDLE]</span>Threshold: FPS &lt; 35 or RTT &gt; 1200ms.</div>
             </div>
           </div>
         </div>
       </section>
 
-      <!-- ===================================================================
-           TAB 4: THEMIS GROUND-TRUTH BENCHMARK REPRODUCER
-      =================================================================== -->
-      <section id="tab-themis" class="tab-pane">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
+      <!-- TAB 4: THEMIS BENCHMARK -->
+      <section id="tab-themis" class="tab-view">
+        <div class="page-head">
           <div>
-            <h1 style="font-size: 20px; font-weight: 800; color: #fff;">Themis Ground-Truth Benchmark Bug Reproduction Suite</h1>
-            <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
-              ACM/IEEE FSE curated real-world Android defects reproduced deterministically via environmental perturbation.
-            </p>
+            <h1 class="page-title">Themis Ground-Truth Benchmark Catalog</h1>
+            <p class="page-sub">Switch between the 5 deterministic chaos profiles and the complete 52-bug Hao et al. (2024) catalog.</p>
           </div>
-          <span class="sla-badge" style="font-size: 11px; padding: 6px 14px;">5 / 5 Bugs Verified (100% Repr Rate)</span>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <input type="text" id="themisSearch" class="input-field" style="width:200px;" placeholder="Filter app or trigger..." oninput="filterThemis()">
+            <button class="btn" id="btnToggle52" onclick="toggleThemisFull()">Show Full 52 Catalog</button>
+          </div>
         </div>
-
-        <div class="grid-3" id="themisCardsGrid">
-          <!-- Populated dynamically via JavaScript with all 5 Themis benchmarks -->
-        </div>
+        <div class="bento-3" id="themisCardsGrid"></div>
       </section>
 
-      <!-- ===================================================================
-           TAB 5: TARGET APK DEPLOYMENT & LIVE STRESS RUNNER
-      =================================================================== -->
-      <section id="tab-apk" class="tab-pane">
-        <div style="margin-bottom: 20px;">
-          <h1 style="font-size: 20px; font-weight: 800; color: #fff;">Target APK Deployment &amp; Live Stress Runner</h1>
-          <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
-            Zero-SDK onboarding: install target Android application onto device/simulator and execute synchronized perturbation sequences.
-          </p>
-        </div>
-
-        <div class="grid-2">
-          <!-- Install / Select APK -->
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title">📦 Install Target Application (APK)</div>
-            </div>
-
-            <div style="border: 2px dashed var(--border-subtle); border-radius: 12px; padding: 28px; text-align: center; margin-bottom: 16px;">
-              <div style="font-size: 32px; margin-bottom: 8px;">📱</div>
-              <div style="font-size: 13px; font-weight: 700; color: #fff;">Select or Drag Target Android APK</div>
-              <div style="font-size: 11px; color: var(--text-dim); margin-top: 4px;">Supports any F-Droid, Themis, or debug/release Android APK</div>
-              <input type="file" id="apkFileInput" accept=".apk" style="display: none;" onchange="handleApkSelected(event)">
-              <button class="btn-action primary" style="width: auto; margin: 14px auto 0 auto; padding: 8px 20px;" onclick="document.getElementById('apkFileInput').click()">
-                Browse Local APK
-              </button>
-            </div>
-
-            <div class="control-row">
-              <div class="control-label"><span>Curated Benchmark APKs</span></div>
-              <div style="display: flex; flex-direction: column; gap: 6px;">
-                <button class="btn-toggle active" style="text-align: left; padding: 10px 14px;" onclick="selectPresetApk('APhotoManager-0.6.4.apk', 'de.k3b.android.androFotoFinder')">
-                  <strong>APhotoManager-0.6.4.apk</strong> (Themis Media App &bull; 8.4 MB)
-                </button>
-                <button class="btn-toggle" style="text-align: left; padding: 10px 14px;" onclick="selectPresetApk('K9-Mail-v6.800.apk', 'com.fsck.k9')">
-                  <strong>K9-Mail-v6.800.apk</strong> (F-Droid Sync Client &bull; 12.1 MB)
-                </button>
-                <button class="btn-toggle" style="text-align: left; padding: 10px 14px;" onclick="selectPresetApk('AnkiDroid-2.16.5.apk', 'com.ichi2.anki')">
-                  <strong>AnkiDroid-2.16.5.apk</strong> (Flashcard Database App &bull; 16.8 MB)
-                </button>
-              </div>
-            </div>
-
-            <div class="grid-2" style="margin-top: 10px;">
-              <button class="btn-action primary" onclick="installTargetApk()">📲 Install via ADB Bridge</button>
-              <button class="btn-action" onclick="launchTargetApp()">🚀 Launch on Target</button>
-            </div>
-          </div>
-
-          <!-- Stress Test Orchestrator on Installed APK -->
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title">⚡ Execute Environmental Stress Flow</div>
-            </div>
-
-            <div style="display: flex; flex-direction: column; gap: 12px; font-size: 12px; margin-bottom: 16px;">
-              <div style="padding: 10px 12px; background: rgba(255,255,255,0.03); border-radius: 8px;">
-                <span style="color: var(--text-muted);">Active Target Package:</span>
-                <strong style="color: var(--accent-orange-bright); margin-left: 8px;" id="activePkgLabel">de.k3b.android.androFotoFinder</strong>
-              </div>
-              <div style="padding: 10px 12px; background: rgba(255,255,255,0.03); border-radius: 8px;">
-                <span style="color: var(--text-muted);">Configured Chaos Profile:</span>
-                <strong style="color: #fff; margin-left: 8px;">Compound Multi-Factor Stress (85% CPU + 2G + Call)</strong>
-              </div>
-            </div>
-
-            <button class="btn-action primary" style="padding: 12px;" onclick="runApkStressTest()">
-              ▶️ Run Synchronized Environmental Stress Flow
-            </button>
-
-            <!-- Test output box -->
-            <div class="control-row" style="margin-top: 14px;">
-              <div class="control-label"><span>Execution Progress Stream</span></div>
-              <div id="apkStressOutputBox" class="terminal-box" style="height: 180px;">
-                <div class="terminal-line"><span class="terminal-time">[READY]</span> <span class="terminal-msg">Waiting to initiate environmental stress flow on target APK.</span></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ===================================================================
-           TAB 6: REAL-TIME TELEMETRY & EVENT AUDIT STREAM
-      =================================================================== -->
-      <section id="tab-telemetry" class="tab-pane">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
+      <!-- TAB 5: TARGET APKS -->
+      <section id="tab-apk" class="tab-view">
+        <div class="page-head">
           <div>
-            <h1 style="font-size: 20px; font-weight: 800; color: #fff;">Millisecond Telemetry &amp; Event Audit Stream</h1>
-            <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
-              High-precision timestamped audit log of all injected environmental stressors per Proposal Section 5.
-            </p>
+            <h1 class="page-title">Target APK Deployment &amp; Stress Runner</h1>
+            <p class="page-sub">Upload APKs directly to `/api/apk/upload`, launch on attached device, and execute synchronized chaos.</p>
           </div>
-          <button class="btn-action" style="width: auto; padding: 7px 16px;" onclick="exportAuditLogJson()">
-            📥 Export Audit Log (.json)
-          </button>
+          <button class="btn" onclick="refreshApkList()">Refresh Uploads</button>
         </div>
 
-        <!-- Real-Time Telemetry Canvas Graphs -->
-        <div class="grid-2" style="margin-bottom: 20px;">
+        <div class="bento-2">
           <div class="card">
-            <div class="card-header">
-              <div class="card-title">📈 Real-Time Latency (ms) vs Render Framerate (FPS)</div>
+            <div class="card-head"><div class="card-title">Install or Select Uploaded APK</div></div>
+            <div style="border:1.5px dashed var(--border-strong); border-radius:var(--radius-md); padding:22px; text-align:center; margin-bottom:14px;">
+              <div style="font-weight:700; margin-bottom:4px;">Upload Android APK Package</div>
+              <div style="font-size:11.5px; color:var(--text-muted); margin-bottom:12px;">Dispatches multipart upload straight to ADB install</div>
+              <input type="file" id="apkFileInput" accept=".apk" style="display:none;" onchange="handleApkUpload(event)">
+              <button class="btn btn-primary" onclick="document.getElementById('apkFileInput').click()">Choose &amp; Install APK</button>
             </div>
-            <canvas id="telemetryCanvas1" width="500" height="200" style="width: 100%; height: 180px;"></canvas>
+            <div class="ctrl-row"><span>Discovered / Curated APKs</span></div>
+            <div id="apkListBox" style="display:flex; flex-direction:column; gap:6px; max-height:210px; overflow-y:auto;"></div>
           </div>
 
           <div class="card">
-            <div class="card-header">
-              <div class="card-title">💻 Host Overhead: CPU &amp; RAM Consumption (%)</div>
-              <span class="sla-badge">&lt; 15% SLA PASS</span>
+            <div class="card-head"><div class="card-title">Live Stress Orchestrator</div></div>
+            <div class="ctrl-block">
+              <div class="ctrl-row"><span>Active Package Name</span></div>
+              <input type="text" id="activePkgInput" class="input-field" value="de.k3b.android.androFotoFinder">
             </div>
-            <canvas id="telemetryCanvas2" width="500" height="200" style="width: 100%; height: 180px;"></canvas>
+            <div class="bento-2" style="margin-bottom:12px;">
+              <button class="btn" onclick="launchTargetApp()">Launch App on Device</button>
+              <button class="btn btn-primary" onclick="runApkStressTest()">Run Stress Sweep</button>
+            </div>
+            <div id="apkStressOutputBox" class="terminal" style="height:200px;">
+              <div class="t-line"><span class="t-ts">[READY]</span>Select a package and start synchronized stress testing.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 6: TELEMETRY -->
+      <section id="tab-telemetry" class="tab-view">
+        <div class="page-head">
+          <div>
+            <h1 class="page-title">Millisecond Event Stream &amp; Relational Store</h1>
+            <p class="page-sub">Live event latencies, host CPU/memory process shares, and audit log export.</p>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn" onclick="fetchRecentEvents()">Refresh Data</button>
+            <button class="btn btn-primary" onclick="exportAuditLogJson()">Export JSON Log</button>
           </div>
         </div>
 
-        <!-- Millisecond Event Audit Log Table -->
+        <div class="bento-2">
+          <div class="card">
+            <div class="card-head"><div class="card-title">Live Per-Action Latency (ms vs 100ms SLA)</div></div>
+            <canvas id="telemetryCanvas1" width="520" height="190" style="width:100%; height:180px;"></canvas>
+          </div>
+          <div class="card">
+            <div class="card-head"><div class="card-title">Live Host Process CPU &amp; Memory Overhead (%)</div></div>
+            <canvas id="telemetryCanvas2" width="520" height="190" style="width:100%; height:180px;"></canvas>
+          </div>
+        </div>
+
         <div class="card">
-          <div class="card-header">
-            <div class="card-title">📋 Timestamped Perturbation Audit Log (<span id="eventCountLabel">0</span> Events)</div>
-            <div style="display: flex; gap: 8px;">
-              <input type="text" id="eventFilterInput" class="input-text" style="width: 200px;" placeholder="Filter events..." oninput="filterEventsTable()">
-              <button class="btn-toggle" onclick="fetchRecentEvents()">🔄 Refresh</button>
-            </div>
+          <div class="card-head">
+            <div class="card-title">Recorded Perturbation Events (<span id="eventCountLabel">0</span>)</div>
+            <input type="text" id="eventFilterInput" class="input-field" style="width:220px;" placeholder="Search category or action..." oninput="filterEventsTable()">
           </div>
-
-          <div style="max-height: 320px; overflow-y: auto;">
-            <table class="data-table" id="eventsTable">
-              <thead>
-                <tr>
-                  <th>Timestamp</th>
-                  <th>Category</th>
-                  <th>Action</th>
-                  <th>Parameters / Payload</th>
-                  <th>Latency (ms)</th>
-                  <th>SLA Verdict</th>
-                </tr>
-              </thead>
-              <tbody id="eventsTableBody">
-                <!-- Dynamically rendered -->
-              </tbody>
+          <div class="table-wrap" style="max-height:320px; overflow-y:auto;">
+            <table class="data-table">
+              <thead><tr><th>Epoch / Time</th><th>Category</th><th>Action</th><th>Parameters</th><th>Latency</th><th>Overhead</th></tr></thead>
+              <tbody id="eventsTableBody"></tbody>
             </table>
           </div>
         </div>
       </section>
 
-      <!-- ===================================================================
-           TAB 7: FAILURE ATTRIBUTION ENGINE
-      =================================================================== -->
-      <section id="tab-attribution" class="tab-pane">
-        <div style="margin-bottom: 20px;">
-          <h1 style="font-size: 20px; font-weight: 800; color: #fff;">Environment-Induced Failure Attribution Engine</h1>
-          <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
-            Correlates proximate environmental stressors with application crashes, ANRs, and SQLite locks within causal time windows.
-          </p>
-        </div>
-
-        <div class="grid-2">
-          <!-- Attribution Summary Card -->
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title">🔍 Causal Correlation Overview</div>
-              <button class="btn-action primary" style="width: auto; padding: 6px 14px;" onclick="runAttributionAnalysis()">
-                ⚡ Correlate Recent Failures
-              </button>
-            </div>
-
-            <div style="display: flex; flex-direction: column; gap: 12px; font-size: 12px;">
-              <div style="padding: 10px 14px; background: rgba(255,255,255,0.03); border-radius: 8px; display: flex; justify-content: space-between;">
-                <span style="color: var(--text-muted);">Analyzed Failure Events:</span>
-                <strong style="color: #fff;">5 Themis Defects &bull; 8 Crash Traces</strong>
-              </div>
-              <div style="padding: 10px 14px; background: rgba(255,255,255,0.03); border-radius: 8px; display: flex; justify-content: space-between;">
-                <span style="color: var(--text-muted);">Mean Causal Confidence Score:</span>
-                <strong style="color: var(--accent-orange-bright);">94.3% (High Attribution)</strong>
-              </div>
-              <div style="padding: 10px 14px; background: rgba(255,255,255,0.03); border-radius: 8px; display: flex; justify-content: space-between;">
-                <span style="color: var(--text-muted);">Correlation Window Threshold:</span>
-                <strong style="color: #fff;">&Delta;t &le; 2,500 ms</strong>
-              </div>
-            </div>
-          </div>
-
-          <!-- Root Cause Breakdown -->
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title">📊 Primary Environmental Failure Vectors</div>
-            </div>
-            <div style="display: flex; flex-direction: column; gap: 8px; font-size: 12px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: rgba(244,63,94,0.1); border-radius: 6px;">
-                <span>1. Network RTT Spikes &gt; 1200ms (Socket Timeouts)</span>
-                <strong style="color: #fb7185;">38.4%</strong>
-              </div>
-              <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: rgba(251,146,60,0.1); border-radius: 6px;">
-                <span>2. Low Memory Killer (LMK) RUNNING_CRITICAL (Discard)</span>
-                <strong style="color: #fed7aa;">27.1%</strong>
-              </div>
-              <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: rgba(168,85,247,0.1); border-radius: 6px;">
-                <span>3. Battery Critical Drop mid-commit (SQLite Lock)</span>
-                <strong style="color: #d8b4fe;">19.5%</strong>
-              </div>
-              <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: rgba(56,189,248,0.1); border-radius: 6px;">
-                <span>4. Telephony Audio Focus Steal (ExoPlayer Deadlock)</span>
-                <strong style="color: #7dd3fc;">15.0%</strong>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Detailed Attribution Case Table -->
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title">📑 Detailed Defect-to-Stressor Attribution Reports</div>
-          </div>
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Defect ID</th>
-                <th>Target Application</th>
-                <th>Failure Manifestation</th>
-                <th>Proximate Environmental Stressor</th>
-                <th>Attribution Score</th>
-                <th>Actionable Mitigation Recommendation</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><strong>THEMIS-ANKI-01</strong></td>
-                <td>AnkiDroid Flashcards</td>
-                <td>SQLiteDatabaseLockedException</td>
-                <td>Battery Level Drop to 3% (Unplugged)</td>
-                <td><strong style="color: #34d399;">0.958 (95.8%)</strong></td>
-                <td>Implement atomic transactions with battery-aware checkpointing.</td>
-              </tr>
-              <tr>
-                <td><strong>THEMIS-K9-02</strong></td>
-                <td>K-9 Mail Client</td>
-                <td>java.net.SocketTimeoutException</td>
-                <td>2G/EDGE Throttle + 1850ms Latency</td>
-                <td><strong style="color: #34d399;">0.942 (94.2%)</strong></td>
-                <td>Decouple socket timeout logic from local mailbox serialization.</td>
-              </tr>
-              <tr>
-                <td><strong>THEMIS-ANTENNA-03</strong></td>
-                <td>AntennaPod Podcast</td>
-                <td>IllegalStateException (Audio Sink)</td>
-                <td>GSM Telephony Call Rings Device</td>
-                <td><strong style="color: #34d399;">0.971 (97.1%)</strong></td>
-                <td>Implement asynchronous onAudioFocusChange() release handlers.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <!-- ===================================================================
-           TAB 8: RESEARCH CHARTS & EMPIRICAL BENCHMARKS
-      =================================================================== -->
-      <section id="tab-research" class="tab-pane">
-        <div style="margin-bottom: 20px;">
-          <h1 style="font-size: 20px; font-weight: 800; color: #fff;">Publication Figures &amp; Empirical Benchmark Evaluation</h1>
-          <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
-            High-resolution empirical benchmark results across 5 environmental regimes (N = 30 trials per condition).
-          </p>
-        </div>
-
-        <!-- 3 Research Figures Display -->
-        <div class="grid-3" style="margin-bottom: 20px;">
-          <div class="card" style="padding: 12px;">
-            <div style="font-size: 12px; font-weight: 800; color: #fff; margin-bottom: 8px;">Fig 1: Latency &amp; Framerate Impact</div>
-            <img src="/results/fig1_latency_and_framerate.png" alt="Figure 1" style="width: 100%; border-radius: 8px; border: 1px solid var(--border-subtle);" onerror="this.src='data:image/svg+xml,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'300\' height=\'200\'><rect width=\'300\' height=\'200\' fill=\'%23111827\'/><text x=\'50%25\' y=\'50%25\' fill=\'%2394a3b8\' dominant-baseline=\'middle\' text-anchor=\'middle\'>Figure 1 Generating...</text></svg>'">
-          </div>
-
-          <div class="card" style="padding: 12px;">
-            <div style="font-size: 12px; font-weight: 800; color: #fff; margin-bottom: 8px;">Fig 2: Defect Exposure Rate Gain</div>
-            <img src="/results/fig2_failure_rate_comparison.png" alt="Figure 2" style="width: 100%; border-radius: 8px; border: 1px solid var(--border-subtle);" onerror="this.src='data:image/svg+xml,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'300\' height=\'200\'><rect width=\'300\' height=\'200\' fill=\'%23111827\'/><text x=\'50%25\' y=\'50%25\' fill=\'%2394a3b8\' dominant-baseline=\'middle\' text-anchor=\'middle\'>Figure 2 Generating...</text></svg>'">
-          </div>
-
-          <div class="card" style="padding: 12px;">
-            <div style="font-size: 12px; font-weight: 800; color: #fff; margin-bottom: 8px;">Fig 3: Non-Crash GUI Jank Drop %</div>
-            <img src="/results/fig3_jank_frame_drop.png" alt="Figure 3" style="width: 100%; border-radius: 8px; border: 1px solid var(--border-subtle);" onerror="this.src='data:image/svg+xml,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'300\' height=\'200\'><rect width=\'300\' height=\'200\' fill=\'%23111827\'/><text x=\'50%25\' y=\'50%25\' fill=\'%2394a3b8\' dominant-baseline=\'middle\' text-anchor=\'middle\'>Figure 3 Generating...</text></svg>'">
-          </div>
-        </div>
-
-        <!-- Empirical Metrics Table -->
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title">📊 Empirical Quantitative Metrics Comparison Matrix</div>
-            <span class="sla-badge">&gt;30% Defect Gain Target Exceeded</span>
-          </div>
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Environmental Stress Condition</th>
-                <th>Mean RTT Latency</th>
-                <th>P95 Latency</th>
-                <th>Mean UI Framerate</th>
-                <th>Jank / Frame Drop %</th>
-                <th>Application Failure Rate</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><strong>1. Baseline Nominal (Appium Standard)</strong></td>
-                <td>66.3 ms</td>
-                <td>91.3 ms</td>
-                <td>58.5 FPS</td>
-                <td>2.5%</td>
-                <td><strong style="color: #94a3b8;">0.0% (Defects Missed)</strong></td>
-              </tr>
-              <tr>
-                <td><strong>2. Network Degradation (2G / High Latency)</strong></td>
-                <td>1,334.4 ms</td>
-                <td>1,715.8 ms</td>
-                <td>53.4 FPS</td>
-                <td>11.0%</td>
-                <td><strong>13.3%</strong></td>
-              </tr>
-              <tr>
-                <td><strong>3. Hardware Starvation (CPU 92% / RAM LMK)</strong></td>
-                <td>178.7 ms</td>
-                <td>225.3 ms</td>
-                <td>31.7 FPS</td>
-                <td>47.2%</td>
-                <td><strong>16.7%</strong></td>
-              </tr>
-              <tr>
-                <td><strong>4. Interruption Burst (Telephony Calls / SMS)</strong></td>
-                <td>112.8 ms</td>
-                <td>144.8 ms</td>
-                <td>46.1 FPS</td>
-                <td>23.2%</td>
-                <td><strong>20.0%</strong></td>
-              </tr>
-              <tr style="background: rgba(251,146,60,0.08);">
-                <td><strong>5. Compound Multi-Factor (Component 1 Novelty)</strong></td>
-                <td><strong>1,816.8 ms</strong></td>
-                <td><strong>2,400.0 ms</strong></td>
-                <td><strong>23.0 FPS</strong></td>
-                <td><strong>61.7%</strong></td>
-                <td><strong style="color: var(--accent-orange-bright); font-size: 13px;">53.3% (+53.3% Gain &gt; 30% Target!)</strong></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <!-- ===================================================================
-           TAB 9: PP1 ACADEMIC DEFENSE & EXAMINER AUDIT REPORT
-      =================================================================== -->
-      <section id="tab-defense" class="tab-pane">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
+      <!-- TAB 7: ATTRIBUTION & C4 SEED -->
+      <section id="tab-attribution" class="tab-view">
+        <div class="page-head">
           <div>
-            <h1 style="font-size: 20px; font-weight: 800; color: #fff;">Progress Presentation 1 (PP1) Academic Defense &amp; Audit Sheet</h1>
-            <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
-              Formal compliance verification matrix for academic evaluation panel (SLIIT IT4010 Research Project).
-            </p>
+            <h1 class="page-title">Root-Cause Failure Attribution &amp; C4 Seed Handoff</h1>
+            <p class="page-sub">Temporal causality matching (&Delta;t &le; 3.5s) &amp; `c4.journey/1` self-healing regression export.</p>
           </div>
-          <button class="btn-action primary" style="width: auto; padding: 8px 20px;" onclick="downloadAcademicAuditReport()">
-            📄 Download Official PP1 Compliance Audit Report (JSON)
-          </button>
-        </div>
-
-        <!-- Academic Metadata Card -->
-        <div class="card" style="background: linear-gradient(135deg, rgba(251,146,60,0.08), rgba(19,31,55,0.9)); border-color: rgba(251,146,60,0.3);">
-          <div class="grid-4" style="font-size: 12px;">
-            <div>
-              <div style="color: var(--text-dim); font-size: 10px; text-transform: uppercase; font-weight: 800;">Platform System</div>
-              <div style="font-weight: 800; color: #fff; font-size: 14px; margin-top: 2px;">HEART Robustness Suite</div>
-              <div style="color: var(--accent-orange-bright); font-weight: 700;">Project J26-SE-334</div>
-            </div>
-
-            <div>
-              <div style="color: var(--text-dim); font-size: 10px; text-transform: uppercase; font-weight: 800;">Core Module</div>
-              <div style="font-weight: 800; color: #fff; font-size: 13px; margin-top: 2px;">Environmental Engine</div>
-              <div style="color: var(--text-muted);">Context-Aware Fault Injection</div>
-            </div>
-
-            <div>
-              <div style="color: var(--text-dim); font-size: 10px; text-transform: uppercase; font-weight: 800;">Validation Standards</div>
-              <div style="font-weight: 800; color: #fff; font-size: 12.5px; margin-top: 2px;">IEEE / Themis Benchmarks</div>
-              <div style="color: var(--text-muted);">Empirical Mobile Stress Suite</div>
-            </div>
-
-            <div>
-              <div style="color: var(--text-dim); font-size: 10px; text-transform: uppercase; font-weight: 800;">Release &amp; Target</div>
-              <div style="font-weight: 800; color: var(--accent-orange-bright); font-size: 14px; margin-top: 2px;">Enterprise v1.0</div>
-              <div style="color: var(--text-muted);">Production Android Testbed</div>
-            </div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn" onclick="runAttributionAnalysis()">Run Attribution</button>
+            <button class="btn btn-primary" onclick="exportC4Seed()">Export C1➔C4 Seed</button>
           </div>
         </div>
 
-        <!-- Research Questions (RQ1-RQ4) Compliance Matrix -->
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title">🎯 Research Questions (RQ1 - RQ4) Compliance Verdicts</div>
-            <span class="sla-badge" style="font-size: 11px;">100% COMPLIANT</span>
+        <div class="bento-2">
+          <div class="card">
+            <div class="card-head"><div class="card-title">Failure Trigger Payload</div></div>
+            <div class="bento-2" style="margin-bottom:10px;">
+              <div><div class="ctrl-row"><span>Package</span></div><input id="attrPkg" class="input-field" value="com.example.checkout"></div>
+              <div><div class="ctrl-row"><span>Failure Type</span></div><input id="attrType" class="input-field" value="TIMEOUT"></div>
+            </div>
+            <div class="ctrl-block"><div class="ctrl-row"><span>UI Screen / Component</span></div><input id="attrComp" class="input-field" value="PayBtn"></div>
+            <div class="ctrl-block" style="margin-bottom:0;"><div class="ctrl-row"><span>Failure Log / Stacktrace</span></div><input id="attrDesc" class="input-field" value="SocketTimeoutException during checkout under 3G drop"></div>
           </div>
 
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Research Question</th>
-                <th>Target Threshold &amp; Rule</th>
-                <th>Measured Empirical Result</th>
-                <th>Evaluation Verdict</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><strong>RQ1: Asynchronous ADB Perturbation Injection &amp; Host Stability</strong></td>
-                <td>Injection Latency &lt; 100ms<br>Host Overhead &lt; 15%</td>
-                <td>Mean Latency: <strong>24.6 ms</strong> (Max: 62.4 ms)<br>Host CPU: <strong>4.8%</strong>, RAM: <strong>5.6%</strong></td>
-                <td><span class="sla-badge" style="display: inline-flex;">COMPLIANT [PASS]</span></td>
-              </tr>
-              <tr>
-                <td><strong>RQ2: Semantic UI State Synchronization &amp; Defect Exposure</strong></td>
-                <td>&gt; 30% increase in defect detection rate over baseline</td>
-                <td>Achieved <strong>53.3% failure exposure rate</strong> (+53.3% gain over 0.0% nominal baseline)</td>
-                <td><span class="sla-badge" style="display: inline-flex;">COMPLIANT [PASS]</span></td>
-              </tr>
-              <tr>
-                <td><strong>RQ3: Declarative YAML/JSON Stress Profile Parsing</strong></td>
-                <td>Map YAML/JSON schemas into timelines within &lt; 100ms</td>
-                <td>Average Parse &amp; Dispatch: <strong>18.2 ms</strong> (100% schema validation accuracy)</td>
-                <td><span class="sla-badge" style="display: inline-flex;">COMPLIANT [PASS]</span></td>
-              </tr>
-              <tr>
-                <td><strong>RQ4: Benchmark Evaluation on Curated Themis Dataset</strong></td>
-                <td>Deterministic reproduction of environment-induced bugs</td>
-                <td><strong>5 / 5 Real-world Themis bugs reproduced (100%)</strong> with causal attribution</td>
-                <td><span class="sla-badge" style="display: inline-flex;">COMPLIANT [PASS]</span></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Demonstrated Capabilities Checklist for Examiners -->
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title">✅ Demonstrated Technical Capabilities Checklist (Component 1)</div>
-          </div>
-          <div class="grid-2" style="font-size: 12px; line-height: 1.8;">
-            <div>
-              <div style="color: #34d399;">✔ Hardware Starvation (CPU load up to 98%, LMK trim-memory, battery drain to 3%, thermal throttling)</div>
-              <div style="color: #34d399;">✔ Network Chaos (2G/3G/4G/Offline profiles, Netem latency, packet loss up to 25%, DNS fault)</div>
-              <div style="color: #34d399;">✔ OS System Interruptions (GSM incoming call dialer, SMS OTP banner toasts, Doze idle, lifecycle)</div>
-            </div>
-            <div>
-              <div style="color: #34d399;">✔ Context Fuzzing (Orientation 0/90/270°, Dark theme toggle, Accessibility font scaling 1.0-1.4x, GPS fix)</div>
-              <div style="color: #34d399;">✔ Semantic Step Scheduling (Registered hooks to MID_TRANSACTION, adaptive closed-loop escalation)</div>
-              <div style="color: #34d399;">✔ Environment-to-Failure Attribution Engine (Timestamped correlation &amp; mitigation advice)</div>
-            </div>
+          <div class="card">
+            <div class="card-head"><div class="card-title">Attribution / C4 Seed Output</div></div>
+            <pre id="attrOutputPre" class="terminal" style="max-height:230px;">Click "Run Attribution" or "Export C1➔C4 Seed" to inspect causal report &amp; c4.journey/1 payload.</pre>
           </div>
         </div>
       </section>
 
+      <!-- TAB 8: RESEARCH & 20-APP CORPUS -->
+      <section id="tab-research" class="tab-view">
+        <div class="page-head">
+          <div>
+            <h1 class="page-title">20-App Live F-Droid Corpus &amp; Empirical Figures</h1>
+            <p class="page-sub">Live quantitative metrics from `/results/corpus_benchmark_results.json` &amp; `/api/research/benchmark_data`.</p>
+          </div>
+          <button class="btn" onclick="loadCorpusData()">Reload Benchmark Data</button>
+        </div>
+
+        <div class="bento-3">
+          <div class="card" style="padding:12px;"><div style="font-size:12px; font-weight:700; margin-bottom:8px;">Fig 1 · Latency vs Framerate</div><img src="/results/fig1_latency_and_framerate.png" style="width:100%; border-radius:8px; border:1px solid var(--border-hairline);"></div>
+          <div class="card" style="padding:12px;"><div style="font-size:12px; font-weight:700; margin-bottom:8px;">Fig 2 · Defect Exposure Comparison</div><img src="/results/fig2_failure_rate_comparison.png" style="width:100%; border-radius:8px; border:1px solid var(--border-hairline);"></div>
+          <div class="card" style="padding:12px;"><div style="font-size:12px; font-weight:700; margin-bottom:8px;">Fig 3 · Frame Drop / Jank %</div><img src="/results/fig3_jank_frame_drop.png" style="width:100%; border-radius:8px; border:1px solid var(--border-hairline);"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">Live Device Corpus Summary Matrix</div>
+            <span class="metric-chip ok" id="corpusMetaChip">Loading corpus...</span>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>Regime</th><th>Apps</th><th>Trials</th><th>Mean RTT (ms)</th><th>Mean FPS</th><th>Jank %</th><th>Paired t / p-val</th><th>Mann-Whitney p</th></tr></thead>
+              <tbody id="corpusTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
     </main>
   </div>
 
-  <!-- Live Test Suite Progress Modal -->
+  <!-- Live Suite Modal -->
   <div id="liveSuiteModal" class="modal-backdrop">
-    <div class="modal-window">
-      <div class="modal-header">
-        <div style="font-size: 15px; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 8px;">
-          <span>▶️</span> 7-Stage Live Demonstration Suite (PP1 Execution)
-        </div>
-        <button onclick="closeLiveSuiteModal()" style="background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 18px;">&times;</button>
+    <div class="modal-panel">
+      <div class="modal-head">
+        <strong>Automated C1 Live Verification Sweep</strong>
+        <button class="btn btn-sm" onclick="closeModal('liveSuiteModal')">Close</button>
       </div>
       <div class="modal-body">
-        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px;">
-          Automated multi-factor execution across hardware starvation, network chaos, telephony interruptions, and dynamic scheduling.
-        </div>
-        <div id="suiteStagesList" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px;">
-          <!-- Stage items populated via JS -->
-        </div>
-        <div id="suiteOutputConsole" class="terminal-box" style="height: 160px;">
-          <div class="terminal-line"><span class="terminal-time">[INIT]</span> <span class="terminal-msg">Suite runner initialized. Click Start to begin.</span></div>
-        </div>
+        <div id="suiteStagesList" style="display:flex; flex-direction:column; gap:8px; margin-bottom:12px;"></div>
+        <div id="suiteOutputConsole" class="terminal" style="height:150px;"></div>
       </div>
-      <div class="modal-footer">
-        <button class="btn-action" style="width: auto;" onclick="closeLiveSuiteModal()">Cancel</button>
-        <button id="btnStartSuite" class="btn-action primary" style="width: auto; padding: 8px 24px;" onclick="startLiveSuiteExecution()">
-          Start Live Suite Execution
-        </button>
+      <div class="modal-foot">
+        <button class="btn" onclick="closeModal('liveSuiteModal')">Cancel</button>
+        <button class="btn btn-primary" id="btnStartSuite" onclick="startLiveSuiteExecution()">Execute Real API Stages</button>
       </div>
     </div>
   </div>
 
-  <!-- Themis Bug Details Modal -->
+  <!-- Themis Bug Modal -->
   <div id="themisModal" class="modal-backdrop">
-    <div class="modal-window">
-      <div class="modal-header">
-        <div style="font-size: 15px; font-weight: 800; color: #fff;" id="themisModalTitle">
-          Bug Reproduction Details
-        </div>
-        <button onclick="closeThemisModal()" style="background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 18px;">&times;</button>
+    <div class="modal-panel">
+      <div class="modal-head">
+        <strong id="themisModalTitle">Themis Reproduction</strong>
+        <button class="btn btn-sm" onclick="closeModal('themisModal')">Close</button>
       </div>
-      <div class="modal-body" id="themisModalBody">
-        <!-- Injected via JS -->
-      </div>
-      <div class="modal-footer">
-        <button class="btn-action" style="width: auto;" onclick="closeThemisModal()">Close</button>
-      </div>
+      <div class="modal-body" id="themisModalBody"></div>
     </div>
   </div>
+
+  <div class="toast-rack" id="toastRack"></div>
 
   <script>
-    const API_BASE = 'http://127.0.0.1:8001';
-
-    // State
+    const API_BASE = window.location.origin.startsWith('http') ? window.location.origin : 'http://127.0.0.1:8001';
     let activeTrimMemory = 'RUNNING_LOW';
     let activeThermal = 'Warn';
     let activeBandwidth = 'edge';
-    let activeOrientation = 'portrait';
-    let activeDarkMode = true;
     let isDnsFailed = false;
     let isDozeActive = false;
     let eventsList = [];
-    let telemetryHistory = { latency: [], fps: [], cpu: [], ram: [] };
+    let themisItems = [];
+    let showAll52 = false;
 
-    // Built-in Themis Bugs
-    const THEMIS_BUGS = [
-      {
-        id: "THEMIS-ANKI-01",
-        app_name: "AnkiDroid Flashcards",
-        package: "com.ichi2.anki",
-        bug_type: "SQLITE_DISK_LOCK",
-        trigger: "BATTERY_CRITICAL_DROP",
-        desc: "Flashcard database lock when Android OS enforces extreme battery saver mid-commit.",
-        log: "SQLiteDatabaseLockedException: database is locked (code 5) at com.ichi2.anki.Reviewer.commitDeck()",
-        reproduction_rate: "100%",
-        attribution_score: 0.958,
-        mitigation: "Wrap flashcard writes in atomic transactions with battery-aware checkpointing."
-      },
-      {
-        id: "THEMIS-K9-02",
-        app_name: "K-9 Mail Client",
-        package: "com.fsck.k9",
-        bug_type: "SOCKET_TIMEOUT_CORRUPTION",
-        trigger: "NETWORK_THROTTLE_2G",
-        desc: "IMAP TLS sync thread hangs indefinitely and corrupts local mail header cache on 2G network spike.",
-        log: "java.net.SocketTimeoutException: Read timed out after 1850ms during IMAP FETCH headers",
-        reproduction_rate: "98.4%",
-        attribution_score: 0.942,
-        mitigation: "Configure adaptive exponential backoff and isolate socket timeout handling."
-      },
-      {
-        id: "THEMIS-ANTENNA-03",
-        app_name: "AntennaPod Podcast Manager",
-        package: "de.danoeh.antennapod",
-        bug_type: "AUDIO_FOCUS_DEADLOCK",
-        trigger: "INCOMING_GSM_CALL",
-        desc: "ExoPlayer audio pipeline deadlocks when incoming telephony call steals AudioManager AUDIOFOCUS_GAIN.",
-        log: "IllegalStateException: MediaCodec audio sink cannot release focus during telephony call",
-        reproduction_rate: "100%",
-        attribution_score: 0.971,
-        mitigation: "Implement asynchronous onAudioFocusChange(AUDIOFOCUS_LOSS_TRANSIENT) callback."
-      },
-      {
-        id: "THEMIS-OPENTRACKS-04",
-        app_name: "OpenTracks Sport Tracker",
-        package: "de.dennisguse.opentracks",
-        bug_type: "GPS_BUFFER_DISCARD",
-        trigger: "LMK_RUNNING_CRITICAL",
-        desc: "GPS tracking service discards route coordinates when Android LMK broadcasts memory pressure.",
-        log: "ProcessMemoryException: System trimmed memory, LocationService dumped pending waypoint queue",
-        reproduction_rate: "96.5%",
-        attribution_score: 0.925,
-        mitigation: "Persist location fixes directly to SQLite batch queue before releasing volatile memory."
-      },
-      {
-        id: "THEMIS-LIBRE-05",
-        app_name: "LibreTorrent Downloader",
-        package: "org.proninyaroslav.libretorrent",
-        bug_type: "THERMAL_THROTTLE_OOM",
-        trigger: "THERMAL_STATUS_CRITICAL",
-        desc: "Native libtorrent engine buffer overflows when OS severely clamps CPU clock cycles to prevent overheating.",
-        log: "Fatal signal 11 (SIGSEGV), code 1 (SEGV_MAPERR), fault addr in libtorrent_native.so",
-        reproduction_rate: "94.8%",
-        attribution_score: 0.918,
-        mitigation: "Throttle peer swarm download rates when ThermalService broadcasts STATUS_CRITICAL."
-      }
-    ];
+    const YAML_TEMPLATES = {
+      compound_multi_factor_chaos: `name: "Compound Multi-Factor Chaos"\ncpuStress: 92\nramStress: 88\nlatency: 1600\npacketLoss: 10\ndnsFailure: true\nthermalState: "Critical"\nnetworkProfile: "2G / EDGE"\ninterruptionType: "Incoming Call, Low Battery"`,
+      "3g_network_drop": `name: "3G Network Drop"\ncpuStress: 35\nramStress: 40\nlatency: 2200\npacketLoss: 12\nthermalState: "Normal"\nnetworkProfile: "3G Slow"`,
+      high_cpu_stress: `name: "High CPU Starvation"\ncpuStress: 95\nramStress: 85\nlatency: 180\npacketLoss: 0\nthermalState: "Warn"\nnetworkProfile: "Nominal"`,
+      thermal_throttling_battery_drain: `name: "Thermal & Low Battery"\ncpuStress: 60\nramStress: 70\nlatency: 450\npacketLoss: 2\nthermalState: "Critical"\ninterruptionType: "Low Battery"`,
+      aggressive_multitasking_backgrounding: `name: "Aggressive Interruptions"\ncpuStress: 75\nramStress: 80\nlatency: 900\npacketLoss: 5\ninterruptionType: "Incoming Call"`
+    };
 
-    // Initialize application
-    window.addEventListener('DOMContentLoaded', () => {
-      renderThemisCards();
-      loadSelectedTemplate();
-      fetchDeviceStatus();
-      fetchRecentEvents();
-      initTelemetryCanvas();
-      setInterval(pollTelemetry, 1500);
-    });
-
-    // Tab Navigation
-    function switchTab(tabId, btn) {
-      document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
-      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-      const target = document.getElementById(tabId);
-      if (target) target.classList.add('active');
-      if (btn) btn.classList.add('active');
+    function toggleTheme() {
+      const html = document.documentElement;
+      const next = html.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+      html.setAttribute('data-theme', next);
+      document.getElementById('themeIcon').textContent = next === 'light' ? '🌙' : '☀️';
+      localStorage.setItem('heart_theme', next);
     }
 
-    function updateVal(id, text) {
-      const el = document.getElementById(id);
-      if (el) el.textContent = text;
+    function toast(msg) {
+      const rack = document.getElementById('toastRack');
+      const el = document.createElement('div');
+      el.className = 'toast';
+      el.textContent = msg;
+      rack.appendChild(el);
+      setTimeout(() => el.remove(), 3200);
     }
 
-    function logTerminal(tag, msg) {
+    function updateVal(id, text) { const el = document.getElementById(id); if (el) el.textContent = text; }
+
+    function logTerminal(tag, msg, cls = '') {
       const box = document.getElementById('liveTerminal');
       if (!box) return;
-      const now = new Date().toLocaleTimeString();
       const div = document.createElement('div');
-      div.className = 'terminal-line';
-      div.innerHTML = `<span class="terminal-time">[${now}]</span> <span class="terminal-tag">${tag}</span> <span class="terminal-msg">${msg}</span>`;
+      div.className = 't-line';
+      div.innerHTML = `<span class="t-ts">[${new Date().toLocaleTimeString()}]</span><span class="t-tag">${tag}</span><span class="${cls}">${escapeHtml(msg)}</span>`;
       box.appendChild(div);
       box.scrollTop = box.scrollHeight;
     }
 
-    function clearTerminal() {
-      const box = document.getElementById('liveTerminal');
-      if (box) box.innerHTML = '';
+    function clearTerminal() { document.getElementById('liveTerminal').innerHTML = ''; }
+    function escapeHtml(s) { return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+    function switchTab(tabId, btn) {
+      document.querySelectorAll('.tab-view').forEach(v => v.classList.remove('active'));
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById(tabId)?.classList.add('active');
+      if (btn) btn.classList.add('active');
+      if (tabId === 'tab-telemetry') fetchRecentEvents();
+      if (tabId === 'tab-research') loadCorpusData();
+      if (tabId === 'tab-apk') refreshApkList();
     }
 
-    // Backend Device Status
-    async function fetchDeviceStatus() {
+    async function apiCall(path, method = 'GET', body = null) {
+      const opts = { method, headers: {} };
+      if (body !== null) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+      const res = await fetch(`${API_BASE}${path}`, opts);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+      return data;
+    }
+
+    async function fetchStatusAndMetrics() {
       try {
-        const res = await fetch(`${API_BASE}/api/status`);
-        if (res.ok) {
-          const data = await res.json();
-          document.getElementById('targetModelLabel').textContent = `${data.target_model || 'Pixel 7 Pro (API 34)'} • Port 5554`;
-        }
+        const [st, perf] = await Promise.all([apiCall('/api/status'), apiCall('/api/performance_metrics')]);
+        const dev = st.device || {};
+        document.getElementById('targetModelLabel').textContent = `${st.target_model || 'Simulated'} (${dev.device_id || 'sim'})`;
+        document.getElementById('deviceDot').className = st.is_simulated ? 'dot warn' : 'dot';
+        document.getElementById('storageBadge').textContent = `DB: ${String(st.storage_backend || 'sqlite').toUpperCase()}`;
+        document.getElementById('kpiDbFoot').textContent = `Backend: ${String(st.storage_backend || 'sqlite').toUpperCase()} WAL`;
+
+        const lat = Number(perf.avg_injection_latency_ms || 0).toFixed(1);
+        const cpu = Number(perf.avg_host_cpu_overhead || 0).toFixed(1);
+        const mem = Number(perf.avg_host_mem_overhead || 0).toFixed(1);
+        document.getElementById('meanLatencyBadge').textContent = `${lat} ms`;
+        document.getElementById('kpiLatencyVal').textContent = `${lat} ms`;
+        document.getElementById('hostOverheadBadge').textContent = `${cpu}% / ${mem}%`;
+        document.getElementById('kpiOverheadVal').textContent = `${cpu}%`;
+        document.getElementById('kpiEventTotal').textContent = String(perf.total_events || 0);
+        document.getElementById('latencySlaChip').className = Number(lat) < 100 ? 'metric-chip ok' : 'metric-chip warn';
       } catch (e) {
-        logTerminal('WARN', 'Using local device emulation fallback.');
+        logTerminal('WARN', `Backend offline (${e.message})`, 't-warn');
       }
     }
 
-    // Stressor Controls
+    function setTrimMemory(lvl, btn) { activeTrimMemory = lvl; activateSeg(btn); }
+    function setThermal(state, btn) { activeThermal = state; activateSeg(btn); }
+    function activateSeg(btn) { btn.parentElement.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); }
+
     async function injectCpu() {
-      const val = parseInt(document.getElementById('cpuSlider').value);
-      logTerminal('ADB', `Injecting high CPU starvation: ${val}% via parallel worker routines...`);
-      try {
-        const res = await fetch(`${API_BASE}/api/stressor/hardware/cpu`, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ cpu_pct: val })
-        });
-        const data = await res.json();
-        logTerminal('SUCCESS', `CPU load set to ${val}%. Latency: ${data.latency_ms || 21.4}ms (<100ms PASS).`);
-      } catch (e) {
-        logTerminal('LOCAL', `CPU burner thread active at ${val}% target load. Latency: 18.2ms.`);
-      }
-      fetchRecentEvents();
+      const cpu_pct = parseInt(document.getElementById('cpuSlider').value);
+      const d = await apiCall('/api/stressor/hardware/cpu', 'POST', { cpu_pct });
+      logTerminal('CPU', `CPU throttle ${cpu_pct}% (${d.latency_ms}ms)`, 't-ok'); toast(`CPU load ${cpu_pct}%`); fetchRecentEvents();
     }
-
-    function setTrimMemory(level, btn) {
-      activeTrimMemory = level;
-      btn.parentElement.querySelectorAll('.btn-toggle').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-    }
-
     async function injectRam() {
-      logTerminal('ADB', `Broadcasting am send-trim-memory for target package with level: ${activeTrimMemory}...`);
-      try {
-        const res = await fetch(`${API_BASE}/api/stressor/hardware/ram`, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ ram_pct: 85, trim_level: activeTrimMemory })
-        });
-        const data = await res.json();
-        logTerminal('SUCCESS', `LMK Memory pressure broadcast sent. Latency: ${data.latency_ms || 24.1}ms (<100ms PASS).`);
-      } catch (e) {
-        logTerminal('LOCAL', `Simulated LMK memory trim: ${activeTrimMemory} broadcast dispatched.`);
-      }
-      fetchRecentEvents();
+      const d = await apiCall('/api/stressor/hardware/ram', 'POST', { ram_pct: 85, trim_level: activeTrimMemory });
+      logTerminal('RAM', `LMK ${activeTrimMemory} (${d.latency_ms}ms)`, 't-ok'); toast(`LMK ${activeTrimMemory}`); fetchRecentEvents();
     }
-
     async function injectBattery() {
-      const val = parseInt(document.getElementById('batSlider').value);
-      logTerminal('ADB', `Running dumpsys battery set level ${val} & dumpsys battery unplug...`);
-      try {
-        await fetch(`${API_BASE}/api/stressor/hardware/battery`, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ level: val, unplugged: true })
-        });
-        logTerminal('SUCCESS', `Battery dropped to ${val}% (unplugged status).`);
-      } catch (e) {
-        logTerminal('LOCAL', `Battery state forced to ${val}% unplugged.`);
-      }
-      fetchRecentEvents();
+      const level = parseInt(document.getElementById('batSlider').value);
+      await apiCall('/api/stressor/hardware/battery', 'POST', { level, unplugged: true });
+      logTerminal('BATTERY', `Battery ${level}% unplugged`, 't-ok'); toast(`Battery ${level}%`); fetchRecentEvents();
     }
-
-    function setThermal(state, btn) {
-      activeThermal = state;
-      btn.parentElement.querySelectorAll('.btn-toggle').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-    }
-
     async function injectThermal() {
-      logTerminal('ADB', `Applying thermal throttling state: ${activeThermal}...`);
-      try {
-        await fetch(`${API_BASE}/api/stressor/hardware/thermal`, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ state: activeThermal })
-        });
-        logTerminal('SUCCESS', `Thermal state applied: ${activeThermal}.`);
-      } catch (e) {
-        logTerminal('LOCAL', `Thermal profile set to ${activeThermal}.`);
-      }
-      fetchRecentEvents();
+      await apiCall('/api/stressor/hardware/thermal', 'POST', { state: activeThermal });
+      logTerminal('THERMAL', `Thermal state ${activeThermal}`, 't-ok'); toast(`Thermal: ${activeThermal}`); fetchRecentEvents();
     }
-
-    function setBandwidth(mode, btn) {
-      activeBandwidth = mode;
-      btn.parentElement.querySelectorAll('.btn-toggle').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      logTerminal('ADB', `Setting network bandwidth profile to: ${mode}...`);
-      fetch(`${API_BASE}/api/stressor/network/profile`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ profile: mode })
-      }).catch(() => {});
+    async function setBandwidth(mode, btn) {
+      activeBandwidth = mode; activateSeg(btn);
+      await apiCall('/api/stressor/network/profile', 'POST', { profile: mode });
+      logTerminal('NET', `Bandwidth ${mode}`, 't-ok'); fetchRecentEvents();
     }
-
     async function injectLatency() {
-      const val = parseInt(document.getElementById('latSlider').value);
-      logTerminal('ADB', `Injecting network RTT latency delay: ${val}ms via Netem emulator bridge...`);
-      try {
-        const res = await fetch(`${API_BASE}/api/stressor/network/latency`, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ latency_ms: val })
-        });
-        const data = await res.json();
-        logTerminal('SUCCESS', `Latency ${val}ms injected. Injection Latency: ${data.latency_ms || 28.5}ms (<100ms PASS).`);
-      } catch (e) {
-        logTerminal('LOCAL', `Latency ${val}ms applied to virtual socket.`);
-      }
-      fetchRecentEvents();
+      const latency_ms = parseInt(document.getElementById('latSlider').value);
+      const d = await apiCall('/api/stressor/network/latency', 'POST', { latency_ms });
+      logTerminal('NET', `RTT latency ${latency_ms}ms (${d.latency_ms}ms)`, 't-ok'); toast(`Latency ${latency_ms}ms`); fetchRecentEvents();
     }
-
     async function injectPacketLoss() {
-      const val = parseInt(document.getElementById('lossSlider').value);
-      logTerminal('ADB', `Emulating stochastic packet loss: ${val}%...`);
-      try {
-        await fetch(`${API_BASE}/api/stressor/network/packet_loss`, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ packet_loss_pct: val })
-        });
-        logTerminal('SUCCESS', `Packet loss set to ${val}%.`);
-      } catch (e) {
-        logTerminal('LOCAL', `Packet loss set to ${val}%.`);
-      }
-      fetchRecentEvents();
+      const packet_loss_pct = parseInt(document.getElementById('lossSlider').value);
+      await apiCall('/api/stressor/network/packet_loss', 'POST', { packet_loss_pct });
+      logTerminal('NET', `Packet loss ${packet_loss_pct}%`, 't-ok'); toast(`Loss ${packet_loss_pct}%`); fetchRecentEvents();
     }
-
     async function triggerHandover(type) {
-      logTerminal('ADB', `Triggering abrupt network handover: ${type}...`);
-      try {
-        await fetch(`${API_BASE}/api/stressor/network/handoff`, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ handoff_type: type })
-        });
-        logTerminal('SUCCESS', `Network handover completed.`);
-      } catch (e) {
-        logTerminal('LOCAL', `Handover executed successfully.`);
-      }
-      fetchRecentEvents();
+      await apiCall('/api/stressor/network/handoff', 'POST', { handoff_type: type });
+      logTerminal('NET', `Handover: ${type}`, 't-ok'); toast('Handover triggered'); fetchRecentEvents();
     }
-
     async function toggleDnsFail() {
       isDnsFailed = !isDnsFailed;
-      logTerminal('ADB', `DNS Resolution Failure: ${isDnsFailed ? 'ENABLED (DROP)' : 'DISABLED (RESTORE)'}`);
-      try {
-        await fetch(`${API_BASE}/api/stressor/network/dns_fail`, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ enabled: isDnsFailed })
-        });
-      } catch (e) {}
-      fetchRecentEvents();
+      await apiCall('/api/stressor/network/dns_fail', 'POST', { enabled: isDnsFailed });
+      document.getElementById('btnDnsToggle').textContent = isDnsFailed ? 'DNS Failure: ON' : 'Toggle DNS Failure';
+      logTerminal('DNS', `DNS fail ${isDnsFailed ? 'ON' : 'OFF'}`, 't-ok'); fetchRecentEvents();
     }
-
     async function triggerCall() {
-      const num = document.getElementById('callNumber').value || '15550192831';
-      logTerminal('ADB', `Dispatching gsm call ${num} to emulator modem socket...`);
-      try {
-        await fetch(`${API_BASE}/api/stressor/interruption/call`, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ number: num, action: 'ring' })
-        });
-        logTerminal('SUCCESS', `Telephony incoming call ringing from ${num}.`);
-      } catch (e) {
-        logTerminal('LOCAL', `Incoming call ringing from ${num}.`);
-      }
-      fetchRecentEvents();
+      const number = document.getElementById('callNumber').value || '15550192831';
+      await apiCall('/api/stressor/interruption/call', 'POST', { number, action: 'ring' });
+      logTerminal('CALL', `Incoming ring from ${number}`, 't-ok'); fetchRecentEvents();
     }
-
-    async function acceptCall() {
-      logTerminal('ADB', `Sending Android input keyevent 5 (KEYCODE_CALL)...`);
-      try {
-        await fetch(`${API_BASE}/api/stressor/interruption/call_accept`, { method: 'POST' });
-        logTerminal('SUCCESS', `Active call answered.`);
-      } catch (e) {
-        logTerminal('LOCAL', `Active call answered.`);
-      }
-      fetchRecentEvents();
-    }
-
-    async function dismissCall() {
-      logTerminal('ADB', `Sending gsm cancel & input keyevent 6 (KEYCODE_ENDCALL)...`);
-      try {
-        await fetch(`${API_BASE}/api/stressor/interruption/call_dismiss`, { method: 'POST' });
-        logTerminal('SUCCESS', `Call terminated.`);
-      } catch (e) {
-        logTerminal('LOCAL', `Call terminated.`);
-      }
-      fetchRecentEvents();
-    }
-
+    async function acceptCall() { await apiCall('/api/stressor/interruption/call_accept', 'POST'); logTerminal('CALL', 'Answered call', 't-ok'); fetchRecentEvents(); }
+    async function dismissCall() { await apiCall('/api/stressor/interruption/call_dismiss', 'POST'); logTerminal('CALL', 'Ended call', 't-ok'); fetchRecentEvents(); }
     async function sendSms() {
-      const text = document.getElementById('smsText').value || 'OTP: 492019';
-      logTerminal('ADB', `Dispatching sms send 15550192831 "${text}"...`);
-      try {
-        await fetch(`${API_BASE}/api/stressor/interruption/sms`, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ sender: '15550192831', message: text })
-        });
-        logTerminal('SUCCESS', `SMS banner notification delivered.`);
-      } catch (e) {
-        logTerminal('LOCAL', `SMS banner notification delivered.`);
-      }
-      fetchRecentEvents();
+      const message = document.getElementById('smsText').value || 'OTP: 492019';
+      await apiCall('/api/stressor/interruption/sms', 'POST', { sender: '15550192831', message });
+      logTerminal('SMS', `Banner sent: ${message}`, 't-ok'); toast('SMS sent'); fetchRecentEvents();
     }
-
     async function backgroundApp(sec) {
-      logTerminal('ADB', `Sending input keyevent 3 (KEYCODE_HOME) for ${sec}s...`);
-      try {
-        await fetch(`${API_BASE}/api/stressor/interruption/lifecycle`, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ action: 'background', duration_sec: sec })
-        });
-        logTerminal('SUCCESS', `Application backgrounded for ${sec}s then resumed.`);
-      } catch (e) {
-        logTerminal('LOCAL', `Application lifecycle background simulated.`);
-      }
-      fetchRecentEvents();
+      await apiCall('/api/stressor/interruption/lifecycle', 'POST', { action: 'background', duration_sec: sec });
+      logTerminal('APP', `Backgrounded ${sec}s`, 't-ok'); fetchRecentEvents();
     }
-
     async function toggleDoze() {
       isDozeActive = !isDozeActive;
-      logTerminal('ADB', `Executing dumpsys deviceidle ${isDozeActive ? 'force-idle' : 'unforce'}...`);
-      try {
-        await fetch(`${API_BASE}/api/stressor/interruption/doze`, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ enabled: isDozeActive })
-        });
-        logTerminal('SUCCESS', `Device Doze mode ${isDozeActive ? 'ENABLED' : 'UNFORCED'}.`);
-      } catch (e) {
-        logTerminal('LOCAL', `Doze mode toggled.`);
-      }
-      fetchRecentEvents();
+      await apiCall('/api/stressor/interruption/doze', 'POST', { enabled: isDozeActive });
+      logTerminal('DOZE', `Doze ${isDozeActive ? 'ON' : 'OFF'}`, 't-ok'); fetchRecentEvents();
     }
-
-    function setOrientation(mode, btn) {
-      activeOrientation = mode;
-      btn.parentElement.querySelectorAll('.btn-toggle').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      logTerminal('ADB', `Setting system user_rotation: ${mode}...`);
-      fetch(`${API_BASE}/api/stressor/context/orientation`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ mode: mode })
-      }).catch(() => {});
-      fetchRecentEvents();
+    async function setOrientation(mode, btn) {
+      activateSeg(btn);
+      await apiCall('/api/stressor/context/orientation', 'POST', { mode });
+      logTerminal('CTX', `Orientation: ${mode}`, 't-ok'); fetchRecentEvents();
     }
-
-    function setDarkMode(enabled, btn) {
-      activeDarkMode = enabled;
-      btn.parentElement.querySelectorAll('.btn-toggle').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      logTerminal('ADB', `Executing cmd uimode night ${enabled ? 'yes' : 'no'}...`);
-      fetch(`${API_BASE}/api/stressor/context/dark_mode`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ enabled: enabled })
-      }).catch(() => {});
-      fetchRecentEvents();
+    async function applyBrightness() {
+      const level = parseInt(document.getElementById('brightSlider').value);
+      const d = await apiCall('/api/stressor/context/brightness', 'POST', { level });
+      logTerminal('CTX', `Brightness=${d.brightness} (${d.latency_ms}ms)`, 't-ok'); toast(`Brightness ${d.brightness}`); fetchRecentEvents();
     }
-
+    async function setDarkMode(enabled, btn) {
+      activateSeg(btn);
+      await apiCall('/api/stressor/context/dark_mode', 'POST', { enabled });
+      logTerminal('CTX', `Dark mode=${enabled}`, 't-ok'); fetchRecentEvents();
+    }
     async function applyFontScale() {
       const scale = parseFloat(document.getElementById('fontSlider').value);
-      logTerminal('ADB', `Applying accessibility font_scale: ${scale}...`);
-      try {
-        await fetch(`${API_BASE}/api/stressor/context/font_scale`, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ scale: scale })
-        });
-        logTerminal('SUCCESS', `Font scale set to ${scale}x (layout collision stress).`);
-      } catch (e) {
-        logTerminal('LOCAL', `Font scale set to ${scale}x.`);
-      }
-      fetchRecentEvents();
+      await apiCall('/api/stressor/context/font_scale', 'POST', { scale });
+      logTerminal('CTX', `Font scale=${scale}x`, 't-ok'); toast(`Font ${scale}x`); fetchRecentEvents();
     }
-
     async function applyGps() {
       const lat = parseFloat(document.getElementById('gpsLat').value);
       const lon = parseFloat(document.getElementById('gpsLon').value);
-      logTerminal('ADB', `Executing geo fix ${lon} ${lat}...`);
-      try {
-        await fetch(`${API_BASE}/api/stressor/context/gps`, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ lat: lat, lon: lon })
-        });
-        logTerminal('SUCCESS', `Mock GPS fixed at (${lat}, ${lon}).`);
-      } catch (e) {
-        logTerminal('LOCAL', `Mock GPS fixed.`);
-      }
-      fetchRecentEvents();
+      await apiCall('/api/stressor/context/gps', 'POST', { lat, lon });
+      logTerminal('GPS', `Fixed (${lat}, ${lon})`, 't-ok'); toast('GPS updated'); fetchRecentEvents();
     }
 
-    // Emergency Nominal Reset
+    async function applyPreset(key) {
+      const presetName = key === 'extreme_starvation' ? 'Extreme Resource Starvation' : 'Mid-Transaction Stress Test';
+      const d = await apiCall(`/api/perturbation/profile?profile_name=${encodeURIComponent(presetName)}`, 'POST');
+      logTerminal('PRESET', `Applied '${presetName}' (chaos=${d.chaos_score})`, 't-ok'); toast(presetName); fetchRecentEvents();
+    }
+
     async function triggerNominalReset() {
-      logTerminal('RESET', 'Reverting all hardware, network, context, and interruptions back to nominal baseline...');
-      try {
-        await fetch(`${API_BASE}/api/perturbation/reset`, { method: 'POST' });
-        logTerminal('SUCCESS', 'All stressors neutralized. Operating at Nominal Baseline.');
-      } catch (e) {
-        logTerminal('LOCAL', 'Reset to nominal baseline completed.');
-      }
-      fetchRecentEvents();
+      await apiCall('/api/perturbation/reset', 'POST');
+      logTerminal('RESET', 'All stressors reverted to nominal baseline', 't-ok'); toast('Nominal baseline restored'); fetchRecentEvents();
     }
 
-    // Preset Profiles
-    function applyPreset(presetKey) {
-      if (presetKey === 'mid_transaction') {
-        document.getElementById('cpuSlider').value = 85;
-        updateVal('cpuVal', '85%');
-        document.getElementById('latSlider').value = 1250;
-        updateVal('latVal', '1250 ms');
-        document.getElementById('lossSlider').value = 3;
-        updateVal('lossVal', '3%');
-        setBandwidth('edge', document.querySelectorAll('#tab-console .btn-group button')[2]);
-        logTerminal('PRESET', 'Applied Mid-Transaction Stress Profile (85% CPU + 1250ms latency + 2G).');
-      } else if (presetKey === 'extreme_starvation') {
-        document.getElementById('cpuSlider').value = 95;
-        updateVal('cpuVal', '95%');
-        document.getElementById('batSlider').value = 2;
-        updateVal('batVal', '2%');
-        document.getElementById('latSlider').value = 2500;
-        updateVal('latVal', '2500 ms');
-        logTerminal('PRESET', 'Applied Extreme Resource Starvation Profile.');
-      }
-    }
-
-    // YAML Templates
-    const YAML_TEMPLATES = {
-      compound_multi_factor_chaos: `version: "1.0"
-metadata:
-  name: "Compound Multi-Factor Chaos"
-  system: "Context-Aware Environmental Perturbation Engine"
-triggers:
-  execution_hook: "MID_TRANSACTION"
-  delay_seconds: 0.2
-stressors:
-  hardware:
-    cpu_stress_pct: 92
-    ram_pressure: "RUNNING_CRITICAL"
-    battery_level: 4
-    unplugged: true
-    thermal_state: "Warn"
-  network:
-    profile: "2g_edge"
-    latency_ms: 1450
-    packet_loss_pct: 8
-    dns_failure: true
-  interruptions:
-    incoming_call:
-      phone_number: "15550192831"
-      auto_answer_after_sec: 2.0
-    sms_banner:
-      sender: "15550192831"
-      message: "Security Alert: Verify transaction OTP"
-`,
-      "3g_network_drop": `version: "1.0"
-metadata:
-  name: "3G High Latency & Packet Loss Scenario"
-triggers:
-  execution_hook: "AUTH_LOGIN"
-stressors:
-  network:
-    profile: "3g"
-    latency_ms: 2200
-    packet_loss_pct: 12
-    dns_failure: false
-`,
-      high_cpu_stress: `version: "1.0"
-metadata:
-  name: "CPU Starvation & Low Memory Killer (LMK)"
-triggers:
-  execution_hook: "CATALOG_BROWSE"
-stressors:
-  hardware:
-    cpu_stress_pct: 95
-    ram_pressure: "RUNNING_CRITICAL"
-`,
-      thermal_throttling_battery_drain: `version: "1.0"
-metadata:
-  name: "Thermal Throttling & Battery Drain"
-triggers:
-  execution_hook: "CHECKOUT_PAYMENT"
-stressors:
-  hardware:
-    thermal_state: "Critical"
-    battery_level: 3
-    unplugged: true
-`,
-      aggressive_multitasking_backgrounding: `version: "1.0"
-metadata:
-  name: "Aggressive OS Interruptions & Doze Transition"
-triggers:
-  execution_hook: "ASYNC_WAIT"
-stressors:
-  interruptions:
-    incoming_call:
-      phone_number: "15550192831"
-    background_app_seconds: 4.0
-    force_doze: true
-`
-    };
-
+    // YAML & Asyncio Timeline
     function loadSelectedTemplate() {
       const sel = document.getElementById('templateSelector').value;
-      const editor = document.getElementById('yamlEditor');
-      editor.value = YAML_TEMPLATES[sel] || YAML_TEMPLATES['compound_multi_factor_chaos'];
+      document.getElementById('yamlEditor').value = YAML_TEMPLATES[sel] || YAML_TEMPLATES.compound_multi_factor_chaos;
       validateYaml();
     }
-
-    function resetYamlToDefault() {
-      loadSelectedTemplate();
-    }
-
     async function validateYaml() {
-      const content = document.getElementById('yamlEditor').value;
       try {
-        const res = await fetch(`${API_BASE}/api/profiles/parse_yaml`, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ yaml_content: content })
-        });
-        if (res.ok) {
-          const data = await res.json();
-          document.getElementById('schemaStatusBadge').textContent = 'VALID SCHEMA';
-          document.getElementById('schemaStatusBadge').style.color = '#34d399';
-          document.getElementById('schemaChaosIndex').textContent = `${data.chaos_score}% (Compliant)`;
-          logTerminal('SCHEMA', 'YAML configuration successfully validated against Proposal Section 5.');
-        } else {
-          document.getElementById('schemaStatusBadge').textContent = 'SCHEMA WARNING';
-          document.getElementById('schemaStatusBadge').style.color = '#fb7185';
-        }
+        const d = await apiCall('/api/profiles/parse_yaml', 'POST', { yaml_content: document.getElementById('yamlEditor').value });
+        document.getElementById('schemaStatusBadge').textContent = 'VALID SCHEMA';
+        document.getElementById('schemaChaosIndex').textContent = `${d.chaos_score}%`;
       } catch (e) {
-        document.getElementById('schemaStatusBadge').textContent = 'VALID (LOCAL)';
+        document.getElementById('schemaStatusBadge').textContent = 'INVALID';
+        toast(`YAML Error: ${e.message}`);
       }
     }
-
     async function executeCurrentYaml() {
-      logTerminal('YAML', 'Parsing and dispatching scenario timeline to target device...');
-      const content = document.getElementById('yamlEditor').value;
-      try {
-        await fetch(`${API_BASE}/api/perturbation/apply`, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({
-            name: "Custom YAML Scenario",
-            cpuStress: 88,
-            latency: 1450,
-            packetLoss: 8
-          })
-        });
-        logTerminal('SUCCESS', 'YAML Scenario dispatched within 18.2ms (<100ms PASS). Target perturbed.');
-      } catch (e) {
-        logTerminal('LOCAL', 'Scenario executed locally on virtual device.');
-      }
-      fetchRecentEvents();
+      const parsed = await apiCall('/api/profiles/parse_yaml', 'POST', { yaml_content: document.getElementById('yamlEditor').value });
+      await apiCall('/api/perturbation/apply', 'POST', parsed.profile);
+      toast('Profile applied'); fetchRecentEvents();
+    }
+    async function runAsyncTimeline() {
+      const parsed = await apiCall('/api/profiles/parse_yaml', 'POST', { yaml_content: document.getElementById('yamlEditor').value });
+      const res = await apiCall('/api/scheduler/run_timeline', 'POST', { profile: parsed.profile });
+      const box = document.getElementById('timelineVisualizer');
+      box.innerHTML = (res.dispatched || []).map(item =>
+        `<div class="t-line"><span class="t-ts">[T+${item.offset_ms}ms]</span><span class="t-tag">${item.step}</span><span>${item.action} &rarr; ${item.status} (${item.dispatch_ms}ms)</span></div>`
+      ).join('');
+      toast(`Asyncio timeline ran (${res.steps_executed} steps)`); fetchRecentEvents();
     }
 
-    // Semantic Steps
+    // Semantic Scheduler
     async function triggerSemanticStep(step) {
-      logTerminal('SCHEDULER', `UI Step triggered: '${step}'. Dispatching synchronized perturbation hooks...`);
-      document.querySelectorAll('.step-node').forEach(n => {
-        if (n.querySelector('.step-node-title').textContent.includes(step)) {
-          n.classList.add('active');
-        } else {
-          n.classList.remove('active');
-        }
-      });
-      try {
-        await fetch(`${API_BASE}/api/scheduler/trigger_step`, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ step: step })
-        });
-        logTerminal('SUCCESS', `Hooks for '${step}' fired within 21.6ms (<100ms PASS).`);
-      } catch (e) {
-        logTerminal('LOCAL', `Hooks for '${step}' dispatched.`);
-      }
-      fetchRecentEvents();
+      document.querySelectorAll('.flow-node').forEach(n => n.classList.toggle('active', n.textContent.includes(step)));
+      const d = await apiCall('/api/scheduler/trigger_step', 'POST', { step });
+      logTerminal('SCHEDULER', `${step} fired (${d.latency_ms}ms)`, 't-ok'); toast(`${step} fired`); fetchRecentEvents();
     }
-
     async function evaluateAdaptiveSignals() {
       const fps = parseFloat(document.getElementById('signalFpsSlider').value);
-      const lat = parseFloat(document.getElementById('signalLatSlider').value);
-      logTerminal('ADAPTIVE', `Evaluating runtime signals: ${fps} FPS, ${lat}ms RTT...`);
-      try {
-        const res = await fetch(`${API_BASE}/api/scheduler/evaluate_signals`, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ fps: fps, latency_ms: lat, cpu_pct: 75 })
-        });
-        const data = await res.json();
-        logTerminal('SUCCESS', `Signal feedback evaluated: ${data.escalated ? 'ESCALATION TRIGGERED' : 'NORMAL'}`);
-      } catch (e) {
-        logTerminal('LOCAL', `Adaptive escalation triggered (FPS < 35 detected).`);
-      }
+      const latency_ms = parseFloat(document.getElementById('signalLatSlider').value);
+      const d = await apiCall('/api/scheduler/evaluate_signals', 'POST', { fps, latency_ms, cpu_pct: 75 });
+      document.getElementById('escalationStatusBadge').textContent = d.escalated ? 'ESCALATED' : 'NOMINAL';
+      document.getElementById('escalationStatusBadge').className = d.escalated ? 'metric-chip warn' : 'metric-chip ok';
+      const escs = d.active_escalations || [];
+      document.getElementById('escalationLogBox').innerHTML = escs.length
+        ? escs.slice(-6).map(x => `<div class="t-line t-warn">${escapeHtml(x)}</div>`).join('')
+        : '<div class="t-line t-ok">Signals within nominal thresholds.</div>';
     }
 
-    // Themis Benchmarks
-    function renderThemisCards() {
-      const grid = document.getElementById('themisCardsGrid');
-      if (!grid) return;
-      grid.innerHTML = THEMIS_BUGS.map(b => `
-        <div class="themis-card">
-          <div class="themis-header">
-            <div>
-              <div class="themis-app-title">${b.app_name}</div>
-              <div class="themis-package">${b.package}</div>
-            </div>
-            <span class="themis-badge">${b.bug_type}</span>
+    // Themis
+    async function loadThemisCatalog() {
+      try {
+        const d = await apiCall(`/api/themis/benchmarks?full=${showAll52 ? 'true' : 'false'}`);
+        themisItems = d.benchmarks || [];
+        document.getElementById('themisCountPill').textContent = String(d.catalog_52_count || themisItems.length);
+        filterThemis();
+      } catch (e) {}
+    }
+    function toggleThemisFull() {
+      showAll52 = !showAll52;
+      document.getElementById('btnToggle52').textContent = showAll52 ? 'Show Core 5 Bugs' : 'Show Full 52 Catalog';
+      loadThemisCatalog();
+    }
+    function filterThemis() {
+      const q = (document.getElementById('themisSearch').value || '').toLowerCase();
+      const filtered = themisItems.filter(b =>
+        (b.app_name || '').toLowerCase().includes(q) ||
+        (b.bug_type || '').toLowerCase().includes(q) ||
+        (b.id || '').toLowerCase().includes(q)
+      );
+      document.getElementById('themisCardsGrid').innerHTML = filtered.map(b => `
+        <div class="bug-card">
+          <div style="display:flex; justify-content:space-between; gap:8px; align-items:start;">
+            <div><strong>${escapeHtml(b.app_name)}</strong><div style="font-size:11px; color:var(--text-muted); font-family:var(--mono);">${escapeHtml(b.package)}</div></div>
+            <span class="pill-tag">${escapeHtml(b.id)}</span>
           </div>
-          <div style="font-size: 11px; color: var(--text-muted); line-height: 1.4;">
-            ${b.desc}
-          </div>
-          <div class="themis-code-snippet">${b.log}</div>
-          <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-dim); margin-top: 4px;">
-            <span>Repr Rate: <strong style="color: #34d399;">${b.reproduction_rate}</strong></span>
-            <span>Attribution: <strong style="color: var(--accent-orange-bright);">${(b.attribution_score * 100).toFixed(1)}%</strong></span>
-          </div>
-          <button class="btn-action primary" onclick="reproduceThemisBug('${b.id}')">
-            ▶️ Reproduce on Target Device
-          </button>
+          <div style="font-size:11.5px; color:var(--text-secondary);">${escapeHtml(b.description || b.bug_type + ' · Trigger: ' + b.trigger)}</div>
+          ${b.failure_log ? `<div class="bug-code">${escapeHtml(b.failure_log)}</div>` : ''}
+          ${b.failure_log ? `<button class="btn btn-primary btn-sm" onclick="reproduceThemis('${b.id}')">Reproduce Bug</button>` : `<span style="font-size:11px; color:var(--text-muted);">Hao et al. 2024 Dataset · ${escapeHtml(b.trigger)}</span>`}
         </div>
       `).join('');
     }
-
-    async function reproduceThemisBug(bugId) {
-      const b = THEMIS_BUGS.find(x => x.id === bugId);
-      logTerminal('THEMIS', `Initiating deterministic reproduction sequence for ${bugId} on ${b.app_name}...`);
-      try {
-        const res = await fetch(`${API_BASE}/api/themis/reproduce/${bugId}`, { method: 'POST' });
-        const data = await res.json();
-        showThemisModal(b, data);
-        logTerminal('SUCCESS', `Benchmark bug ${bugId} reproduced! Injection latency: ${data.injection_latency_ms || 26.4}ms (<100ms PASS).`);
-      } catch (e) {
-        showThemisModal(b, {
-          status: "REPRODUCED",
-          injection_latency_ms: 24.8,
-          rq1_latency_pass: true,
-          reproduction_timestamp: new Date().toLocaleString()
-        });
-        logTerminal('LOCAL', `Bug ${bugId} reproduced deterministically.`);
-      }
+    async function reproduceThemis(id) {
+      const d = await apiCall(`/api/themis/reproduce/${id}`, 'POST');
+      document.getElementById('themisModalTitle').textContent = `Reproduced: ${d.bug_id}`;
+      document.getElementById('themisModalBody').innerHTML = `
+        <p><strong>App:</strong> ${escapeHtml(d.app_name)} (<code>${escapeHtml(d.package)}</code>)</p>
+        <p style="margin:8px 0;"><strong>Trigger:</strong> ${escapeHtml(d.trigger)} · <strong>Score:</strong> ${(d.attribution_score*100).toFixed(1)}%</p>
+        <pre class="terminal">${escapeHtml(d.failure_log)}</pre>
+        <p style="margin-top:10px; color:var(--text-secondary);"><strong>Mitigation:</strong> ${escapeHtml(d.mitigation)}</p>`;
+      document.getElementById('themisModal').classList.add('show');
       fetchRecentEvents();
     }
 
-    function showThemisModal(bug, result) {
-      document.getElementById('themisModalTitle').textContent = `Themis Bug Reproduced: ${bug.id}`;
-      document.getElementById('themisModalBody').innerHTML = `
-        <div style="display: flex; flex-direction: column; gap: 14px; font-size: 12px;">
-          <div style="padding: 12px; background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.3); border-radius: 8px; color: #34d399;">
-            <strong>✓ STATUS: REPRODUCED &bull; ATTRIBUTION CONFIDENCE: ${(bug.attribution_score * 100).toFixed(1)}%</strong>
-          </div>
-          <div>
-            <strong>Application:</strong> ${bug.app_name} (<code>${bug.package}</code>)
-          </div>
-          <div>
-            <strong>Defect Mechanism:</strong> ${bug.desc}
-          </div>
-          <div>
-            <strong>Environmental Trigger:</strong> <span style="color: var(--accent-orange-bright); font-weight: 700;">${bug.trigger}</span>
-          </div>
-          <div>
-            <strong>Captured Failure Stack Trace:</strong>
-            <pre style="background: #050811; padding: 10px; border-radius: 6px; color: #fca5a5; font-size: 11px; margin-top: 6px; overflow-x: auto;">${bug.log}</pre>
-          </div>
-          <div style="padding: 10px 12px; background: rgba(255,255,255,0.03); border-radius: 8px;">
-            <strong>Recommended Mitigation:</strong>
-            <p style="color: var(--text-muted); margin-top: 4px;">${bug.mitigation}</p>
-          </div>
-          <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-dim);">
-            <span>Injection Latency: <strong>${result.injection_latency_ms || 24.6} ms</strong> (&lt;100ms PASS)</span>
-            <span>Timestamp: ${result.reproduction_timestamp}</span>
-          </div>
-        </div>
-      `;
-      document.getElementById('themisModal').classList.add('show');
+    // APK Runner
+    async function refreshApkList() {
+      try {
+        const d = await apiCall('/api/apk/list');
+        const apks = d.apks || [];
+        document.getElementById('apkListBox').innerHTML = apks.map(a => `
+          <button class="seg-btn" style="text-align:left;" onclick="document.getElementById('activePkgInput').value='${escapeHtml(a.package_name || a.filename)}'">
+            <strong>${escapeHtml(a.filename)}</strong> (${a.size_mb} MB) · ${escapeHtml(a.package_name || '')}
+          </button>`).join('') || '<div style="color:var(--text-muted); font-size:12px;">No APKs uploaded yet.</div>';
+      } catch (e) {}
     }
-
-    function closeThemisModal() {
-      document.getElementById('themisModal').classList.remove('show');
+    async function handleApkUpload(ev) {
+      const file = ev.target.files[0]; if (!file) return;
+      const fd = new FormData(); fd.append('file', file);
+      const res = await fetch(`${API_BASE}/api/apk/upload`, { method: 'POST', body: fd });
+      const d = await res.json();
+      if (d.package_name) document.getElementById('activePkgInput').value = d.package_name;
+      toast(`Uploaded ${file.name}`); refreshApkList();
     }
-
-    // Target APK Deployment
-    function handleApkSelected(event) {
-      const file = event.target.files[0];
-      if (file) {
-        document.getElementById('activePkgLabel').textContent = `com.target.${file.name.replace('.apk', '').toLowerCase()}`;
-        logTerminal('APK', `Selected local APK: ${file.name} (${(file.size / (1024*1024)).toFixed(2)} MB).`);
-      }
-    }
-
-    function selectPresetApk(name, pkg) {
-      document.getElementById('activePkgLabel').textContent = pkg;
-      logTerminal('APK', `Selected benchmark package: ${name} (${pkg}).`);
-    }
-
-    async function installTargetApk() {
-      const pkg = document.getElementById('activePkgLabel').textContent;
-      logTerminal('ADB', `Executing adb install -r on ${pkg}...`);
-      setTimeout(() => {
-        logTerminal('SUCCESS', `Target application ${pkg} installed successfully on target device.`);
-      }, 1000);
-    }
-
     async function launchTargetApp() {
-      const pkg = document.getElementById('activePkgLabel').textContent;
-      logTerminal('ADB', `Launching target package via monkey intent: ${pkg}...`);
-      setTimeout(() => {
-        logTerminal('SUCCESS', `Target package ${pkg} is now foregrounded on device.`);
-      }, 800);
+      const pkg = document.getElementById('activePkgInput').value;
+      const d = await apiCall('/api/apk/launch', 'POST', { package_name: pkg });
+      toast(`Launched ${pkg}`); document.getElementById('apkStressOutputBox').innerHTML += `<div class="t-line t-ok">${escapeHtml(JSON.stringify(d))}</div>`;
     }
-
     async function runApkStressTest() {
-      const pkg = document.getElementById('activePkgLabel').textContent;
-      const box = document.getElementById('apkStressOutputBox');
-      box.innerHTML = '';
-      function addLine(msg) {
-        const div = document.createElement('div');
-        div.className = 'terminal-line';
-        div.innerHTML = `<span class="terminal-time">[TEST]</span> <span class="terminal-msg">${msg}</span>`;
-        box.appendChild(div);
-        box.scrollTop = box.scrollHeight;
-      }
-
-      addLine(`Initiating synchronized multi-factor stress flow on ${pkg}...`);
-      setTimeout(() => addLine('Stage 1: Throttling bandwidth to 2G/EDGE (236k) and injecting 1450ms RTT delay...'), 600);
-      setTimeout(() => addLine('Stage 2: Injecting 88% CPU load loops to simulate background contention...'), 1200);
-      setTimeout(() => addLine('Stage 3: Dispatching incoming telephony call interruption mid-checkout...'), 1800);
-      setTimeout(() => addLine('Stage 4: Broadcasting am send-trim-memory (RUNNING_CRITICAL)...'), 2400);
-      setTimeout(() => {
-        addLine('✓ Stress sequence completed. Telemetry and failure events logged for attribution.');
-        logTerminal('SUCCESS', `Target APK stress flow executed on ${pkg}.`);
-        fetchRecentEvents();
-      }, 3000);
+      const pkg = document.getElementById('activePkgInput').value;
+      const d = await apiCall('/api/apk/stress_test', 'POST', { package_name: pkg });
+      document.getElementById('apkStressOutputBox').innerHTML += `<div class="t-line t-ok">${escapeHtml(JSON.stringify(d))}</div>`;
+      toast(`Stress executed on ${pkg}`); fetchRecentEvents();
     }
 
-    // Telemetry & Event Audit
+    // Events & Live Canvas Charts
     async function fetchRecentEvents() {
       try {
-        const res = await fetch(`${API_BASE}/api/perturbation/events?limit=30`);
-        if (res.ok) {
-          const data = await res.json();
-          eventsList = data.events || [];
-          renderEventsTable(eventsList);
-          document.getElementById('eventCountLabel').textContent = eventsList.length;
-        }
-      } catch (e) {
+        const d = await apiCall('/api/perturbation/events?limit=50');
+        eventsList = d.events || [];
+        document.getElementById('eventCountLabel').textContent = String(d.total_events || eventsList.length);
         renderEventsTable(eventsList);
-      }
+        drawTelemetryCharts(eventsList);
+        fetchStatusAndMetrics();
+      } catch (e) {}
     }
-
     function renderEventsTable(list) {
-      const tbody = document.getElementById('eventsTableBody');
-      if (!tbody) return;
-      if (!list || list.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color: var(--text-dim); padding: 20px;">No perturbation events recorded yet.</td></tr>`;
-        return;
-      }
-      tbody.innerHTML = list.map(e => `
-        <tr>
-          <td style="font-family: monospace; color: var(--text-dim);">${e.timestamp || '2026-10-07 21:00'}</td>
-          <td><span class="themis-badge" style="background: rgba(251,146,60,0.15); color: var(--accent-orange-bright); border-color: rgba(251,146,60,0.3);">${e.category || 'SYSTEM'}</span></td>
-          <td><strong>${e.action || 'APPLIED'}</strong></td>
-          <td style="font-family: monospace; font-size: 11px; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-            ${JSON.stringify(e.parameters || {})}
-          </td>
-          <td><strong style="color: #34d399;">${e.injection_latency_ms || 24.6} ms</strong></td>
-          <td><span class="sla-badge">&lt;100ms PASS</span></td>
-        </tr>
-      `).join('');
+      const body = document.getElementById('eventsTableBody');
+      body.innerHTML = (list || []).slice().reverse().map(e => {
+        const over = e.host_overhead || {};
+        return `<tr>
+          <td style="font-family:var(--mono); font-size:11px;">${escapeHtml(e.timestamp || '')}</td>
+          <td><span class="pill-tag">${escapeHtml(e.category || '')}</span></td>
+          <td><strong>${escapeHtml(e.action || '')}</strong></td>
+          <td style="font-family:var(--mono); font-size:11px; max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(JSON.stringify(e.parameters || {}))}</td>
+          <td><strong style="color:${Number(e.injection_latency_ms) < 100 ? 'var(--emerald)' : 'var(--amber)'}">${e.injection_latency_ms} ms</strong></td>
+          <td style="font-family:var(--mono); font-size:11px;">${over.cpu_percent || 0}% / ${over.process_mem_percent || 0}%</td>
+        </tr>`;
+      }).join('') || '<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">No events recorded yet.</td></tr>';
     }
-
     function filterEventsTable() {
-      const q = document.getElementById('eventFilterInput').value.toLowerCase();
-      const filtered = eventsList.filter(e =>
-        (e.category && e.category.toLowerCase().includes(q)) ||
-        (e.action && e.action.toLowerCase().includes(q)) ||
-        JSON.stringify(e.parameters || {}).toLowerCase().includes(q)
-      );
-      renderEventsTable(filtered);
+      const q = (document.getElementById('eventFilterInput').value || '').toLowerCase();
+      renderEventsTable(eventsList.filter(e => JSON.stringify(e).toLowerCase().includes(q)));
     }
-
+    function drawSeries(canvasId, seriesA, seriesB, colA, colB, refLine) {
+      const cv = document.getElementById(canvasId); if (!cv) return;
+      const ctx = cv.getContext('2d'); const w = cv.width, h = cv.height;
+      ctx.clearRect(0, 0, w, h);
+      ctx.strokeStyle = 'rgba(148,163,184,0.14)'; ctx.lineWidth = 1;
+      for (let y = 30; y < h; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
+      const pts = Math.max(2, seriesA.length);
+      const maxVal = Math.max(refLine || 10, ...seriesA, ...seriesB, 1);
+      if (refLine) {
+        const ry = h - 16 - (refLine / maxVal) * (h - 32);
+        ctx.strokeStyle = 'rgba(244,63,94,0.55)'; ctx.setLineDash([4, 4]);
+        ctx.beginPath(); ctx.moveTo(0, ry); ctx.lineTo(w, ry); ctx.stroke(); ctx.setLineDash([]);
+      }
+      const plot = (arr, col) => {
+        if (!arr.length) return;
+        ctx.strokeStyle = col; ctx.lineWidth = 2.2; ctx.beginPath();
+        arr.forEach((v, i) => {
+          const x = (i / Math.max(1, pts - 1)) * (w - 20) + 10;
+          const y = h - 16 - (v / maxVal) * (h - 32);
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+      };
+      plot(seriesA, colA); plot(seriesB, colB);
+    }
+    function drawTelemetryCharts(list) {
+      const recent = (list || []).slice(-25);
+      const lats = recent.map(e => Number(e.injection_latency_ms || 0));
+      const cpus = recent.map(e => Number((e.host_overhead || {}).cpu_percent || 0));
+      const mems = recent.map(e => Number((e.host_overhead || {}).process_mem_percent || 0));
+      drawSeries('telemetryCanvas1', lats, [], '#6366f1', '#06b6d4', 100);
+      drawSeries('telemetryCanvas2', cpus, mems, '#10b981', '#f59e0b', 15);
+    }
     function exportAuditLogJson() {
       const blob = new Blob([JSON.stringify(eventsList, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `perturbation_event_log_${Date.now()}.json`;
-      a.click();
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `heart_events_${Date.now()}.json`; a.click();
     }
 
-    // Telemetry Canvas Charts
-    let canvas1, canvas2, ctx1, ctx2;
-    function initTelemetryCanvas() {
-      canvas1 = document.getElementById('telemetryCanvas1');
-      canvas2 = document.getElementById('telemetryCanvas2');
-      if (canvas1) ctx1 = canvas1.getContext('2d');
-      if (canvas2) ctx2 = canvas2.getContext('2d');
-      drawMockTelemetry();
+    // Attribution & C4 Seed
+    function buildFailureInput() {
+      return { id: 'UI-FAIL-01', type: document.getElementById('attrType').value, component: document.getElementById('attrComp').value, description: document.getElementById('attrDesc').value };
+    }
+    async function runAttributionAnalysis() {
+      const d = await apiCall('/api/perturbation/attribution', 'POST', { failures: [buildFailureInput()] });
+      document.getElementById('attrOutputPre').textContent = JSON.stringify(d, null, 2);
+      toast('Attribution completed');
+    }
+    async function exportC4Seed() {
+      const d = await apiCall('/api/attribution/export_c4_seed', 'POST', { package_name: document.getElementById('attrPkg').value, failures: [buildFailureInput()] });
+      document.getElementById('attrOutputPre').textContent = JSON.stringify(d, null, 2);
+      toast('Exported c4.journey/1 seed');
     }
 
-    function drawMockTelemetry() {
-      if (!ctx1 || !ctx2) return;
-      // Chart 1: Latency & FPS
-      ctx1.clearRect(0, 0, canvas1.width, canvas1.height);
-      ctx1.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-      ctx1.lineWidth = 1;
-      for (let y = 30; y < canvas1.height; y += 40) {
-        ctx1.beginPath(); ctx1.moveTo(0, y); ctx1.lineTo(canvas1.width, y); ctx1.stroke();
-      }
-
-      // Latency line (Red)
-      ctx1.strokeStyle = '#f43f5e';
-      ctx1.lineWidth = 2.5;
-      ctx1.beginPath();
-      ctx1.moveTo(0, 160);
-      ctx1.lineTo(80, 140);
-      ctx1.lineTo(160, 150);
-      ctx1.lineTo(240, 60);
-      ctx1.lineTo(320, 75);
-      ctx1.lineTo(400, 45);
-      ctx1.lineTo(500, 50);
-      ctx1.stroke();
-
-      // FPS line (Blue)
-      ctx1.strokeStyle = '#38bdf8';
-      ctx1.lineWidth = 2.5;
-      ctx1.beginPath();
-      ctx1.moveTo(0, 40);
-      ctx1.lineTo(80, 45);
-      ctx1.lineTo(160, 42);
-      ctx1.lineTo(240, 120);
-      ctx1.lineTo(320, 135);
-      ctx1.lineTo(400, 150);
-      ctx1.lineTo(500, 140);
-      ctx1.stroke();
-
-      // Chart 2: CPU & RAM
-      ctx2.clearRect(0, 0, canvas2.width, canvas2.height);
-      ctx2.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-      ctx2.lineWidth = 1;
-      for (let y = 30; y < canvas2.height; y += 40) {
-        ctx2.beginPath(); ctx2.moveTo(0, y); ctx2.lineTo(canvas2.width, y); ctx2.stroke();
-      }
-
-      // CPU (Amber)
-      ctx2.strokeStyle = '#fb923c';
-      ctx2.lineWidth = 2.5;
-      ctx2.beginPath();
-      ctx2.moveTo(0, 160);
-      ctx2.lineTo(120, 155);
-      ctx2.lineTo(240, 70);
-      ctx2.lineTo(360, 55);
-      ctx2.lineTo(500, 65);
-      ctx2.stroke();
-
-      // RAM (Purple)
-      ctx2.strokeStyle = '#a855f7';
-      ctx2.lineWidth = 2.5;
-      ctx2.beginPath();
-      ctx2.moveTo(0, 140);
-      ctx2.lineTo(120, 135);
-      ctx2.lineTo(240, 85);
-      ctx2.lineTo(360, 80);
-      ctx2.lineTo(500, 75);
-      ctx2.stroke();
-    }
-
-    async function pollTelemetry() {
-      drawMockTelemetry();
-    }
-
-    // Attribution
-    function runAttributionAnalysis() {
-      logTerminal('ATTRIBUTION', 'Correlating recorded perturbation stream with application error logs...');
-      setTimeout(() => {
-        logTerminal('SUCCESS', 'Attribution complete: 94.3% causal correlation with injected environmental chaos.');
-      }, 800);
-    }
-
-    // PP1 Defense Audit Export
-    async function downloadAcademicAuditReport() {
+    // Corpus Table
+    async function loadCorpusData() {
       try {
-        const res = await fetch(`${API_BASE}/api/audit/report`);
+        const res = await fetch(`${API_BASE}/results/corpus_benchmark_results.json`);
         if (res.ok) {
-          const data = await res.json();
-          const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `Environmental_Audit_Report.json`;
-          a.click();
-          return;
+          const d = await res.json();
+          document.getElementById('corpusMetaChip').textContent = `${(d.packages || []).length} Apps · ${d.mode} · Uptime ${d.emulator_uptime_pct || 100}%`;
+          const reg = d.regimes || {};
+          document.getElementById('corpusTableBody').innerHTML = Object.entries(reg).map(([k, v]) => `
+            <tr>
+              <td><strong>${escapeHtml(k)}</strong></td><td>${v.apps_evaluated}</td><td>${v.trials_total}</td>
+              <td>${v.mean_latency_ms}</td><td>${v.mean_fps}</td><td>${v.jank_frame_drop_pct}%</td>
+              <td>${v.paired_t_stat ?? '-'} (p=${v.p_value_paired_t ?? '-'})</td>
+              <td>${v.p_value_mann_whitney ?? '-'}</td>
+            </tr>`).join('');
         }
       } catch (e) {}
-
-      // Fallback
-      const report = {
-        system: "Context-Aware Environmental Perturbation Engine",
-        framework: "HEART Mobile Robustness Testing Framework",
-        project_id: "J26-SE-334",
-        rq1_injection_latency_ms: 24.6,
-        rq1_host_overhead_pct: 4.8,
-        rq2_defect_gain_pct: 53.3,
-        rq4_themis_bugs_reproduced: "5/5 (100%)",
-        verdict: "100% COMPLIANT WITH EMPIRICAL TARGETS"
-      };
-      const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Environmental_Audit_Report.json`;
-      a.click();
     }
 
-    // 7-Stage Live Suite Modal Execution
+    // Suite Modal
     const SUITE_STAGES = [
-      { id: 1, title: "Stage 1: Hardware Resource Starvation (CPU 88%, LMK trim, 4% Battery, 55°C Thermal)", status: "pending" },
-      { id: 2, title: "Stage 2: Advanced Network Chaos (2G/EDGE 236k, 1450ms Latency, 8% Loss, WiFi➔Data Handover)", status: "pending" },
-      { id: 3, title: "Stage 3: Real-World Interruptions (GSM Call, Answer, Decline, SMS Banner, App Background)", status: "pending" },
-      { id: 4, title: "Stage 4: Context Fuzzing (Landscape 90°, Dark Mode, Font Scale 1.35x, Mock GPS Fix)", status: "pending" },
-      { id: 5, title: "Stage 5: Dynamic Scheduling & Closed-Loop Escalation (FPS Drop ➔ Hardware Scaling)", status: "pending" },
-      { id: 6, title: "Stage 6: Environment-Induced Failure Attribution Correlation", status: "pending" },
-      { id: 7, title: "Stage 7: Proposal SLA Threshold Verification (<100ms Latency, <15% Overhead)", status: "pending" }
+      { id: 1, label: 'CPU Throttle 80%', fn: () => apiCall('/api/stressor/hardware/cpu', 'POST', { cpu_pct: 80 }) },
+      { id: 2, label: 'Network Latency 900ms', fn: () => apiCall('/api/stressor/network/latency', 'POST', { latency_ms: 900 }) },
+      { id: 3, label: 'Context Brightness 25', fn: () => apiCall('/api/stressor/context/brightness', 'POST', { level: 25 }) },
+      { id: 4, label: 'Asyncio Profile Timeline', fn: () => apiCall('/api/scheduler/run_timeline', 'POST', { profile: { cpuStress: 60, latency: 500 } }) },
+      { id: 5, label: 'Nominal Reset Clean', fn: () => apiCall('/api/perturbation/reset', 'POST') }
     ];
-
     function openLiveSuiteModal() {
-      const listEl = document.getElementById('suiteStagesList');
-      listEl.innerHTML = SUITE_STAGES.map(s => `
-        <div id="suiteStageRow_${s.id}" style="padding: 10px 14px; background: rgba(255,255,255,0.03); border-radius: 8px; display: flex; align-items: center; justify-content: space-between; font-size: 12px;">
-          <span style="color: #fff;">${s.title}</span>
-          <span id="suiteStageBadge_${s.id}" class="themis-badge" style="background: rgba(255,255,255,0.08); color: var(--text-dim); border: none;">PENDING</span>
-        </div>
-      `).join('');
+      document.getElementById('suiteStagesList').innerHTML = SUITE_STAGES.map(s =>
+        `<div id="stRow_${s.id}" class="ctrl-row" style="padding:8px 12px; background:var(--bg-elevated); border-radius:8px; margin:0;"><span>${s.label}</span><span class="pill-tag" id="stBadge_${s.id}">PENDING</span></div>`
+      ).join('');
+      document.getElementById('suiteOutputConsole').innerHTML = '';
       document.getElementById('liveSuiteModal').classList.add('show');
     }
-
-    function closeLiveSuiteModal() {
-      document.getElementById('liveSuiteModal').classList.remove('show');
-    }
-
     async function startLiveSuiteExecution() {
-      const btn = document.getElementById('btnStartSuite');
-      btn.disabled = true;
-      btn.textContent = 'Executing Suite...';
-
-      const consoleBox = document.getElementById('suiteOutputConsole');
-      function addLog(msg) {
-        const div = document.createElement('div');
-        div.className = 'terminal-line';
-        div.innerHTML = `<span class="terminal-time">[SUITE]</span> <span class="terminal-msg">${msg}</span>`;
-        consoleBox.appendChild(div);
-        consoleBox.scrollTop = consoleBox.scrollHeight;
+      const box = document.getElementById('suiteOutputConsole');
+      for (const s of SUITE_STAGES) {
+        document.getElementById(`stBadge_${s.id}`).textContent = 'RUNNING';
+        const r = await s.fn();
+        document.getElementById(`stBadge_${s.id}`).textContent = 'PASS';
+        box.innerHTML += `<div class="t-line t-ok">[STAGE ${s.id}] ${s.label}: ${escapeHtml(JSON.stringify(r).slice(0, 140))}</div>`;
       }
-
-      for (let i = 1; i <= 7; i++) {
-        const row = document.getElementById(`suiteStageRow_${i}`);
-        const badge = document.getElementById(`suiteStageBadge_${i}`);
-        row.style.background = 'rgba(251,146,60,0.1)';
-        row.style.border = '1px solid rgba(251,146,60,0.3)';
-        badge.textContent = 'RUNNING';
-        badge.style.background = 'rgba(251,146,60,0.2)';
-        badge.style.color = 'var(--accent-orange-bright)';
-
-        addLog(`Executing ${SUITE_STAGES[i-1].title}...`);
-        await new Promise(r => setTimeout(r, 900));
-
-        row.style.background = 'rgba(16,185,129,0.1)';
-        row.style.border = '1px solid rgba(16,185,129,0.3)';
-        badge.textContent = 'PASSED (PASS)';
-        badge.style.background = 'rgba(16,185,129,0.2)';
-        badge.style.color = '#34d399';
-        addLog(`Stage ${i} PASSED successfully.`);
-      }
-
-      addLog('🎉 All 7 Stages PASSED. Proposal RQ1-RQ4 SLAs 100% compliant.');
-      btn.disabled = false;
-      btn.textContent = 'Execution Complete (Passed)';
-      fetchRecentEvents();
+      toast('Live API verification suite complete'); fetchRecentEvents();
     }
+    function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const savedTheme = localStorage.getItem('heart_theme');
+      if (savedTheme === 'light') { document.documentElement.setAttribute('data-theme', 'light'); document.getElementById('themeIcon').textContent = '🌙'; }
+      loadSelectedTemplate();
+      loadThemisCatalog();
+      fetchRecentEvents();
+      loadCorpusData();
+      setInterval(fetchStatusAndMetrics, 4000);
+    });
   </script>
 </body>
 </html>
